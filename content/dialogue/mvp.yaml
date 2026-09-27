@@ -1,0 +1,24 @@
+# MVP の会話。1 行は 90 文字まで。
+mvp.yana:
+  lines:
+    - { who: ヤーナ, face: smirk, text: "来たね、坊主。ここは動きの確かめ場だよ。" }
+    - { who: ヤーナ, face: normal, text: "西の段は 1.0m、1.8m、2.4m。どこまで跳べるか試してみな。" }
+    - { who: ヤーナ, face: normal, text: "東の高台には 3m と 5m の溝。ダッシュしながら跳ぶと、もっと遠くまで届くよ。" }
+    - { who: ヤーナ, face: serious, text: "奥の部屋には番機がいる。ロックオンして撃つ、斬る、ダッシュで避ける。いいね？" }
+    - { action: give_item, item: special.drill }
+    - { who: ヤーナ, face: laugh, text: "それと、これを持っていきな。ドリルだ。ひび割れた壁なら穴を開けられる。" }
+    - { who: ヤーナ, face: smirk, text: "代金はツケにしといてやるよ。利子つきでね。" }
+    - { action: flag, flag: mvp.talked_yana }
+    - { action: objective, text: 北の通路を抜けて、奥の部屋へ進む }
+mvp.yana.again:
+  lines:
+    - { who: ヤーナ, face: normal, text: "奥の部屋のひび割れた壁は、ドリルで壊しな。特殊武器のボタンを押しっぱなしだよ。" }
+    - { who: ヤーナ, face: smirk, text: "疲れたら、そこの光の柱で休みな。セーブもできる。" }
+mvp.nagomi_corridor:
+  lines:
+    - { who: ナゴミ, face: analyzing, text: "前方に番機の反応が 3 つあります。……ハル、深呼吸を推奨します。" }
+    - { who: ハル, face: smug, text: "へっ、見習いだって回収屋は回収屋だ。" }
+mvp.nagomi_arena:
+  lines:
+    - { who: ナゴミ, face: warning, text: "警告します。敵に見つかりました。ロックオンして戦ってください。" }
+    - { who: ナゴミ, face: normal, text: "突撃型の突進は、横へのダッシュで避けられます。壁にぶつかると、しばらく動けなくなります。" }

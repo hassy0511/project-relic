@@ -403,10 +403,10 @@ export class Game {
         const p = this.player;
         const t = segmentSphere(s.pos, end, p.chest(), 0.45 + s.spec.radius);
         if (t !== null && t <= stopAt && !p.dead) {
-          if (p.takeDamage(s.spec.damage, s.pos, false)) {
-            s.alive = false;
-            stopAt = t;
-          }
+          // 無敵中（ダッシュや被弾直後）でも弾はプレイヤーで消す。すり抜けた弾がカメラの目の前を横切らないように
+          p.takeDamage(s.spec.damage, s.pos, false);
+          s.alive = false;
+          stopAt = t;
         }
       }
 

@@ -6,6 +6,7 @@ const DialogueLine = z.union([
   z.object({ who: z.string(), face: z.string().default('normal'), text: z.string() }),
   z.object({ action: z.literal('give_item'), item: z.string() }),
   z.object({ action: z.literal('flag'), flag: z.string() }),
+  z.object({ action: z.literal('objective'), text: z.string() }),
 ]);
 
 export const DialogueFileSchema = z.record(z.string(), z.object({ lines: z.array(DialogueLine) }));

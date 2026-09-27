@@ -1,0 +1,9 @@
+# MVP のイベント台本
+mvp.corridor:
+  steps:
+    - say: mvp.nagomi_corridor
+    - objective: 奥の部屋の番機を倒し、ひび割れた壁を壊す
+mvp.arena:
+  steps:
+    - sfx: alert
+    - say: mvp.nagomi_arena

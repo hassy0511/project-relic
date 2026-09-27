@@ -1,0 +1,69 @@
+/* 仮の UI。Codex の UI デザイン（W2-08）が届いたら差し替える */
+:root {
+  --ink: #fff4e0;
+  --amber: #ffb23e;
+  --amber-soft: #ffd27a;
+  --panel: rgba(24, 18, 12, 0.72);
+  --danger: #ff5a2a;
+  --font: 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #1a140e; color: var(--ink); font-family: var(--font); }
+#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#ui { position: fixed; inset: 0; pointer-events: none; }
+#ui .interactive { pointer-events: auto; }
+
+.hud { position: absolute; inset: 0; }
+.hud-vitals { position: absolute; left: 24px; top: 20px; display: flex; flex-direction: column; gap: 6px; }
+.hud-row { display: flex; align-items: center; gap: 8px; }
+.hud-label { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; width: 48px; color: var(--amber-soft); text-shadow: 0 1px 2px #000; }
+.hud-bar { width: 240px; height: 14px; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 210, 122, 0.6); border-radius: 3px; overflow: hidden; }
+.hud-we { width: 160px; height: 9px; }
+.hud-fill { height: 100%; background: linear-gradient(90deg, #ffcf7a, #ffb23e); transition: width 0.12s; }
+.hud-we .hud-fill { background: linear-gradient(90deg, #7fd8ff, #43a6ff); }
+.hud-fill.danger { background: linear-gradient(90deg, #ff8a5a, var(--danger)); animation: pulse 0.6s infinite alternate; }
+@keyframes pulse { from { opacity: 1; } to { opacity: 0.55; } }
+.hud-num { font-size: 13px; text-shadow: 0 1px 2px #000; }
+.hud-heals { font-size: 12px; opacity: 0.85; text-shadow: 0 1px 2px #000; }
+.hud-cells { position: absolute; right: 24px; top: 20px; font-size: 18px; font-weight: 700; color: var(--amber-soft); text-shadow: 0 1px 3px #000; transition: opacity 0.4s; }
+.hud-objective { position: absolute; right: 24px; top: 52px; font-size: 13px; max-width: 360px; text-align: right; text-shadow: 0 1px 3px #000; }
+.hud-prompt { position: absolute; left: 50%; bottom: 22%; transform: translateX(-50%); font-size: 17px; font-weight: 700; text-shadow: 0 1px 3px #000; }
+.hud-reticle { position: absolute; left: 0; top: 0; width: 0; height: 0; display: none; }
+.hud-reticle::before { content: ''; position: absolute; left: -26px; top: -26px; width: 52px; height: 52px; border: 2px solid var(--amber); border-radius: 50%; box-shadow: 0 0 8px rgba(255, 178, 62, 0.8); animation: spin 3s linear infinite; border-style: dashed; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.hud-reticle-hp { position: absolute; left: -30px; top: 34px; width: 60px; height: 5px; background: rgba(0, 0, 0, 0.6); }
+.hud-reticle-hp::after { content: ''; position: absolute; inset: 0; width: var(--hp, 100%); background: var(--danger); }
+.hud-reticle-weak { position: absolute; left: -60px; top: 44px; width: 120px; text-align: center; font-size: 11px; color: var(--amber-soft); text-shadow: 0 1px 2px #000; }
+.hud-reticle-scan { position: absolute; left: -30px; top: -40px; width: 60px; height: 3px; background: rgba(0, 0, 0, 0.5); }
+.hud-reticle-scan::after { content: ''; position: absolute; inset: 0; width: var(--scan, 0%); background: var(--amber-soft); }
+.hud-charge { position: absolute; left: 50%; top: 58%; width: 90px; height: 6px; transform: translateX(-50%); background: rgba(0, 0, 0, 0.5); border-radius: 3px; display: none; }
+.hud-charge::after { content: ''; position: absolute; inset: 0; width: var(--c, 0%); background: var(--amber); border-radius: 3px; }
+.hud-charge[data-lv='1']::after { background: var(--amber-soft); }
+.hud-charge[data-lv='2']::after { background: #fff; box-shadow: 0 0 8px #fff; }
+.hud-toast { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); padding: 10px 22px; background: var(--panel); border: 1px solid rgba(255, 210, 122, 0.5); border-radius: 6px; font-size: 16px; opacity: 0; transition: opacity 0.2s; white-space: nowrap; }
+.hud-damage { position: absolute; inset: 0; box-shadow: inset 0 0 120px rgba(255, 60, 30, 0.9); opacity: 0; }
+
+.dlg { position: absolute; left: 50%; bottom: 36px; transform: translateX(-50%); width: min(880px, 92vw); min-height: 128px; background: var(--panel); border: 1px solid rgba(255, 210, 122, 0.55); border-radius: 10px; padding: 16px 20px; display: none; gap: 18px; align-items: flex-start; }
+.dlg-face { flex: none; width: 88px; height: 88px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: 800; color: #1a140e; border: 3px solid rgba(255, 244, 224, 0.8); }
+.dlg-body { flex: 1; }
+.dlg-name { font-size: 15px; font-weight: 700; color: var(--amber-soft); margin-bottom: 6px; }
+.dlg-text { font-size: 19px; line-height: 1.6; min-height: 60px; }
+.dlg-next { position: absolute; right: 18px; bottom: 10px; color: var(--amber); opacity: 0; }
+.dlg.done .dlg-next { opacity: 1; animation: bob 0.6s infinite alternate; }
+@keyframes bob { to { transform: translateY(4px); } }
+
+/* 画面（タイトル、ポーズ） */
+.screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(16, 12, 8, 0.72); gap: 14px; }
+.screen.title { background: radial-gradient(ellipse at 50% 30%, #6b4a2c 0%, #2a1c12 60%, #140e09 100%); }
+.logo { font-size: clamp(40px, 7vw, 84px); font-weight: 900; letter-spacing: 0.12em; color: var(--amber-soft); text-shadow: 0 0 24px rgba(255, 178, 62, 0.5); }
+.logo-sub { font-size: 16px; letter-spacing: 0.4em; opacity: 0.8; margin-top: -6px; }
+.badge { font-size: 12px; padding: 3px 10px; border: 1px solid rgba(255, 210, 122, 0.6); border-radius: 12px; opacity: 0.8; }
+.menu { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; min-width: 280px; }
+.menu button { pointer-events: auto; font: inherit; font-size: 17px; padding: 12px 18px; color: var(--ink); background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 210, 122, 0.45); border-radius: 6px; cursor: pointer; text-align: left; }
+.menu button:hover, .menu button.focus { background: rgba(255, 178, 62, 0.22); border-color: var(--amber); }
+.menu button:disabled { opacity: 0.4; cursor: default; }
+.help { font-size: 13px; line-height: 1.8; opacity: 0.85; max-width: 760px; display: grid; grid-template-columns: auto auto; gap: 0 28px; margin-top: 10px; }
+.help b { color: var(--amber-soft); font-weight: 700; }
+.note { font-size: 12px; opacity: 0.6; }
+.loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; letter-spacing: 0.2em; }
+.perf { position: absolute; left: 8px; bottom: 8px; font: 11px/1.4 monospace; background: rgba(0, 0, 0, 0.5); padding: 4px 8px; border-radius: 4px; white-space: pre; }

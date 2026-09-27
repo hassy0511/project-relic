@@ -8,5 +8,5 @@ if ! command -v "$PY" >/dev/null 2>&1; then PY=python3; fi
 "$PY" -c 'import sys; assert sys.version_info[:2]==(3,11), "bpy 4.5 には Python 3.11 が必要です"'
 [ -d .venv-blender ] || "$PY" -m venv .venv-blender
 .venv-blender/bin/pip install -q --upgrade pip
-.venv-blender/bin/pip install -q "bpy==4.5.*" "numpy<2.3" soundfile
+.venv-blender/bin/pip install -q "bpy==4.5.*" "numpy<2.3" soundfile pillow
 echo "Blender 環境の準備ができました: .venv-blender"

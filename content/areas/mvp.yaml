@@ -1,0 +1,21 @@
+# MVP の試験場。地形は tools/blender/levels/mvp_greybox.py
+id: area.mvp
+name: 試験場（MVP）
+model: levels/mvp_greybox.glb
+playerStart: start
+objective: ヤーナと話す
+enemies:
+  - { type: sentry, at: enemy_1 }
+  - { type: sentry, at: enemy_2 }
+  - { type: charger, at: enemy_3 }
+props:
+  - { type: npc, id: npc_yana, at: npc_guide, name: ヤーナ, talk: mvp.yana }
+  - { type: beacon, id: beacon_a, at: beacon_a }
+  - { type: breakable, id: wall_b, at: cracked_wall, size: [4, 4, 1], breaksWith: drill }
+  - { type: chest, id: chest_b, at: chest_1, contents: { cells: 200, item: chip.charge } }
+triggers:
+  - { id: corridor, at: trig_corridor, size: [4, 3, 2], event: mvp.corridor }
+  - { id: arena, at: trig_arena, size: [4, 3, 2], event: mvp.arena }
+checkpoints:
+  - { id: cp_a, at: cp_a, radius: 6 }
+  - { id: cp_b, at: cp_b, radius: 3 }

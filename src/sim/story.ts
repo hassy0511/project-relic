@@ -123,7 +123,7 @@ export class Story {
   private advanceToText(id: string): void {
     while (this.lineIndex < this.lines.length) {
       const line = this.lines[this.lineIndex];
-      if ('text' in line) {
+      if ('who' in line) {
         this.shownF = 0;
         this.dialogue = {
           id,
@@ -137,6 +137,7 @@ export class Story {
         return;
       }
       if (line.action === 'give_item') this.host.giveItem(line.item);
+      else if (line.action === 'objective') this.host.setObjective(line.text);
       else if (line.action === 'flag') {
         this.flags[line.flag] = true;
         this.host.setFlag(line.flag);
