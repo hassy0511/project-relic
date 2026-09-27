@@ -20,6 +20,7 @@ CACHE = os.path.join(HERE, '.build_cache.json')
 
 TARGETS = [
     'models/haru_proxy.py',
+    'models/haru_a.py',
     'levels/mvp_greybox.py',
 ]
 
@@ -40,7 +41,7 @@ def main() -> int:
     render = '--render' in sys.argv
     cache = json.load(open(CACHE)) if os.path.exists(CACHE) else {}
     libs = sorted(os.path.join(HERE, 'lib', f) for f in os.listdir(os.path.join(HERE, 'lib')) if f.endswith('.py'))
-    extra = [os.path.join(HERE, 'models', 'humanoid_anims.py')]
+    extra = [os.path.join(HERE, 'models', f) for f in ('humanoid_anims.py', 'haru_a_textures.py')]
     failed = 0
     for t in TARGETS:
         path = os.path.join(HERE, t)

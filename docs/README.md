@@ -28,3 +28,4 @@
 | `art_orders/00_共通ルール.md` | すべての発注に共通する形式と禁止事項 |
 | `art_orders/W0_*.md` 〜 `W2_*.md` | 各回の発注書 |
 | `art_orders/W0_受領と検証計画.md` | W0 A案の仮納品の受領記録と、ハル 3D 試作の検証計画 |
+| `art_orders/W0_ハル3D試作の結果.md` | ハル 3D 試作の結果、判断してほしいこと、直す点（画像は `art_orders/haru_a_trial/`） |

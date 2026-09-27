@@ -7,6 +7,10 @@ export default defineConfig({
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 4000,
+    rollupOptions: {
+      // 見た目の確認ページ（lookdev.html）も一緒に公開する
+      input: { main: 'index.html', lookdev: 'lookdev.html' },
+    },
   },
   test: {
     include: ['tests/unit/**/*.test.ts', 'tests/sim/**/*.test.ts'],

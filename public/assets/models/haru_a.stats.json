@@ -1,0 +1,24 @@
+{
+  "arms": 296,
+  "belt": 124,
+  "blade": 22,
+  "boots": 320,
+  "gauntlet": 156,
+  "goggles": 348,
+  "gun": 200,
+  "hair": 668,
+  "hands": 292,
+  "head": 496,
+  "legs": 352,
+  "plates": 620,
+  "straps": 120,
+  "torso": 408,
+  "total_body": 4400,
+  "total_with_blade": 4422,
+  "vertices_body": 2405,
+  "materials": [
+    "haru_body",
+    "haru_face",
+    "haru_blade"
+  ]
+}

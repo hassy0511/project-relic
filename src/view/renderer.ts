@@ -35,6 +35,7 @@ export class Renderer {
     s.near = 1;
     s.far = 120;
     this.sun.shadow.bias = -0.0005;
+    this.sun.shadow.normalBias = 0.02; // キャラクター自身に落ちる影の縞（シャドウアクネ）を防ぐ
     this.scene.add(this.sun, this.sun.target);
 
     window.addEventListener('resize', () => this.resize());

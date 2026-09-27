@@ -129,7 +129,7 @@ def combo2() -> Clip:
 
 def combo3() -> Clip:
     """振り下ろし（とどめ）"""
-    start = stance({'spine': (-12, 0, 0), 'chest': (-5, 10, 0), 'upper_arm.L': (-165, 0, -10), 'forearm.L': (-20, 0, 0)})
+    start = stance({'spine': (-12, 0, 0), 'chest': (-5, 10, 0), 'upper_arm.L': (-150, 0, -32), 'forearm.L': (-15, 0, 0)})
     mid = stance({'spine': (10, 0, 0), 'upper_arm.L': (-100, 0, 0), 'forearm.L': (0, 0, 0)})
     end = stance({'spine': (28, 0, 0), 'head': (-15, 0, 0), 'upper_arm.L': (-35, 0, 0), 'forearm.L': (-5, 0, 0)})
     return Clip('combo3', 14, [(1, start), (5, start), (8, mid), (10, end), (15, end)], loop=False)

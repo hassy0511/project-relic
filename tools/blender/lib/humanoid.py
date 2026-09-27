@@ -50,8 +50,8 @@ BONE_TAILS = {
 SIDED = {'shoulder', 'upper_arm', 'forearm', 'hand', 'thigh', 'shin', 'foot'}
 
 
-def joint(name: str, height: float, side: int = 1) -> tuple[float, float, float]:
-    x, y, z = JOINTS_155[name]
+def joint(name: str, height: float, side: int = 1, joints: dict | None = None) -> tuple[float, float, float]:
+    x, y, z = (joints or JOINTS_155)[name]
     return (x * side * height, y * height, z * height)
 
 
@@ -65,7 +65,8 @@ def bone_names() -> list[str]:
     return names
 
 
-def build_armature(height: float, name: str = 'Rig') -> bpy.types.Object:
+def build_armature(height: float, name: str = 'Rig', joints: dict | None = None) -> bpy.types.Object:
+    """joints を渡すと、そのキャラクターの体型の関節位置で骨を作る（骨の名前と構成は共通）"""
     arm_data = bpy.data.armatures.new(name)
     arm = bpy.data.objects.new(name, arm_data)
     bpy.context.scene.collection.objects.link(arm)
@@ -76,8 +77,8 @@ def build_armature(height: float, name: str = 'Rig') -> bpy.types.Object:
 
     def make(bone: str, side: int, suffix: str) -> None:
         b = eb.new(bone + suffix)
-        head = joint(bone, height, side)
-        tail = joint(BONE_TAILS[bone], height, side)
+        head = joint(bone, height, side, joints)
+        tail = joint(BONE_TAILS[bone], height, side, joints)
         if bone == 'root':
             tail = (0, 0.15 * height, 0)  # root は後ろ向きの短い骨
         b.head = head
