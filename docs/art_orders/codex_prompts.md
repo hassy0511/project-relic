@@ -134,3 +134,57 @@ Codex に下のプロンプトをそのまま貼り付けて使う。リポジ�
 - 1 コミットで追加し（メッセージ例："art: W1-01 haru r2"）、git push で同じブランチに送る。
 - 直したファイルの一覧を報告する。
 ```
+
+---
+
+## 4. W1-00：ハル　3D 変換用の絵（そのまま貼れる）
+
+W0 A案の絵はブランチ `art/w0` にあるので、別のフォルダに取り出して参照する（作業ブランチには取り込まない）。
+
+```text
+あなたはゲーム開発プロジェクト『アークウォーカー』の作画担当です。下のリポジトリに接続し、発注書を読み、指示どおりに画像を制作して納品してください。
+
+【リポジトリ】
+- URL：https://github.com/hassy0511/project-relic
+- 元にするブランチ：claude/busy-bell-oagnck
+- 作業ブランチ：art/w1-haru3d（元にするブランチから新しく作る。すでにあればそれを使う）
+- 参照するブランチ：art/w0（W0 A案の絵。読むだけで、作業ブランチには取り込まない）
+
+【最初に行うこと】
+1. リポジトリを取得し、ブランチ claude/busy-bell-oagnck を最新にする。
+   git clone https://github.com/hassy0511/project-relic.git
+   cd project-relic
+   git checkout claude/busy-bell-oagnck
+   git pull
+2. 作業ブランチを作る：git checkout -b art/w1-haru3d（すでにあれば git checkout art/w1-haru3d と git pull）
+3. W0 の絵を別のフォルダに取り出す（参照用）：
+   git fetch origin art/w0
+   git worktree add ../project-relic-w0 origin/art/w0
+   参照するファイル：../project-relic-w0/art/concepts/W0_art_bible/ の artbible_a_lineup_r3.png、artbible_a_keyvisual_r3.png、spec_a.md
+4. 下の「必ず読む文書」がそろっていることを確認する。見つからない場合は作業を止め、見つからないファイル名を報告する。
+
+【必ず読む文書】
+1. docs/art_orders/W1_00_ハル_3D変換用.md（今回の発注書。2 章の「3D にしやすい条件」を最優先で守る）
+2. docs/art_orders/00_共通ルール.md
+3. ../project-relic-w0/art/concepts/W0_art_bible/spec_a.md と artbible_a_lineup_r3.png（ハルのデザインと色の基準）
+4. docs/art_orders/W0_ハル3D試作の結果.md（前回の 3D 試作の結果。参考）
+
+【作業】
+- 画像生成機能を使い、発注書 3 章の納品物を制作する。必須のものを先に作る。
+- 保存先：art/concepts/W1_haru_3d/　ファイル名は発注書の表のとおり。
+- デザインは W0 A案 r3 のハルから変えない。姿勢・光・背景・視点だけを、発注書 2 章の条件に合わせる。
+- 1〜4（全身の 4 方向）は、同じ人物・同じ服・同じ姿勢・同じ大きさにそろえる。納品前に 4 枚を並べて見比べ、食い違いを直す。
+- 説明書き：spec_haru_3d.md（発注書 4 章の項目）。
+
+【守ること】
+- art/concepts/W1_haru_3d/ 以外のファイルは変更しない。W0 の絵を作業ブランチにコピーしない。
+- 床や影、遠近感、武器を持たせること、文字や寸法線を入れることをしない（発注書 2 章）。
+- 既存の絵や写真をなぞったり合成したりしない。署名・透かし・実在ブランドの文字やロゴを入れない。
+- 制作できなかった項目は、作らずに spec_haru_3d.md の冒頭に「未納品」と理由を書く。
+
+【完了したら】
+- 1 コミットにまとめ（メッセージ："art: W1-00 haru for 3D conversion"）、git push -u origin art/w1-haru3d でリポジトリに送る。
+- 送れなかった場合は、エラーの内容をそのまま報告する。
+- 最後に参照用のフォルダを片付ける：git worktree remove ../project-relic-w0
+- 納品したファイルの一覧と、W0 A案から変えた点（あれば）を 5 行以内で報告する。
+```
