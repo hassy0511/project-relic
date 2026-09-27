@@ -1,0 +1,132 @@
+{
+  "movement": {
+    "runSpeed": 7.0,
+    "minWalkSpeed": 1.5,
+    "groundAccel": 40,
+    "groundDecel": 50,
+    "airAccel": 20,
+    "airMaxSpeed": 7.0,
+    "gravity": 22,
+    "fallGravityScale": 1.35,
+    "jumpHeight": 2.2,
+    "minJumpHeight": 0.8,
+    "coyoteTime": 0.1,
+    "jumpBuffer": 0.12,
+    "terminalFall": 25,
+    "turnSpeed": 720,
+    "dashSpeed": 15,
+    "dashTime": 0.22,
+    "dashInvuln": 0.12,
+    "dashCooldown": 0.3,
+    "dashJumpSpeed": 10,
+    "strafeSpeed": 6.0
+  },
+  "camera": {
+    "distance": 5.5,
+    "minDistance": 1.2,
+    "pivotHeight": 1.4,
+    "fov": 60,
+    "sensitivityX": 1.0,
+    "sensitivityY": 1.0,
+    "minPitch": -35,
+    "maxPitch": 60,
+    "defaultPitch": 12,
+    "autoRecenterDelay": 2.0,
+    "autoRecenterSpeed": 1.5,
+    "lockOnYawSpeed": 8.0
+  },
+  "lockOn": {
+    "range": 30,
+    "loseRange": 40,
+    "loseSightTime": 1.5,
+    "centerWeight": 0.7,
+    "distanceWeight": 0.3,
+    "homingDegPerSec": 30,
+    "scanTime": 1.5
+  },
+  "gun": {
+    "damage": 4,
+    "rate": 4.0,
+    "range": 14,
+    "speed": 32,
+    "chargeLv1Time": 0.6,
+    "chargeLv2Time": 1.2,
+    "chargeLv1Mult": 3,
+    "chargeLv2Mult": 6,
+    "chargeMoveScale": 0.8,
+    "tapRate": 3.0
+  },
+  "sword": {
+    "combo": [
+      10,
+      10,
+      22
+    ],
+    "comboTimes": [
+      0.28,
+      0.3,
+      0.45
+    ],
+    "comboStep": 0.8,
+    "range": 2.2,
+    "arcDeg": 120,
+    "inputBuffer": 0.2,
+    "airSlash": 12,
+    "airSlashMax": 2,
+    "airHangTime": 0.15,
+    "dashSlash": 16,
+    "lunge": 16,
+    "lungeMin": 2.5,
+    "lungeMax": 7,
+    "lungeSpeed": 20,
+    "chargeTime": 0.7,
+    "chargeSlash": 36,
+    "shockwave": 18,
+    "shockwaveRange": 6,
+    "hitstop": 0.05,
+    "hitstopFinisher": 0.08,
+    "hitstopCharge": 0.1
+  },
+  "drill": {
+    "damagePerTick": 3,
+    "tickInterval": 0.1,
+    "energyPerSec": 4,
+    "range": 1.8
+  },
+  "player": {
+    "maxHp": 100,
+    "hurtInvuln": 0.8,
+    "healAmount": 40
+  },
+  "enemies": {
+    "maxAttackers": 2,
+    "sentry": {
+      "hp": 40,
+      "shotDamage": 8,
+      "shotSpeed": 14,
+      "keepDistance": [
+        8,
+        14
+      ],
+      "burstCount": 3,
+      "burstInterval": 0.2,
+      "windup": 0.5,
+      "cooldown": 1.6,
+      "moveSpeed": 3.0,
+      "sight": 18,
+      "poise": 20
+    },
+    "charger": {
+      "hp": 60,
+      "damage": 15,
+      "windup": 0.8,
+      "chargeSpeed": 14,
+      "chargeTime": 1.2,
+      "stunTime": 2.0,
+      "recover": 1.0,
+      "moveSpeed": 3.5,
+      "sight": 18,
+      "poise": 30
+    }
+  }
+}
