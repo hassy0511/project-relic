@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.venv-blender/
+test-results/
+playwright-report/
+tools/**/__pycache__/
+*.blend1
