@@ -27,3 +27,4 @@
 | `art_orders/README.md` | 発注の進め方と一覧 |
 | `art_orders/00_共通ルール.md` | すべての発注に共通する形式と禁止事項 |
 | `art_orders/W0_*.md` 〜 `W2_*.md` | 各回の発注書 |
+| `art_orders/W0_受領と検証計画.md` | W0 A案の仮納品の受領記録と、ハル 3D 試作の検証計画 |
