@@ -6,3 +6,4 @@ playwright-report/
 tools/**/__pycache__/
 *.blend1
 tools/blender/.build_cache.json
+dist-artifact/

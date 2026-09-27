@@ -10,7 +10,7 @@ export interface Bindings {
 export const DEFAULT_BINDINGS: Bindings = {
   keys: {
     KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right',
-    ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+    ArrowUp: 'camUp', ArrowDown: 'camDown', ArrowLeft: 'camLeft', ArrowRight: 'camRight',
     Space: 'jump', ShiftLeft: 'dash', ShiftRight: 'dash',
     KeyE: 'sword', KeyQ: 'special', KeyR: 'heal', KeyC: 'cameraReset',
     KeyF: 'lockOn', KeyJ: 'fire', KeyK: 'sword', KeyL: 'lockOn',
@@ -45,6 +45,9 @@ export class InputManager {
   /** 最後に使われた機器（ボタン表示の切り替えに使う） */
   lastDevice: 'keyboard' | 'pad' = 'keyboard';
   enabled = true;
+  /** マウスの固定が使えない環境（埋め込み表示など）。クリックをそのまま操作として扱い、カメラは矢印キーで回す */
+  lockUnavailable = false;
+  keyLookSpeed = 2.4;
 
   constructor(canvas: HTMLElement) {
     window.addEventListener('keydown', (e) => this.onKey(e, true));
@@ -52,8 +55,8 @@ export class InputManager {
     window.addEventListener('blur', () => this.held.clear());
     canvas.addEventListener('mousedown', (e) => {
       if (!this.enabled) return;
-      if (document.pointerLockElement !== canvas) {
-        canvas.requestPointerLock?.();
+      if (document.pointerLockElement !== canvas && !this.lockUnavailable) {
+        this.requestLock(canvas);
         return;
       }
       const a = this.bindings.mouse[e.button];
@@ -74,6 +77,17 @@ export class InputManager {
       if (e.deltaY !== 0) this.oneShot.add(e.deltaY > 0 ? 'nextSpecial' : 'prevSpecial');
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    document.addEventListener('pointerlockerror', () => (this.lockUnavailable = true));
+  }
+
+  private requestLock(canvas: HTMLElement): void {
+    try {
+      const r = canvas.requestPointerLock?.() as unknown as Promise<void> | undefined;
+      if (!canvas.requestPointerLock) this.lockUnavailable = true;
+      r?.catch?.(() => (this.lockUnavailable = true));
+    } catch {
+      this.lockUnavailable = true;
+    }
   }
 
   private onKey(e: KeyboardEvent, down: boolean): void {
@@ -124,6 +138,14 @@ export class InputManager {
     f.lookX = this.mouseDX * this.mouseSensitivity;
     f.lookY = this.mouseDY * this.mouseSensitivity * (this.invertY ? -1 : 1);
     f.lookActive = this.mouseDX !== 0 || this.mouseDY !== 0;
+    // 矢印キーでもカメラを回せる（マウスの固定が使えない環境向け）
+    const kx = (this.held.has('camRight') ? 1 : 0) - (this.held.has('camLeft') ? 1 : 0);
+    const ky = (this.held.has('camDown') ? 1 : 0) - (this.held.has('camUp') ? 1 : 0);
+    if (kx || ky) {
+      f.lookX += kx * this.keyLookSpeed * dtFrame;
+      f.lookY += ky * this.keyLookSpeed * 0.6 * dtFrame * (this.invertY ? -1 : 1);
+      f.lookActive = true;
+    }
     this.mouseDX = this.mouseDY = 0;
     for (const b of BUTTONS) f[b] = this.held.has(b) || this.latched.has(b);
     this.latched.clear();
