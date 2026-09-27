@@ -230,7 +230,15 @@ async function loadModel(name: string): Promise<void> {
   character.clear();
   actions.clear();
   const url = `${BASE}assets/models/${name}.glb`;
-  const buf = await (await fetch(url)).arrayBuffer();
+  const res = await fetch(url);
+  const isGlb = res.ok && !(res.headers.get('content-type') ?? '').includes('text/html');
+  if (!isGlb) {
+    look = null;
+    hud.style.display = 'block';
+    hud.textContent = `モデル ${name} はまだありません（${name === 'haru_b' ? 'AI 変換のハルは取り込み待ち' : url}）`;
+    return;
+  }
+  const buf = await res.arrayBuffer();
   fileBytes = buf.byteLength;
   const gltf = await new GLTFLoader().parseAsync(buf, `${BASE}assets/models/`);
   model = gltf.scene;
@@ -279,7 +287,7 @@ function applyAll(): void {
 // ---------------------------------------------------------------- 操作パネル
 
 const gui = new GUI({ title: '見た目の確認' });
-gui.add(state, 'model', ['haru_a', 'haru_proxy']).name('モデル').onChange((v: string) => void loadModel(v));
+gui.add(state, 'model', ['haru_a', 'haru_b', 'haru_proxy']).name('モデル').onChange((v: string) => void loadModel(v));
 gui.add(state, 'shade', { 柔らかい陰影: 'soft', '3段の塗り分け': 'toon' }).name('塗り方').onChange(applyAll);
 gui.add(state, 'bg', { 明るい灰色: 'grey', 赤い砂と朝日: 'dawn', ゲームの光: 'game' }).name('背景').onChange(applyAll);
 gui

@@ -13,7 +13,8 @@
     "e2e": "playwright test",
     "assets": "python3 tools/blender/build.py",
     "audio": "python3 tools/audio/build.py",
-    "setup:blender": "bash tools/setup_blender.sh"
+    "setup:blender": "bash tools/setup_blender.sh",
+    "ai:haru": ".venv-blender/bin/python tools/blender/models/ai_character.py --input art/3d_sources/haru_trellis_front.glb --out public/assets/models/haru_b.glb --render art/renders/haru_b"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

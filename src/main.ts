@@ -147,7 +147,8 @@ class App {
     this.playerView = new PlayerView(this.dynamic);
     // ハルの見た目：既定は A案の試作。?haru=proxy で MVP の仮のハル、?shade=toon で 3 段の塗り分け
     const q = new URLSearchParams(location.search);
-    const haru = q.get('haru') === 'proxy' ? 'haru_proxy' : 'haru_a';
+    // ?haru=b で AI 変換のハル（B案。art/3d_sources から取り込んだもの）
+    const haru = q.get('haru') === 'proxy' ? 'haru_proxy' : q.get('haru') === 'b' ? 'haru_b' : 'haru_a';
     await this.playerView.load(`${BASE}assets/models/${haru}.glb`, q.get('shade') === 'toon' ? 'toon' : 'soft');
     this.enemyView = new EnemyView(this.dynamic);
     this.propsView = new PropsView(this.dynamic, game);
