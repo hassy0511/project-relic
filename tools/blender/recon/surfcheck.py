@@ -8,8 +8,10 @@
 
 出力（build/recon/）：
   surf_check_body.png   全身。方位角 0/45/90/135/180/-135/-90/-45 度（0 = 正面、90 = 本人の右）と、
-                        左前の上から・右後ろの上から（35 度見下ろす）
-  surf_check_head.png   頭と髪の近写（8 方位＋真上に近い見下ろし＋後ろの見下ろし）
+                        左前の上から・右後ろの上から（35 度見下ろす）・真上から・右前の下から（30 度見上げる）
+  surf_check_head.png   頭と髪の近写（8 方位＋左前の見下ろし＋後ろの見下ろし＋真上＋下から）
+  surf_check_face.png   顔の近写（正面・左右の斜め・横・上下から）
+  surf_check_sections.png  水平の断面（頭 6 つ、胴・腕 3 つ、脚 3 つ。前 = -Y が上）
   surf_check_torso.png  胴（前・後ろ・斜め後ろ・肩の上からの見下ろし）
   surf_check_arms.png   両前腕（左の籠手と右の前腕。外側・後ろ・前）
   surf_check_hands.png  両手（前・後ろ・外側・内側）
@@ -127,6 +129,7 @@ def _grid(imgs: list[np.ndarray], cols: int) -> np.ndarray:
 
 # 近写の範囲（中心・幅）。前腕と手の位置は A ポーズの絵から（本人の左 = +X）
 HEAD = ((0.0, 0.0, 1.36), 0.46)
+FACE = ((0.0, -0.02, 1.32), 0.30)
 TORSO = ((0.0, 0.0, 0.98), 0.62)
 FOREARM_L = ((0.30, 0.0, 0.83), 0.34)
 FOREARM_R = ((-0.30, 0.0, 0.83), 0.34)
@@ -134,8 +137,49 @@ HAND_L = ((0.41, 0.0, 0.69), 0.22)
 HAND_R = ((-0.41, 0.0, 0.69), 0.22)
 
 
+def section_segments(verts: np.ndarray, tris: np.ndarray, z: float) -> np.ndarray:
+    """高さ z の水平面でメッシュを切った線分 (n, 2, 2)（x, y）"""
+    zz = verts[tris][:, :, 2]
+    sel = tris[(zz.min(1) < z) & (zz.max(1) > z)]
+    P = verts[sel]
+    out = []
+    for i, j in ((0, 1), (1, 2), (2, 0)):
+        a, b = P[:, i], P[:, j]
+        cross = (a[:, 2] - z) * (b[:, 2] - z) < 0
+        t = (z - a[:, 2]) / np.where(cross, b[:, 2] - a[:, 2], 1.0)
+        out.append((a + t[:, None] * (b - a))[:, :2] * np.where(cross, 1, np.nan)[:, None])
+    Q = np.stack(out, 1)                                  # (n, 3, 2)、交わらない辺は nan
+    segs = []
+    for q in Q:
+        pts = q[~np.isnan(q[:, 0])]
+        if len(pts) == 2:
+            segs.append(pts)
+    return np.array(segs).reshape(-1, 2, 2)
+
+
+def sections_image(verts: np.ndarray, tris: np.ndarray, path: str, cell: int = 420) -> None:
+    """水平の断面の画像（前 = -Y が画像の上、本人の左 = +X が右）"""
+    rows = [
+        [(z, (0.0, 0.03), 0.42) for z in (1.22, 1.28, 1.34, 1.40, 1.46, 1.52)],
+        [(1.08, (0.0, 0.0), 0.9), (1.00, (0.0, 0.0), 0.9), (0.84, (0.0, 0.0), 0.9),
+         (0.66, (0.0, 0.0), 0.9), (0.40, (0.0, 0.0), 0.5), (0.14, (0.0, 0.0), 0.5)],
+    ]
+    img = Image.new('RGB', (cell * 6, cell * 2), (BG, BG, BG))
+    dr = ImageDraw.Draw(img)
+    for r, row in enumerate(rows):
+        for c, (z, (cx, cy), size) in enumerate(row):
+            ox, oy = c * cell, r * cell
+            k = cell / size
+            dr.rectangle([ox, oy, ox + cell - 1, oy + cell - 1], outline=(70, 70, 70))
+            for a, b in section_segments(verts, tris, z):
+                dr.line([(ox + cell / 2 + (a[0] - cx) * k, oy + cell / 2 + (a[1] - cy) * k),
+                         (ox + cell / 2 + (b[0] - cx) * k, oy + cell / 2 + (b[1] - cy) * k)], fill=(235, 235, 235), width=2)
+            dr.text((ox + 6, oy + 5), f'z={z:.2f}  box {size * 100:.0f}cm  front(-Y) up', fill=(255, 255, 0))
+    img.save(path)
+
+
 def run(verts: np.ndarray, tris: np.ndarray, prefix: str, res: int = 640, samples: int = 16,
-        which: tuple[str, ...] = ('body', 'head', 'torso', 'arms', 'hands')) -> list[str]:
+        which: tuple[str, ...] = ('body', 'head', 'face', 'torso', 'arms', 'hands', 'sections')) -> list[str]:
     """確認画像を描いて <prefix>_<名前>.png に書く。書いたファイルの一覧を返す"""
     scene, cam, lights = setup(verts, tris, samples)
     tmp = os.path.join(os.path.dirname(prefix) or '.', 'render')
@@ -151,18 +195,28 @@ def run(verts: np.ndarray, tris: np.ndarray, prefix: str, res: int = 640, sample
     if 'body' in which:
         imgs = []
         for az, el in ((0, 0), (45, 0), (90, 0), (135, 0), (180, 0), (-135, 0), (-90, 0), (-45, 0),
-                       (-60, 35), (150, 35)):
+                       (-60, 35), (150, 35), (0, 89), (30, -30)):
             side = -1.0 if az > 0 else 1.0   # 光は、見えている側の反対（体の輪郭の内側を浅くなめる）
             img = shot(scene, cam, lights, (0, 0, V.HEIGHT / 2 + 0.01), 1.72, az, el, res, tp, side)
             imgs.append(_label(img, f'az {az}  elev {el}'))
-        save('body', imgs, 5)
+        save('body', imgs, 6)
     if 'head' in which:
         imgs = []
         for az, el in ((0, 0), (45, 0), (90, 0), (135, 0), (180, 0), (-135, 0), (-90, 0), (-45, 0),
-                       (-30, 60), (160, 50)):
+                       (-30, 60), (160, 50), (0, 89), (20, -35)):
             img = shot(scene, cam, lights, HEAD[0], HEAD[1], az, el, res // 2 * 1 + res // 4, tp)
             imgs.append(_label(img, f'head az {az} elev {el}'))
-        save('head', imgs, 5)
+        save('head', imgs, 6)
+    if 'face' in which:
+        imgs = []
+        for az, el in ((0, 0), (30, 0), (-30, 0), (-70, 0), (0, 30), (0, -25)):
+            img = shot(scene, cam, lights, FACE[0], FACE[1], az, el, res // 2 + res // 4, tp, 1.0 if az <= 0 else -1.0)
+            imgs.append(_label(img, f'face az {az} elev {el}'))
+        save('face', imgs, 6)
+    if 'sections' in which:
+        p = f'{prefix}_sections.png'
+        sections_image(verts, tris, p)
+        out.append(p)
     if 'torso' in which:
         imgs = []
         for az, el, s in ((0, 0, 1), (-45, 0, 1), (180, 0, 1), (150, 0, -1), (-150, 0, 1),
@@ -195,10 +249,10 @@ def main() -> None:
     ap.add_argument('--prefix', default=os.path.join(V.WORK, 'surf_check'))
     ap.add_argument('--res', type=int, default=640)
     ap.add_argument('--samples', type=int, default=16)
-    ap.add_argument('--only', default='', help='body,head,torso,arms,hands のうち描くもの（カンマ区切り）')
+    ap.add_argument('--only', default='', help='body,head,face,torso,arms,hands,sections のうち描くもの（カンマ区切り）')
     args = ap.parse_args()
     d = np.load(args.mesh)
-    which = tuple(args.only.split(',')) if args.only else ('body', 'head', 'torso', 'arms', 'hands')
+    which = tuple(args.only.split(',')) if args.only else ('body', 'head', 'face', 'torso', 'arms', 'hands', 'sections')
     for p in run(d['verts'], d['tris'], args.prefix, args.res, args.samples, which):
         print(p)
 

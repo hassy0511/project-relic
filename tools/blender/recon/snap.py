@@ -7,8 +7,10 @@
      面に覆われていない「外の縁」の頂点について、画像の面の中の外向き（法線を画像の面へ写した向き）に沿って
      目標の外形の縁を探し、そこまでの動き（1 回に max_px 画素まで）を求める。その動きを面の上で隣の平均に
      spread 回広げ（縁のまわり約 1〜2cm がそろって動く）、0.8 倍だけ動かす。
-     頭（head_z より上）は外へだけ動かす：房の先は外形まで伸ばすが、房の間の切り欠きで面を削らない。
-     右真横の視点では、左の腕（体の向こう側で、絵では隠れている）の輪郭は動かさない。
+     頭（首より上）は動かさない（hair.py の形の部品のまま。fair_mesh の freeze_z）。
+     右真横の視点では、左の腕（体の向こう側で、絵では隠れている）の輪郭は動かさない。右前斜めの視点では、
+     左の前腕（籠手）は縁ごとに動かさず、高さ 1cm ごとの縁の動きの平均で前腕ごと前後に動かす（絵の腕が丸い
+     腕より太く、縁だけを寄せると断面がくさび形になる。前後の位置のずれだけを直す：正面の外形は変わらない）。
 釣り合った形は、なめらかな面で、縁だけが外形に沿う。最後に、広げ方を小さくした留めを 3 回。
 目標の外形（target）は元の絵の外形の符号つき距離を、上下に 6 画素・左右に 2 画素ならしたもの（頭は 2 画素）。
 上下に強くならすのは、縫い目・帯の端の細かな段で輪郭線が上下に波打たないように（横筋にしない）。
@@ -86,8 +88,8 @@ def edges_of(faces: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 def snap_step(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], sds: dict[str, np.ndarray],
               W: sparse.csr_matrix, E: tuple, max_px: float = 3.0, search_px: int = 40, spread: int = 20,
-              views=REAL, outward_only: np.ndarray | None = None, skip: dict | None = None
-              ) -> tuple[np.ndarray, dict]:
+              views=REAL, outward_only: np.ndarray | None = None, skip: dict | None = None,
+              shift: dict | None = None) -> tuple[np.ndarray, dict]:
     """外形の縁（輪郭線）の頂点を目標の外形へ動かす量を求め、面の上でなめらかに広げた動き（頂点ごと）。
 
     輪郭線は、視線に対して表と裏の三角形の境の辺。そのうち、画像の上で外向きのすぐ隣がメッシュに
@@ -143,6 +145,13 @@ def snap_step(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], sds: dic
             # 外へだけ動かす頂点（頭：房の先は外形まで伸ばすが、房の間の切り欠きで面を削らない）
             mv = np.where(outward_only[idx], np.maximum(mv, 0.0), mv)
         dw = (mv / cam.ppm)[:, None] * (nu[:, None] * r[None] + nv[:, None] * np.array([0, 0, -1.0])[None])
+        if shift is not None and name in shift:
+            # まとめて動かす部位（前腕）：縁の動きを高さ 1cm ごとに平均し、部位の頂点すべてを同じだけ動かす
+            # （断面の形は変えず、位置だけを外形に合わせる。縁だけを動かすと断面がくさび形になる）
+            grp, w_grp = shift[name]
+            g = grp[idx]
+            _shift_groups(X, grp, w_grp, idx[g > 0], dw[g > 0], num, den, r)
+            idx, dw = idx[g == 0], dw[g == 0]
         np.add.at(num, idx, dw)
         np.add.at(den, idx, 1.0)
         st[name] = {'rim': int(len(idx)), 'mean_abs_px': round(float(np.abs(best).mean()), 3),
@@ -159,6 +168,37 @@ def snap_step(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], sds: dic
     return D, st
 
 
+def _shift_groups(X: np.ndarray, grp: np.ndarray, w_grp: np.ndarray, ridx: np.ndarray, rdw: np.ndarray,
+                  num: np.ndarray, den: np.ndarray, r: np.ndarray, bin_m: float = 0.01) -> None:
+    """部位（grp の番号ごと）の縁の頂点 ridx の動き rdw を高さ bin_m ごとに平均し（上下に 2 つの幅でならす）、
+    部位のすべての頂点に、重み w_grp をかけて足す（num, den に書く）。
+
+    動きは前後（y）だけにする：その視点の画像の横の動き（rdw・r）を、y だけの動きに直す（y = (rdw・r) / r_y）。
+    左右（x）に動かすと正面の外形がずれる。
+    """
+    rdw = np.stack([np.zeros(len(rdw)), (rdw @ r) / r[1], np.zeros(len(rdw))], 1)
+    for gid in np.unique(grp[grp > 0]):
+        sel = grp[ridx] == gid
+        allv = np.nonzero(grp == gid)[0]
+        if not sel.any() or len(allv) == 0:
+            continue
+        z0 = X[allv, 2].min()
+        nb = int((X[allv, 2].max() - z0) / bin_m) + 1
+        b = np.clip(((X[ridx[sel], 2] - z0) / bin_m).astype(int), 0, nb - 1)
+        cnt = np.bincount(b, minlength=nb).astype(float)
+        mean = np.stack([np.bincount(b, rdw[sel, k], minlength=nb) for k in range(3)], 1)
+        ok = cnt > 0
+        mean[ok] /= cnt[ok, None]
+        cz = np.arange(nb)
+        for k in range(3):
+            mean[:, k] = np.interp(cz, cz[ok], mean[ok, k])
+        mean = ndi.gaussian_filter1d(mean, 2.0, axis=0, mode='nearest')
+        zb = (X[allv, 2] - z0) / bin_m
+        T = np.stack([np.interp(zb, cz, mean[:, k]) for k in range(3)], 1) * w_grp[allv, None]
+        num[allv] += T
+        den[allv] += w_grp[allv]
+
+
 def targets(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], sigma_v: float = 6.0) -> dict[str, np.ndarray]:
     """目標の外形（本文の最後）"""
     from recon import fair
@@ -167,25 +207,39 @@ def targets(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], sigma_v: float
 
 def fair_mesh(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], masks: dict[str, np.ndarray],
               rounds: int = 40, smooth: int = 8, final_snaps: int = 3, log=print, spread: int = 40,
-              max_px: float = 4.0, head_z: float = 1.21) -> np.ndarray:
-    """本文の 1 と 2 を rounds 回。最後は留めるだけを数回（縁を外形にぴったり）。masks は元の絵の外形"""
+              max_px: float = 4.0, freeze_z: tuple[float, float] = (1.195, 1.225)) -> np.ndarray:
+    """本文の 1 と 2 を rounds 回。最後は留めるだけを数回（縁を外形にぴったり）。masks は元の絵の外形。
+
+    頭（freeze_z より上）は動かさない：頭・髪の房は hair.py の形の部品そのもので、外形への引き寄せや
+    強い平滑化をかけると、房の先が丸まり、房のひれ・段が戻る。freeze_z の間で動きをなめらかに 0 にする。
+    """
     sds = targets(cams, masks)
-    outward_only = X[:, 2] > head_z
+    move = 1.0 - ((X[:, 2] - freeze_z[0]) / (freeze_z[1] - freeze_z[0])).clip(0, 1)
+    move = (move * move * (3 - 2 * move))[:, None]
     # 右真横の絵では、左の腕（体の向こう側）は体と右の腕に隠れて見えない。その輪郭を右真横の外形（右の腕の
     # カフ・手袋の段）へ寄せると、籠手の前後に段がつくので寄せない
     skip = {'side_right': (X[:, 0] > 0.18) & (X[:, 2] > 0.45) & (X[:, 2] < 1.05)}
+    # 左の前腕（肘〜手首、籠手）は、右前斜めの外形へは縁ごとではなく、前腕ごと前後に動かす（_shift_groups）。
+    # 右前斜めの絵は前腕を丸い腕より太く描いていて、縁だけを寄せると断面が三角（くさび形）になる。
+    # 左の前腕は右真横の絵では隠れているので、前後の位置は右前斜めの絵からしか決まらない。
+    # 右の前腕は右真横の絵に写っていて前後の位置が決まるので、前腕ごと動かすと真横の外形とけんかする
+    # （試した：真横の IoU が 0.970 → 0.961）。右の前腕はこれまでどおり縁ごとに寄せる
+    fz = X[:, 2]
+    fore = (X[:, 0] > 0.20) & (fz > 0.72) & (fz < 1.0)
+    grp = np.where(fore, 2, 0)
+    w_grp = (((fz - 0.72) / 0.05).clip(0, 1) * ((1.0 - fz) / 0.05).clip(0, 1)).astype(float)
+    shift = {'three_quarter': (grp, w_grp)}
     W = laplacian(len(X), faces)
     E = edges_of(faces)
     for it in range(rounds):
-        X = taubin(X, W, smooth)
-        D, st = snap_step(X, faces, cams, sds, W, E, max_px=max_px, spread=spread, outward_only=outward_only,
-                          skip=skip)
-        X = X + 0.8 * D
+        X = X + move * (taubin(X, W, smooth) - X)
+        D, st = snap_step(X, faces, cams, sds, W, E, max_px=max_px, spread=spread, skip=skip, shift=shift)
+        X = X + 0.8 * move * D
         if it % 5 == 0 or it == rounds - 1:
             log(f'  面の平滑化と縁の留め {it + 1}/{rounds}', st)
     for _ in range(final_snaps):
-        D, st = snap_step(X, faces, cams, sds, W, E, max_px=2.0, spread=8, outward_only=outward_only, skip=skip)
-        X = X + D
-        X = taubin(X, W, 1)
+        D, st = snap_step(X, faces, cams, sds, W, E, max_px=2.0, spread=8, skip=skip, shift=shift)
+        X = X + move * D
+        X = X + move * (taubin(X, W, 1) - X)
     log('  最後の留め', st)
     return X

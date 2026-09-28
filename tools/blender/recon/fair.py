@@ -1,4 +1,4 @@
-"""なめらかな形の場：絵の外形をふくらませた「レンズ」（体）＋ 丸い「芯」（頭）＋ 房のレンズ（髪の房）。
+"""なめらかな形の場：絵の外形をふくらませた「レンズ」（体、首より下）＋ 頭と髪（hair.py）。
 
 carve.py の 2（hull）から呼ばれる。以前の方法（輪切りごとに断面を当てはめる）は、隣の輪切りと判断が
 食い違って横筋・段・ひれが出た。ここでは、2 次元の絵から作った場を視線に沿って延ばして形を組み立てるので、
@@ -7,8 +7,10 @@ carve.py の 2（hull）から呼ばれる。以前の方法（輪切りごと�
 ■ 1. 目標の外形（target_sdf）と視体積の場（hull_field）
   外形のマスクの符号つき距離（画素）を少しぼかす（体 6 画素・頭 3 画素。手首より先の高さはぼかさない：指の
   間を埋めない。籠手やカフの高さはぼかす：段が面に刻まれないように）。頭（あごより上）は、房の間の切り欠きを半径 2cm の円で閉じた外形（closed_masks）を使う。
-  視体積の場 D = 実の 3 視点（正面・右真横・右前斜め）の外形の符号つき距離を視線に沿って延ばした最小。
+  視体積の場 D = 正面と右真横の外形の符号つき距離を視線に沿って延ばした最小（TRIM_VIEWS）。
   外形の距離は視線に垂直な面の中の距離なので、D の削り込み {D ≥ r} は視体積の正確な削り込み。
+  右前斜めの視体積では切らない：切ると腕・脚・胴の断面に平らな面と折れ目（くさび形）が残る（審査の指摘）。
+  右前斜めの外形には、面の段（snap.py）で輪郭線だけをなめらかに合わせる。
 
 ■ 2. 体：ふくらみのレンズ（Lens）
   外形の「ふくらみ」h（poisson_height）：∇²f = -1 を外形の中で解き h = √(2f)。幅 2a の帯なら
@@ -16,28 +18,20 @@ carve.py の 2（hull）から呼ばれる。以前の方法（輪切りごと�
   正面のレンズ：点 (x, y, z) は、正面の絵の画素 (x, z) の h と、奥行きの中心 c(z)（右真横の絵のその高さの行の
   前後の中点）から、前は c - y ≤ h·Sf、後ろは y - c ≤ h·Sb なら内側。Sf, Sb は奥行きのならし：その高さで
   最も太い所（胴・腰）は、前後の厚みが右真横の絵の前・後ろの端にちょうど届く倍率（上下に 3cm でならす）、
-  細い所（腕・脚・指・胴の脇）は 1（丸いまま）。胴は角の丸い箱形、腕・脚・指は丸い断面、上着の裾・ベルト・
+  細い所（腕・指・胴の脇）は 1（丸いまま）。股より下（LEG_Z）は行のすべて（両脚）に同じ倍率をかけ、1.5 倍まで
+  太らせてもよい（脚は正面の幅と真横の奥行きの楕円の断面）。胴は角の丸い箱形、腕・指は丸い断面、上着の裾・ベルト・
   カフの段は体を一周する帯になる。靴（くるぶしより下）はレンズを使わず視体積のまま（絵でも角ばっている）。
-  頭の高さでは真横のレンズも、なめらかな最大（幅 8mm）で足す。最後に D で切る（本文の 4 の最後）。
+  頭の高さでは真横のレンズも、なめらかな最大（幅 8mm）で足す（首より上は 3 で置き換わる）。最後に D で切る。
 
-■ 3. 頭：丸い芯（head_core）
-  房の先・耳・鼻を落とした丸い頭：頭の高さの外形を半径 2.5cm の円で「開き」、さらに 2cm の円で「閉じた」
-  （房の間・耳の上・ゴーグルの下の切り欠きを埋めた。切り欠きは視線に沿って頭を横切る溝になる）外形の視体積
-  （実の 3 視点と、右前斜めの絵を左右反転した左前斜めの仮想の視点。髪はおおむね左右対称）を、半径 3.5cm の
-  球で 3 次元に開き（その球が入りきる所だけ）、1cm でならした卵形。あごより上でレンズの場からなめらかに
-  （5cm で）切り替える。
-
-■ 4. 髪の房：房のレンズ（spike_lenses）
-  視点ごとに、元の絵の外形の内側なのに芯に届かない視線（房・耳・鼻の出っ張り）を集め、細い帯（3 視線未満の
-  深さ）は除く。出っ張りの奥行き s* は、その視線で芯に最も近い点の奥行き（出っ張りの中でならす）。厚み h は、
-  出っ張りの範囲だけで解いたふくらみ。レンズ |奥行き - s*| ≤ h を芯となめらかな和（幅 8mm）でつなぐ。
-  房は外形の縁の位置から、幅と同じくらいの厚みで先へ細る丸い棘になる。4 つの視点（反転を含む）で作るが、
-  頭のてっぺんの房は正面と真横からだけ（4 方向のひれが交わると込み入ったくぼみができる）。
-  最後に視体積 D（外形を 2 画素太らせたもの）で切る。外形への細かな合わせは面の段（snap.py）で行う。
+■ 3. 首より上
+  体のレンズの上を、えり・フードの上の縁の高さ BODY_TOP（1.203m）の面で切り、視体積 D で切る（体だけ）。
+  首より上（頭・顔・首・髪の帽子・房）は hair.build_head の場で、体の場となめらかな和（幅 8mm）でつなぐ。
+  頭は視体積で切らない（視体積の面が角ばった箱・くさび形の顔・ひれの房の元だった）。以前の「丸い芯＋房の
+  レンズ」の頭は git の履歴（コミット e576142）にある。
 
 ■ 5. 面（mesh_of、carve.py の 3）
   場をマーチングキューブで面にし、Taubin で 10 回ならす。そのあと snap.fair_mesh で、面をなめらかにしながら
-  外形の縁（輪郭線）だけを絵の外形に合わせる（実の 3 視点の外形の一致を保つ）。
+  外形の縁（輪郭線）だけを絵の外形に合わせる（実の 3 視点の外形の一致を保つ。頭は動かさない）。
 
   python tools/blender/recon/fair.py --name test   （実験用：場から面まで作り、なめる光の確認画像を
                                                     build/recon/fair/test_*.png に描く。成果物は上書きしない）
@@ -62,20 +56,19 @@ REAL = ('front', 'side_right', 'three_quarter')
 T0 = time.time()
 
 # 部位の境（m）。頭はあご（身長 / 4.4 頭身）より少し上から、手は手首より先
-HEAD_Z = (1.19, 1.24)          # この間で体 → 頭へなめらかに切り替える
+HEAD_Z = (1.19, 1.24)          # 体のレンズに真横のレンズを足し始める高さ（首より上は hair.py の頭に置き換わる）
+BODY_TOP = 1.203               # 体の場の上の端（えり・フードの上の縁）。これより上は hair.py の頭
+TRIM_VIEWS = ('front', 'side_right')   # 体を切る視体積の視点
+LEG_Z = (0.54, 0.59)          # これより下（股より下）は脚：行のすべてに同じ奥行きの倍率
+LEG_DEPTH_MAX = 1.5            # 脚の奥行きの倍率の上限（丸い断面より太らせてよい）
 HAND_ROWS = (0.60, 0.77)       # この高さの間の行（手首より先の手と指）は、目標の外形をならさない（指の間を埋めない）
 
 # 既定の値（carve.py の報告にも書く）
 PARAMS = {
     'target_sigma_px': 6.0,       # 目標の外形のならし（体）
     'head_close_m': 0.02,         # 頭の外形の切り欠きを閉じる円の半径
-    'head_open2d_m': 0.025,       # 頭の芯に使う外形を開く円の半径
-    'head_open3d_m': 0.035,       # 頭の芯を 3 次元に開く球の半径
-    'head_core_sigma_m': 0.01,    # 頭の芯のならし
     'lens_union_m': 0.008,        # 正面と真横のレンズのなめらかな和の幅
     'depth_sigma_m': 0.03,        # 胴の奥行きの倍率を上下にならす幅
-    'spike_min_depth': 3.0,       # 房のレンズにする出っ張りの最小の深さ（視線の数）
-    'spike_union_m': 0.008,       # 房と芯のなめらかな和の幅（房の間のすき間のくぼみを埋める）
 }
 
 
@@ -146,84 +139,6 @@ def _head_morph(masks: dict[str, np.ndarray], cams: dict[str, V.Cam], radius_m: 
 def closed_masks(masks, cams, radius_m: float = 0.02, z0: float = 1.21) -> dict[str, np.ndarray]:
     """頭の外形の切り欠き（房の間・あごの下）を円で閉じた外形"""
     return _head_morph(masks, cams, radius_m, z0, 'close')
-
-
-def opened_masks(masks, cams, radius_m: float = 0.025, z0: float = 1.21, close_m: float = 0.02
-                 ) -> dict[str, np.ndarray]:
-    """頭の外形を円で開き（房の先・耳・鼻の細い出っ張りを落とす）、さらに閉じた（房の間・耳の上・ゴーグルの下の
-    切り欠きを埋める）丸い頭の外形。切り欠きが残ると、視線に沿って頭を横切る溝になる"""
-    return _head_morph(_head_morph(masks, cams, radius_m, z0, 'open'), cams, close_m, z0, 'close')
-
-
-class Rays:
-    """1 つの視点の視線の束。視線は（輪切り k, 画像の横の位置 a）で、横の間隔はボクセルの幅。
-
-    正面（視線が +Y）と真横（視線が +X）は格子の軸に沿うので、その軸の最大をとるだけ。
-    斜めの視点（左右反転の仮想の視点も）は、輪切りごとに視線に沿った点を双線形で読み出す。
-    """
-
-    def __init__(self, lo: np.ndarray, vox: float, shape: tuple[int, int, int], cam: V.Cam, sd: np.ndarray):
-        self.cam, self.vox, self.lo, self.shape = cam, vox, lo, shape
-        nz, nx, ny = shape
-        self.xs = lo[0] + (np.arange(nx) + 0.5) * vox
-        self.ys = lo[1] + (np.arange(ny) + 0.5) * vox
-        self.zs = lo[2] + (np.arange(nz) + 0.5) * vox
-        a = cam.azimuth % 360
-        self.axis = None
-        if not cam.mirror:
-            self.axis = 2 if abs(a) < 1e-6 else (1 if abs(a - 90) < 1e-6 else None)
-        vv = cam.v_of(self.zs) - 0.5   # 画素の中心が i + 0.5 なので、配列の添字では -0.5
-        if self.axis == 2:
-            uu = cam.u_of(self.xs, 0 * self.xs) - 0.5
-        elif self.axis == 1:
-            uu = cam.u_of(0 * self.ys, self.ys) - 0.5
-        else:
-            # 斜め：視線の横の位置 t（画像の右の向き）と奥行き s（視線の向き）
-            r, d = self.frame()
-            cx = np.array([self.xs[0], self.xs[-1], self.xs[0], self.xs[-1]])
-            cy = np.array([self.ys[0], self.ys[0], self.ys[-1], self.ys[-1]])
-            t = cx * r[0] + cy * r[1]
-            s = cx * d[0] + cy * d[1]
-            self.t = np.arange(t.min(), t.max() + vox, vox)
-            self.s = np.arange(s.min(), s.max() + vox, vox)
-            T, S = np.meshgrid(self.t, self.s, indexing='ij')
-            self.fi = (T * r[0] + S * d[0] - self.xs[0]) / vox   # 格子の添字（連続）
-            self.fj = (T * r[1] + S * d[1] - self.ys[0]) / vox
-            uu = cam.u0 + cam.ppm * self.t - 0.5
-        V_, U_ = np.meshgrid(vv, uu, indexing='ij')
-        # 視線の中心での、外形の符号つき距離（画素）
-        self.sd = ndi.map_coordinates(sd, [V_, U_], order=1, mode='nearest').astype(np.float32)
-
-    def frame(self) -> tuple[np.ndarray, np.ndarray]:
-        """世界の水平面での、画像の右の向きと視線の向き（反転の視点は x を裏返したもの）"""
-        r, d = self.cam.r[:2].copy(), self.cam.d[:2].copy()
-        if self.cam.mirror:
-            r[0], d[0] = -r[0], -d[0]
-        return r, d
-
-    def ray_max(self, field: np.ndarray, chunk: int = 32) -> tuple[np.ndarray, np.ndarray]:
-        """視線ごとの最大と、その位置（格子の添字の連続値 (k, i, j) の配列 (…, 3)）"""
-        nz = self.shape[0]
-        if self.axis is not None:
-            m = field.max(axis=self.axis)
-            b = field.argmax(axis=self.axis)
-            K, A = np.meshgrid(np.arange(nz), np.arange(m.shape[1]), indexing='ij')
-            pos = np.stack([K, A, b] if self.axis == 2 else [K, b, A], -1).astype(np.float32)
-            return m, pos
-        A, _ = self.fi.shape
-        m = np.empty((nz, A), np.float32)
-        pos = np.zeros((nz, A, 3), np.float32)
-        for k0 in range(0, nz, chunk):
-            k1 = min(nz, k0 + chunk)
-            smp = np.stack([ndi.map_coordinates(field[k], [self.fi, self.fj], order=1, mode='constant', cval=-1.0)
-                            for k in range(k0, k1)])
-            bi = smp.argmax(axis=2)
-            m[k0:k1] = np.take_along_axis(smp, bi[..., None], 2)[..., 0]
-            aa = np.arange(A)[None, :].repeat(k1 - k0, 0)
-            pos[k0:k1, :, 0] = np.arange(k0, k1)[:, None]
-            pos[k0:k1, :, 1] = self.fi[aa, bi]
-            pos[k0:k1, :, 2] = self.fj[aa, bi]
-        return m, pos
 
 
 def hull_field(lo, vox, shape, cams: dict[str, V.Cam], sds: dict[str, np.ndarray], dilate_px: float = 1.0,
@@ -323,9 +238,15 @@ class Lens:
         Hp = np.maximum(Hf, 0)
         Hn = np.minimum(Hf, 0)
         hmax = np.maximum(ndi.gaussian_filter1d(Hp.max(1), 0.004 / vox), 1e-4)
-        sf = ndi.gaussian_filter1d(np.minimum(1.0, (cf - y_front) / hmax), self.depth_sigma / vox)
-        sb = ndi.gaussian_filter1d(np.minimum(1.0, (y_back - cf) / hmax), self.depth_sigma / vox)
+        # 脚の高さ（股より下）は、行のすべて（両脚）に同じ倍率をかけ、太らせてもよい（最大 LEG_DEPTH_MAX 倍）：
+        # 脚の断面は正面の幅と真横の奥行きの楕円になる（丸いままだと、面の段で真横の外形へ引かれた前後の縁が
+        # とがり、レモン形の断面になる）
+        legs = (1.0 - ramp(zs, LEG_Z[0], LEG_Z[1])).astype(np.float32)
+        cap = 1.0 + (LEG_DEPTH_MAX - 1.0) * legs
+        sf = ndi.gaussian_filter1d(np.minimum(cap, (cf - y_front) / hmax), self.depth_sigma / vox)
+        sb = ndi.gaussian_filter1d(np.minimum(cap, (y_back - cf) / hmax), self.depth_sigma / vox)
         w = ramp(Hp / hmax[:, None], 0.6, 0.9).astype(np.float32)
+        w = np.maximum(w, legs[:, None])
         Sf = 1 + (sf[:, None] - 1) * w
         Sb = 1 + (sb[:, None] - 1) * w
         dy = (ys[None, None, :] - cf[:, None, None]).astype(np.float32)
@@ -340,112 +261,6 @@ class Lens:
         return smooth_max(Lf, Ls, self.k)
 
 
-# ---------------------------------------------------------------- 3. 頭：丸い芯
-
-def open_exact(D: np.ndarray, radius: float, vox: float) -> np.ndarray:
-    """場 D（内側が正の距離）を半径 radius の球で開いた場。削り込み E = {D ≥ r} から距離 r 以内が内側。
-
-    E の外の点の E までの距離は、最も近い E のボクセルまでの距離から、そのボクセルが E の縁を越えている分
-    （D - r）を引いて画素より細かく求める（ボクセルの階段を残さない）。
-    """
-    E = D >= radius
-    dist, inds = ndi.distance_transform_edt(~E, return_indices=True)
-    exc = (D - radius)[tuple(inds)]
-    del inds
-    out = np.where(E, D, radius - (dist.astype(np.float32) * vox - np.maximum(exc, 0)))
-    return np.minimum(out, D).astype(np.float32)
-
-
-def head_core(lo: np.ndarray, vox: float, shape, cams: dict[str, V.Cam], sds: dict[str, np.ndarray],
-              z0: float = 1.12, radius: float = 0.035, sigma_m: float = 0.01) -> tuple[int, np.ndarray]:
-    """頭の芯（本文の 3）。sds は開いた外形の符号つき距離。戻り値は (始めの輪切り k0, z0 より上の場)"""
-    zs = lo[2] + (np.arange(shape[0]) + 0.5) * vox
-    k0 = int(np.searchsorted(zs, z0))
-    lo_s = lo + np.array([0.0, 0.0, k0 * vox])
-    shp = (shape[0] - k0, shape[1], shape[2])
-    cm = dict(cams, mirror=cams['three_quarter'].mirrored())
-    sd = dict(sds, mirror=sds['three_quarter'])
-    D = hull_field(lo_s, vox, shp, cm, sd, names=REAL + ('mirror',))
-    core = open_exact(D, radius, vox)
-    del D
-    core = ndi.gaussian_filter(np.clip(core, -0.03, 0.03), sigma_m / vox)
-    return k0, core.astype(np.float32)
-
-
-# ---------------------------------------------------------------- 4. 髪の房：房のレンズ
-
-def spike_lenses(core: np.ndarray, lo: np.ndarray, vox: float, cams: dict[str, V.Cam], sds: dict[str, np.ndarray],
-                 z_from: float, crown_z: float = 1.47, min_depth: float = 3.0, grow: int = 6,
-                 k_union: float = 0.008) -> tuple[np.ndarray, dict]:
-    """芯に無い外形の出っ張りを、縁の位置の丸いレンズとして足した場（本文の 4）。
-
-    sds：元の絵の外形の符号つき距離（ほとんどならさない）。z_from より上だけ（なめらかに切り替え）。
-    頭のてっぺん（crown_z より上）の房は正面と真横の絵からだけ作る（4 方向の房のひれが交わると、すき間に
-    くぼみのある込み入った形になる）。
-    """
-    nz, nx, ny = core.shape
-    xs = lo[0] + (np.arange(nx) + 0.5) * vox
-    ys = lo[1] + (np.arange(ny) + 0.5) * vox
-    zs = lo[2] + (np.arange(nz) + 0.5) * vox
-    views = {n: cams[n] for n in REAL}
-    views['mirror'] = cams['three_quarter'].mirrored()
-    sdk = {'front': 'front', 'side_right': 'side_right', 'three_quarter': 'three_quarter', 'mirror': 'three_quarter'}
-    out = core.copy()
-    stats = {}
-    for name, cam in views.items():
-        wz = ramp(zs, z_from - 0.02, z_from + 0.02).astype(np.float32)
-        if name in ('three_quarter', 'mirror'):
-            wz *= 1.0 - ramp(zs, crown_z - 0.02, crown_z + 0.01).astype(np.float32)
-        ry = Rays(lo, vox, core.shape, cam, sds[sdk[name]])
-        m, pos = ry.ray_max(core)
-        miss = (ry.sd >= 0.5) & (m < 0.3 * vox) & (wz > 0)[:, None]
-        # 外形の縁に沿う細い帯は除き、深い出っ張りだけを残す
-        deep = ndi.distance_transform_edt(miss) >= min_depth
-        lab, nlab = ndi.label(miss)
-        keep = np.zeros(nlab + 1, bool)
-        keep[np.unique(lab[deep])] = True
-        keep[0] = False
-        miss = keep[lab]
-        stats[name] = int(miss.sum())
-        if not miss.any():
-            continue
-        # 出っ張りの範囲（芯の側へ grow 視線広げる）と、その範囲だけで解いたふくらみ（厚み）
-        reg = ndi.binary_dilation(miss, iterations=grow) & (ry.sd >= -1.0)
-        h = poisson_height(reg) * vox
-        # 視線の奥行き s*：芯に最も近い点。出っ張りの中でならす（届かない視線は近くの値で埋める）
-        if ry.axis == 2:
-            depth = ys[0] + pos[..., 2] * vox          # 視線は +Y
-        elif ry.axis == 1:
-            depth = xs[0] + pos[..., 1] * vox          # 視線は +X
-        else:
-            _, dv = ry.frame()
-            depth = (xs[0] + pos[..., 1] * vox) * dv[0] + (ys[0] + pos[..., 2] * vox) * dv[1]
-        good = (m > -0.03) & np.isfinite(m)
-        wgt = ndi.gaussian_filter(good.astype(np.float32), 2.0)
-        sstar = ndi.gaussian_filter(np.where(good, depth, 0).astype(np.float32), 2.0) / np.maximum(wgt, 1e-3)
-        # 範囲の縁と高さの境で、レンズをなめらかに細らせる
-        wreg = np.clip(ndi.gaussian_filter(reg.astype(np.float32), 1.5) * 1.6, 0, 1) * wz[:, None]
-        h = np.where(reg, h * wreg - (1 - wreg) * 0.01, -0.05).astype(np.float32)
-        ks = np.nonzero(reg.any(1))[0]
-        for k0 in range(int(ks.min()), int(ks.max()) + 1, 64):
-            k1 = min(nz, k0 + 64)
-            if ry.axis == 2:
-                L = h[k0:k1, :, None] - np.abs(ys[None, None, :] - sstar[k0:k1, :, None])
-            elif ry.axis == 1:
-                L = h[k0:k1, None, :] - np.abs(xs[None, :, None] - sstar[k0:k1, None, :])
-            else:
-                r, dv = ry.frame()
-                X, Y = np.meshgrid(xs, ys, indexing='ij')
-                ai = (X * r[0] + Y * r[1] - ry.t[0]) / vox
-                S = X * dv[0] + Y * dv[1]
-                AA = np.broadcast_to(ai[None], (k1 - k0,) + ai.shape)
-                KK = np.broadcast_to(np.arange(k0, k1)[:, None, None], AA.shape)
-                L = (ndi.map_coordinates(h, [KK, AA], order=1, mode='constant', cval=-0.05)
-                     - np.abs(S[None] - ndi.map_coordinates(sstar, [KK, AA], order=1, mode='nearest')))
-            out[k0:k1] = smooth_max(L.astype(np.float32), out[k0:k1], k_union)
-    return out, stats
-
-
 # ---------------------------------------------------------------- まとめ
 
 def build_field(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.ndarray, vox: float, shape,
@@ -456,30 +271,30 @@ def build_field(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.nda
     # 1. 目標の外形（頭は切り欠きを閉じる）と視体積の場
     cm = closed_masks(masks, cams, p['head_close_m'])
     sdp = {n: target_sdf(cm[n], cams[n], p['target_sigma_px'], 3.0) for n in REAL}
-    D = hull_field(lo, vox, shape, cams, sdp)
+    # 体を切る視体積は正面と右真横だけ（右前斜めで切ると、腕・脚・胴の断面に平らな面と折れ目
+    # （くさび形）が残る。右前斜めの外形には、3 の面の段で縁だけをなめらかに合わせる）
+    D = hull_field(lo, vox, shape, cams, sdp, names=TRIM_VIEWS)
     log('視体積の場')
     # 2. 体のレンズ
     lens = Lens(cams, {n: sdp[n] > 0 for n in REAL}, p['lens_union_m'], p['depth_sigma_m'])
     phi = lens.field(lo, vox, shape)
     del lens, sdp
     log('体のレンズ')
-    # 3. 頭の芯（あごより上で切り替える）
-    om = opened_masks(masks, cams, p['head_open2d_m'])
-    sdo = {n: target_sdf(om[n], cams[n], 2.0, 2.0) for n in REAL}
-    k0, hc = head_core(lo, vox, shape, cams, sdo, radius=p['head_open3d_m'], sigma_m=p['head_core_sigma_m'])
-    w_head = ramp(zs, *HEAD_Z).astype(np.float32)[:, None, None]
-    phi[k0:] += w_head[k0:] * (hc - phi[k0:])
-    del hc, sdo
-    log('頭の芯')
-    # 4. 房のレンズ（元の絵の外形で）
-    sdr = {n: target_sdf(masks[n], cams[n], 1.0, 1.0) for n in REAL}
-    phi, st = spike_lenses(phi, lo, vox, cams, sdr, z_from=HEAD_Z[0] - 0.01, min_depth=p['spike_min_depth'],
-                           k_union=p['spike_union_m'])
-    del sdr
-    log('房のレンズ（出っ張りの視線の数）', st)
-    # 視体積で切る（外形を 2 画素太らせた視体積。外形への細かな合わせは面の段で面ごとなめらかに行う）
+    # 3. 首より上は体のレンズを使わない：レンズの上を、えり・フードの上の縁の高さ（BODY_TOP）の面で切る
+    kb = int(np.searchsorted(zs, BODY_TOP - 0.03))
+    top = np.broadcast_to((BODY_TOP - zs[kb:]).astype(np.float32)[:, None, None], phi[kb:].shape)
+    phi[kb:] = -smooth_max(-phi[kb:], -top, 0.005)
+    del top
+    # 視体積で切る（体だけ。外形を 2 画素太らせた視体積。外形への細かな合わせは面の段で面ごとなめらかに行う）
     np.minimum(phi, D + 2.0 / cams['front'].ppm, out=phi)
-    return phi, {'params': p, 'spike_rays': st}
+    del D
+    log('体の場（首より下）')
+    # 4. 頭と髪（hair.py）：頭（顔・あご）・首・髪の帽子・房。視体積では切らない
+    from recon import hair
+    k0, hphi, hinfo = hair.build_head(cams, masks, lo, vox, shape, log=log)
+    phi[k0:] = smooth_max(phi[k0:], hphi, 0.008)
+    del hphi
+    return phi, {'params': p, 'body_top_z': BODY_TOP, 'head': hinfo}
 
 
 def mesh_of(phi: np.ndarray, lo: np.ndarray, vox: float, sigma: float = 0.6, taubin_iters: int = 10

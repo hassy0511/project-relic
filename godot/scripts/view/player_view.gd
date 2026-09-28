@@ -12,12 +12,12 @@ var anim: AnimationPlayer
 var skeleton: Skeleton3D
 var pose: HaruPose
 var blade: Node3D = null
-var blade_mat: StandardMaterial3D = null
+var blade_mat: BaseMaterial3D = null
 var muzzle: Node3D = null
 var charge_glow: MeshInstance3D
 var meshes: Array[MeshInstance3D] = []
-var face_mats: Array[StandardMaterial3D] = []
-var body_mats: Array[StandardMaterial3D] = []
+var face_mats: Array[BaseMaterial3D] = []
+var body_mats: Array[BaseMaterial3D] = []
 var current := ""
 var shading := "soft"
 var _visual_yaw := 0.0
@@ -41,9 +41,12 @@ func load_model(path: String, shade: String = "soft") -> void:
 		var mi := n as MeshInstance3D
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		for s in mi.mesh.get_surface_count():
+			# 材質は体ごとに複製する（表情の UV のずれ・点滅・光刃の明るさを、ほかの体と共有しないように）。
+			# テクスチャ（下地の色・発光）は複製した材質がそのまま参照する。glTF の読み込みでは
+			# StandardMaterial3D か ORMMaterial3D になるので、共通の BaseMaterial3D で扱う
 			var src := mi.mesh.surface_get_material(s)
-			if src is StandardMaterial3D:
-				var m: StandardMaterial3D = src.duplicate()
+			if src is BaseMaterial3D:
+				var m: BaseMaterial3D = src.duplicate()
 				mi.set_surface_override_material(s, m)
 				if mi == blade:
 					blade_mat = m
@@ -87,7 +90,8 @@ func load_model(path: String, shade: String = "soft") -> void:
 	set_shading(shade)
 
 
-## 塗り方：soft（柔らかい陰影）／toon（3 段の塗り分け）。どちらも輪郭の光（リム）を少し入れる
+## 塗り方：soft（柔らかい陰影）／toon（3 段の塗り分け）。どちらも輪郭の光（リム）を少し入れる。
+## 光の当たり方だけを変え、下地の色・発光のテクスチャはそのまま使う
 func set_shading(mode: String) -> void:
 	shading = mode
 	for m in body_mats:
@@ -104,6 +108,8 @@ func set_shading(mode: String) -> void:
 			m.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
 
 
+## 表情：0 通常、1 笑顔、2 驚き、3 痛み。顔の材質（名前に face）のテクスチャは 2×2 の区画に 4 つの表情が
+## 並び、UV は区画 0（左上）を指す。uv1_offset で区画をずらして切り替える
 func set_expression(i: int) -> void:
 	if i == _expression:
 		return

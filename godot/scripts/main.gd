@@ -1,7 +1,7 @@
 extends Node
 ## ゲーム全体：タイトル → プレイ ⇔ ポーズ。1/60 秒ごとにゲームの中身を進め、見た目・音・UI に反映する。
 ## 引数：-- --demo=<出力フォルダ>  自動の見本（起動 → 会話 → 戦闘 → 斬撃 → ドリル）を進めて各場面を撮り、終了する
-##       -- --haru=proxy            ハルを MVP の仮のモデルにする（b で AI 変換のハル）
+##       -- --haru=proxy            ハルを MVP の仮のモデルにする（b で AI 変換のハル、r で絵から起こしたハル haru_r）
 ##       -- --shade=toon            3 段の塗り分け
 
 const SAVE_PATH := "user://save_slot1.json"
@@ -117,6 +117,8 @@ func start_game(save) -> void:
 			model = "haru_proxy"
 		"b":
 			model = "haru_b"
+		"r":
+			model = "haru_r"
 	var path := "res://assets/models/%s.glb" % model
 	if not ResourceLoader.exists(path):
 		path = "res://assets/models/haru_a.glb"

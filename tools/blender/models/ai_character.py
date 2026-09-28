@@ -5,8 +5,25 @@
 
   python tools/blender/models/ai_character.py --input <入力.glb> --out <出力.glb>
       [--turn 度]          正面が -Y（glTF では +Z）を向くように回す角度（向きが違うとき）
-      [--target-tris 数]   面を減らす目標（既定 16000）
+      [--keep-frame]       入力がすでに約束の座標（身長 1.55m、正面 -Y、靴底 z=0、胴の中心 x=y=0）のとき、
+                           向き・大きさ・位置を一切動かさない（絵から起こしたハル。確認のカメラと画素を合わせるため）
+      [--target-tris 数]   面を減らす目標。0 で減らさない。
+                           省略時：テクスチャの付いた入力は減らさない（UV・顔の区画を崩さないため）、それ以外は 16000
       [--joints <json>]    関節の位置を手で直す（自動の推定を上書き。単位は m）
+      [--gun <glb>]        銃を絵から起こした GLB（tools/blender/recon/gun.py の spark_gun.glb）にする。
+                           省略時は箱の組み合わせの仮の銃
+      [--blade-anchor auto|x,y,z]
+                           光刃の根元（A ポーズの座標、m）。auto は左前腕の外側（小指側）のレールの手首側の端を
+                           形から探す。省略時は従来どおり手首の外側
+      [--grip-fist x,y,z]  （--gun のとき）右手を拳にして銃の握りを握らせる。値は A ポーズの掌の向き（ハルは
+                           0,1,0 = 後ろ）。手を手の骨の軸まわりにねじって掌を体の内側へ向け、指の付け根から先を
+                           握りのまわりに曲げる（指の骨が無いので、基準の姿勢のメッシュそのものを拳の形にする）
+      [--rest-arm-deg 度]  基準の姿勢の腕の開き（正面から見た真下からの角度）。前後の軸まわりだけで腕を下ろす
+                           （腕の前後の傾き・肘の曲がりを保つ）。省略時は従来どおり標準の向きへ最短の回転で
+      [--fill-unweighted 割合]
+                           自動の重み（熱）が付かない頂点がこの割合（0〜1）までなら、全体を距離の重みに替えず、
+                           一番近い重みのある頂点の重みを写す（別の殻の髪の房・板など）。省略時は従来どおり
+      [--stats <json>]     数値の記録の書き出し先（省略時は <出力>.stats.json）
       [--render <接頭辞>]  確認用の画像（関節の目印つき）
 
 手順：
@@ -16,6 +33,13 @@
  4. 骨の重みを付ける（Blender の自動の重み。失敗したら骨までの距離の重み）
  5. 腕を下ろして、その姿勢を新しい基準の姿勢にする（標準の動作が使えるように）
  6. 標準の骨を入れ直し、動作・銃・光刃・目印を付けて書き出す
+
+材質：入力の材質の名前・テクスチャ・UV はそのまま残す（'haru_body'、'haru_face' など）。
+  下地の色が画像で、発光がまだ無い材質にだけ、琥珀色の所から発光のテクスチャを作って足す。
+  名前に face を含む材質（表情の区画を UV でずらす顔）には一切手を付けない。
+  銃は 'spark_gun'（--gun のとき、GLB の材質のまま）、光刃は 'haru_blade'。
+目印：'muzzle'（銃口の先、hand.R の子）、'blade_socket'（光刃の根元、+Y が刃の向き、forearm.L の子）、
+  'LightBlade'（光刃のメッシュ、forearm.L の子。ゲームが攻撃中だけ表示する）。
 """
 from __future__ import annotations
 
@@ -30,7 +54,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import bpy  # noqa: E402
 import numpy as np  # noqa: E402
-from mathutils import Matrix, Vector  # noqa: E402
+from mathutils import Matrix, Quaternion, Vector  # noqa: E402
 
 from lib import common as C  # noqa: E402
 from lib import humanoid as H  # noqa: E402
@@ -48,7 +72,8 @@ REST_ARM_DIR = Vector((P['forearm'][0] - P['upper_arm'][0], P['forearm'][1] - P[
 
 # ---------------------------------------------------------------- 1. そろえる
 
-def import_and_normalize(path: str, turn: float) -> bpy.types.Object:
+def import_and_normalize(path: str, turn: float, keep_frame: bool = False) -> bpy.types.Object:
+    """keep_frame=True：入力がすでに約束の座標なので、つなぐ・掃除するだけで、向き・大きさ・位置は動かさない"""
     C.reset_scene()
     bpy.ops.import_scene.gltf(filepath=path)
     meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
@@ -79,6 +104,8 @@ def import_and_normalize(path: str, turn: float) -> bpy.types.Object:
     bmesh.ops.delete(bm, geom=loose, context='VERTS')
     bm.to_mesh(body.data)
     bm.free()
+    if keep_frame:
+        return body
     pts = verts(body)
     # A ポーズでは、腕を広げた左右の幅が前後の奥行きより大きい。奥行きのほうが大きければ 90 度回す
     ext = pts.max(0) - pts.min(0)
@@ -238,8 +265,33 @@ def joints_table(J: dict) -> dict:
     return {k: (v[0] / HEIGHT, v[1] / HEIGHT, v[2] / HEIGHT) for k, v in J.items() if not k.startswith('_')}
 
 
-def skin(body: bpy.types.Object, arm: bpy.types.Object) -> str:
-    """自動の重み（骨の熱の広がり）。うまくいかない頂点が多ければ、骨までの距離の重みにする"""
+def fill_from_nearest(body: bpy.types.Object, todo: list[int]) -> int:
+    """重みの無い頂点に、一番近い「重みのある頂点」の重みを写す。写した数を返す"""
+    from mathutils.kdtree import KDTree
+    me = body.data
+    todo_set = set(todo)
+    src = [v for v in me.vertices if v.index not in todo_set]
+    if not src:
+        return 0
+    kd = KDTree(len(src))
+    for v in src:
+        kd.insert(v.co, v.index)
+    kd.balance()
+    names = {g.index: g.name for g in body.vertex_groups}
+    for vi in todo:
+        _, j, _ = kd.find(me.vertices[vi].co)
+        for g in me.vertices[j].groups:
+            if g.weight > 0.001:
+                body.vertex_groups[names[g.group]].add([vi], g.weight, 'REPLACE')
+    return len(todo)
+
+
+def skin(body: bpy.types.Object, arm: bpy.types.Object, fill_limit: float = 0.0) -> str:
+    """自動の重み（骨の熱の広がり）。うまくいかない頂点が多ければ、骨までの距離の重みにする。
+
+    fill_limit > 0：重みの無い頂点が全体のその割合までなら、距離の重みに替えず、一番近い重みのある頂点の
+    重みを写す（髪の房・板など、別の殻で骨が見通せず熱が届かない所だけを埋める）。
+    """
     bpy.ops.object.select_all(action='DESELECT')
     body.select_set(True)
     arm.select_set(True)
@@ -249,9 +301,14 @@ def skin(body: bpy.types.Object, arm: bpy.types.Object) -> str:
         bpy.ops.object.parent_set(type='ARMATURE_AUTO')
     except RuntimeError:
         method = 'distance'
-    unweighted = sum(1 for v in body.data.vertices if not any(g.weight > 0.001 for g in v.groups))
+    todo = [v.index for v in body.data.vertices if not any(g.weight > 0.001 for g in v.groups)]
+    unweighted = len(todo)
     if method == 'heat' and unweighted > len(body.data.vertices) * 0.005:
-        method = 'distance'
+        if unweighted <= len(body.data.vertices) * fill_limit:
+            fill_from_nearest(body, todo)
+            method = 'heat+nearest'
+        else:
+            method = 'distance'
     if method == 'distance':
         body.vertex_groups.clear()
         bones = [b.name for b in arm.data.bones if b.name != 'root']
@@ -266,15 +323,29 @@ def skin(body: bpy.types.Object, arm: bpy.types.Object) -> str:
     return f'{method}（重みの無い頂点 {unweighted}）'
 
 
-def lower_arms(body: bpy.types.Object, arm: bpy.types.Object) -> dict:
-    """腕を下ろした姿勢を、メッシュの新しい基準の形にする。下ろしたあとの関節の位置を返す"""
+def lower_arms(body: bpy.types.Object, arm: bpy.types.Object,
+               frontal_deg: float | None = None) -> tuple[dict, Quaternion]:
+    """腕を下ろした姿勢を、メッシュの新しい基準の形にする。下ろしたあとの関節の位置と、左腕の回転を返す。
+
+    frontal_deg が無ければ、上腕を標準の向き（REST_ARM_DIR）へ最短の回転で向ける（従来どおり）。
+    frontal_deg（度）を渡すと、前後の軸（Y）まわりだけで回し、正面から見た上腕の傾き（真下から外へ）を
+    その角度にする。腕の前後の傾き・肘の曲がりはそのまま（最短の回転だと、前へ出た上腕を下ろすときに
+    腕全体が後ろへ振れる）。
+    """
     bpy.context.view_layer.objects.active = arm
     bpy.ops.object.mode_set(mode='POSE')
+    q_left = Quaternion()
     for side, sx in ((1, '.L'), (-1, '.R')):
         pb = arm.pose.bones['upper_arm' + sx]
         cur = (pb.tail - pb.head).normalized()
-        want = Vector((REST_ARM_DIR.x * side, REST_ARM_DIR.y, REST_ARM_DIR.z))
-        q = cur.rotation_difference(want)
+        if frontal_deg is None:
+            want = Vector((REST_ARM_DIR.x * side, REST_ARM_DIR.y, REST_ARM_DIR.z))
+            q = cur.rotation_difference(want)
+        else:
+            a_cur = math.atan2(cur.x * side, -cur.z)
+            q = Quaternion(Vector((0.0, 1.0, 0.0)), (a_cur - math.radians(frontal_deg)) * side)
+        if side == 1:
+            q_left = q.copy()
         head = pb.head.copy()
         pb.matrix = Matrix.Translation(head) @ q.to_matrix().to_4x4() @ Matrix.Translation(-head) @ pb.matrix
         bpy.context.view_layer.update()
@@ -290,15 +361,27 @@ def lower_arms(body: bpy.types.Object, arm: bpy.types.Object) -> dict:
     for m in body.modifiers:
         if m.type == 'ARMATURE':
             bpy.ops.object.modifier_apply(modifier=m.name)
-    return new
+    return new, q_left
 
 
 # ---------------------------------------------------------------- 6. 材質、銃、光刃
 
-def fix_materials(body: bpy.types.Object, tex_dir: str) -> None:
-    """AI の材質は金属っぽさが混ざりがちなので、ゲームの塗りに合わせる。琥珀色の部分を光らせる"""
+def has_textures(body: bpy.types.Object) -> bool:
+    """材質のどれかが画像のテクスチャを使っているか（UV で色を持つ入力か）"""
     for mat in body.data.materials:
-        if not mat or not mat.use_nodes:
+        if mat and mat.use_nodes and any(n.type == 'TEX_IMAGE' and n.image for n in mat.node_tree.nodes):
+            return True
+    return False
+
+
+def fix_materials(body: bpy.types.Object, tex_dir: str) -> None:
+    """AI の材質は金属っぽさが混ざりがちなので、ゲームの塗りに合わせる。琥珀色の部分を光らせる。
+
+    材質を置き換えはしない（名前・下地の色のテクスチャ・UV はそのまま）。
+    顔の材質（名前に face）には触らない。すでに発光がつながっている材質には発光を足さない。
+    """
+    for mat in body.data.materials:
+        if not mat or not mat.use_nodes or 'face' in mat.name.lower():
             continue
         nt = mat.node_tree
         bsdf = next((n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'), None)
@@ -310,6 +393,8 @@ def fix_materials(body: bpy.types.Object, tex_dir: str) -> None:
                 nt.links.remove(link)
         bsdf.inputs['Metallic'].default_value = 0.0
         bsdf.inputs['Roughness'].default_value = 0.85
+        if bsdf.inputs['Emission Color'].links:
+            continue  # 発光のテクスチャはすでにある（絵から起こしたハルは焼き込み済み）
         base = bsdf.inputs['Base Color'].links[0].from_node if bsdf.inputs['Base Color'].links else None
         if base is None or base.type != 'TEX_IMAGE' or base.image is None:
             continue
@@ -336,7 +421,28 @@ def fix_materials(body: bpy.types.Object, tex_dir: str) -> None:
         bsdf.inputs['Emission Strength'].default_value = 1.5
 
 
-def add_gun_and_blade(arm: bpy.types.Object, gun_mat, blade_mat) -> list[bpy.types.Object]:
+def name_images(body: bpy.types.Object) -> None:
+    """テクスチャの画像の名前を「材質_用途」にそろえる（haru_body_base、haru_body_emit、haru_face_base など）。
+
+    Godot は GLB の中の画像を「<GLB の名前>_<画像の名前>.png」として取り出すので、名前が入力の作り方で
+    変わると、古い画像のファイルが残ってしまう。名前をそろえておけば、作り直しても同じファイルが上書きされる。
+    """
+    for mat in body.data.materials:
+        if not mat or not mat.use_nodes:
+            continue
+        for link in mat.node_tree.links:
+            n = link.from_node
+            if n.type != 'TEX_IMAGE' or n.image is None:
+                continue
+            kind = {'Base Color': 'base', 'Emission Color': 'emit', 'Normal': 'normal'}.get(link.to_socket.name)
+            if kind is None:
+                continue
+            want = f'{mat.name}_{kind}'
+            if n.image.name != want and want not in bpy.data.images:
+                n.image.name = want
+
+
+def add_gun_and_blade(arm: bpy.types.Object, gun_mat, blade_mat, blade: dict | None = None) -> list[bpy.types.Object]:
     """銃（右手）と光刃（左前腕）。銃は絵が届くまで箱の組み合わせの仮の形"""
     parts = []
     hr = arm.data.bones['hand.R']
@@ -360,21 +466,206 @@ def add_gun_and_blade(arm: bpy.types.Object, gun_mat, blade_mat) -> list[bpy.typ
         parts.append(o)
     muzzle = C.empty('muzzle', (x, y0, fz - 0.225))
     M.parent_to_bone(muzzle, arm, 'hand.R')
-    # 光刃：手首の外側から、前腕の向きに 45cm
+    add_blade(arm, blade_mat, blade)
+    return parts
+
+
+# 絵から起こした銃の握り方（--gun）。拳の中心は手の骨の根元から先へ GRIP_ALONG の所、
+# そこから掌の側（体の内側）へ GRIP_IN、正面へ GRIP_FRONT ずらした所を銃の原点（握りの中心）にする
+GRIP_ALONG = 0.45
+GRIP_IN = 0.012
+GRIP_FRONT = 0.0
+
+
+# 拳の形（--grip-fist）：指の付け根は手首から指先までの GRIP_KNUCKLE の所。指は半径 GRIP_RADIUS の
+# 円柱（銃の握り）に沿って掌の側へ曲げる
+GRIP_KNUCKLE = 0.5
+GRIP_RADIUS = 0.026
+HAND_END_FRAC = 0.8   # 手の骨の先（hand_end）は、手首から指先までのこの割合の所（joints.py、estimate_joints と同じ）
+
+
+def grip_right_hand(body: bpy.types.Object, arm: bpy.types.Object, palm: Vector) -> dict:
+    """右手を、銃の握りを握った拳の形にする（基準の姿勢のメッシュを直接変える）。握りの置き場所を返す。
+
+    絵の手は A ポーズで指を開き、掌は palm の向き（ハルは後ろ）。銃を立てて構えるには掌が体の内側を
+    向いている必要があるので、
+      1. ねじる：手（hand.R の重みの分だけ）を手の骨の軸まわりに回し、掌を体の内側（+X）へ向ける
+         （手首の混ざる所は重みの割合だけ回るので、手袋の袖口がなめらかにねじれる）
+      2. 曲げる：指の付け根（手首から指先までの GRIP_KNUCKLE）より先を、掌の側の半径 GRIP_RADIUS の
+         円柱のまわりに曲げる（指の長さに比例した角度。約 5.5cm の指で 120 度ほど）
+    返り値：{'origin': 握りの中心, 'x': 銃身の向き, 'z': 銃の上（親指の側 = 正面）}
+    """
+    hr = arm.data.bones['hand.R']
+    W = hr.head_local.copy()
+    h = (hr.tail_local - W).normalized()
+    reach = (hr.tail_local - W).length / HAND_END_FRAC
+    gi = body.vertex_groups['hand.R'].index
+    me = body.data
+    n = len(me.vertices)
+    w = np.zeros(n)
+    for v in me.vertices:
+        for g in v.groups:
+            if g.group == gi:
+                w[v.index] = g.weight
+    co = np.empty(n * 3)
+    me.vertices.foreach_get('co', co)
+    co = co.reshape(-1, 3)
+    hv = np.array(h)
+    Wv = np.array(W)
+
+    # 1. ねじる（掌 palm → 体の内側 +X）
+    p0 = Vector(palm) - h * Vector(palm).dot(h)
+    p1 = Vector((1.0, 0.0, 0.0)) - h * h.x
+    p0.normalize()
+    p1.normalize()
+    ang = math.atan2(h.dot(p0.cross(p1)), p0.dot(p1))
+    idx = np.nonzero(w > 1e-4)[0]
+    for i in idx:
+        q = Quaternion(h, ang * w[i])
+        co[i] = Wv + np.array(q @ Vector(co[i] - Wv))
+
+    # 2. 曲げる（付け根より先を、掌の側の円柱に沿って）
+    pv = np.array(p1)                       # 掌の向き（体の内側）
+    tv = np.array(h.cross(p1))              # 親指の側（正面）
+    K = Wv + hv * reach * GRIP_KNUCKLE
+    rel = co - K
+    sv = rel @ hv
+    qv = rel @ pv
+    wv = rel @ tv
+    rad = np.linalg.norm(rel - np.outer(sv, hv), axis=1)
+    fing = (w > 0.3) & (sv > 0) & (rad < 0.08)
+    th = sv[fing] / GRIP_RADIUS
+    r = GRIP_RADIUS - qv[fing]
+    C = K + pv * GRIP_RADIUS
+    co[fing] = (C + np.outer(wv[fing], tv) + np.outer(-np.cos(th) * r, pv) + np.outer(np.sin(th) * r, hv))
+    me.vertices.foreach_set('co', co.ravel())
+    me.update()
+    return {'origin': Vector(C), 'x': h, 'z': Vector(tv), 'fingers': int(fing.sum()), 'twist_deg': math.degrees(ang)}
+
+
+def add_recon_gun(arm: bpy.types.Object, path: str, grip: dict | None = None) -> bpy.types.Object:
+    """絵から起こした銃（spark_gun.glb）を右手に持たせる。
+
+    GLB の銃：原点 = 握りの中心、銃身 +X（銃口が +X）、上 +Z、空の目印 'muzzle' が銃口の先。
+    持たせ方：銃身を手の骨の向き（手首 → 指先）へ、銃の上をキャラクターの正面（-Y）へ向ける
+    （腕を下ろした基準の姿勢で、銃口は下、握りは後ろへ出る。腕を前へ上げると銃口が前を向く）。
+    銃は hand.R に丸ごと付け（剛体）、目印 'muzzle' を銃口の先に置き直す（hand.R の子）。
+    """
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=path)
+    new = [o for o in bpy.data.objects if o not in before]
+    gun_objs = [o for o in new if o.type == 'MESH']
+    tip = next((o for o in new if o.name.startswith('muzzle')), None)
+    bpy.context.view_layer.update()
+    tip_world = tip.matrix_world.translation.copy() if tip else None
+    for o in gun_objs:
+        mw = o.matrix_world.copy()
+        o.parent = None
+        o.data.transform(mw)
+        o.matrix_world = Matrix.Identity(4)
+    gun = C.join(gun_objs, 'spark_gun') if len(gun_objs) > 1 else gun_objs[0]
+    gun.name = 'spark_gun'
+    for o in new:
+        if o is not gun and o.name in bpy.data.objects:
+            bpy.data.objects.remove(o, do_unlink=True)
+    if tip_world is None:  # 目印が無ければ、銃口側（+X）の端の中央
+        pts = np.array([v.co[:] for v in gun.data.vertices])
+        tip_world = Vector((pts[:, 0].max(), 0.0, float(np.median(pts[pts[:, 0] > pts[:, 0].max() - 0.01, 2]))))
+
+    hr = arm.data.bones['hand.R']
+    gx = (hr.tail_local - hr.head_local).normalized()          # 銃身 = 手の向き
+    front = Vector((0.0, -1.0, 0.0))
+    if grip:                                                   # 拳の形にしたとき：握りの中心と親指の側
+        front = grip['z']
+    gz = (front - gx * front.dot(gx)).normalized()             # 銃の上 = 正面
+    gy = gz.cross(gx)
+    rot = Matrix((gx, gy, gz)).transposed().to_4x4()           # 列が銃の X, Y, Z
+    inward = Vector((1.0, 0.0, 0.0))                           # 右手の掌の側（体の内側）
+    if grip:
+        origin = grip['origin']
+    else:
+        origin = hr.head_local.lerp(hr.tail_local, GRIP_ALONG) + inward * GRIP_IN + front * GRIP_FRONT
+    place = Matrix.Translation(origin) @ rot
+    gun.data.transform(place)
+    gun.data.update()
+    M.weight_rigid(gun, 'hand.R')
+    muzzle = C.empty('muzzle', place @ tip_world)
+    M.parent_to_bone(muzzle, arm, 'hand.R')
+    return gun
+
+
+def find_rail_anchor(pts: np.ndarray, J: dict) -> tuple[list[float], list[float]]:
+    """左前腕の外側（体から離れる側）のレールの、手首側の端を形から探す（A ポーズの座標）。
+
+    前腕の軸に直交し、前額面の中で体から離れる向きを「外」とし、前腕の手首寄りの部分で一番外へ出ている所を
+    レールの面とみなす。その高さを保って、手首の側へ一番遠くまで続く所を根元にする。
+    返り値：(根元の点, 外の向き)
+    """
+    e, w = np.array(J['forearm']), np.array(J['hand'])
+    d = w - e
+    L = float(np.linalg.norm(d))
+    d /= L
+    n = np.array([-d[2], 0.0, d[0]])
+    n /= np.linalg.norm(n)
+    if n[0] < 0:
+        n = -n
+    rel = pts - e
+    t = rel @ d / L
+    radial = rel - np.outer(rel @ d, d)
+    r = np.linalg.norm(radial, axis=1)
+    m = (t > 0.45) & (t < 1.25) & (r < 0.09)
+    if m.sum() < 10:
+        return (w + n * 0.04).tolist(), n.tolist()
+    lat = radial[m] @ n
+    top = lat >= lat.max() - 0.008
+    k = np.argmax(np.where(top, t[m], -1))
+    p = pts[m][k]
+    return p.tolist(), n.tolist()
+
+
+def add_blade(arm: bpy.types.Object, blade_mat, blade: dict | None = None) -> bpy.types.Object:
+    """光刃：左前腕から、前腕と平行に 45cm。
+
+    blade が無ければ従来どおり手首の外側から。blade = {'base': 根元（基準の姿勢の座標）, 'side': 外の向き} なら、
+    レールの端から刃を出す（刃の平らな面が外を向く：薄い向き = side、幅の向き = 前腕と side に直交）。
+    """
     fl, hl = arm.data.bones['forearm.L'], arm.data.bones['hand.L']
     axis = (fl.tail_local - fl.head_local).normalized()
-    base = hl.head_local + Vector((0.06, 0, 0.02))
+    if blade:
+        side = Vector(blade['side'])
+        side = (side - axis * side.dot(axis)).normalized()
+        base = Vector(blade['base']) + side * 0.004
+        ref = tuple(side)
+        radii = [(0.012, 0.004), (0.016, 0.005), (0.014, 0.004), 0.0]
+    else:
+        base = hl.head_local + Vector((0.06, 0, 0.02))
+        ref = (0, -1, 0)
+        radii = [(0.010, 0.018), (0.012, 0.026), (0.010, 0.022), 0.0]
     sock = C.empty('blade_socket', base)
     sock.rotation_mode = 'QUATERNION'
     sock.rotation_quaternion = Vector((0, 1, 0)).rotation_difference(axis)
     M.parent_to_bone(sock, arm, 'forearm.L')
-    blade = M.loft('LightBlade', [Vector((0, 0, 0)), axis * 0.08, axis * 0.36, axis * 0.45],
-                   [(0.010, 0.018), (0.012, 0.026), (0.010, 0.022), 0.0], sides=4, angle0=0.0, ref=(0, -1, 0))
-    blade.location = base
-    blade.data.materials.append(blade_mat)
-    M.smooth(blade, 0)
-    M.parent_to_bone(blade, arm, 'forearm.L')
-    return parts
+    obj = M.loft('LightBlade', [Vector((0, 0, 0)), axis * 0.08, axis * 0.36, axis * 0.45],
+                 radii, sides=4, angle0=0.0, ref=ref)
+    obj.location = base
+    obj.data.materials.append(blade_mat)
+    M.smooth(obj, 0)
+    M.parent_to_bone(obj, arm, 'forearm.L')
+    return obj
+
+
+def blade_material() -> bpy.types.Material:
+    """光刃の材質（haru_a と同じ琥珀の発光、少し透ける）"""
+    blade = bpy.data.materials.new('haru_blade')
+    blade.use_nodes = True
+    b = blade.node_tree.nodes['Principled BSDF']
+    amber = C.hex_color('#FFBC52')
+    b.inputs['Base Color'].default_value = (*amber, 1)
+    b.inputs['Emission Color'].default_value = (*amber, 1)
+    b.inputs['Emission Strength'].default_value = 3.0
+    b.inputs['Alpha'].default_value = 0.85
+    blade.surface_render_method = 'BLENDED'
+    return blade
 
 
 def render_check(prefix: str, J: dict) -> None:
@@ -393,42 +684,100 @@ def render_check(prefix: str, J: dict) -> None:
 
 # ---------------------------------------------------------------- 全体
 
+def parse_anchor(text: str | None) -> str | list[float] | None:
+    if not text or text == 'auto':
+        return text
+    return [float(c) for c in text.split(',')]
+
+
+def lowered_point(p: list[float], J: dict, q: Quaternion) -> Vector:
+    """A ポーズの左腕の上の点を、腕を下ろした基準の姿勢へ移す（lower_arms と同じ肩まわりの回転 q）"""
+    sh = Vector(J['upper_arm'])
+    return sh + q @ (Vector(p) - sh)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument('--input', required=True)
     ap.add_argument('--out', required=True)
     ap.add_argument('--turn', type=float, default=0.0)
-    ap.add_argument('--target-tris', type=int, default=16000)
+    ap.add_argument('--keep-frame', action='store_true')
+    ap.add_argument('--target-tris', type=int, default=None)
     ap.add_argument('--joints')
+    ap.add_argument('--gun')
+    ap.add_argument('--blade-anchor')
+    ap.add_argument('--grip-fist', help='右手を拳にして銃を握らせる。値は A ポーズの掌の向き x,y,z（ハルは 0,1,0）')
+    ap.add_argument('--rest-arm-deg', type=float, default=None,
+                    help='基準の姿勢の腕の開き（正面から見た真下からの角度、度）。前後の軸まわりだけで下ろす')
+    ap.add_argument('--fill-unweighted', type=float, default=0.0,
+                    help='自動の重みが付かない頂点がこの割合までなら、近い頂点の重みで埋める（既定 0 = 従来どおり）')
+    ap.add_argument('--stats', help='数値の記録の JSON（既定は <出力>.stats.json）')
     ap.add_argument('--render')
     args = ap.parse_args([a for a in sys.argv[1:] if a != '--'])
 
-    body = import_and_normalize(args.input, args.turn)
+    body = import_and_normalize(args.input, args.turn, args.keep_frame)
     src_tris = M.tri_count(body)
-    J = load_overrides(estimate_joints(verts(body)), args.joints)
+    textured = has_textures(body)
+    pts_apose = verts(body)
+    J = load_overrides(estimate_joints(pts_apose), args.joints)
     if args.render:
         render_check(args.render + '_joints', J)
-    decimate(body, args.target_tris)
+    # テクスチャの付いた入力は、面を減らすと UV の継ぎ目や顔の区画が崩れるので、既定では減らさない
+    target = args.target_tris if args.target_tris is not None else (0 if textured else 16000)
+    if target > 0:
+        decimate(body, target)
+
+    # 光刃の根元（A ポーズで決めて、腕を下ろしたあとの位置へ移す）
+    anchor = parse_anchor(args.blade_anchor)
+    blade_apose = None
+    if anchor == 'auto':
+        if '_blade_anchor' in J:
+            base = J['_blade_anchor']
+            _, side = find_rail_anchor(pts_apose, J)
+        else:
+            base, side = find_rail_anchor(pts_apose, J)
+        blade_apose = {'base': base, 'side': side}
+    elif anchor:
+        _, side = find_rail_anchor(pts_apose, J)
+        blade_apose = {'base': anchor, 'side': side}
 
     # 仮の骨（A ポーズ）で重みを付け、腕を下ろして基準の形にする
     tmp = H.build_armature(HEIGHT, 'TmpRig', joints_table(J))
-    method = skin(body, tmp)
-    lowered = lower_arms(body, tmp)
+    method = skin(body, tmp, args.fill_unweighted)
+    lowered, q_left = lower_arms(body, tmp, args.rest_arm_deg)
     bpy.data.objects.remove(tmp, do_unlink=True)
     body.parent = None
     J2 = dict(J)
     J2.update(lowered)
+    blade = None
+    if blade_apose:
+        blade = {'base': list(lowered_point(blade_apose['base'], J, q_left)),
+                 'side': list(q_left @ Vector(blade_apose['side']))}
 
     # 標準の骨を入れ直す（重みは骨の名前で残っている）
     arm = H.build_armature(HEIGHT, 'HaruRig', joints_table(J2))
     H.finalize_skin(body, arm)
     tex_dir = tempfile.mkdtemp(prefix='ai_char_')
     fix_materials(body, tex_dir)
-    parts_mat, face_mat, blade_mat = HA.make_materials(tex_dir)
-    parts_mat.name = 'ai_parts'  # 銃など、色見本で塗る部品
-    bpy.data.materials.remove(face_mat)
-    parts = add_gun_and_blade(arm, parts_mat, blade_mat)
+    grip_info = None
+    if args.gun:
+        # 絵から起こした銃。材質は入力（'haru_body'、'haru_face'）と銃（'spark_gun'）のまま
+        blade_mat = blade_material()
+        grip = None
+        if args.grip_fist:
+            grip = grip_right_hand(body, arm, Vector([float(c) for c in args.grip_fist.split(',')]))
+        parts = [add_recon_gun(arm, args.gun, grip)]
+        if grip:
+            grip_info = {'fingers_bent': grip['fingers'], 'twist_deg': round(grip['twist_deg'], 1),
+                         'grip_origin': [round(c, 4) for c in grip['origin']]}
+        add_blade(arm, blade_mat, blade)
+    else:
+        parts_mat, face_mat, blade_mat = HA.make_materials(tex_dir)
+        parts_mat.name = 'ai_parts'  # 銃など、色見本で塗る部品
+        bpy.data.materials.remove(face_mat)
+        parts = add_gun_and_blade(arm, parts_mat, blade_mat, blade)
     body = C.join([body] + parts, 'Haru')
+    name_images(body)
     H.bake_clips(arm, A.all_clips())
 
     C.export_glb(args.out)
@@ -437,15 +786,21 @@ def main() -> None:
         'total_body': M.tri_count(body),
         'vertices_body': len(body.data.vertices),
         'skinning': method,
+        'textured_input': textured,
+        'decimate_target': target,
         'materials': [m.name for m in body.data.materials if m] + ['haru_blade'],
         'joints': {k: [round(x, 4) for x in v] for k, v in J2.items()},
+        # A ポーズ（入力の姿勢）の関節。確認の画像で腕を A ポーズへ戻すのに使う
+        'joints_apose': {k: [round(x, 4) for x in v] for k, v in J.items()},
+        'blade': {k: [round(x, 4) for x in v] for k, v in blade.items()} if blade else None,
+        'grip': grip_info,
     }
-    with open(os.path.splitext(args.out)[0] + '.stats.json', 'w') as f:
+    with open(args.stats or (os.path.splitext(args.out)[0] + '.stats.json'), 'w') as f:
         json.dump(stats, f, indent=2, ensure_ascii=False)
     if args.render:
         C.render_views(args.render, (0, 0, HEIGHT / 2), HEIGHT,
                        views={'front': 0, 'side': 90, 'back': 180, 'three_quarter': 35}, size=640)
-    print(json.dumps({k: v for k, v in stats.items() if k != 'joints'}, ensure_ascii=False))
+    print(json.dumps({k: v for k, v in stats.items() if k not in ('joints', 'joints_apose')}, ensure_ascii=False))
     print('wrote', args.out)
 
 

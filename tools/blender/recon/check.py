@@ -8,6 +8,8 @@
   （差の色：白＝両方、赤＝絵だけ（メッシュが足りない）、青＝メッシュだけ（はみ出し））。
 - geo_check_virtual.png：絵のない向き。左前斜め（右前斜めの絵を反転したものと並べる）、左前 45 度、
   右後ろ・左後ろ 45 度、真上から。
+- topology：つながり（塊の数・オイラー数・種数）、縁・非多様体の辺、自己交差する三角形の組
+  （頂点を共有しない組。Blender の BVH の重なりで調べる）、長い辺、細い三角形の数。
 """
 from __future__ import annotations
 
@@ -170,12 +172,51 @@ def _label(arr: np.ndarray, text: str) -> np.ndarray:
     return np.asarray(im)
 
 
+def topology(verts: np.ndarray, tris: np.ndarray) -> dict:
+    """メッシュのつながりと質（本文の topology）"""
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import connected_components
+    e = np.sort(np.concatenate([tris[:, [0, 1]], tris[:, [1, 2]], tris[:, [2, 0]]]), 1)
+    ue, cnt = np.unique(e, axis=0, return_counts=True)
+    n = len(verts)
+    ncomp, _ = connected_components(coo_matrix((np.ones(len(ue)), (ue[:, 0], ue[:, 1])), shape=(n, n)), directed=False)
+    used = np.unique(tris)
+    chi = len(used) - len(ue) + len(tris)
+    out = {'components': int(ncomp - (n - len(used))), 'euler': int(chi),
+           'genus': float((2 * (ncomp - (n - len(used))) - chi) / 2),
+           'boundary_edges': int((cnt == 1).sum()), 'nonmanifold_edges': int((cnt > 2).sum())}
+    L = np.linalg.norm(verts[ue[:, 0]] - verts[ue[:, 1]], axis=1)
+    out['max_edge_m'] = round(float(L.max()), 4)
+    out['edges_longer_than_80mm'] = int((L > 0.08).sum())
+    out['edges_longer_than_50mm'] = int((L > 0.05).sum())
+    a, b, c = verts[tris[:, 0]], verts[tris[:, 1]], verts[tris[:, 2]]
+    area = np.linalg.norm(np.cross(b - a, c - a), axis=1) / 2
+    ssq = ((b - a) ** 2).sum(1) + ((c - b) ** 2).sum(1) + ((a - c) ** 2).sum(1)
+    q = 4 * math.sqrt(3) * area / np.maximum(ssq, 1e-20)          # 1 = 正三角形
+    out['tris_quality_below_0.1'] = int((q < 0.1).sum())
+    try:
+        from mathutils.bvhtree import BVHTree
+        bvh = BVHTree.FromPolygons([tuple(v) for v in verts.tolist()], [tuple(t) for t in tris.tolist()],
+                                   all_triangles=True)
+        pairs = bvh.overlap(bvh)
+        bad = [(i, j) for i, j in pairs if i < j and not (set(tris[i]) & set(tris[j]))]
+        out['self_intersecting_pairs'] = len(bad)
+        if bad:
+            cen = np.array([verts[tris[i]].mean(0) for i, _ in bad])
+            out['self_intersection_examples'] = [[round(float(v), 3) for v in c] for c in cen[:8]]
+    except ImportError:
+        out['self_intersecting_pairs'] = None
+    return out
+
+
 def run(out: str = V.WORK) -> dict:
     """out：haru_mesh.npz があり、確認画像を書くフォルダ（既定は build/recon）"""
     cams = V.load_calib()
     verts, tris = load_mesh(out)
     sil, diffs = silhouette_report(verts, tris, cams)
     print('外形の IoU', {k: v['iou'] for k, v in sil.items()}, flush=True)
+    topo = topology(verts, tris)
+    print('つながりと質', topo, flush=True)
     scene, cam, sun = _setup_scene(verts, tris)
     tmp = os.path.join(out, 'render')
     os.makedirs(tmp, exist_ok=True)
@@ -220,7 +261,7 @@ def run(out: str = V.WORK) -> dict:
         return np.pad(a, ((0, 0), (0, w - a.shape[1]), (0, 0)), constant_values=40)
     Image.fromarray(np.concatenate([padw(row_h), padw(row_a), padw(row_b)], 0)).save(
         os.path.join(out, 'geo_check_closeup.png'))
-    return {'silhouette': sil, 'mesh_tris': int(len(tris)), 'mesh_verts': int(len(verts))}
+    return {'silhouette': sil, 'topology': topo, 'mesh_tris': int(len(tris)), 'mesh_verts': int(len(verts))}
 
 
 if __name__ == '__main__':

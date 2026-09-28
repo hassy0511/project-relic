@@ -1,0 +1,964 @@
+"""頭と髪：なめらかな頭（顔・あご）＋ なめらかな髪の帽子 ＋ 先の細る髪の房（ゲームの髪の作り方）。
+
+以前の方法（外形の出っ張りを視線に沿って延ばした「ひれ」を頭の芯に足し、面を外形へ引き寄せる）では、
+房が見た視点の面の中の薄いひれになり、ほかの向きからはとげ・いぼに見え、頭は視体積の面が残る角ばった箱に
+なった。3 枚の外形から房の立体の形は決まらないので、ここでは「形の部品」を置き、外形はその部品の大きさ・
+向きを決める手がかりにだけ使う（視体積で切らない）。carve.py の 2（hull）で fair.build_field から呼ばれる。
+
+■ 1. 頭（skin_head）：顔・あご・頭の骨の形
+  高さごとの断面を、前と後ろで別の半径・指数をもつ超楕円 |x/a|^n + |(y-cy)/b|^n = 1 にする。
+    a（左右の半幅）：正面の絵の肌の幅（あご〜ほお。耳より下の高さ）から。それより上は頭の骨のふくらみ。
+    前の端：右真横の絵の顔の輪郭を読んだ節（鼻と、額の前の前髪・ゴーグルを除く。鼻はあとで小さな楕円体で足す）。
+    後ろの端：髪の中に隠れる頭の骨（あごの下では首へ）。
+    前の半分の指数 n_f：右前斜めの絵の顔の右の縁（本人の左のほお）に届くように、高さごとに決める。
+  断面を上下になめらかにつなぎ（節の値を PCHIP で補間）、ボクセルの占有から符号つき距離にしてぼかす。
+  鼻は小さな楕円体、首は縦の楕円柱（体の場の首とつなぐ）。耳は作らない（横の髪の中。色の絵が担う）。
+
+■ 2. 髪の帽子（cap）：房の先を落とした髪の外形の内側の、なめらかな閉じた面
+  髪と頭の外形を半径 3cm の円で開き（房の先を落とす）2cm で閉じた外形（正面・右真横・右前斜め）から、
+  高さごとに超楕円の断面を当てはめる：左右の幅は正面、前後の端は右真横、前と後ろの半分の指数は
+  右前斜めの右の縁（左前のふくらみ）と左の縁（右後ろのふくらみ）から（2 未満にしない：2 未満だと前後の
+  中心線に折れ目ができる）。指数の下限でも右前斜めの縁を越える高さは断面を縮める。左右は対称。値は上下に
+  1cm でならし、てっぺんとえり足の下端は楕円の弧で丸く閉じる。前髪の高さでは前の端を額の 1.5cm 前までに
+  （真横の絵の前の端は前髪の先とゴーグルで、そのままだと額の上にひさしができる）。
+  顔の範囲（生え際 hairline_z(|x|) より下で y < 0.02。正面の絵の肌の縁を読んだ節）では、帽子は頭の面より
+  外へ出さない（なめらかな積）。顔・ほお・こめかみは頭の面がそのまま見え、髪はその外側と後ろ。
+  ゴーグル：正面の絵の枠の範囲（角の丸い長方形）の中で、帽子の面から外へ、横の端で 1.2cm・真ん中で 3cm まで、
+  ただし右真横の絵のレンズの前の面（y = -0.146）より後ろ（真ん中は平らなレンズの面、横は額の丸みに沿う帯）。
+
+■ 3. 髪の房（Lock）：帽子に根をもつ、先の細る平たい葉の形の房（約 35 本 ＋ 前髪 4 本）
+  頭の中心 C から見た向きで表す。根の向き d0 と先の向き d1 の間を大きな円に沿って進み（slerp）、
+  中心からの距離は「帽子（と頭）の面の距離 r(d) ＋ 浮き L・t²」。根元では面に半分うまり、
+  先へ行くほど面から浮く（重なった房の段になる）。断面は楕円：幅 w（面に沿う向き。根元の 0.75 倍から
+  30% の所で最も広く、先へ細る）と厚み h（面の法線の向き。w の 0.3 倍）。形の場は、房に沿って半径の
+  0.4 倍の間隔で並べた楕円体の場の最大。
+  最初の並び：頭のてっぺんの後ろのつむじ W から放射状に流れる 4 つの輪（12・38・68・98 度に 4・9・12・12 本）と、
+  ゴーグルの上で前へ立ち上がる 3 本。顔の範囲に根か先がある房は置かない（前へ流れる房は額の上で止める）。
+  当てはめのあとも顔の範囲・ゴーグルの枠に入る房は、入らなくなるまで先を縮める（縮めきれない房は落とす）。
+  当てはめ：3 視点の絵の外形（あごより上）と、帽子＋頭＋房の投影の IoU の重みつき平均（右真横 1.5、ほかは 1）
+  が大きくなるよう、
+  房ごとに先の向き（振り）・長さ（角度）・浮き・幅を座標ごとの探索で動かす（半分の解像度の投影を房ごとに
+  差し替えて数えるので 1 巡 1 秒ほど、6 巡）。顔の範囲・ゴーグルの枠に入る房の点、最初の流れから 20 度より
+  外れた向きは罰。外形の小さな切り欠きは追わない（色の絵が細部を担う）。房は最後に顔の範囲とゴーグルの枠で切る。
+  前髪：ゴーグルの下の縁から額に沿って下がる 4 本（額の上に載せる。正面の絵の前髪の先の位置）。
+
+■ 4. つなぎ
+  頭・鼻・首・帽子・ゴーグル・房をなめらかな和（幅 3〜6mm。房の根元にすみ肉ができ、割れ目・食い込みが
+  できない）で 1 つの場にし、fair.build_field で体の場（えりより下）となめらかな和でつなぐ。carve.py の 3 で
+  マーチングキューブにして面にする（頭は snap.py の外形への引き寄せ・平滑化から外す）。
+  計算は |x| < 0.3m の箱の中だけ（約 40 秒）。記録（断面の値の要約・房の向き・頭のまわりの外形の IoU）は
+  recon_report.json の hull.head に入る。
+
+  本番は carve.py --stage surface（体と頭の場 → 面 → UV → 確認画像）の中で呼ばれる。
+  python tools/blender/recon/hair.py            （実験用：頭だけの場を作り、面にして、なめる光の画像と
+                                                  外形の重なりの画像を build/recon/hair/ に描く。約 1 分）
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import os
+import sys
+import time
+from dataclasses import dataclass, asdict
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+import numpy as np  # noqa: E402
+from scipy import ndimage as ndi  # noqa: E402
+from scipy.interpolate import PchipInterpolator  # noqa: E402
+
+from recon import views as V  # noqa: E402
+
+REAL = ('front', 'side_right', 'three_quarter')
+T0 = time.time()
+OUT = os.path.join(V.WORK, 'hair')
+
+HEAD_C = np.array([0.0, 0.03, 1.37])   # 頭の中心（房の向きの原点）
+Z_FIT = 1.215                          # 外形の当てはめに使う高さの下端（あごより上。えりを含めない）
+HAIRLINE = {'y_face': 0.02, 'x': [0.0, 0.050, 0.070, 0.087, 0.094, 0.101, 0.20],
+            'z': [1.356, 1.355, 1.342, 1.318, 1.28, 1.24, 1.24]}
+# ゴーグル（額の上）：正面の絵の枠の範囲（x, z）、帽子の面からの厚みの上限、レンズの前の面（右真横の絵で y ≈ -0.146）
+GOGGLES = {'x': (-0.111, 0.125), 'z': (1.392, 1.488), 'round': 0.022, 'thick': (0.012, 0.030), 'front_y': -0.146}
+# 房の当てはめの視点の重み：右真横は頭の外形が全身の外形に占める割合が大きく、横顔・ゴーグル・後ろの房の形が
+# はっきり出るので重く
+VIEW_WEIGHT = {'front': 1.0, 'side_right': 1.5, 'three_quarter': 1.0}
+PARAMS = {
+    'cap_open_m': 0.03,        # 髪の帽子に使う外形を開く円の半径（房の先を落とす）
+    'cap_close_m': 0.02,       # その後で閉じる円の半径
+    'cap_inset_m': 0.004,      # 帽子を外形より内側へ
+    'union_k': 0.006,          # 房・頭・帽子のなめらかな和の幅
+    'lock_thick': 0.30,        # 房の厚み / 幅
+}
+
+
+def log(*a) -> None:
+    import resource
+    mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6
+    print(f'[hair {time.time() - T0:7.1f}s {mem:4.1f}GB]', *a, flush=True)
+
+
+def ramp(t, t0: float, t1: float, a: float = 0.0, b: float = 1.0):
+    s = np.clip((np.asarray(t, float) - t0) / (t1 - t0), 0, 1)
+    return a + (b - a) * s * s * (3 - 2 * s)
+
+
+def smooth_max(a: np.ndarray, b: np.ndarray, k: float) -> np.ndarray:
+    """なめらかな和（内側が正の場）"""
+    h = np.clip(0.5 + 0.5 * (a - b) / k, 0, 1)
+    return (b + (a - b) * h + k * h * (1 - h)).astype(np.float32)
+
+
+def smooth_min(a: np.ndarray, b: np.ndarray, k: float) -> np.ndarray:
+    """なめらかな積（内側が正の場）"""
+    return -smooth_max(-a, -b, k)
+
+
+# ---------------------------------------------------------------- 絵の測り
+
+def _rgba(view: str) -> np.ndarray:
+    from PIL import Image
+    return np.asarray(Image.open(os.path.join(V.SRC, V.VIEWS[view]['file'])).convert('RGBA')).astype(np.int32)
+
+
+def skin_mask(view: str) -> np.ndarray:
+    """肌の色の画素（顔・首・手）"""
+    im = _rgba(view)
+    r, g, b, a = im[..., 0], im[..., 1], im[..., 2], im[..., 3]
+    m = (a > 128) & (r > 200) & (g > 140) & (g < 215) & (b > 100) & (b < 185) & (r - b > 50)
+    return ndi.binary_opening(m, iterations=1)
+
+
+def head_masks(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], open_m: float, close_m: float
+               ) -> dict[str, np.ndarray]:
+    """頭（Z_FIT より上）の外形を開いて閉じた外形（房の先を落とし、房の間を埋める）"""
+    from skimage.morphology import disk
+    out = {}
+    for n in REAL:
+        c, m = cams[n], masks[n].copy()
+        v_cut = int(c.v_of(Z_FIT - 0.03))
+        m[v_cut:] = False
+        ro, rc = int(round(open_m * c.ppm)), int(round(close_m * c.ppm))
+        # 頭のまわりだけ切り出して（大きな円の開き・閉じは遅い）
+        ua, ub = int(c.u0 - 0.40 * c.ppm), int(c.u0 + 0.40 * c.ppm)
+        sub = m[:v_cut, ua:ub]
+        sub = ndi.binary_opening(sub, disk(ro))
+        sub = ndi.binary_closing(np.pad(sub, rc), disk(rc))[rc:-rc, rc:-rc]
+        mm = np.zeros_like(m)
+        mm[:v_cut, ua:ub] = sub
+        lab, nl = ndi.label(mm)
+        if nl > 1:
+            sizes = ndi.sum(mm, lab, range(1, nl + 1))
+            mm = lab == (int(np.argmax(sizes)) + 1)
+        out[n] = mm
+    return out
+
+
+def row_extent(mask: np.ndarray, cam: V.Cam, zs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """高さごとの外形の左右の端（画像の横の座標を世界の m にしたもの：(u - u0) / ppm）。無い行は nan"""
+    lo = np.full(len(zs), np.nan)
+    hi = np.full(len(zs), np.nan)
+    for k, z in enumerate(zs):
+        v = int(math.floor(cam.v_of(z)))
+        if 0 <= v < mask.shape[0]:
+            cols = np.nonzero(mask[v])[0]
+            if len(cols):
+                lo[k] = (cols[0] - cam.u0) / cam.ppm
+                hi[k] = (cols[-1] + 1 - cam.u0) / cam.ppm
+    return lo, hi
+
+
+def _fill_smooth(a: np.ndarray, sigma: float) -> np.ndarray:
+    ok = np.isfinite(a)
+    b = np.interp(np.arange(len(a)), np.nonzero(ok)[0], a[ok])
+    return ndi.gaussian_filter1d(b, sigma, mode='nearest')
+
+
+def support(a: float, bf: float, bb: float, nf: float, nb: float, r: np.ndarray, front: bool) -> float:
+    """断面（中心 0）の、向き r（水平の単位ベクトル）への張り出し。front=True は前の半分（y < 0）"""
+    t = np.linspace(0, math.pi / 2, 200)
+    n = nf if front else nb
+    b = bf if front else bb
+    c, s = np.cos(t), np.sin(t)
+    x = a * np.sign(c) * np.abs(c) ** (2 / n)
+    y = b * np.abs(s) ** (2 / n)
+    best = -1e9
+    for sx in (-1, 1):
+        for sy in ((-1,) if front else (1,)):
+            best = max(best, float(np.max(sx * x * r[0] + sy * y * r[1])))
+    return best
+
+
+def solve_exponent(a, bf, bb, n_other, r, target, front: bool, lo=1.7, hi=4.0) -> float:
+    """張り出しが target になる指数（二分法。範囲の外は端）"""
+    def f(n):
+        return support(a, bf, bb, n if front else n_other, n_other if front else n, r, front) - target
+    if f(lo) >= 0:
+        return lo
+    if f(hi) <= 0:
+        return hi
+    for _ in range(30):
+        mid = (lo + hi) / 2
+        if f(mid) > 0:
+            hi = mid
+        else:
+            lo = mid
+    return (lo + hi) / 2
+
+
+# ---------------------------------------------------------------- 断面の積み重ね
+
+@dataclass
+class Stack:
+    """高さごとの超楕円の断面。配列はすべて zs と同じ長さ"""
+    zs: np.ndarray
+    a: np.ndarray
+    cx: np.ndarray
+    cy: np.ndarray
+    bf: np.ndarray
+    bb: np.ndarray
+    nf: np.ndarray
+    nb: np.ndarray
+
+    def at(self, z: np.ndarray) -> dict:
+        return {k: np.interp(z, self.zs, getattr(self, k)) for k in ('a', 'cx', 'cy', 'bf', 'bb', 'nf', 'nb')}
+
+    def rho(self, xs: np.ndarray, ys: np.ndarray, zs: np.ndarray) -> np.ndarray:
+        """格子 (z, x, y) の各点の「断面の中の割合」ρ（1 が面、内側が 1 未満）"""
+        p = self.at(zs)
+        out = np.full((len(zs), len(xs), len(ys)), 9.0, np.float32)
+        for k in range(len(zs)):
+            a = p['a'][k]
+            if a < 1e-3:
+                continue
+            dx = np.abs(xs - p['cx'][k])[:, None] / a
+            dy = (ys - p['cy'][k])[None, :]
+            front = dy < 0
+            b = np.where(front, p['bf'][k], p['bb'][k])
+            n = np.where(front, p['nf'][k], p['nb'][k])
+            out[k] = ((dx ** n + (np.abs(dy) / np.maximum(b, 1e-3)) ** n) ** (1 / n)).astype(np.float32)
+        return out
+
+
+def occ_to_sdf(occ: np.ndarray, vox: float, sigma: float = 1.5) -> np.ndarray:
+    """占有 → 符号つき距離（m、内側が正）。ボクセルの階段を消すため少しぼかす"""
+    d = np.where(occ, ndi.distance_transform_edt(occ) - 0.5, -(ndi.distance_transform_edt(~occ) - 0.5))
+    return ndi.gaussian_filter((d * vox).astype(np.float32), sigma)
+
+
+def skin_stack(cams: dict[str, V.Cam], masks: dict[str, np.ndarray]) -> Stack:
+    """頭（顔・あご・頭の骨）の断面（本文の 1）"""
+    zs = np.arange(1.180, 1.490, 0.002)
+    f, s, t = cams['front'], cams['side_right'], cams['three_quarter']
+    sk_f = skin_mask('front')
+    lo_f, hi_f = row_extent(sk_f, f, zs)
+    # 側面の顔の輪郭：肌の外形を 1.2cm の円で開いて鼻を落とす
+    from skimage.morphology import disk
+    sk_s = skin_mask('side_right')
+    sk_s[:int(s.v_of(1.37))] = False
+    sk_s[int(s.v_of(1.185)):] = False
+    sk_so = ndi.binary_opening(sk_s, disk(int(0.012 * s.ppm)))
+    _, fr_s = row_extent(sk_so, s, zs)          # 真横の絵の右 = 前（-Y）。fr_s は前の端の -y
+    lo_t, hi_t = row_extent(skin_mask('three_quarter'), t, zs)
+    # 左右の半幅：あご〜ほお（耳より下 z < 1.262）は正面の肌の幅、上は頭の骨のふくらみ（節）
+    half = (hi_f - lo_f) / 2
+    kz = [1.186, 1.196, 1.206, 1.216, 1.226, 1.236, 1.246]
+    ka = [float(np.interp(z, zs, np.where(np.isfinite(half), half, np.nan))) for z in kz]
+    kz_all = [1.180] + kz + [1.258, 1.275, 1.30, 1.34, 1.38, 1.42, 1.45, 1.47, 1.482, 1.49]
+    ka_all = [0.0] + ka + [0.083, 0.086, 0.088, 0.090, 0.091, 0.087, 0.078, 0.062, 0.040, 0.0]
+    ka_all = np.maximum.accumulate(np.nan_to_num(np.array(ka_all), nan=0.0)[:9]).tolist() + ka_all[9:]
+    a = PchipInterpolator(kz_all, ka_all)(zs)
+    # 前の端（-y）：右真横の絵の顔の輪郭を読んだ節（鼻は除く。前髪の下の額・眉・目・口・あご）。
+    # 真横の絵では前髪とゴーグルが額の前に出ていて、外形から直接は測れないので、肌の縁を読んだ値
+    kz_f = [1.180, 1.190, 1.200, 1.215, 1.235, 1.250, 1.270, 1.300, 1.330, 1.360, 1.400, 1.430, 1.460, 1.475, 1.487]
+    ky_f = [-0.045, -0.072, -0.091, -0.105, -0.116, -0.119, -0.118, -0.115, -0.114, -0.111, -0.104, -0.092,
+            -0.070, -0.046, -0.010]
+    yf = PchipInterpolator(kz_f, ky_f)(zs)
+    # 後ろの端：あごの下は首の前、上へ行くほど頭の骨の後ろ（髪の中）
+    kz_b = [1.180, 1.20, 1.22, 1.25, 1.28, 1.32, 1.38, 1.43, 1.46, 1.475, 1.487]
+    ky_b = [-0.020, 0.000, 0.030, 0.075, 0.110, 0.125, 0.130, 0.120, 0.100, 0.075, 0.040]
+    yb = PchipInterpolator(kz_b, ky_b)(zs)
+    cy = (yf + yb) / 2
+    bf = cy - yf
+    bb = yb - cy
+    cx = np.full(len(zs), float(np.nanmedian(((hi_f + lo_f) / 2)[(zs > 1.2) & (zs < 1.25)])))
+    # 前の半分の指数：右前斜めの絵の顔の右の縁（本人の左のほお）に届くように（あご〜ほお）
+    nb = np.full(len(zs), 2.2)
+    nf = np.full(len(zs), 2.6)
+    r = t.r[:2]
+    for k, z in enumerate(zs):
+        if 1.20 < z < 1.262 and np.isfinite(hi_t[k]):
+            target = hi_t[k] - (cx[k] * r[0] + cy[k] * r[1])
+            nf[k] = solve_exponent(a[k], bf[k], bb[k], nb[k], r, target, True, 2.2, 3.5)
+        else:
+            nf[k] = np.nan
+    nf = _fill_smooth(nf, 4.0)
+    return Stack(zs, a, cx, cy, bf, bb, nf, nb)
+
+
+def cap_stack(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], p: dict, skin: Stack | None = None
+              ) -> tuple[Stack, dict]:
+    """髪の帽子の断面（本文の 2）"""
+    hm = head_masks(cams, masks, p['cap_open_m'], p['cap_close_m'])
+    zs = np.arange(1.200, 1.560, 0.002)
+    f, s, t = cams['front'], cams['side_right'], cams['three_quarter']
+    lo_f, hi_f = row_extent(hm['front'], f, zs)
+    lo_s, hi_s = row_extent(hm['side_right'], s, zs)      # 真横：右 = 前。y = -(u - u0)/ppm
+    lo_t, hi_t = row_extent(hm['three_quarter'], t, zs)
+    ins = p['cap_inset_m']
+    sig = 0.01 / 0.002
+    top = 0.5 * (zs[np.isfinite(lo_f)].max() + zs[np.isfinite(lo_s)].max()) - ins
+    a = np.maximum(_fill_smooth((hi_f - lo_f) / 2 - ins, sig), 0)
+    cx = np.full(len(zs), float(np.nanmedian(((hi_f + lo_f) / 2)[(zs > 1.3) & (zs < 1.48)])))
+    yf = _fill_smooth(-hi_s + ins, sig)
+    yb = _fill_smooth(-lo_s - ins, sig)
+    if skin is not None:
+        # 前髪の高さでは帽子の前を額の 1.5cm 前までに（真横の絵の前の端は前髪の先とゴーグル。
+        # そのままだと額の上に 3cm のひさしができる）。ゴーグルの高さ（z > 1.40）は前へ出てよい
+        sy = np.interp(zs, skin.zs, skin.cy - skin.bf, right=np.nan)
+        lim = sy - 0.015 - 0.032 * ramp(zs, 1.375, 1.42)
+        yf = np.where(np.isfinite(lim) & (zs < 1.45), np.maximum(yf, lim), yf)
+    # 上と下は楕円の弧で丸く閉じる（平らな台・とがりにしない）：てっぺんから 4cm、えり足の下端から 3cm
+    z1, zb0, zb1 = top - 0.04, 1.212, 1.242
+    k1 = int(np.searchsorted(zs, z1))
+    kb = int(np.searchsorted(zs, zb1))
+    s_top = np.sqrt(np.clip(1 - ((zs - z1) / (top - z1)).clip(0, None) ** 2, 0, 1))
+    s_bot = np.sqrt(np.clip(1 - ((zb1 - zs) / (zb1 - zb0)).clip(0, None) ** 2, 0, 1))
+    for arr in (a, yf, yb):
+        arr[k1:] = arr[k1]
+        arr[:kb] = arr[kb]
+    mid = (yf + yb) / 2
+    sc = s_top * s_bot
+    a = a * sc
+    yf = mid + (yf - mid) * sc
+    yb = mid + (yb - mid) * sc
+    cy = (yf + yb) / 2
+    bf, bb = cy - yf, yb - cy
+    r = t.r[:2]
+    nf = np.full(len(zs), np.nan)
+    nb = np.full(len(zs), np.nan)
+    for k, z in enumerate(zs):
+        if not (1.25 < z < top - 0.03) or not np.isfinite(hi_t[k]):
+            continue
+        c0 = cx[k] * r[0] + cy[k] * r[1]
+        # 右の縁 = 本人の左前のふくらみ（前の半分）、左の縁 = 右後ろ（後ろの半分）
+        nf[k] = solve_exponent(a[k], bf[k], bb[k], 2.2, r, hi_t[k] - ins - c0, True, 2.0, 3.2)
+        nb[k] = solve_exponent(a[k], bf[k], bb[k], 2.2, -r, -(lo_t[k] + ins - c0), False, 2.0, 3.2)
+    nf = _fill_smooth(nf, 8.0)
+    nb = _fill_smooth(nb, 8.0)
+    # 右前斜めの右の縁に、指数の下限でも届きすぎる高さは、断面を縮める（帽子を外形の内側に）
+    shrink = np.ones(len(zs))
+    for k, z in enumerate(zs):
+        if a[k] > 1e-3 and np.isfinite(hi_t[k]) and z > 1.25:
+            c0 = cx[k] * r[0] + cy[k] * r[1]
+            sup = support(a[k], bf[k], bb[k], nf[k], nb[k], r, True)
+            tgt = hi_t[k] - ins - c0
+            shrink[k] = min(1.0, tgt / max(sup, 1e-6))
+    shrink = ndi.gaussian_filter1d(shrink, 4.0)
+    a = a * shrink
+    bf = bf * shrink
+    info = {'top_z': round(float(top), 4), 'nf_mean': round(float(np.mean(nf)), 3),
+            'nb_mean': round(float(np.mean(nb)), 3)}
+    return Stack(zs, a, cx, cy, bf, bb, nf, nb), info
+
+
+# ---------------------------------------------------------------- 髪の房
+
+@dataclass
+class Lock:
+    """1 本の房。向きは頭の中心 HEAD_C からの単位ベクトル"""
+    root: tuple        # 根の向き
+    tip: tuple         # 先の向き
+    lift: float        # 先の、帽子の面からの浮き（m）
+    width: float       # 根元の幅（m）
+    name: str = ''
+
+
+def _unit(v):
+    v = np.asarray(v, float)
+    return v / np.linalg.norm(v)
+
+
+def slerp(a: np.ndarray, b: np.ndarray, t: np.ndarray) -> np.ndarray:
+    a, b = _unit(a), _unit(b)
+    om = math.acos(float(np.clip(a @ b, -1, 1)))
+    if om < 1e-6:
+        return np.repeat(a[None], len(t), 0)
+    so = math.sin(om)
+    return (np.sin((1 - t) * om)[:, None] * a + np.sin(t * om)[:, None] * b) / so
+
+
+class RadialTable:
+    """帽子（と頭）の面までの、中心 HEAD_C からの距離 r(向き)。方位角・仰角の表から双線形で読む"""
+
+    def __init__(self, field: np.ndarray, lo: np.ndarray, vox: float, step_deg: float = 2.0):
+        self.step = step_deg
+        th = np.radians(np.arange(-180, 180 + step_deg, step_deg))
+        ph = np.radians(np.arange(-90, 90 + step_deg, step_deg))
+        TH, PH = np.meshgrid(th, ph, indexing='ij')
+        d = np.stack([np.cos(PH) * np.sin(TH), -np.cos(PH) * np.cos(TH), np.sin(PH)], -1)  # θ=0 は前（-Y）
+        rs = np.arange(0.0, 0.40, 0.001)
+        pts = HEAD_C[None, None, None] + rs[None, None, :, None] * d[:, :, None, :]
+        # 格子 (z, x, y) の連続の添字
+        idx = [(pts[..., 2] - lo[2]) / vox - 0.5, (pts[..., 0] - lo[0]) / vox - 0.5, (pts[..., 1] - lo[1]) / vox - 0.5]
+        val = ndi.map_coordinates(field, [i.ravel() for i in idx], order=1, mode='constant', cval=-1.0)
+        val = val.reshape(pts.shape[:3])
+        inside = val > 0
+        # 中心から外へ、最初に外へ出る所（外に出る直前の点から、場の値で線形に補間）
+        out_first = np.argmax(~inside, axis=2)
+        k = np.clip(out_first, 1, len(rs) - 1)
+        v0 = np.take_along_axis(val, (k - 1)[..., None], 2)[..., 0]
+        v1 = np.take_along_axis(val, k[..., None], 2)[..., 0]
+        frac = np.clip(v0 / np.maximum(v0 - v1, 1e-9), 0, 1)
+        self.r = (rs[k - 1] + frac * 0.001).astype(np.float32)
+
+    def __call__(self, d: np.ndarray) -> np.ndarray:
+        d = np.atleast_2d(d)
+        th = np.degrees(np.arctan2(d[:, 0], -d[:, 1]))
+        ph = np.degrees(np.arcsin(np.clip(d[:, 2], -1, 1)))
+        return ndi.map_coordinates(self.r, [(th + 180) / self.step, (ph + 90) / self.step], order=1, mode='nearest')
+
+
+def lock_samples(L: Lock, rtab: RadialTable, thick: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """房に沿った楕円体の並び：中心 (n,3)、軸の行列 (n,3,3)（列が T, B, N）、半径 (n,3)"""
+    d0, d1 = _unit(L.root), _unit(L.tip)
+    om = math.acos(float(np.clip(d0 @ d1, -1, 1)))
+    r_mid = float(rtab(d0)[0])
+    length = om * r_mid + L.lift
+    w_tip = 0.0022
+
+    def leaf(t):
+        """葉の形の幅（根元の 0.75 から 30% の所で最も広く、先へ細る）"""
+        return L.width * 0.5 * (1 - t) ** 0.8 * (0.75 + 0.8 * t) + w_tip
+
+    # 並べる間隔は半径の 0.4 倍（先ほど細かく）
+    ts = [0.0]
+    while ts[-1] < 1.0:
+        ts.append(min(1.0, ts[-1] + 0.4 * float(leaf(ts[-1])) / max(length, 1e-3)))
+    t = np.array(ts)
+    dirs = slerp(d0, d1, t)
+    w = leaf(t)
+    bangs = L.name.startswith('bangs')
+    if bangs:
+        thick = 0.40
+    h = np.maximum(w * thick, 0.0018)
+    R = rtab(dirs) + L.lift * t ** 2
+    if bangs:
+        # 前髪は額に半分うめず、額の上に載せる（内側の面が額の面のすぐ前）。右真横の絵では前髪が額の前へ
+        # 約 2cm 出ている。先へ行くほど額に沿って薄くなる
+        R = R + 0.8 * h
+    P = HEAD_C[None] + R[:, None] * dirs
+    T = np.gradient(P, axis=0)
+    T /= np.maximum(np.linalg.norm(T, axis=1, keepdims=True), 1e-12)
+    N = dirs - (dirs * T).sum(1, keepdims=True) * T
+    N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-12)
+    B = np.cross(T, N)
+    radii = np.stack([np.maximum(w, h) * 1.0, w, h], 1)
+    frames = np.stack([T, B, N], 2)
+    return P, frames, radii
+
+
+def lock_field(samples, lo: np.ndarray, vox: float, shape) -> tuple[tuple, np.ndarray] | None:
+    """房の場（内側が正、およその距離 m）を、房のまわりの小さな箱で返す：(箱の始めの添字, 場)"""
+    P, Fr, Rd = samples
+    rmax = Rd.max(1)
+    pmin = P - rmax[:, None] - 2 * vox
+    pmax = P + rmax[:, None] + 2 * vox
+    # 格子の添字 (z, x, y)
+    i0 = np.floor((np.array([pmin[:, 2].min(), pmin[:, 0].min(), pmin[:, 1].min()]) - lo[[2, 0, 1]]) / vox).astype(int)
+    i1 = np.ceil((np.array([pmax[:, 2].max(), pmax[:, 0].max(), pmax[:, 1].max()]) - lo[[2, 0, 1]]) / vox).astype(int)
+    i0 = np.maximum(i0, 0)
+    i1 = np.minimum(i1, np.array(shape))
+    if np.any(i1 <= i0):
+        return None
+    zs = lo[2] + (np.arange(i0[0], i1[0]) + 0.5) * vox
+    xs = lo[0] + (np.arange(i0[1], i1[1]) + 0.5) * vox
+    ys = lo[1] + (np.arange(i0[2], i1[2]) + 0.5) * vox
+    out = np.full((len(zs), len(xs), len(ys)), -0.02, np.float32)
+    for c, M, r in zip(P, Fr, Rd):
+        a0 = np.searchsorted(zs, c[2] - r.max() - vox)
+        a1 = np.searchsorted(zs, c[2] + r.max() + vox)
+        b0 = np.searchsorted(xs, c[0] - r.max() - vox)
+        b1 = np.searchsorted(xs, c[0] + r.max() + vox)
+        c0 = np.searchsorted(ys, c[1] - r.max() - vox)
+        c1 = np.searchsorted(ys, c[1] + r.max() + vox)
+        if a1 <= a0 or b1 <= b0 or c1 <= c0:
+            continue
+        Z, X, Y = np.meshgrid(zs[a0:a1] - c[2], xs[b0:b1] - c[0], ys[c0:c1] - c[1], indexing='ij')
+        q = np.stack([X, Y, Z], -1) @ M          # 局所の座標 (T, B, N)
+        e = np.sqrt(((q / r) ** 2).sum(-1))
+        val = (1 - e) * r.min()
+        np.maximum(out[a0:a1, b0:b1, c0:c1], val.astype(np.float32), out=out[a0:a1, b0:b1, c0:c1])
+    return (tuple(i0), out)
+
+
+# ---------------------------------------------------------------- 外形への当てはめ（2 次元の投影）
+
+class Views2D:
+    """当てはめ用：3 視点の、頭のまわりの切り抜き（半分の解像度）"""
+
+    def __init__(self, cams: dict[str, V.Cam], masks: dict[str, np.ndarray], scale: float = 0.5):
+        self.cams, self.scale = cams, scale
+        self.crop = {}
+        self.art = {}
+        for n in REAL:
+            c = cams[n]
+            u_a, u_b = c.u0 - 0.30 * c.ppm, c.u0 + 0.30 * c.ppm
+            v_a, v_b = c.v_of(1.60), c.v_of(Z_FIT)
+            self.crop[n] = (u_a, v_a, int((u_b - u_a) * scale), int((v_b - v_a) * scale))
+            ua, va, W, H = self.crop[n]
+            yy, xx = np.mgrid[0:H, 0:W]
+            src = ndi.map_coordinates(masks[n].astype(np.float32),
+                                      [va + (yy + 0.5) / scale - 0.5, ua + (xx + 0.5) / scale - 0.5], order=1)
+            self.art[n] = src > 0.5
+
+    def to_px(self, n: str, P: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        u, v = self.cams[n].project(P)
+        ua, va, W, H = self.crop[n]
+        return (u - ua) * self.scale, (v - va) * self.scale
+
+    def splat_field(self, n: str, field: np.ndarray, lo, vox) -> np.ndarray:
+        """場の内側（> 0）のボクセルを投影した外形"""
+        ua, va, W, H = self.crop[n]
+        iz, ix, iy = np.nonzero(field > 0)
+        P = np.stack([lo[0] + (ix + 0.5) * vox, lo[1] + (iy + 0.5) * vox, lo[2] + (iz + 0.5) * vox], 1)
+        u, v = self.to_px(n, P)
+        img = np.zeros((H, W), bool)
+        hw = 0.5 * vox * self.cams[n].ppm * self.scale * 0.999   # ボクセルの投影の半幅（中心と 8 つの縁を打つ）
+        for du in (-hw, 0.0, hw):
+            for dv in (-hw, 0.0, hw):
+                iu, iv = np.floor(u + du).astype(int), np.floor(v + dv).astype(int)
+                ok = (iu >= 0) & (iu < W) & (iv >= 0) & (iv < H)
+                img[iv[ok], iu[ok]] = True
+        return img
+
+    def raster_lock(self, n: str, samples) -> tuple[tuple, np.ndarray] | None:
+        """房の楕円体の並びを投影した外形（小さな箱：(v0, u0, 画像)）"""
+        P, Fr, Rd = samples
+        cam = self.cams[n]
+        k = cam.ppm * self.scale
+        A = np.stack([cam.r, np.array([0, 0, -1.0])], 0)          # 画像の (右, 下)
+        u, v = self.to_px(n, P)
+        # 2 次元の共分散：(A M diag(r²) Mᵀ Aᵀ) k²
+        AM = np.einsum('ij,njk->nik', A, Fr)                      # (n,2,3)
+        S = np.einsum('nik,nk,njk->nij', AM, Rd ** 2, AM) * k * k
+        hu, hv = np.sqrt(S[:, 0, 0]), np.sqrt(S[:, 1, 1])
+        ua, va, W, H = self.crop[n]
+        u0, u1 = int(max(0, np.floor((u - hu).min()))), int(min(W, np.ceil((u + hu).max()) + 1))
+        v0, v1 = int(max(0, np.floor((v - hv).min()))), int(min(H, np.ceil((v + hv).max()) + 1))
+        if u1 <= u0 or v1 <= v0:
+            return None
+        yy, xx = np.mgrid[v0:v1, u0:u1]
+        px, py = xx.ravel() + 0.5, yy.ravel() + 0.5
+        det = S[:, 0, 0] * S[:, 1, 1] - S[:, 0, 1] ** 2
+        inv = np.stack([S[:, 1, 1], -S[:, 0, 1], S[:, 0, 0]], 1) / np.maximum(det, 1e-12)[:, None]
+        img = np.zeros(len(px), bool)
+        for j in range(len(P)):
+            du, dv = px - u[j], py - v[j]
+            m = (np.abs(du) <= hu[j] + 1) & (np.abs(dv) <= hv[j] + 1)
+            if not m.any():
+                continue
+            q = inv[j, 0] * du[m] ** 2 + 2 * inv[j, 1] * du[m] * dv[m] + inv[j, 2] * dv[m] ** 2
+            img[np.nonzero(m)[0][q <= 1]] = True
+        return (v0, u0), img.reshape(v1 - v0, u1 - u0)
+
+
+def face_zone_penalty(P: np.ndarray, Rd: np.ndarray) -> float:
+    """顔の前（生え際より下の顔の面の前）に入る房の点の数（罰）"""
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    zh = hairline_z(np.abs(x))
+    bad = (y - Rd[:, 2] < HAIRLINE['y_face'] + 0.01) & (z < zh + 0.005) & (np.abs(x) < 0.12)
+    g = GOGGLES
+    gog = (y < -0.04) & (x > g['x'][0] - 0.01) & (x < g['x'][1] + 0.01) & (z > g['z'][0] - 0.01) & (z < g['z'][1] + 0.005)
+    return float(bad.sum() + gog.sum())
+
+
+def hairline_z(ax: np.ndarray) -> np.ndarray:
+    """生え際の高さ（顔の前を切り取る範囲の上）。正面の絵の肌の縁を読んだ節：額の中ほどは眉の上（前髪の下）、
+    目の外の端から外は、もみあげの下（あごの上）まで下がる"""
+    return PchipInterpolator(HAIRLINE['x'], HAIRLINE['z'], extrapolate=True)(np.clip(ax, 0, HAIRLINE['x'][-1]))
+
+
+def initial_locks() -> list[Lock]:
+    """最初の房の並び：つむじ W から放射状に流れる 3 つの輪（顔の前は除く）"""
+    W = _unit([0.0, 0.42, 0.9])
+    # W に垂直な 2 つの向き
+    e1 = _unit(np.cross(W, [1.0, 0, 0]))
+    e2 = np.cross(W, e1)
+    locks = []
+    rings = [  # (つむじからの角度, 本数, 流れの長さの角度, 浮き, 幅, 位相)
+        (12, 4, 46, 0.035, 0.060, 0.1),
+        (38, 9, 44, 0.024, 0.068, 0.5),
+        (68, 12, 40, 0.020, 0.066, 0.0),
+        (98, 12, 34, 0.016, 0.060, 0.5),
+    ]
+    for ri, (al, n, beta, lift, w, ph) in enumerate(rings):
+        for j in range(n):
+            ang = 2 * math.pi * (j + ph) / n
+            axis_dir = math.cos(ang) * e1 + math.sin(ang) * e2   # つむじから見た流れの向き
+            a = math.radians(al)
+            d0 = _unit(math.cos(a) * W + math.sin(a) * axis_dir)
+            b = math.radians(al + beta)
+            d1 = _unit(math.cos(b) * W + math.sin(b) * axis_dir)
+            # 顔の前（前向きで生え際より下）に根か先がある房は置かない
+            p0 = HEAD_C + 0.13 * d0
+            p1 = HEAD_C + 0.15 * d1
+            if any((p[1] < HAIRLINE['y_face'] - 0.02) and (p[2] < hairline_z(abs(p[0])) + 0.01) and abs(p[0]) < 0.11
+                   for p in (p0, p1)):
+                # 前へ流れる房は、額の上で止める（前髪の上の立ち上がり）
+                if d0[1] < -0.2 and p0[2] > 1.40:
+                    b = math.radians(al + beta * 0.45)
+                    d1 = _unit(math.cos(b) * W + math.sin(b) * axis_dir)
+                else:
+                    continue
+            locks.append(Lock(tuple(d0), tuple(d1), lift, w, f'r{ri}_{j}'))
+    # 額の上（ゴーグルの上）の、前へ立ち上がる房 3 本（前へ流れる輪の房はゴーグルにかかるので、代わりに）
+    for j, x in enumerate((-0.06, 0.0, 0.06)):
+        d0 = _unit(np.array([x * 0.6, -0.01, 1.53]) - HEAD_C)
+        d1 = _unit(np.array([x * 1.5, -0.10, 1.515]) - HEAD_C)
+        locks.append(Lock(tuple(d0), tuple(d1), 0.02, 0.058, f'top_front_{j}'))
+    return locks
+
+
+def rotate_toward(d: np.ndarray, axis: np.ndarray, ang: float) -> np.ndarray:
+    """向き d を、軸 axis のまわりに ang ラジアン回す（ロドリゲス）"""
+    k = _unit(axis)
+    return d * math.cos(ang) + np.cross(k, d) * math.sin(ang) + k * (k @ d) * (1 - math.cos(ang))
+
+
+def perturb(L: Lock, what: str, step: float) -> Lock:
+    d0, d1 = _unit(L.root), _unit(L.tip)
+    if what == 'lift':
+        return Lock(L.root, L.tip, float(np.clip(L.lift + step, 0.0, 0.075)), L.width, L.name)
+    if what == 'width':
+        return Lock(L.root, L.tip, L.lift, float(np.clip(L.width + step, 0.03, 0.09)), L.name)
+    flow = _unit(np.cross(d0, d1))          # 大きな円の軸
+    if what == 'len':                        # 流れに沿って伸ばす・縮める
+        d1n = rotate_toward(d1, flow, math.radians(step))
+        om = math.degrees(math.acos(float(np.clip(d0 @ d1n, -1, 1))))
+        if not (12 <= om <= 80):
+            return L
+        return Lock(L.root, tuple(d1n), L.lift, L.width, L.name)
+    if what == 'swing':                      # 先を横へ振る（根のまわりに回す）
+        d1n = rotate_toward(d1, d0, math.radians(step))
+        return Lock(L.root, tuple(d1n), L.lift, L.width, L.name)
+    raise ValueError(what)
+
+
+class Fitter:
+    """房の当てはめ（本文の 3 の最後）。投影の数え上げを房ごとに差し替えて、IoU を速く求める"""
+
+    def __init__(self, v2: Views2D, base: dict[str, np.ndarray], rtab: RadialTable, thick: float,
+                 locks: list[Lock], init: list[Lock]):
+        self.v2, self.rtab, self.thick = v2, rtab, thick
+        self.base = base
+        self.cnt = {n: base[n].astype(np.int32) for n in REAL}
+        self.locks = list(locks)
+        self.init = list(init)
+        self.rast = [self._raster(L) for L in self.locks]
+        for i in range(len(self.locks)):
+            self._apply(self.rast[i], +1)
+
+    def _raster(self, L: Lock) -> dict:
+        s = lock_samples(L, self.rtab, self.thick)
+        return {'r': {n: self.v2.raster_lock(n, s) for n in REAL}, 'pen': face_zone_penalty(s[0], s[2])}
+
+    def _apply(self, R: dict, sign: int) -> None:
+        for n in REAL:
+            x = R['r'][n]
+            if x is None:
+                continue
+            (v0, u0), img = x
+            self.cnt[n][v0:v0 + img.shape[0], u0:u0 + img.shape[1]] += sign * img
+
+    def ious(self) -> dict[str, float]:
+        out = {}
+        for n in REAL:
+            c = self.cnt[n] > 0
+            a = self.v2.art[n]
+            out[n] = float((c & a).sum() / max(1, (c | a).sum()))
+        return out
+
+    def plaus(self, i: int, L: Lock) -> float:
+        """もっともらしさの罰：最初の流れからの外れ（先の向き）"""
+        d1, e1 = _unit(L.tip), _unit(self.init[i].tip)
+        dev = math.degrees(math.acos(float(np.clip(d1 @ e1, -1, 1))))
+        return 0.0004 * max(0.0, dev - 20.0)
+
+    def score(self, pen_total: float, plaus_total: float) -> float:
+        io = self.ious()
+        return float(sum(VIEW_WEIGHT[n] * io[n] for n in REAL) / sum(VIEW_WEIGHT.values())) \
+            - 0.01 * pen_total - plaus_total
+
+    def run(self, sweeps: int = 6, log=print) -> None:
+        pen = [R['pen'] for R in self.rast]
+        pl = [self.plaus(i, L) for i, L in enumerate(self.locks)]
+        best = self.score(sum(pen), sum(pl))
+        log('  房の当てはめ 開始', round(best, 4), {k: round(v, 4) for k, v in self.ious().items()})
+        steps = {'lift': 0.008, 'width': 0.008, 'len': 8.0, 'swing': 10.0}
+        for sw in range(sweeps):
+            sc = 1.0 if sw < sweeps // 2 else 0.5
+            nacc = 0
+            for i in range(len(self.locks)):
+                for what, st in steps.items():
+                    for sgn in (+1, -1):
+                        L2 = perturb(self.locks[i], what, sgn * st * sc)
+                        if L2 is self.locks[i]:
+                            continue
+                        R2 = self._raster(L2)
+                        self._apply(self.rast[i], -1)
+                        self._apply(R2, +1)
+                        p2 = self.plaus(i, L2)
+                        s2 = self.score(sum(pen) - pen[i] + R2['pen'], sum(pl) - pl[i] + p2)
+                        if s2 > best + 1e-5:
+                            best, self.locks[i], self.rast[i], pen[i], pl[i] = s2, L2, R2, R2['pen'], p2
+                            nacc += 1
+                            break
+                        self._apply(R2, -1)
+                        self._apply(self.rast[i], +1)
+            log(f'  房の当てはめ {sw + 1}/{sweeps}', round(best, 4), {k: round(v, 4) for k, v in self.ious().items()},
+                '動かした', nacc)
+
+
+# ---------------------------------------------------------------- まとめ：頭の場
+
+def stack_field(st: Stack, lo, vox, shape, k0: int) -> np.ndarray:
+    nz, nx, ny = shape
+    xs = lo[0] + (np.arange(nx) + 0.5) * vox
+    ys = lo[1] + (np.arange(ny) + 0.5) * vox
+    zs = lo[2] + (np.arange(k0, nz) + 0.5) * vox
+    rho = st.rho(xs, ys, zs)
+    inside = (rho < 1.0) & (zs >= st.zs[0])[:, None, None] & (zs <= st.zs[-1])[:, None, None]
+    return occ_to_sdf(inside, vox)
+
+
+def ellipsoid_field(c, radii, lo, vox, shape, k0) -> np.ndarray:
+    nz, nx, ny = shape
+    xs = lo[0] + (np.arange(nx) + 0.5) * vox
+    ys = lo[1] + (np.arange(ny) + 0.5) * vox
+    zs = lo[2] + (np.arange(k0, nz) + 0.5) * vox
+    Z, X, Y = np.meshgrid(zs - c[2], xs - c[0], ys - c[1], indexing='ij')
+    e = np.sqrt((X / radii[0]) ** 2 + (Y / radii[1]) ** 2 + (Z / radii[2]) ** 2)
+    return ((1 - e) * min(radii)).astype(np.float32)
+
+
+def face_cut(lo, vox, shape, k0) -> np.ndarray:
+    """顔の前を切り取る範囲の場（範囲の中が正）：y < y_face かつ z < 生え際"""
+    nz, nx, ny = shape
+    xs = lo[0] + (np.arange(nx) + 0.5) * vox
+    ys = lo[1] + (np.arange(ny) + 0.5) * vox
+    zs = lo[2] + (np.arange(k0, nz) + 0.5) * vox
+    zh = hairline_z(np.abs(xs))                       # (nx,)
+    fy = np.broadcast_to((HAIRLINE['y_face'] - ys)[None, None, :], (len(zs), 1, ny))
+    fz = zh[None, :, None] - zs[:, None, None]
+    return smooth_min(np.broadcast_to(fy, (len(zs), nx, ny)), np.broadcast_to(fz, (len(zs), nx, ny)), 0.008)
+
+
+def goggle_zone(lo, vox, shape, k0) -> np.ndarray:
+    """ゴーグルの枠の範囲の場（中が正、m）：正面から見た角の丸い長方形（x, z）× 顔の側（y < -0.03）"""
+    nz, nx, ny = shape
+    xs = lo[0] + (np.arange(nx) + 0.5) * vox
+    ys = lo[1] + (np.arange(ny) + 0.5) * vox
+    zs = lo[2] + (np.arange(k0, nz) + 0.5) * vox
+    g = GOGGLES
+    cx, hx = (g['x'][0] + g['x'][1]) / 2, (g['x'][1] - g['x'][0]) / 2 - g['round']
+    cz, hz = (g['z'][0] + g['z'][1]) / 2, (g['z'][1] - g['z'][0]) / 2 - g['round']
+    qx = np.abs(xs - cx) - hx                          # (nx,)
+    qz = np.abs(zs - cz) - hz                          # (nz,)
+    QX, QZ = np.meshgrid(qx, qz)                       # (nz, nx)
+    d2 = np.hypot(np.maximum(QX, 0), np.maximum(QZ, 0)) + np.minimum(np.maximum(QX, QZ), 0) - g['round']
+    win = (-d2).astype(np.float32)[:, :, None]
+    front = (-0.03 - ys).astype(np.float32)[None, None, :]
+    return smooth_min(np.broadcast_to(win, (len(zs), nx, ny)), np.broadcast_to(front, (len(zs), nx, ny)), 0.01)
+
+
+def bangs_locks() -> list[Lock]:
+    """前髪：ゴーグルの下の帽子の縁から、額に沿って下がる 4 本（正面の絵の前髪の先：中央は目の高さの上まで）"""
+    out = []
+    for x_root, x_tip, z_tip, w in ((-0.060, -0.070, 1.334, 0.046), (-0.020, -0.010, 1.310, 0.048),
+                                     (0.026, 0.032, 1.322, 0.046), (0.066, 0.076, 1.336, 0.042)):
+        d0 = _unit(np.array([x_root, -0.110, 1.396]) - HEAD_C)
+        d1 = _unit(np.array([x_tip, -0.110, z_tip]) - HEAD_C)
+        out.append(Lock(tuple(d0), tuple(d1), 0.0, w, f'bangs_{len(out)}'))
+    return out
+
+
+def build_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.ndarray, vox: float, shape,
+               z0: float = 1.10, params: dict | None = None, fit_sweeps: int = 6, log=log, x_half: float = 0.30
+               ) -> tuple[int, np.ndarray, dict]:
+    """頭の場（本文の 1〜4）。格子 (lo, vox, shape) の z0 より上の輪切りだけ：(始めの輪切り k0, 場, 記録)。
+    計算は |x| < x_half の箱の中だけで行い、箱の外は外側（負）にする"""
+    p = dict(PARAMS, **(params or {}))
+    zs_all = lo[2] + (np.arange(shape[0]) + 0.5) * vox
+    xs_all = lo[0] + (np.arange(shape[1]) + 0.5) * vox
+    k0 = int(np.searchsorted(zs_all, z0))
+    ix = np.nonzero(np.abs(xs_all) < x_half)[0]
+    i0, i1 = int(ix[0]), int(ix[-1]) + 1
+    lo_b = lo + np.array([i0 * vox, 0.0, k0 * vox])
+    shp = (shape[0] - k0, i1 - i0, shape[2])
+    info: dict = {'params': p, 'head_center': HEAD_C.tolist(), 'hairline': HAIRLINE}
+    # 1. 頭（顔・あご）、鼻、首
+    sk = skin_stack(cams, masks)
+    S = stack_field(sk, lo_b, vox, shp, 0)
+    nose = ellipsoid_field((float(sk.cx[0]), -0.114, 1.279), (0.0062, 0.012, 0.016), lo_b, vox, shp, 0)
+    S = smooth_max(S, nose, 0.007)
+    S = smooth_max(S, neck_field(lo_b, vox, shp, 0), 0.012)
+    log('頭（顔・あご・首）')
+    # 2. 髪の帽子（顔の前を切り取る）
+    cs, ci = cap_stack(cams, masks, p, sk)
+    info['cap'] = ci
+    cut = face_cut(lo_b, vox, shp, 0)
+    # 顔の範囲では、帽子は頭（顔）の面より外へ出ない（顔の面が見える。範囲の縁でなめらかに切り替える）
+    allowed = smooth_max(S - 0.002, -cut, 0.006)
+    Cf = smooth_min(stack_field(cs, lo_b, vox, shp, 0), allowed, 0.006)
+    del allowed
+    log('髪の帽子', ci)
+    base = smooth_max(S, Cf, p['union_k'])
+    # ゴーグル：枠の範囲の中で、帽子の面から厚み thick まで外、ただしレンズの前の面（front_y）より後ろ
+    # （真ん中は平らなレンズの面、横は額の丸みに沿って回り込む帯）
+    gz = goggle_zone(lo_b, vox, shp, 0)
+    ys_b = lo_b[1] + (np.arange(shp[2]) + 0.5) * vox
+    front = np.broadcast_to((ys_b - GOGGLES['front_y']).astype(np.float32)[None, None, :], shp)
+    # 厚みは枠の横の端で thick[0]、真ん中で thick[1]（レンズが前へ出る。横は頭に沿う）
+    xs_b = lo_b[0] + (np.arange(shp[1]) + 0.5) * vox
+    gx = GOGGLES['x']
+    u = np.clip(1 - ((xs_b - (gx[0] + gx[1]) / 2) / ((gx[1] - gx[0]) / 2)) ** 2, 0, 1)
+    thick = (GOGGLES['thick'][0] + (GOGGLES['thick'][1] - GOGGLES['thick'][0]) * u).astype(np.float32)
+    gog = smooth_min(smooth_min(Cf + thick[None, :, None], gz, 0.004), front, 0.004)
+    del front
+    base = smooth_max(base, gog, 0.003)
+    info['goggles'] = GOGGLES
+    # 3. 房：最初の並び → 外形への当てはめ（房の道は、頭と帽子の和の面に沿う）
+    rtab = RadialTable(base, lo_b, vox)
+    v2 = Views2D(cams, masks)
+    base2d = {n: v2.splat_field(n, base, lo_b, vox) for n in REAL}
+    init = initial_locks()
+    fit = Fitter(v2, base2d, rtab, p['lock_thick'], init, init)
+    iou_base = {n: round(float((base2d[n] & v2.art[n]).sum() / (base2d[n] | v2.art[n]).sum()), 4) for n in REAL}
+    info['iou_head_region'] = {'cap_and_head_only': iou_base,
+                               'initial_locks': {k: round(v, 4) for k, v in fit.ious().items()}}
+    if fit_sweeps:
+        fit.run(fit_sweeps, log=log)
+    # 顔の範囲・ゴーグルの枠にまだ入る房は、入らなくなるまで先を縮める（最後に切ると切り口の残る短い房になる）。
+    # 縮めきれない房は落とす
+    locks, dropped, shortened = [], 0, 0
+    for L in fit.locks:
+        for _ in range(12):
+            s_ = lock_samples(L, rtab, p['lock_thick'])
+            if face_zone_penalty(s_[0], s_[2]) == 0:
+                break
+            L2 = perturb(L, 'len', -5.0)
+            L = Lock(L2.root, L2.tip, L2.lift * 0.85, L2.width, L2.name) if L2 is not L else None
+            shortened += 1
+            if L is None:
+                break
+        if L is None or face_zone_penalty(*[lock_samples(L, rtab, p['lock_thick'])[i] for i in (0, 2)]) > 0:
+            dropped += 1
+            continue
+        locks.append(L)
+    info['locks_shortened_steps'], info['locks_dropped'] = shortened, dropped
+    fit2 = Fitter(v2, base2d, rtab, p['lock_thick'], locks, locks)
+    fit = fit2
+    info['iou_head_region']['fitted_locks'] = {k: round(v, 4) for k, v in fit.ious().items()}
+    bangs = bangs_locks()
+    info['locks'] = [dict(asdict(L), root=[round(v, 4) for v in L.root], tip=[round(v, 4) for v in L.tip])
+                     for L in locks + bangs]
+    info['n_locks'] = len(locks) + len(bangs)
+
+    # 4. 房の場を足す（前髪は顔の前の切り取りの外）
+    def add(lock_list):
+        Lf = np.full(base.shape, -0.02, np.float32)
+        for L in lock_list:
+            res = lock_field(lock_samples(L, rtab, p['lock_thick']), lo_b, vox, base.shape)
+            if res is None:
+                continue
+            (a, b, c), f = res
+            sl = (slice(a, a + f.shape[0]), slice(b, b + f.shape[1]), slice(c, c + f.shape[2]))
+            np.maximum(Lf[sl], f, out=Lf[sl])
+        return Lf
+
+    Lf = smooth_min(add(locks), -np.maximum(cut, gz) - 0.004, 0.004)
+    Lb = add(bangs)
+    phi_b = smooth_max(smooth_max(base, Lf, p['union_k']), Lb, 0.004)
+    phi = np.full((shp[0], shape[1], shape[2]), -0.05, np.float32)
+    phi[:, i0:i1] = phi_b
+    # 箱の縁で場が切れないように（念のため）
+    phi[:, i0:i0 + 2] = np.minimum(phi[:, i0:i0 + 2], -vox)
+    phi[:, i1 - 2:i1] = np.minimum(phi[:, i1 - 2:i1], -vox)
+    info['iou_head_region']['final_field'] = {n: round(float((lambda c: (c & v2.art[n]).sum() / (c | v2.art[n]).sum())(
+        v2.splat_field(n, phi_b, lo_b, vox))), 4) for n in REAL}
+    log('房', info['n_locks'], '本', info['iou_head_region'])
+    return k0, phi, info
+
+
+def neck_field(lo, vox, shape, k0) -> np.ndarray:
+    """首：縦の楕円柱（下は体の中、上は頭の中）"""
+    nz, nx, ny = shape
+    xs = lo[0] + (np.arange(nx) + 0.5) * vox
+    ys = lo[1] + (np.arange(ny) + 0.5) * vox
+    zs = lo[2] + (np.arange(k0, nz) + 0.5) * vox
+    e = np.sqrt((xs[:, None] / 0.040) ** 2 + ((ys[None, :] - 0.012) / 0.044) ** 2)
+    f = ((1 - e) * 0.040).astype(np.float32)
+    top = (1.27 - zs)[:, None, None]
+    bot = (zs - 1.06)[:, None, None]
+    return smooth_min(smooth_min(np.broadcast_to(f[None], (len(zs), nx, ny)), np.broadcast_to(top, (len(zs), nx, ny)),
+                                 0.01), np.broadcast_to(bot, (len(zs), nx, ny)), 0.01)
+
+
+# ---------------------------------------------------------------- 実験用
+
+def overlay(v2: Views2D, phi: np.ndarray, lo_s, vox, path: str) -> dict:
+    """外形の重なりの画像（緑 = 絵だけ、赤 = 形だけ、灰 = 両方）と IoU"""
+    from PIL import Image
+    tiles, out = [], {}
+    for n in REAL:
+        c = v2.splat_field(n, phi, lo_s, vox)
+        a = v2.art[n]
+        img = np.zeros(a.shape + (3,), np.uint8)
+        img[a & c] = (150, 150, 150)
+        img[a & ~c] = (40, 200, 60)
+        img[c & ~a] = (220, 50, 50)
+        tiles.append(img)
+        out[n] = round(float((a & c).sum() / (a | c).sum()), 4)
+    h = max(t.shape[0] for t in tiles)
+    tiles = [np.pad(t, ((0, h - t.shape[0]), (0, 4), (0, 0))) for t in tiles]
+    Image.fromarray(np.concatenate(tiles, 1)).resize((sum(t.shape[1] for t in tiles) * 2, h * 2),
+                                                     Image.NEAREST).save(path)
+    return out
+
+
+def main() -> None:
+    from recon import fair, surfcheck
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--name', default='test')
+    ap.add_argument('--sweeps', type=int, default=6)
+    ap.add_argument('--render', type=int, default=1)
+    args = ap.parse_args()
+    os.makedirs(OUT, exist_ok=True)
+    d = np.load(os.path.join(V.WORK, 'hull.npz'))
+    lo, vox, shape = d['lo'], float(d['vox']), tuple(int(s) for s in d['shape'])
+    cams = V.load_calib()
+    masks = {n: V.load_mask(n) for n in V.VIEWS}
+    k0, phi, info = build_head(cams, masks, lo, vox, shape, fit_sweeps=args.sweeps)
+    lo_s = lo + np.array([0, 0, k0 * vox])
+    v2 = Views2D(cams, masks)
+    info['overlay_iou'] = overlay(v2, phi, lo_s, vox, os.path.join(OUT, f'{args.name}_overlay.png'))
+    log('外形の IoU（あごより上）', info['overlay_iou'])
+    # 頭のまわりだけ面にする
+    xs = lo[0] + (np.arange(shape[1]) + 0.5) * vox
+    sel = np.nonzero(np.abs(xs) < 0.30)[0]
+    sub = phi[:, sel[0]:sel[-1] + 1].copy()
+    sub[:int(0.08 / vox)] = np.minimum(sub[:int(0.08 / vox)], -0.01)   # 下は切る
+    P, faces = fair.mesh_of(sub, lo_s + np.array([sel[0] * vox, 0, 0]), vox)
+    np.savez_compressed(os.path.join(OUT, f'{args.name}.npz'), verts=P.astype(np.float32), tris=faces)
+    with open(os.path.join(OUT, f'{args.name}.json'), 'w') as fp:
+        json.dump(info, fp, indent=1, ensure_ascii=False, default=float)
+    log('面', len(P), len(faces))
+    if args.render:
+        for f in surfcheck.run(P, faces, os.path.join(OUT, args.name), which=('head',), samples=12):
+            log(f)
+
+
+if __name__ == '__main__':
+    main()

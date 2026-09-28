@@ -12,11 +12,12 @@ UV の空きも多い）。ここでは切れ目（シーム）を体の自然�
     脚      股の高さの水平面より下、左右に。膝の高さで上下に、前後に
   切る面は bmesh の bisect_plane で、その部位の面だけを切る（ほかの部位には線を入れない）。
   切れ目が三角形の辺の上を真っすぐ通るので、島の縁がぎざぎざにならない。
-展開は伸びの少ない方法（MINIMUM_STRETCH）。島は 3 次元の面積に比例した大きさになるので、頭の島を
+展開は伸びの少ない方法（MINIMUM_STRETCH）。それが失敗した島（穴や取っ手のある島で、初めの円の形のまま中が
+つぶれる。髪の房の下のすき間がある頭の島など）は、その島だけ CONFORMAL（LSCM）で展開し直す。島は 3 次元の面積に比例した大きさになるので、頭の島を
 head_scale 倍（既定 2 倍、面積 4 倍）、手の島を 1.35 倍（指と手袋は細かい）にしてから、raster_pack で詰める：
 画素の上で大きい島から順に、8 通りの向きで重ならずに置ける最も低い位置を FFT の畳み込みで探し、全体の倍率を
 二分探索で最大にし、最後に空いた所に収まる島を最大 1.25 倍まで大きくする（頭の島から先に）。
-島の間は 2048 角で 3 画素ほど以上あく。Blender の pack_islands（CONCAVE）は、この島の形では 72〜75% で、
+島の間は 2048 角で 2〜3 画素ほど以上あく（島のマスクを 1 画素太らせる）。Blender の pack_islands（CONCAVE）は、この島の形では 72〜75% で、
 入力の少しの違いで結果が大きく変わり、1 回に 40 秒ほどかかったので使わない。
 """
 from __future__ import annotations
@@ -289,6 +290,10 @@ def raster_pack(islands: list[np.ndarray], res: int = 1024, gap_px: int = 2, n_a
 
     lo_s, hi_s = math.sqrt(0.5 / area), math.sqrt(0.95 / area)
     best = (lo_s, *attempt(lo_s))
+    while best[1] is None and lo_s > 0.2 * math.sqrt(0.5 / area):
+        # 形の込み入った島（房のある頭など）で 50% の詰め方に入らないときは、倍率を下げてやり直す
+        hi_s, lo_s = lo_s, lo_s * 0.9
+        best = (lo_s, *attempt(lo_s))
     if best[1] is None:
         raise RuntimeError('UV の島が詰められない')
     for _ in range(steps):
@@ -325,10 +330,17 @@ def raster_pack(islands: list[np.ndarray], res: int = 1024, gap_px: int = 2, n_a
     return scale, [(p[0], p[1], (p[2][0] / res, p[2][1] / res)) for p in place]
 
 
+def _face_uvs(me) -> np.ndarray:
+    """面ごと（三角形）の UV (n, 3, 2)"""
+    uv = np.empty(len(me.loops) * 2, np.float32)
+    me.uv_layers.active.data.foreach_get('uv', uv)
+    return uv.reshape(-1, 3, 2).astype(np.float64)
+
+
 def unwrap(obj, head_z: float, head_scale: float = 2.0, hand_scale: float = 1.35, res: int = 1024,
            method: str = 'MINIMUM_STRETCH') -> tuple[dict, np.ndarray]:
     """obj（三角形のメッシュ）を部位の平面で切ってシームを入れ、展開し、頭の島を head_scale 倍・手の島を
-    hand_scale 倍にして、raster_pack で詰める（res 角の画素の上。島の間は 2048 角で 3 画素ほど以上あく）"""
+    hand_scale 倍にして、raster_pack で詰める（res 角の画素の上。島の間は 2048 角で 2〜3 画素ほど以上あく）"""
     import bpy
     import bmesh
     me = obj.data
@@ -351,17 +363,39 @@ def unwrap(obj, head_z: float, head_scale: float = 2.0, hand_scale: float = 1.35
     bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.uv.unwrap(method=method, fill_holes=True, correct_aspect=True, margin=0.0)
     bpy.ops.object.mode_set(mode='OBJECT')
-    # 部位ごとの島（中心を原点に）。頭と手は大きくする
-    nl = len(me.loops)
-    uv = np.empty(nl * 2, np.float32)
-    me.uv_layers.active.data.foreach_get('uv', uv)
-    uv = uv.reshape(-1, 3, 2).astype(np.float64)   # 面ごと（三角形）
     parts = [p for p in range(len(names)) if (lab == p).any()]
+    # 展開に失敗した島（MINIMUM_STRETCH は、穴や取っ手（房の下のすき間）のある島で、初めの円の形のまま中が
+    # つぶれることがある）を見つけ、その島だけ CONFORMAL（LSCM）で展開し直す
+    uv = _face_uvs(me)
+    a3 = np.array([p.area for p in me.polygons])
+    a2 = np.abs(np.cross(uv[:, 1] - uv[:, 0], uv[:, 2] - uv[:, 0])) / 2
+    redo = []
+    for p in parts:
+        fi = np.nonzero(lab == p)[0]
+        r = a2[fi] / np.maximum(a3[fi], 1e-12)
+        med = float(np.median(r))
+        if med <= 0 or float(np.mean(r < 0.05 * med)) > 0.02:
+            redo.append(p)
+    if redo:
+        sel = np.isin(lab, redo)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        me.polygons.foreach_set('select', sel)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.uv.unwrap(method='CONFORMAL', fill_holes=True, correct_aspect=True, margin=0.0)
+        bpy.ops.object.mode_set(mode='OBJECT')
+    # 部位ごとの島（中心を原点に）。頭と手は大きくする
+    uv = _face_uvs(me)
     islands, faces_of, head_ids = [], [], []
+    a3 = np.array([p.area for p in me.polygons])
     for p in parts:
         fi = np.nonzero(lab == p)[0]
         t = uv[fi]
         c = t.reshape(-1, 2).mean(0)
+        # 島の大きさを 3 次元の面積にそろえる（CONFORMAL で展開し直した島は大きさがばらばらなので）
+        a2 = float(np.abs(np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])).sum() / 2)
+        t = c + (t - c) * math.sqrt(float(a3[fi].sum()) / max(a2, 1e-12))
         sc = head_scale if names[p].startswith('head') else hand_scale if names[p].startswith('hand') else 1.0
         if names[p].startswith('head'):
             head_ids.append(len(islands))
@@ -376,5 +410,6 @@ def unwrap(obj, head_z: float, head_scale: float = 2.0, hand_scale: float = 1.35
     counts = {names[p]: int((lab == p).sum()) for p in parts}
     grown = {names[p]: round(pl[1], 3) for p, pl in zip(parts, place) if pl[1] > 1.0}
     return {'method': f'plane cuts by body part (front/back halves), {method} unwrap, raster pack',
+            'reunwrapped_conformal': [names[p] for p in redo],
             'parts': counts, 'seam_edges': int(n_seam), 'head_scale': head_scale, 'hand_scale': hand_scale,
             'grown_islands': grown}, lab

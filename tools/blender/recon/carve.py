@@ -2,12 +2,21 @@
 
 ■ 使い方（.venv-blender の python で動かす。bpy をモジュールとして使うので Blender の画面は要らない）
   python tools/blender/recon/views.py                 元の絵の取り出し・マスク・最初の較正
-  python tools/blender/recon/carve.py                 以下の 1〜4 をすべて（約 11 分、最大 3GB。2 は約 3 分、3〜4 は約 7 分）
+  python tools/blender/recon/carve.py --stage surface 面の工程をすべて（2 → 3 → 4。較正 calib.json は変えない。
+                                                      約 13 分、最大 2.5GB）。ふつうはこれ 1 つ
+      = 2. hull（fair.py の体のレンズ ＋ hair.py の頭と髪の房、約 2.5 分）
+        → 3. mesh（マーチングキューブ → snap.py の外形への留め → Blender の掃除・間引き・自己交差の直し →
+                   uvparts.py の UV → 書き出し、約 5 分）
+        → 4. check（check.py・surfcheck.py・uvcheck.py の確認画像、約 5 分）
+  python tools/blender/recon/carve.py                 1〜4 をすべて（1 の較正の追い込みも。calib.json を書き直す）
   python tools/blender/recon/carve.py --stage calib   1 だけ（calib.json を書き直す）
   python tools/blender/recon/carve.py --stage hull    2 だけ（較正は calib.json を使う）
   python tools/blender/recon/carve.py --stage mesh    3 と 4（2 の結果 hull.npz を使う）
-  その他：--vox 0.002（ボクセルの大きさ m）、--target-tris 34500（間引きの目標。UV の切れ目で約 15% 増え、最終は約 4 万）、
+  python tools/blender/recon/carve.py --stage blender 3 の Blender の段（間引き・UV・書き出し）と 4 だけ
+                                                      （3 で書いた、面を整えたあとの面 surface.npz を使う。約 7 分）
+  その他：--vox 0.002（ボクセルの大きさ m）、--target-tris 37000（間引きの目標。長い辺の割りと UV の切れ目で増え、最終は約 4.5 万）、
           --variant 名前（本番の成果物を上書きせず build/recon/variants/<名前>/ に出す）
+  build/recon の外の成果物は作らない。ゲームの GLB までは build_haru_r.py（npm run haru:recon）。
 
 ■ 流れ
  1. calib … 較正の追い込み（views.py の最初の較正から）
@@ -17,23 +26,23 @@
       発注は 45 度だが、実際の絵は約 31 度で描かれている。
     - 上下（足の裏の行・身長の画素数）は 4 枚とも直接測れてそろっているので動かさない。右前斜めの横位置と
       縮尺、右真横の縮尺を、3 視点の視体積を各視点へ投影し直した IoU の平均が最大になるよう探す。
- 2. hull … なめらかな形の場（fair.py。並びは (z, x, y)、2mm のボクセル）
-    以前の方法（輪切りごとに断面を当てはめ、足りない外形を視体積のボクセルで戻す）は、隣の輪切りと判断が
-    食い違い、横筋・段・ひれが出た。いまは、2 次元の絵から作った場を視線に沿って延ばして組み立てる
-    （輪切りごとの判断がない）。
-    - 体：正面の絵の外形の「ふくらみ」（∇²f = -1 の解から h = √(2f)）を、右真横の絵の前後の中心から前後に
-      延ばしたレンズ。腕・脚・指は丸い断面、胴は（右真横の絵の厚みに合わせて）角の丸い箱形。
-    - 頭：房を落とし切り欠きを埋めた（外形を開いて閉じた）4 視点（右前斜めの左右反転を含む）の視体積を、
-      球で 3 次元に開いた卵形。
-    - 髪の房・耳・鼻：卵形に届かない外形の出っ張りを、出っ張りの範囲だけのふくらみの厚みで、縁の位置に付ける
-      丸いレンズ（先へ細る棘）。4 視点で作り、なめらかな和でつなぐ。
-    - 視体積の場（外形の符号つき距離を視線に沿って延ばした最小。外形は 2 画素太らせる）で切る。
+ 2. hull … なめらかな形の場（fair.py と hair.py。並びは (z, x, y)、2mm のボクセル）
+    以前の方法（輪切りごとに断面を当てはめる、視体積で切る）は、隣の輪切りと判断が食い違って横筋・段・ひれが
+    出て、頭は角ばった箱・くさび形の顔になった。いまは、
+    - 体（首より下、fair.py）：正面の絵の外形の「ふくらみ」（∇²f = -1 の解から h = √(2f)）を、右真横の絵の
+      前後の中心から前後に延ばしたレンズ。腕・脚・指は丸い断面、胴は（右真横の絵の厚みに合わせて）角の丸い
+      箱形。えり・フードの上の縁（1.203m）で切り、視体積の場（外形の符号つき距離を視線に沿って延ばした最小。
+      外形は 2 画素太らせる）で切る。
+    - 頭と髪（hair.py）：高さごとの超楕円の断面を積んだ頭（顔・あご）と髪の帽子、首の楕円柱、鼻、額のゴーグル
+      の帯、つむじから流れる葉の形の房 38 本（3 視点の外形に向き・長さ・浮き・幅を当てはめる）と前髪 4 本。
+      なめらかな和でつなぐ。視体積では切らない。
  3. mesh … 面
     - 場をマーチングキューブで面にし、Taubin でならす。
     - snap.py：面をなめらかにしながら（Taubin）、視点ごとの輪郭線の頂点だけを絵の外形まで動かし、その動きを
-      面の上で広げる、を 40 回。実の 3 視点の外形に合い、面には段・筋が残らない。頭は外へだけ動かす。
-    - 靴底を z=0 の平面に。Blender で小島の除去・穴埋め・部位ごとの間引き（頭 33%、手 14%、体 53%）・
-      なめらかな陰影。
+      面の上で広げる、を 40 回。実の 3 視点の外形に合い、面には段・筋が残らない。頭（首より上）は動かさない。
+    - 靴底を z=0 の平面に。Blender で小島の除去・穴埋め・部位ごとの間引き（頭 38%、手 13%、体 49%。頭は髪の房の形を残す）・
+      間引きでできた破片の除去・長い辺（4.5cm より長い）を割る・自己交差の直し（交差する三角形のまわりだけを
+      ならす）・面積 0 の三角形の除去・なめらかな陰影。
     - UV（uvparts.py）：体を平面で部位（頭・胴・腕・手・脚、長い部位は上下にも）に切り、それぞれ前後（手は
       内外）の 2 枚にして伸びの少ない展開（27 の島）。頭の島は 2 倍、手は 1.35 倍にして、画素の上で詰める
       （FFT で置ける位置を探す。空いた所に収まる島は最大 1.25 倍に）。
@@ -44,7 +53,8 @@
     UV で貼った画像（uv_check.png）、島の間のすき間の最小。
 
 ■ 出力（build/recon/）
-  calib.json, mask_<視点>.png, hull.npz（形の場 phi・F・H0）, haru_mesh.glb, haru_mesh.blend,
+  calib.json, mask_<視点>.png, hull.npz（形の場 phi・F・H0）, surface.npz（面を整えたあと、間引きの前の面）,
+  haru_mesh.glb, haru_mesh.blend,
   haru_mesh.npz（間引き後の頂点・三角形。check.py が使う）, geo_check_*.png, surf_check_*.png, uv_check.png,
   recon_report.json
 """
@@ -267,8 +277,8 @@ def build_hull(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], vox: float)
     from recon import fair
     grid = Grid.around(cams, masks, vox)
     log(f'格子 {grid.shape}（{vox * 1000:.1f}mm）')
-    report: dict = {'voxel_m': vox, 'grid_shape': list(grid.shape), 'method': 'lens body + opened head core + '
-                    'hair spike lenses (fair.py)'}
+    report: dict = {'voxel_m': vox, 'grid_shape': list(grid.shape), 'method': 'lens body below the collar (fair.py) + superellipse head/cap, '
+                    'goggles band and fitted hair locks (hair.py)'}
     # 比べるための素の視体積（実の 3 視点、外形を 1 画素太らせる）
     H0 = np.ones(grid.shape, bool)
     for v in REAL:
@@ -324,7 +334,8 @@ def region_of(co: np.ndarray, head_z: float) -> np.ndarray:
 
 
 # 三角形の予算の割合（全体に対して）。頭は顔と髪の房、手は指があるので面積の割に多く配る
-REGION_SHARE = {1: 0.33, 2: 0.14, 0: 0.53}
+REGION_SHARE = {1: 0.38, 2: 0.13, 0: 0.49}
+MAX_EDGE_M = 0.045        # 間引きのあと、これより長い辺は割る
 
 
 def decimate_by_region(obj, target: int, head_z: float, report: dict) -> None:
@@ -369,6 +380,61 @@ def decimate_by_region(obj, target: int, head_z: float, report: dict) -> None:
     for r, name in ((0, 'body'), (1, 'head'), (2, 'hands')):
         counts.setdefault(name, {})['after'] = int(((fr == r).sum(1) >= 2).sum())
     report['decimate_regions'] = counts
+
+
+def _components(bm) -> list[list]:
+    """面のつながった塊（面の一覧の一覧）"""
+    bm.faces.ensure_lookup_table()
+    seen = set()
+    out = []
+    for f in bm.faces:
+        if f.index in seen:
+            continue
+        stack, comp = [f], []
+        seen.add(f.index)
+        while stack:
+            g = stack.pop()
+            comp.append(g)
+            for e in g.edges:
+                for h in e.link_faces:
+                    if h.index not in seen:
+                        seen.add(h.index)
+                        stack.append(h)
+        out.append(comp)
+    return out
+
+
+def repair_self_intersections(obj, rounds: int = 16) -> dict:
+    """間引きで細い所（指の間・カフの縁）に出た自己交差を、交差する三角形のまわりだけをならして直す。
+
+    頂点を共有しない三角形の組の重なりを BVH で探し、その頂点と 2 つ隣までを Laplacian で 4 回ならす、を
+    交差がなくなるまで（最大 rounds 回）。ならすと細い所が少し縮むので、2 つの面が離れる。
+    """
+    import bmesh
+    from mathutils.bvhtree import BVHTree
+    me = obj.data
+    counts = []
+    for _ in range(rounds + 1):
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        bm.faces.ensure_lookup_table()
+        bvh = BVHTree.FromBMesh(bm)
+        bad = set()
+        for i, j in bvh.overlap(bvh):
+            if i < j and not (set(bm.faces[i].verts) & set(bm.faces[j].verts)):
+                bad.update((i, j))
+        counts.append(len(bad))
+        if not bad or len(counts) > rounds:
+            bm.free()
+            break
+        vs = {v for i in bad for v in bm.faces[i].verts}
+        for _ in range(2):            # 2 つ隣まで
+            vs |= {w for v in list(vs) for e in v.link_edges for w in e.verts}
+        for _ in range(4):
+            bmesh.ops.smooth_vert(bm, verts=list(vs), factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+        bm.to_mesh(me)
+        bm.free()
+    return {'faces_in_intersections_per_round': counts}
 
 
 def blender_mesh(P: np.ndarray, faces: np.ndarray, target_tris: int, head_z: float, report: dict) -> None:
@@ -436,6 +502,50 @@ def blender_mesh(P: np.ndarray, faces: np.ndarray, target_tris: int, head_z: flo
     decimate_by_region(obj, target_tris, head_z, report)
     me = obj.data
     log('間引き後の三角形', len(me.polygons))
+    # 間引きで平らな所（靴の横・底）にできた長い辺を割る（曲げたときに形が崩れないように）
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    split = 0
+    for _ in range(3):
+        long_e = [e for e in bm.edges if e.calc_length() > MAX_EDGE_M]
+        if not long_e:
+            break
+        split += len(long_e)
+        res = bmesh.ops.subdivide_edges(bm, edges=long_e, cuts=1, use_grid_fill=False)
+        faces = list({f for g in res['geom'] if isinstance(g, bmesh.types.BMVert) for f in g.link_faces})
+        bmesh.ops.triangulate(bm, faces=[f for f in faces if len(f.verts) > 3])
+    # 間引きで小さな塊ができていれば消す（細い所が切れた破片）
+    comps = _components(bm)
+    comps.sort(key=len, reverse=True)
+    small = [f for c in comps[1:] for f in c]
+    if small:
+        bmesh.ops.delete(bm, geom=small, context='FACES')
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    report['removed_small_pieces_after_decimate'] = len(comps) - 1
+    report['long_edges_split'] = {'max_edge_m': MAX_EDGE_M, 'split': split,
+                                  'longest_after_m': round(max(e.calc_length() for e in bm.edges), 4)}
+    bm.to_mesh(me)
+    bm.free()
+    log('長い辺を割った', report['long_edges_split'])
+    report['self_intersections'] = repair_self_intersections(obj)
+    log('自己交差の直し', report['self_intersections'])
+    # 面積 0 の三角形・長さ 0 の辺を消す（残ると UV の展開（MINIMUM_STRETCH）がその島で失敗し、島が円になる）
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bmesh.ops.dissolve_degenerate(bm, dist=1e-5, edges=bm.edges[:])
+    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3])
+    report['degenerate_dissolved'] = int(len(me.polygons) - len(bm.faces))
+    # 3 枚以上の面が付いた辺（まれに間引き・ならしでできる）：まわりの面を消して穴を埋め直す
+    nm = [e for e in bm.edges if len(e.link_faces) > 2]
+    if nm:
+        bmesh.ops.delete(bm, geom=list({f for e in nm for f in e.link_faces}), context='FACES')
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+        bmesh.ops.holes_fill(bm, edges=[e for e in bm.edges if e.is_boundary], sides=0)
+        bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3])
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    report['nonmanifold_edges_repaired'] = len(nm)
+    bm.to_mesh(me)
+    bm.free()
     bpy.ops.object.shade_smooth()
 
     # 表裏の確認（外向き）と、間引きで生じた非多様体の辺の数
@@ -550,10 +660,10 @@ def uv_stats(obj, head_z: float) -> dict:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument('--stage', default='all', choices=['all', 'calib', 'hull', 'mesh'])
+    ap.add_argument('--stage', default='all', choices=['all', 'calib', 'hull', 'mesh', 'blender', 'surface'])
     ap.add_argument('--vox', type=float, default=0.002)
-    ap.add_argument('--target-tris', type=int, default=34500,
-                    help='間引きの目標（UV の切れ目で約 15% 増え、最終は約 4 万）')
+    ap.add_argument('--target-tris', type=int, default=37000,
+                    help='間引きの目標（長い辺の割りと UV の切れ目で増え、最終は約 4.5 万）')
     ap.add_argument('--variant', default='', help='比べるための別の出力先の名前（本番の成果物を上書きしない）')
     args = ap.parse_args()
     global OUT
@@ -576,14 +686,22 @@ def main() -> None:
         report['calib'] = cal
     cams = V.load_calib()
 
-    if args.stage in ('all', 'hull'):
+    if args.stage in ('all', 'hull', 'surface'):
         report['hull'] = build_hull(cams, masks, args.vox)
 
-    if args.stage in ('all', 'mesh'):
+    if args.stage in ('all', 'mesh', 'blender', 'surface'):
         # 頭の下端（首より上）：身長の 4.4 頭身から。頭は約 1.55/4.4 = 0.35m
         head_z = V.HEIGHT - V.HEIGHT / 4.4
-        report['mesh'] = {'head_z': head_z}
-        P, faces = extract_surface(cams, masks, report['mesh'])
+        surf = os.path.join(OUT, 'surface.npz')
+        if args.stage == 'blender':
+            # 面を整えたあとの面（surface.npz）から、Blender の段だけをやり直す
+            report.setdefault('mesh', {})['head_z'] = head_z
+            d = np.load(surf)
+            P, faces = d['verts'].astype(np.float64), d['tris'].astype(np.int64)
+        else:
+            report['mesh'] = {'head_z': head_z}
+            P, faces = extract_surface(cams, masks, report['mesh'])
+            np.savez_compressed(surf, verts=P.astype(np.float32), tris=faces.astype(np.int32))
         blender_mesh(P, faces, args.target_tris, head_z, report['mesh'])
         from recon import check, surfcheck
         report['check'] = check.run(OUT)
