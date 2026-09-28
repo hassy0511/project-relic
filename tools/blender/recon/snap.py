@@ -8,6 +8,7 @@
      目標の外形の縁を探し、そこまでの動き（1 回に max_px 画素まで）を求める。その動きを面の上で隣の平均に
      spread 回広げ（縁のまわり約 1〜2cm がそろって動く）、0.8 倍だけ動かす。
      頭（head_z より上）は外へだけ動かす：房の先は外形まで伸ばすが、房の間の切り欠きで面を削らない。
+     右真横の視点では、左の腕（体の向こう側で、絵では隠れている）の輪郭は動かさない。
 釣り合った形は、なめらかな面で、縁だけが外形に沿う。最後に、広げ方を小さくした留めを 3 回。
 目標の外形（target）は元の絵の外形の符号つき距離を、上下に 6 画素・左右に 2 画素ならしたもの（頭は 2 画素）。
 上下に強くならすのは、縫い目・帯の端の細かな段で輪郭線が上下に波打たないように（横筋にしない）。
@@ -85,7 +86,8 @@ def edges_of(faces: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 def snap_step(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], sds: dict[str, np.ndarray],
               W: sparse.csr_matrix, E: tuple, max_px: float = 3.0, search_px: int = 40, spread: int = 20,
-              views=REAL, outward_only: np.ndarray | None = None) -> tuple[np.ndarray, dict]:
+              views=REAL, outward_only: np.ndarray | None = None, skip: dict | None = None
+              ) -> tuple[np.ndarray, dict]:
     """外形の縁（輪郭線）の頂点を目標の外形へ動かす量を求め、面の上でなめらかに広げた動き（頂点ごと）。
 
     輪郭線は、視線に対して表と裏の三角形の境の辺。そのうち、画像の上で外向きのすぐ隣がメッシュに
@@ -104,6 +106,8 @@ def snap_step(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], sds: dic
         facing = fn @ d
         cont = np.sign(facing[ef[:, 0]]) != np.sign(facing[ef[:, 1]])
         idx = np.unique(edges[cont].ravel())
+        if skip is not None and name in skip:
+            idx = idx[~skip[name][idx]]
         if len(idx) == 0:
             continue
         nu = N[idx] @ r
@@ -167,16 +171,20 @@ def fair_mesh(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], masks: d
     """本文の 1 と 2 を rounds 回。最後は留めるだけを数回（縁を外形にぴったり）。masks は元の絵の外形"""
     sds = targets(cams, masks)
     outward_only = X[:, 2] > head_z
+    # 右真横の絵では、左の腕（体の向こう側）は体と右の腕に隠れて見えない。その輪郭を右真横の外形（右の腕の
+    # カフ・手袋の段）へ寄せると、籠手の前後に段がつくので寄せない
+    skip = {'side_right': (X[:, 0] > 0.18) & (X[:, 2] > 0.45) & (X[:, 2] < 1.05)}
     W = laplacian(len(X), faces)
     E = edges_of(faces)
     for it in range(rounds):
         X = taubin(X, W, smooth)
-        D, st = snap_step(X, faces, cams, sds, W, E, max_px=max_px, spread=spread, outward_only=outward_only)
+        D, st = snap_step(X, faces, cams, sds, W, E, max_px=max_px, spread=spread, outward_only=outward_only,
+                          skip=skip)
         X = X + 0.8 * D
         if it % 5 == 0 or it == rounds - 1:
             log(f'  面の平滑化と縁の留め {it + 1}/{rounds}', st)
     for _ in range(final_snaps):
-        D, st = snap_step(X, faces, cams, sds, W, E, max_px=2.0, spread=8, outward_only=outward_only)
+        D, st = snap_step(X, faces, cams, sds, W, E, max_px=2.0, spread=8, outward_only=outward_only, skip=skip)
         X = X + D
         X = taubin(X, W, 1)
     log('  最後の留め', st)

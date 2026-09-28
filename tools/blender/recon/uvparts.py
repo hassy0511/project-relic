@@ -13,10 +13,11 @@ UV の空きも多い）。ここでは切れ目（シーム）を体の自然�
   切る面は bmesh の bisect_plane で、その部位の面だけを切る（ほかの部位には線を入れない）。
   切れ目が三角形の辺の上を真っすぐ通るので、島の縁がぎざぎざにならない。
 展開は伸びの少ない方法（MINIMUM_STRETCH）。島は 3 次元の面積に比例した大きさになるので、頭の島を
-head_scale 倍（既定 2 倍、面積 4 倍）、手の島を 1〜1.5 倍（指と手袋は細かいので、大きくしても損はない）に
-してから、凹んだ形も考えて詰める（CONCAVE）。Blender の詰め方は島の大きさの組み合わせで結果が変わるので、
-手の倍率と島のすき間（2048 角で約 4・3.5・3 画素）を試し、UV の 75% 以上が使われる組のうち、すき間の
-最も大きいものを選ぶ。
+head_scale 倍（既定 2 倍、面積 4 倍）、手の島を 1.35 倍（指と手袋は細かい）にしてから、raster_pack で詰める：
+画素の上で大きい島から順に、8 通りの向きで重ならずに置ける最も低い位置を FFT の畳み込みで探し、全体の倍率を
+二分探索で最大にし、最後に空いた所に収まる島を最大 1.25 倍まで大きくする（頭の島から先に）。
+島の間は 2048 角で 3 画素ほど以上あく。Blender の pack_islands（CONCAVE）は、この島の形では 72〜75% で、
+入力の少しの違いで結果が大きく変わり、1 回に 40 秒ほどかかったので使わない。
 """
 from __future__ import annotations
 
@@ -235,15 +236,15 @@ def _island_masks(tris: np.ndarray, scale_px: float, angles, pad: int) -> list[t
 
 
 def raster_pack(islands: list[np.ndarray], res: int = 1024, gap_px: int = 2, n_angles: int = 8, steps: int = 6,
-                grow_max: float = 1.15, grow_first: list[int] | None = None) -> tuple[float, list[tuple]]:
+                grow_max: float = 1.25, grow_first: list[int] | None = None) -> tuple[float, list[tuple]]:
     """島（それぞれ中心が原点の UV の三角形 (n, 3, 2)、大きさの比は保つ）を 1 × 1 の中へ詰める。
 
     画素（res 角）の上で、大きい島から順に、向き（n_angles 通り）ごとに「重ならずに置ける位置」を
     FFT の畳み込みで求め、上端が最も低い（同じなら左）位置に置く。全体の倍率は二分探索で、全部が入る
     最大にする。置いた島を gap_px 画素太らせて占有に書くので、島の間は gap_px 画素以上あく（島のマスクは
     塗りの誤差の分 1 画素太らせる）。
-    最後に、島ごとに、まわりのすき間に収まる限り大きくする（最大 grow_max 倍。grow_first の島から先に）。
-    その島の細かさは少し上がる（下がることはない）。
+    最後に、島ごとに、空いた所に収まる限り大きくする（最大 grow_max 倍。今の位置に収まらなければ最も近い
+    空いた位置へ動かす。grow_first の島から先に）。その島の細かさは少し上がる（下がることはない）。
     戻り値は (倍率, 島ごとの (角度, 倍率の係数, 中心の UV))。UV = 回転(角度) · 島 × 倍率 × 係数 + 中心。
     """
     from scipy.signal import fftconvolve
@@ -299,33 +300,35 @@ def raster_pack(islands: list[np.ndarray], res: int = 1024, gap_px: int = 2, n_a
             lo_s = mid
             best = (mid, pl, occ)
     scale, place, occ = best
-    # すき間に収まる限り島を大きくする
+    # すき間に収まる限り島を大きくする（収まる所が今の位置になければ、最も近い空いた位置へ動かす）
     first = list(grow_first or [])
-    for i in first + [int(j) for j in order if int(j) not in first]:
-        a, _, (cx, cy), m, y, x = place[i]
+    seq = first + [int(j) for j in order if int(j) not in first]
+    for i in seq + seq:   # 2 回（動いた島の跡に、ほかの島が大きくなれることがある）
+        a, f0, (cx, cy), m, y, x = place[i]
         stamp(occ, m, y, x, -1.0)
-        for f in np.arange(grow_max, 1.0, -0.025):
+        for f in np.arange(grow_max, f0, -0.025):
             (_, m2, off2), = _island_masks(islands[i], scale * f * res, [a], 1)
-            x2, y2 = int(round(cx - off2[0])), int(round(cy - off2[1]))
             h2, w2 = m2.shape
-            if x2 < 0 or y2 < 0 or x2 + w2 > res or y2 + h2 > res:
+            if h2 > res or w2 > res:
                 continue
-            if (occ[y2:y2 + h2, x2:x2 + w2] * m2).sum() < 0.5:
-                place[i] = [a, float(f), (x2 + off2[0], y2 + off2[1]), m2, y2, x2]
-                m, y, x = m2, y2, x2
-                break
+            ov = fftconvolve(occ, m2[::-1, ::-1].astype(np.float32), mode='valid')
+            free = np.argwhere(ov < 0.5)
+            if len(free) == 0:
+                continue
+            ty, tx = cy - off2[1], cx - off2[0]
+            j = int(np.argmin((free[:, 0] - ty) ** 2 + (free[:, 1] - tx) ** 2))
+            y2, x2 = int(free[j][0]), int(free[j][1])
+            place[i] = [a, float(f), (x2 + off2[0], y2 + off2[1]), m2, y2, x2]
+            m, y, x = m2, y2, x2
+            break
         stamp(occ, m, y, x)
     return scale, [(p[0], p[1], (p[2][0] / res, p[2][1] / res)) for p in place]
 
 
-def unwrap(obj, head_z: float, head_scale: float = 2.0, hand_scales=(1.0, 1.2, 1.35, 1.5),
-           margins=(0.002, 0.0017, 0.0015), method: str = 'MINIMUM_STRETCH', target: float = 0.75
-           ) -> tuple[dict, np.ndarray]:
-    """obj（三角形のメッシュ）を部位の平面で切ってシームを入れ、展開し、頭の島を head_scale 倍にして詰める。
-
-    margins は島の間のすき間（UV の幅の割合。2048 角で 0.002 = 約 4 画素）の候補。使われる面積が target 以上に
-    なる組のうち、すき間の最も大きいものを選ぶ（どれも届かなければ、使われる面積の最も大きいもの）。
-    """
+def unwrap(obj, head_z: float, head_scale: float = 2.0, hand_scale: float = 1.35, res: int = 1024,
+           method: str = 'MINIMUM_STRETCH') -> tuple[dict, np.ndarray]:
+    """obj（三角形のメッシュ）を部位の平面で切ってシームを入れ、展開し、頭の島を head_scale 倍・手の島を
+    hand_scale 倍にして、raster_pack で詰める（res 角の画素の上。島の間は 2048 角で 3 画素ほど以上あく）"""
     import bpy
     import bmesh
     me = obj.data
@@ -339,54 +342,39 @@ def unwrap(obj, head_z: float, head_scale: float = 2.0, hand_scales=(1.0, 1.2, 1
     n_seam = 0
     for e in bm.edges:
         lf = e.link_faces
-        s = len(lf) == 2 and lab[lf[0].index] != lab[lf[1].index]
-        e.seam = s
-        n_seam += s
+        s_ = len(lf) == 2 and lab[lf[0].index] != lab[lf[1].index]
+        e.seam = s_
+        n_seam += s_
     bm.to_mesh(me)
     bm.free()
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.uv.unwrap(method=method, fill_holes=True, correct_aspect=True, margin=0.0)
     bpy.ops.object.mode_set(mode='OBJECT')
-    # 島の大きさを決めて詰める。Blender の詰め方は島の大きさの組み合わせで結果が変わるので、手の倍率と
-    # すき間をいくつか試し、UV の使われる面積が最も大きいものを選ぶ
+    # 部位ごとの島（中心を原点に）。頭と手は大きくする
     nl = len(me.loops)
-    base = np.empty(nl * 2, np.float32)
-    me.uv_layers.active.data.foreach_get('uv', base)
-    base = base.reshape(-1, 2)
-    loop_face = np.repeat(np.arange(len(me.polygons)), 3)
-    loop_part = lab[loop_face]
-    best = None
-    tried = []
-    for hs in hand_scales:
-        for margin in margins:
-            uvs = base.copy()
-            for p, nm in enumerate(names):
-                li = loop_part == p
-                if not li.any():
-                    continue
-                sc = head_scale if nm.startswith('head') else hs if nm.startswith('hand') else 1.0
-                c = uvs[li].mean(0)
-                uvs[li] = (uvs[li] - c) * sc + c
-            me.uv_layers.active.data.foreach_set('uv', uvs.ravel())
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.select_all(action='SELECT')
-            bpy.ops.uv.select_all(action='SELECT')
-            bpy.ops.uv.pack_islands(rotate=True, rotate_method='ANY', margin_method='FRACTION', margin=margin,
-                                    shape_method='CONCAVE')
-            bpy.ops.object.mode_set(mode='OBJECT')
-            out = np.empty(nl * 2, np.float32)
-            me.uv_layers.active.data.foreach_get('uv', out)
-            t = out.reshape(-1, 3, 2)
-            used = float(np.abs((t[:, 1, 0] - t[:, 0, 0]) * (t[:, 2, 1] - t[:, 0, 1])
-                                - (t[:, 2, 0] - t[:, 0, 0]) * (t[:, 1, 1] - t[:, 0, 1])).sum() / 2)
-            tried.append((round(hs, 2), margin, round(used, 4)))
-            key = (used >= target, margin if used >= target else 0.0, used)
-            if best is None or key > best[4]:
-                best = (used, out.copy(), hs, margin, key)
-    me.uv_layers.active.data.foreach_set('uv', best[1])
+    uv = np.empty(nl * 2, np.float32)
+    me.uv_layers.active.data.foreach_get('uv', uv)
+    uv = uv.reshape(-1, 3, 2).astype(np.float64)   # 面ごと（三角形）
+    parts = [p for p in range(len(names)) if (lab == p).any()]
+    islands, faces_of, head_ids = [], [], []
+    for p in parts:
+        fi = np.nonzero(lab == p)[0]
+        t = uv[fi]
+        c = t.reshape(-1, 2).mean(0)
+        sc = head_scale if names[p].startswith('head') else hand_scale if names[p].startswith('hand') else 1.0
+        if names[p].startswith('head'):
+            head_ids.append(len(islands))
+        islands.append((t - c) * sc)
+        faces_of.append(fi)
+    scale, place = raster_pack(islands, res=res, gap_px=0, grow_first=head_ids)
+    for t, fi, (a, f, (cu, cv)) in zip(islands, faces_of, place):
+        R = np.array([[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]])
+        uv[fi] = ((t.reshape(-1, 2) @ R.T) * (scale * f) + np.array([cu, cv])).reshape(-1, 3, 2)
+    me.uv_layers.active.data.foreach_set('uv', uv.astype(np.float32).ravel())
     me.update()
-    counts = {nm: int((lab == p).sum()) for p, nm in enumerate(names)}
-    return {'method': f'plane cuts by body part (front/back halves), {method} unwrap, CONCAVE pack',
-            'parts': counts, 'seam_edges': int(n_seam), 'head_scale': head_scale, 'hand_scale': best[2],
-            'margin': best[3], 'pack_tries': tried}, lab
+    counts = {names[p]: int((lab == p).sum()) for p in parts}
+    grown = {names[p]: round(pl[1], 3) for p, pl in zip(parts, place) if pl[1] > 1.0}
+    return {'method': f'plane cuts by body part (front/back halves), {method} unwrap, raster pack',
+            'parts': counts, 'seam_edges': int(n_seam), 'head_scale': head_scale, 'hand_scale': hand_scale,
+            'grown_islands': grown}, lab

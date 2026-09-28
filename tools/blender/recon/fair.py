@@ -5,8 +5,8 @@ carve.py の 2（hull）から呼ばれる。以前の方法（輪切りごと�
 輪切りごとの判断がなく、上下にもなめらかになる。場はすべて符号つき距離（m、内側が正）。
 
 ■ 1. 目標の外形（target_sdf）と視体積の場（hull_field）
-  外形のマスクの符号つき距離（画素）を少しぼかす（体 6 画素・頭 3 画素。手の高さはぼかさない：指の間を
-  埋めない）。頭（あごより上）は、房の間の切り欠きを半径 2cm の円で閉じた外形（closed_masks）を使う。
+  外形のマスクの符号つき距離（画素）を少しぼかす（体 6 画素・頭 3 画素。手首より先の高さはぼかさない：指の
+  間を埋めない。籠手やカフの高さはぼかす：段が面に刻まれないように）。頭（あごより上）は、房の間の切り欠きを半径 2cm の円で閉じた外形（closed_masks）を使う。
   視体積の場 D = 実の 3 視点（正面・右真横・右前斜め）の外形の符号つき距離を視線に沿って延ばした最小。
   外形の距離は視線に垂直な面の中の距離なので、D の削り込み {D ≥ r} は視体積の正確な削り込み。
 
@@ -63,7 +63,7 @@ T0 = time.time()
 
 # 部位の境（m）。頭はあご（身長 / 4.4 頭身）より少し上から、手は手首より先
 HEAD_Z = (1.19, 1.24)          # この間で体 → 頭へなめらかに切り替える
-HAND_Z = (0.80, 0.86)          # この高さより下の行は、目標の外形をならさない（指の間を埋めない）
+HAND_ROWS = (0.60, 0.77)       # この高さの間の行（手首より先の手と指）は、目標の外形をならさない（指の間を埋めない）
 
 # 既定の値（carve.py の報告にも書く）
 PARAMS = {
@@ -108,11 +108,11 @@ def mask_sdf(mask: np.ndarray, sigma: float = 0.8) -> np.ndarray:
 def target_sdf(mask: np.ndarray, cam: V.Cam, sigma=6.0, sigma_head=3.0) -> np.ndarray:
     """目標の外形（符号つき距離、画素）。小さな切り欠き・出っ張りをならす。
 
-    sigma は体（数か (上下, 左右) の組）、sigma_head は頭（あごより上）。手の高さの行はならさない。
+    sigma は体（数か (上下, 左右) の組）、sigma_head は頭（あごより上）。手首より先の高さの行はならさない。
     """
     sd = mask_sdf(mask, 0.8)
     z = (cam.v0 - (np.arange(mask.shape[0]) + 0.5)) / cam.ppm
-    w_hand = ramp(z, HAND_Z[0] - 0.24, HAND_Z[0] - 0.20) * (1.0 - ramp(z, HAND_Z[1], HAND_Z[1] + 0.04))
+    w_hand = ramp(z, HAND_ROWS[0] - 0.04, HAND_ROWS[0]) * (1.0 - ramp(z, HAND_ROWS[1], HAND_ROWS[1] + 0.02))
     w_head = ramp(z, *HEAD_Z)
     out = ndi.gaussian_filter(sd, sigma)
     out += w_head.astype(np.float32)[:, None] * (ndi.gaussian_filter(sd, sigma_head) - out)

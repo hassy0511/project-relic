@@ -2,11 +2,11 @@
 
 ■ 使い方（.venv-blender の python で動かす。bpy をモジュールとして使うので Blender の画面は要らない）
   python tools/blender/recon/views.py                 元の絵の取り出し・マスク・最初の較正
-  python tools/blender/recon/carve.py                 以下の 1〜4 をすべて（約 15 分、最大 6GB）
+  python tools/blender/recon/carve.py                 以下の 1〜4 をすべて（約 11 分、最大 3GB。2 は約 3 分、3〜4 は約 7 分）
   python tools/blender/recon/carve.py --stage calib   1 だけ（calib.json を書き直す）
   python tools/blender/recon/carve.py --stage hull    2 だけ（較正は calib.json を使う）
   python tools/blender/recon/carve.py --stage mesh    3 と 4（2 の結果 hull.npz を使う）
-  その他：--vox 0.002（ボクセルの大きさ m）、--target-tris 40000、
+  その他：--vox 0.002（ボクセルの大きさ m）、--target-tris 34500（間引きの目標。UV の切れ目で約 15% 増え、最終は約 4 万）、
           --variant 名前（本番の成果物を上書きせず build/recon/variants/<名前>/ に出す）
 
 ■ 流れ
@@ -23,7 +23,8 @@
     （輪切りごとの判断がない）。
     - 体：正面の絵の外形の「ふくらみ」（∇²f = -1 の解から h = √(2f)）を、右真横の絵の前後の中心から前後に
       延ばしたレンズ。腕・脚・指は丸い断面、胴は（右真横の絵の厚みに合わせて）角の丸い箱形。
-    - 頭：房を落とした（外形を開いた）4 視点（右前斜めの左右反転を含む）の視体積を、球で 3 次元に開いた卵形。
+    - 頭：房を落とし切り欠きを埋めた（外形を開いて閉じた）4 視点（右前斜めの左右反転を含む）の視体積を、
+      球で 3 次元に開いた卵形。
     - 髪の房・耳・鼻：卵形に届かない外形の出っ張りを、出っ張りの範囲だけのふくらみの厚みで、縁の位置に付ける
       丸いレンズ（先へ細る棘）。4 視点で作り、なめらかな和でつなぐ。
     - 視体積の場（外形の符号つき距離を視線に沿って延ばした最小。外形は 2 画素太らせる）で切る。
@@ -34,15 +35,18 @@
     - 靴底を z=0 の平面に。Blender で小島の除去・穴埋め・部位ごとの間引き（頭 33%、手 14%、体 53%）・
       なめらかな陰影。
     - UV（uvparts.py）：体を平面で部位（頭・胴・腕・手・脚、長い部位は上下にも）に切り、それぞれ前後（手は
-      内外）の 2 枚にして伸びの少ない展開。頭の島は 2 倍、手は 1〜1.5 倍にして詰める。
+      内外）の 2 枚にして伸びの少ない展開（27 の島）。頭の島は 2 倍、手は 1.35 倍にして、画素の上で詰める
+      （FFT で置ける位置を探す。空いた所に収まる島は最大 1.25 倍に）。
     - haru_mesh.glb / .blend / .npz に書き出す。
  4. check … check.py：calib.json のカメラで Cycles の灰色の画像を描き、元の絵と並べる（geo_check_*.png）。
     メッシュを各視点へ投影した外形と元の絵の外形の IoU を測る。surfcheck.py：なめる光（斜め上の横から浅い
-    角度の強い光）で面の段・筋・こぶを見る画像（surf_check_*.png）。
+    角度の強い光）で面の段・筋・こぶを見る画像（surf_check_*.png）。uvcheck.py：UV の島の並びと、市松模様を
+    UV で貼った画像（uv_check.png）、島の間のすき間の最小。
 
 ■ 出力（build/recon/）
   calib.json, mask_<視点>.png, hull.npz（形の場 phi・F・H0）, haru_mesh.glb, haru_mesh.blend,
-  haru_mesh.npz（間引き後の頂点・三角形。check.py が使う）, geo_check_*.png, surf_check_*.png, recon_report.json
+  haru_mesh.npz（間引き後の頂点・三角形。check.py が使う）, geo_check_*.png, surf_check_*.png, uv_check.png,
+  recon_report.json
 """
 from __future__ import annotations
 
@@ -448,7 +452,6 @@ def blender_mesh(P: np.ndarray, faces: np.ndarray, target_tris: int, head_z: flo
     from recon import uvparts
     info, _ = uvparts.unwrap(obj, head_z)
     report['uv'] = dict(info, **uv_stats(obj, head_z))
-    report['uv'].pop('pack_tries', None)
     me = obj.data
     log('UV', {k: v for k, v in report['uv'].items() if k != 'parts'})
 
@@ -587,6 +590,8 @@ def main() -> None:
         d = np.load(os.path.join(OUT, 'haru_mesh.npz'))
         report['surf_check'] = [os.path.basename(p) for p in
                                 surfcheck.run(d['verts'], d['tris'], os.path.join(OUT, 'surf_check'), samples=32)]
+        from recon import uvcheck
+        report['mesh']['uv'].update(uvcheck.run(OUT))
         if not args.variant:
             # 較正のファイルにも、最終のメッシュの外形の一致を書いておく（後の工程が確かめられるように）
             with open(V.CALIB_PATH) as fp:
