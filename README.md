@@ -1,10 +1,12 @@
 # アークウォーカー（ARKWALKER）
 
 「歩く方舟」の背中で暮らす少年が、失われた文明の遺跡に潜る 3D アクションアドベンチャー。
-現在は **MVP（遊びの骨格を確かめる試遊版）** の段階。見た目は仮。
+現在は **MVP（遊びの骨格を確かめる試遊版）** の段階。見た目は仮。エンジンは **Godot 4.5**（2026-09-28 に three.js から移行）。
 
-- 試遊版：https://hassy0511.github.io/project-relic/ （GitHub Pages）
-- 企画・設計：[`docs/`](docs/README.md)
+- 試遊版（本来の画質）：GitHub のリリース「[playtest](https://github.com/hassy0511/project-relic/releases/tag/playtest)」の Windows 版・Linux 版
+- 試遊版（ブラウザ・軽い画質）：https://hassy0511.github.io/project-relic/
+- 以前の three.js 版：https://hassy0511.github.io/project-relic/threejs/
+- 企画・設計：[`docs/`](docs/README.md)。Godot 版の構成は [`docs/design/41_Godot版の技術構成.md`](docs/design/41_Godot版の技術構成.md)
 
 ## 遊び方（MVP）
 
@@ -20,12 +22,22 @@
 | ロックオン | 右クリック（押している間） | LT |
 | 対象の切り替え | ロックオン中にマウスを横に振る | 右スティックを弾く |
 | 回復 | R | 十字キー上 |
-| ポーズ | Esc | Menu |
-| 調整パネル | F1 | — |
+| ポーズ | Esc | Start（Menu） |
+| 性能の表示 | F1 | — |
 
-調整パネルで手触りの数値を変え、「YAML としてコピー」で値をそのまま共有できる。
+## 開発（Godot 版）
 
-## 開発
+```bash
+bash tools/setup_godot.sh          # Godot 4.5.1 を .tools/ に用意（--templates で書き出し用の部品も）
+tools/godot.sh import              # 素材の取り込み
+tools/godot.sh test                # 手触りの数値・戦闘・仕掛けのテスト
+tools/godot.sh run --fixed-fps 60 -- --demo=/tmp/demo   # 画面なしの通しの確認
+tools/godot.sh shot -- --demo=/tmp/demo                 # 画面を描いて各場面を撮影
+```
+
+エディターで開く場合は `godot/project.godot` を Godot 4.5 で開く。
+
+## 開発（three.js 版・以前の MVP）
 
 ```bash
 npm install

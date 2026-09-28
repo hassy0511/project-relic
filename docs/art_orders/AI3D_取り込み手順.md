@@ -13,7 +13,7 @@
 
 ## 2. あなたにお願いする作業（(a) の方法）
 
-Codex の W1-00 の絵（ブランチ `art/w1-haru3d` の `art/concepts/W1_haru_3d/`）が届いたあと：
+Codex の W1-00 の絵（ブランチ `art/w1-haru3d` の `art/concepts/W1_haru_3d/`。**2026-09-28 に納品済み**）で：
 
 1. 上のデモのページを開く。
 2. `haru_3d_front.png` を画像の欄に入れる。
@@ -28,7 +28,7 @@ Codex の W1-00 の絵（ブランチ `art/w1-haru3d` の `art/concepts/W1_haru_
 ## 3. Claude が行う作業
 
 ```bash
-npm run ai:haru      # art/3d_sources/haru_trellis_front.glb → public/assets/models/haru_b.glb
+npm run ai:haru      # art/3d_sources/haru_trellis_front.glb → godot/assets/models/haru_b.glb
 ```
 
 中身は `tools/blender/models/ai_character.py`：
@@ -41,7 +41,7 @@ npm run ai:haru      # art/3d_sources/haru_trellis_front.glb → public/assets/m
 6. 銃（右手。絵が届くまでは箱の組み合わせの仮の形）、光刃（左前腕）、銃口の目印を付ける。
 7. 琥珀色の部分を探して光らせる。
 
-確認：見た目の確認ページのモデルで `haru_b` を選ぶ。ゲームは URL に `?haru=b` を付ける。
+確認：Godot 版のゲームを `-- --haru=b` を付けて起動する（まだ無いときは A案の試作のハルになる）。
 
 ## 4. 試験の結果（本物の出力が届く前の確認）
 
