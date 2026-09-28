@@ -796,12 +796,17 @@ def build_hull(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], vox: float,
         V.save_mask('asymmetric_parts', asym)
         exempt = grid.lookup(cams['front'], asym)
         # 本人の右側の板（右肩・右太もも）は右真横の絵に全体が見えている。その白磁の範囲（少し広げる）に
-        # 写るボクセルだけを除外に残す。板の後ろの脚や腕まで除外すると、板が前後に長い棒になるため。
-        # 左の籠手（x > 0）は右真横からは隠れているので、正面の範囲だけで除外する
+        # 写るボクセルだけを除外に残す。板の後ろの脚や腕まで除外すると、板が前後に長い棒になるため
         side_ivory = dilate2(_near_color(V.load_rgba('side_right'), masks['side_right'], '#F3E9D2', 40), 12)
         right = (grid.X < 0)[None, :, :]
-        exempt &= ~right | grid.lookup(cams['side_right'], side_ivory)
-        H &= grid.lookup(cams['three_quarter'].mirrored(), dmasks['three_quarter']) | exempt
+        exempt_right = exempt & right & grid.lookup(cams['side_right'], side_ivory)
+        # 左の籠手は奥行きを決める絵がない（右真横からは隠れる）。除外すると前後 20cm の箱になるので、
+        # 反転した右の前腕の外形を 25 画素（約 2.2cm）太らせたもので削る（籠手の殻の厚み分は残る）
+        mirror_cone = grid.lookup(cams['three_quarter'].mirrored(), dmasks['three_quarter'])
+        wide_cone = grid.lookup(cams['three_quarter'].mirrored(), dilate2(masks['three_quarter'], 25))
+        exempt_left = exempt & ~right & wide_cone
+        H &= mirror_cone | exempt_right | exempt_left
+        del mirror_cone, wide_cone
         H = largest(H)
         rH = {v: round(iou(grid.reproject(H, cams[v]), masks[v]), 4) for v in REAL}
         log('H（左右反転の仮想の視点でも削る）IoU', rH)
