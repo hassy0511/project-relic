@@ -234,27 +234,40 @@ def _island_masks(tris: np.ndarray, scale_px: float, angles, pad: int) -> list[t
     return out
 
 
-def raster_pack(islands: list[np.ndarray], res: int = 512, gap_px: int = 1, n_angles: int = 8,
-                steps: int = 7) -> tuple[float, list[tuple]]:
+def raster_pack(islands: list[np.ndarray], res: int = 1024, gap_px: int = 2, n_angles: int = 8, steps: int = 6,
+                grow_max: float = 1.15, grow_first: list[int] | None = None) -> tuple[float, list[tuple]]:
     """島（それぞれ中心が原点の UV の三角形 (n, 3, 2)、大きさの比は保つ）を 1 × 1 の中へ詰める。
 
     画素（res 角）の上で、大きい島から順に、向き（n_angles 通り）ごとに「重ならずに置ける位置」を
-    FFT の畳み込みで求め、上端が最も低い（同じなら左）位置に置く。全体の倍率は二分探索で、全部が
-    入る最大にする。島は gap_px 画素（と塗りの誤差 1 画素）太らせて塗るので、島の間は gap_px 画素以上あく。
-    戻り値は (倍率, 島ごとの (角度, 左下の位置 (u, v))）。UV = 回転(角度) · 島 × 倍率 + 位置。
+    FFT の畳み込みで求め、上端が最も低い（同じなら左）位置に置く。全体の倍率は二分探索で、全部が入る
+    最大にする。置いた島を gap_px 画素太らせて占有に書くので、島の間は gap_px 画素以上あく（島のマスクは
+    塗りの誤差の分 1 画素太らせる）。
+    最後に、島ごとに、まわりのすき間に収まる限り大きくする（最大 grow_max 倍。grow_first の島から先に）。
+    その島の細かさは少し上がる（下がることはない）。
+    戻り値は (倍率, 島ごとの (角度, 倍率の係数, 中心の UV))。UV = 回転(角度) · 島 × 倍率 × 係数 + 中心。
     """
     from scipy.signal import fftconvolve
-    area = sum(float(np.abs(np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])).sum() / 2) for t in islands)
-    order = np.argsort([-float(np.abs(np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])).sum()) for t in islands])
+    areas = [float(np.abs(np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])).sum() / 2) for t in islands]
+    area = sum(areas)
+    order = np.argsort(-np.array(areas))
     angles = [2 * math.pi * k / n_angles for k in range(n_angles)]
-    pad = gap_px + 1
+    grow = ndi.generate_binary_structure(2, 1)
+
+    def stamp(occ, m, y, x, sign=1.0):
+        mg = np.pad(m, gap_px)
+        if gap_px > 0:
+            mg = ndi.binary_dilation(mg, grow, iterations=gap_px)
+        y0, x0 = y - gap_px, x - gap_px
+        ys = slice(max(0, y0), min(res, y0 + mg.shape[0]))
+        xs = slice(max(0, x0), min(res, x0 + mg.shape[1]))
+        occ[ys, xs] += sign * mg[ys.start - y0:ys.stop - y0, xs.start - x0:xs.stop - x0]
 
     def attempt(scale):
         occ = np.zeros((res, res), np.float32)
         place = [None] * len(islands)
         for i in order:
             best = None
-            for a, m, off in _island_masks(islands[i], scale * res, angles, pad):
+            for a, m, off in _island_masks(islands[i], scale * res, angles, 1):
                 h, w = m.shape
                 if h > res or w > res:
                     continue
@@ -262,32 +275,47 @@ def raster_pack(islands: list[np.ndarray], res: int = 512, gap_px: int = 1, n_an
                 free = np.argwhere(ov < 0.5)
                 if len(free) == 0:
                     continue
-                # 上端（y + h）が最も低く、同じなら左
-                key = (free[:, 0] + h) * res + free[:, 1]
+                key = (free[:, 0] + h) * res + free[:, 1]   # 上端が最も低く、同じなら左
                 j = int(np.argmin(key))
-                y, x = free[j]
                 if best is None or key[j] < best[0]:
-                    best = (key[j], a, m, y, x, off)
+                    best = (key[j], a, m, int(free[j][0]), int(free[j][1]), off)
             if best is None:
-                return None
+                return None, None
             _, a, m, y, x, off = best
-            occ[y:y + m.shape[0], x:x + m.shape[1]] += m
-            place[i] = (a, ((x + off[0]) / res, (y + off[1]) / res))
-        return place
+            stamp(occ, m, y, x)
+            place[i] = [a, 1.0, (x + off[0], y + off[1]), m, y, x]
+        return place, occ
 
     lo_s, hi_s = math.sqrt(0.5 / area), math.sqrt(0.95 / area)
-    best = (lo_s, attempt(lo_s))
+    best = (lo_s, *attempt(lo_s))
     if best[1] is None:
         raise RuntimeError('UV の島が詰められない')
     for _ in range(steps):
         mid = (lo_s + hi_s) / 2
-        pl = attempt(mid)
+        pl, occ = attempt(mid)
         if pl is None:
             hi_s = mid
         else:
             lo_s = mid
-            best = (mid, pl)
-    return best
+            best = (mid, pl, occ)
+    scale, place, occ = best
+    # すき間に収まる限り島を大きくする
+    first = list(grow_first or [])
+    for i in first + [int(j) for j in order if int(j) not in first]:
+        a, _, (cx, cy), m, y, x = place[i]
+        stamp(occ, m, y, x, -1.0)
+        for f in np.arange(grow_max, 1.0, -0.025):
+            (_, m2, off2), = _island_masks(islands[i], scale * f * res, [a], 1)
+            x2, y2 = int(round(cx - off2[0])), int(round(cy - off2[1]))
+            h2, w2 = m2.shape
+            if x2 < 0 or y2 < 0 or x2 + w2 > res or y2 + h2 > res:
+                continue
+            if (occ[y2:y2 + h2, x2:x2 + w2] * m2).sum() < 0.5:
+                place[i] = [a, float(f), (x2 + off2[0], y2 + off2[1]), m2, y2, x2]
+                m, y, x = m2, y2, x2
+                break
+        stamp(occ, m, y, x)
+    return scale, [(p[0], p[1], (p[2][0] / res, p[2][1] / res)) for p in place]
 
 
 def unwrap(obj, head_z: float, head_scale: float = 2.0, hand_scales=(1.0, 1.2, 1.35, 1.5),
