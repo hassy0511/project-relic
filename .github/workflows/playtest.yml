@@ -1,0 +1,47 @@
+name: 試遊版（Windows・Linux）を書き出す
+
+# 本来の画質（Forward+）の試遊版。GitHub のリリース「playtest」に最新版を置く
+on:
+  push:
+    branches: ['claude/busy-bell-oagnck', 'main']
+    paths: ['godot/**', 'tools/setup_godot.sh', 'tools/godot.sh', '.github/workflows/playtest.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: playtest
+  cancel-in-progress: true
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Godot と書き出し用の部品を用意
+        run: bash tools/setup_godot.sh --templates
+      - name: 素材の取り込み
+        run: tools/godot.sh import
+      - name: テスト
+        run: tools/godot.sh test
+      - name: 書き出す
+        run: |
+          mkdir -p build/windows build/linux
+          .tools/godot/godot --headless --path godot --export-release "Windows Desktop" ../build/windows/ArkWalker.exe
+          .tools/godot/godot --headless --path godot --export-release "Linux" ../build/linux/ArkWalker.x86_64
+          (cd build/windows && zip -q ../ArkWalker-windows.zip ArkWalker.exe)
+          (cd build/linux && zip -q ../ArkWalker-linux.zip ArkWalker.x86_64)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arkwalker-playtest
+          path: build/*.zip
+          retention-days: 14
+      - name: リリース「playtest」を最新版に差し替える
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete playtest -y --cleanup-tag || true
+          gh release create playtest build/ArkWalker-windows.zip build/ArkWalker-linux.zip \
+            --prerelease --target "$GITHUB_SHA" --title "試遊版（最新）" \
+            --notes "ブランチ ${GITHUB_REF_NAME} の ${GITHUB_SHA::7} から自動で書き出した試遊版です。Windows は zip を展開して ArkWalker.exe を起動してください（署名していないため、初回は「詳細情報」→「実行」が必要です）。"

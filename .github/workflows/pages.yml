@@ -1,5 +1,7 @@
 name: 試遊版を GitHub Pages に公開
 
+# URL の直下：Godot 版のブラウザ版（軽い描画方式）
+# /threejs/：以前の three.js 版（見た目の確認ページ lookdev.html を含む）
 on:
   push:
     branches: ['claude/busy-bell-oagnck', 'main']
@@ -25,12 +27,25 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx vite build
+      - name: Godot と書き出し用の部品を用意
+        run: bash tools/setup_godot.sh --templates
+      - name: 素材の取り込み
+        run: tools/godot.sh import
+      - name: ブラウザ版を書き出す
+        run: |
+          mkdir -p build/web
+          .tools/godot/godot --headless --path godot --export-release "Web" ../build/web/index.html
+      - name: 公開するファイルをまとめる
+        run: |
+          mkdir -p site
+          cp -r build/web/* site/
+          cp -r dist site/threejs
       - uses: actions/configure-pages@v5
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: site
   deploy:
     needs: build
     runs-on: ubuntu-latest

@@ -32,3 +32,16 @@ jobs:
           name: screenshots
           path: test-results/
           retention-days: 7
+
+  godot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Godot を用意
+        run: bash tools/setup_godot.sh
+      - name: 素材の取り込み
+        run: tools/godot.sh import
+      - name: 手触りの数値・戦闘・仕掛けのテスト（Godot 版）
+        run: tools/godot.sh test
+      - name: 通しの確認（起動 → 会話 → ロックオン → ドリル）
+        run: tools/godot.sh run --fixed-fps 60 -- --demo=/tmp/demo

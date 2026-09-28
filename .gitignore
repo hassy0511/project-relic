@@ -9,3 +9,4 @@ tools/blender/.build_cache.json
 dist-artifact/
 .tools/
 godot/.godot/
+/build/
