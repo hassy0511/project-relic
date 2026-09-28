@@ -1,0 +1,185 @@
+class_name PlayerView
+extends Node3D
+## ハルの見た目。ゲームの中身の状態（anim）に合わせて動作を切り替え、
+## 撃つ・走る・ロックオンの姿勢を HaruPose で重ねる。
+
+const LOOPING := ["idle", "run", "fall", "drill"]
+const FADE := {"combo1": 0.05, "combo2": 0.05, "combo3": 0.05, "air": 0.05, "lunge": 0.05, "charge": 0.05, "dash": 0.06, "hurt": 0.05}
+const EXPRESSIONS := ["normal", "smile", "surprise", "pain"]
+
+var model: Node3D
+var anim: AnimationPlayer
+var skeleton: Skeleton3D
+var pose: HaruPose
+var blade: Node3D = null
+var blade_mat: StandardMaterial3D = null
+var muzzle: Node3D = null
+var charge_glow: MeshInstance3D
+var meshes: Array[MeshInstance3D] = []
+var face_mats: Array[StandardMaterial3D] = []
+var body_mats: Array[StandardMaterial3D] = []
+var current := ""
+var shading := "soft"
+var _visual_yaw := 0.0
+var _flash_time := 0.0
+var _expression := -1
+var _prev_yaw := 0.0
+var _prev_speed := 0.0
+var _lean_roll := 0.0
+var _lean_pitch := 0.0
+
+
+func load_model(path: String, shade: String = "soft") -> void:
+	var scene: PackedScene = load(path)
+	model = scene.instantiate()
+	add_child(model)
+	anim = model.find_child("AnimationPlayer", true, false)
+	skeleton = model.find_child("Skeleton3D", true, false)
+	blade = model.find_child("LightBlade", true, false)
+	muzzle = model.find_child("muzzle", true, false)
+	for n in model.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		for s in mi.mesh.get_surface_count():
+			var src := mi.mesh.surface_get_material(s)
+			if src is StandardMaterial3D:
+				var m: StandardMaterial3D = src.duplicate()
+				mi.set_surface_override_material(s, m)
+				if mi == blade:
+					blade_mat = m
+				elif m.resource_name.contains("face"):
+					face_mats.append(m)
+					body_mats.append(m)
+				else:
+					body_mats.append(m)
+		if mi != blade:
+			meshes.append(mi)
+	if blade:
+		blade.visible = false
+		(blade as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if skeleton:
+		pose = HaruPose.new()
+		skeleton.add_child(pose)
+	if anim:
+		for n in LOOPING:
+			if anim.has_animation(n):
+				anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
+		_play("idle", 0.0)
+	# チャージの光（銃口）
+	charge_glow = MeshInstance3D.new()
+	var sph := SphereMesh.new()
+	sph.radius = 0.12
+	sph.height = 0.24
+	charge_glow.mesh = sph
+	var gm := StandardMaterial3D.new()
+	gm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	gm.albedo_color = Color("#ffb23e")
+	gm.emission_enabled = true
+	gm.emission = Color("#ffb23e")
+	gm.emission_energy_multiplier = 3.0
+	charge_glow.material_override = gm
+	charge_glow.visible = false
+	if muzzle:
+		muzzle.add_child(charge_glow)
+	else:
+		add_child(charge_glow)
+		charge_glow.position = Vector3(-0.3, 1.1, 0.45)
+	set_shading(shade)
+
+
+## 塗り方：soft（柔らかい陰影）／toon（3 段の塗り分け）。どちらも輪郭の光（リム）を少し入れる
+func set_shading(mode: String) -> void:
+	shading = mode
+	for m in body_mats:
+		m.metallic = 0.0
+		m.roughness = 0.85
+		m.rim_enabled = true
+		m.rim = 0.35
+		m.rim_tint = 0.6
+		if mode == "toon":
+			m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+			m.specular_mode = BaseMaterial3D.SPECULAR_TOON
+		else:
+			m.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
+			m.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
+
+
+func set_expression(i: int) -> void:
+	if i == _expression:
+		return
+	_expression = i
+	for m in face_mats:
+		m.uv1_offset = Vector3((i % 2) * 0.5, (i / 2) * 0.5, 0)
+
+
+func _play(name: String, fade: float) -> void:
+	if name == current or anim == null or not anim.has_animation(name):
+		return
+	anim.play(name, fade)
+	current = name
+
+
+## 毎フレーム。p：Player、aim_dir：照準の向き（ワールド）
+func sync(p: Player, game: GameSim, dt: float, aim_dir: Vector3) -> void:
+	position = p.pos
+	# 向きは見た目だけ少し滑らかにする
+	var d := U.wrap_angle(p.yaw - _visual_yaw)
+	_visual_yaw += d * minf(1.0, dt * 20.0)
+	rotation.y = _visual_yaw
+
+	var a := p.anim()
+	_play(a, FADE.get(a, 0.15))
+	if anim and a == "run":
+		anim.speed_scale = maxf(0.6, p.speed() / 7.0)
+	elif anim:
+		anim.speed_scale = 1.0
+
+	if pose:
+		# 撃つ：照準の向きをキャラクターの座標系へ
+		var aiming: bool = p.aiming > 0.0 and p.attack == null
+		var w := minf(1.0, p.aiming * 4.0) if aiming else 0.0
+		pose.aim_weight = lerpf(pose.aim_weight, w, minf(1.0, dt * 20.0))
+		pose.aim_local = aim_dir.rotated(Vector3.UP, -_visual_yaw)
+		# 走る：曲がる速さと加速で体を傾ける
+		var turn := U.wrap_angle(p.yaw - _prev_yaw) / maxf(dt, 1e-4)
+		_prev_yaw = p.yaw
+		var spd := p.speed()
+		var accel := (spd - _prev_speed) / maxf(dt, 1e-4)
+		_prev_speed = spd
+		var run_k := clampf(spd / 7.0, 0.0, 1.0) if p.grounded else 0.0
+		_lean_roll = lerpf(_lean_roll, clampf(-turn * 0.05, -0.3, 0.3) * run_k, minf(1.0, dt * 8.0))
+		_lean_pitch = lerpf(_lean_pitch, clampf(accel * 0.012, -0.15, 0.15) * run_k, minf(1.0, dt * 6.0))
+		pose.lean_roll = _lean_roll
+		pose.lean_pitch = _lean_pitch
+		# ロックオン：頭を対象へ
+		var t = game.lock_on.target
+		if t != null:
+			pose.look_local = (t.center() - (p.pos + Vector3(0, 1.35, 0))).rotated(Vector3.UP, -_visual_yaw)
+		pose.look_weight = lerpf(pose.look_weight, 1.0 if t != null else 0.0, minf(1.0, dt * 6.0))
+
+	# 光刃は攻撃中だけ出す
+	if blade:
+		blade.visible = p.attack != null or p.sword_hold > 0.25
+		if blade_mat:
+			blade_mat.emission_energy_multiplier = 6.0 if p.sword_hold >= 0.7 else 3.0
+		blade.scale = Vector3.ONE * (0.6 if p.sword_hold > 0.25 and p.attack == null else 1.0)
+
+	# 表情：被弾と倒れたときは痛みの顔
+	set_expression(3 if p.dead or a == "hurt" else 0)
+
+	# チャージの光
+	charge_glow.visible = p.gun_charge > 0.15
+	if charge_glow.visible:
+		var cfg: Dictionary = game.tuning.gun
+		var lv := 2 if p.gun_charge >= cfg.chargeLv2Time else (1 if p.gun_charge >= cfg.chargeLv1Time else 0)
+		var s := 0.6 + lv * 0.5 + sin(Time.get_ticks_msec() / 50.0) * 0.1
+		charge_glow.scale = Vector3.ONE * s
+		var col := Color.WHITE if lv == 2 else (Color("#ffd27a") if lv == 1 else Color("#ffb23e"))
+		(charge_glow.material_override as StandardMaterial3D).albedo_color = col
+		(charge_glow.material_override as StandardMaterial3D).emission = col
+
+	# 被弾後の無敵時間は点滅
+	_flash_time += dt
+	var blink: bool = p.invuln > 0.0 and not p.dead and int(_flash_time * 20.0) % 2 == 0
+	for m in meshes:
+		m.visible = not blink

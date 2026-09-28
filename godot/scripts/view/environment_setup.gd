@@ -1,0 +1,48 @@
+class_name EnvironmentSetup
+## 空・光・空気感。赤い砂の世界の、夕方に近い暖かい光（MVP の試験場用の仮の設定）
+
+static func build(parent: Node) -> DirectionalLight3D:
+	var we := WorldEnvironment.new()
+	var env := Environment.new()
+	var sky := Sky.new()
+	var sky_mat := ProceduralSkyMaterial.new()
+	sky_mat.sky_top_color = Color("#8fa6c4")
+	sky_mat.sky_horizon_color = Color("#e7c29a")
+	sky_mat.ground_bottom_color = Color("#5a4636")
+	sky_mat.ground_horizon_color = Color("#c9a27e")
+	sky_mat.sun_angle_max = 20.0
+	sky.sky_material = sky_mat
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_energy = 0.9
+	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+	env.tonemap_mode = Environment.TONE_MAPPER_AGX
+	env.tonemap_exposure = 1.05
+	# 画面の質：環境光の遮り、光のにじみ、遠くの霞み（ブラウザ版の軽い描画方式では一部が効かない）
+	env.ssao_enabled = true
+	env.ssao_radius = 1.2
+	env.ssao_intensity = 1.6
+	env.glow_enabled = true
+	env.glow_intensity = 0.6
+	env.glow_bloom = 0.05
+	env.glow_hdr_threshold = 1.1
+	env.fog_enabled = true
+	env.fog_light_color = Color("#d9b58f")
+	env.fog_density = 0.004
+	env.fog_aerial_perspective = 0.4
+	env.adjustment_enabled = true
+	env.adjustment_saturation = 1.05
+	we.environment = env
+	parent.add_child(we)
+
+	var sun := DirectionalLight3D.new()
+	sun.light_color = Color("#fff1d6")
+	sun.light_energy = 1.6
+	sun.rotation_degrees = Vector3(-52, -150, 0)
+	sun.shadow_enabled = true
+	sun.shadow_bias = 0.03
+	sun.shadow_normal_bias = 1.0
+	sun.directional_shadow_max_distance = 60.0
+	parent.add_child(sun)
+	return sun
