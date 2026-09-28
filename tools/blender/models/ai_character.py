@@ -18,11 +18,14 @@
       [--grip-fist x,y,z]  （--gun のとき）右手を拳にして銃の握りを握らせる。値は A ポーズの掌の向き（ハルは
                            0,1,0 = 後ろ）。手を手の骨の軸まわりにねじって掌を体の内側へ向け、指の付け根から先を
                            握りのまわりに曲げる（指の骨が無いので、基準の姿勢のメッシュそのものを拳の形にする）
+      [--fist-shapekey]    （--grip-fist のとき）拳を基準の姿勢に焼き込まず、シェイプキー 'fist' にする。基準の
+                           姿勢は絵のとおりの開いた手。Godot の player_view.gd は読み込むと fist = 1 にする
       [--rest-arm-deg 度]  基準の姿勢の腕の開き（正面から見た真下からの角度）。前後の軸まわりだけで腕を下ろす
                            （腕の前後の傾き・肘の曲がりを保つ）。省略時は従来どおり標準の向きへ最短の回転で
       [--fill-unweighted 割合]
                            自動の重み（熱）が付かない頂点がこの割合（0〜1）までなら、全体を距離の重みに替えず、
                            一番近い重みのある頂点の重みを写す（別の殻の髪の房・板など）。省略時は従来どおり
+      [--rigid-parts]      膝当て（膝の前）と右肩の板（下地の色で探す）を 1 本の骨（すね・右の上腕）にだけ付け、曲げても形を保つ
       [--stats <json>]     数値の記録の書き出し先（省略時は <出力>.stats.json）
       [--render <接頭辞>]  確認用の画像（関節の目印つき）
 
@@ -323,6 +326,125 @@ def skin(body: bpy.types.Object, arm: bpy.types.Object, fill_limit: float = 0.0)
     return f'{method}（重みの無い頂点 {unweighted}）'
 
 
+def vertex_colors_from_texture(body: bpy.types.Object) -> np.ndarray | None:
+    """頂点ごとの下地の色（sRGB 0..1、体の材質のテクスチャを頂点の UV で引く）。テクスチャが無ければ None"""
+    mat = next((m for m in body.data.materials if m and m.use_nodes and 'face' not in m.name.lower()), None)
+    if mat is None:
+        return None
+    bsdf = next((n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+    if bsdf is None or not bsdf.inputs['Base Color'].links:
+        return None
+    node = bsdf.inputs['Base Color'].links[0].from_node
+    if node.type != 'TEX_IMAGE' or node.image is None:
+        return None
+    img = node.image
+    w, h = img.size
+    px = np.array(img.pixels[:], dtype=np.float32).reshape(h, w, 4)
+    me = body.data
+    uv = np.zeros(len(me.loops) * 2)
+    me.uv_layers.active.data.foreach_get('uv', uv)
+    uv = uv.reshape(-1, 2)
+    lv = np.zeros(len(me.loops), dtype=np.int64)
+    me.loops.foreach_get('vertex_index', lv)
+    vuv = np.zeros((len(me.vertices), 2))
+    vuv[lv] = uv                                        # 継ぎ目の頂点は、どれか 1 つの UV（色はほぼ同じ）
+    iy = np.clip((vuv[:, 1] * h).astype(int), 0, h - 1)  # Blender の画像は下の行が 0
+    ix = np.clip((vuv[:, 0] * w).astype(int), 0, w - 1)
+    return px[iy, ix, :3]
+
+
+def rigid_parts(body: bpy.types.Object, J: dict) -> dict:
+    """硬い部品（膝当て・右肩の板）を、1 本の骨にだけ付ける（自動の重みのあと、A ポーズで）。
+
+    熱の重みは膝の上下（太もも・すね）や肩（肩・胸・上腕）を混ぜるので、曲げると膝当てと琥珀の継ぎ目や
+    肩の板がぐにゃりと曲がる。
+      膝当て：膝の関節の前と横（関節から KNEE_R1 以内）は、すね（shin.L/R）の重みを 1 に。KNEE_R2 までと、
+        前後の向き（関節より後ろ）へは、なめらかに元の重みへ戻す（膝の裏は熱の重みのまま、なめらかに曲がる）。
+        形で決める（色で選ぶと、部品の中の暗い線が選ばれずに残り、曲げたときにぎざぎざに裂ける）
+      右肩の板：右の上腕の付け根から SHOULDER_R 以内のアイボリー（下地の色）を選び、辺で RING 輪ふくらませて
+        から縮める（板の中の暗い線を埋める）。そこを右の上腕（upper_arm.R）の重み 1 にし、縁から RING 輪は
+        元の重みと半々に混ぜる
+    返り値：部品ごとの、重みを変えた頂点の数
+    """
+    KNEE_R1, KNEE_R2, KNEE_BACK = 0.085, 0.115, 0.03   # 膝当ての暗い縁・琥珀の継ぎ目まで硬く
+    SHOULDER_R, RING = 0.10, 2
+    me = body.data
+    n = len(me.vertices)
+    co = np.empty(n * 3)
+    me.vertices.foreach_get('co', co)
+    co = co.reshape(-1, 3)
+    groups = list(body.vertex_groups)
+    gidx = {vg.name: i for i, vg in enumerate(groups)}
+    W = np.zeros((n, len(groups)))
+    for v in me.vertices:
+        for ge in v.groups:
+            W[v.index, ge.group] = ge.weight
+    ev = np.zeros(len(me.edges) * 2, dtype=np.int64)
+    me.edges.foreach_get('vertices', ev)
+    ev = ev.reshape(-1, 2)
+
+    def grow(sel: np.ndarray) -> np.ndarray:
+        out = sel.copy()
+        out[ev[sel[ev[:, 0]], 1]] = True
+        out[ev[sel[ev[:, 1]], 0]] = True
+        return out
+
+    def onehot(bone: str) -> np.ndarray:
+        o = np.zeros(len(groups))
+        o[gidx[bone]] = 1.0
+        return o
+
+    f_all = np.zeros(n)
+    target = np.zeros((n, len(groups)))
+    counts = {}
+    # 膝当て（形で決める）
+    for sx, side in (('.L', 1.0), ('.R', -1.0)):
+        bone = 'shin' + sx
+        if bone not in gidx:
+            continue
+        kj = np.array(J['shin']) * np.array([side, 1.0, 1.0])
+        d = np.linalg.norm(co - kj, axis=1)
+        fd = np.clip((KNEE_R2 - d) / (KNEE_R2 - KNEE_R1), 0.0, 1.0)
+        fy = np.clip((kj[1] + KNEE_BACK - co[:, 1]) / KNEE_BACK, 0.0, 1.0)   # 関節より後ろへ行くほど 0
+        f = fd * fy
+        f = f * f * (3 - 2 * f)
+        m = f > f_all
+        f_all[m] = f[m]
+        target[m] = onehot(bone)
+        counts[bone] = int((f > 0.01).sum())
+    # 右肩の板（色で選び、穴を埋める）
+    col = vertex_colors_from_texture(body)
+    if col is not None and 'upper_arm.R' in gidx:
+        r, g, b = col[:, 0], col[:, 1], col[:, 2]
+        ivory = (r > 0.72) & (g > 0.6) & (b > 0.55) & (r - b < 0.3)
+        sj = np.array(J['upper_arm']) * np.array([-1.0, 1.0, 1.0])
+        near = (np.linalg.norm(co - sj, axis=1) < SHOULDER_R) & (co[:, 0] < -0.11) & (co[:, 2] > sj[2] - 0.08)
+        sel = near & ivory
+        for _ in range(RING):
+            sel = grow(sel) & near
+        for _ in range(RING):
+            sel = ~grow(~sel)
+        band = sel.copy()
+        for _ in range(RING):
+            band = grow(band)
+        band &= ~sel
+        f = np.where(sel, 1.0, np.where(band, 0.5, 0.0))
+        m = f > f_all
+        f_all[m] = f[m]
+        target[m] = onehot('upper_arm.R')
+        counts['upper_arm.R'] = int(sel.sum())
+    changed = f_all > 1e-3
+    W[changed] = (1 - f_all[changed, None]) * W[changed] + f_all[changed, None] * target[changed]
+    W /= np.maximum(W.sum(1, keepdims=True), 1e-9)
+    for vi in np.nonzero(changed)[0]:
+        for gi, vg in enumerate(groups):
+            if W[vi, gi] > 1e-4:
+                vg.add([int(vi)], float(W[vi, gi]), 'REPLACE')
+            else:
+                vg.remove([int(vi)])
+    return counts
+
+
 def lower_arms(body: bpy.types.Object, arm: bpy.types.Object,
                frontal_deg: float | None = None) -> tuple[dict, Quaternion]:
     """腕を下ろした姿勢を、メッシュの新しい基準の形にする。下ろしたあとの関節の位置と、左腕の回転を返す。
@@ -484,7 +606,7 @@ GRIP_RADIUS = 0.026
 HAND_END_FRAC = 0.8   # 手の骨の先（hand_end）は、手首から指先までのこの割合の所（joints.py、estimate_joints と同じ）
 
 
-def grip_right_hand(body: bpy.types.Object, arm: bpy.types.Object, palm: Vector) -> dict:
+def grip_right_hand(body: bpy.types.Object, arm: bpy.types.Object, palm: Vector, shape_key: bool = False) -> dict:
     """右手を、銃の握りを握った拳の形にする（基準の姿勢のメッシュを直接変える）。握りの置き場所を返す。
 
     絵の手は A ポーズで指を開き、掌は palm の向き（ハルは後ろ）。銃を立てて構えるには掌が体の内側を
@@ -493,6 +615,8 @@ def grip_right_hand(body: bpy.types.Object, arm: bpy.types.Object, palm: Vector)
          （手首の混ざる所は重みの割合だけ回るので、手袋の袖口がなめらかにねじれる）
       2. 曲げる：指の付け根（手首から指先までの GRIP_KNUCKLE）より先を、掌の側の半径 GRIP_RADIUS の
          円柱のまわりに曲げる（指の長さに比例した角度。約 5.5cm の指で 120 度ほど）
+    shape_key=True なら基準の姿勢のメッシュは開いた手のまま残し、拳の形をシェイプキー 'fist' に入れる
+    （ゲームでは銃を持つとき fist = 1。絵の A ポーズの開いた手と比べられる）。
     返り値：{'origin': 握りの中心, 'x': 銃身の向き, 'z': 銃の上（親指の側 = 正面）}
     """
     hr = arm.data.bones['hand.R']
@@ -538,7 +662,14 @@ def grip_right_hand(body: bpy.types.Object, arm: bpy.types.Object, palm: Vector)
     r = GRIP_RADIUS - qv[fing]
     C = K + pv * GRIP_RADIUS
     co[fing] = (C + np.outer(wv[fing], tv) + np.outer(-np.cos(th) * r, pv) + np.outer(np.sin(th) * r, hv))
-    me.vertices.foreach_set('co', co.ravel())
+    if shape_key:
+        if body.data.shape_keys is None:
+            body.shape_key_add(name='Basis', from_mix=False)
+        sk = body.shape_key_add(name='fist', from_mix=False)
+        sk.data.foreach_set('co', co.ravel())
+        sk.value = 0.0
+    else:
+        me.vertices.foreach_set('co', co.ravel())
     me.update()
     return {'origin': Vector(C), 'x': h, 'z': Vector(tv), 'fingers': int(fing.sum()), 'twist_deg': math.degrees(ang)}
 
@@ -624,7 +755,7 @@ def find_rail_anchor(pts: np.ndarray, J: dict) -> tuple[list[float], list[float]
 
 
 def add_blade(arm: bpy.types.Object, blade_mat, blade: dict | None = None) -> bpy.types.Object:
-    """光刃：左前腕から、前腕と平行に 45cm。
+    """光刃：左前腕から、前腕と平行に（籠手のレールからは幅の広い平たい帯の刃 58cm、それ以外は 45cm）。
 
     blade が無ければ従来どおり手首の外側から。blade = {'base': 根元（基準の姿勢の座標）, 'side': 外の向き} なら、
     レールの端から刃を出す（刃の平らな面が外を向く：薄い向き = side、幅の向き = 前腕と side に直交）。
@@ -635,8 +766,23 @@ def add_blade(arm: bpy.types.Object, blade_mat, blade: dict | None = None) -> bp
         side = Vector(blade['side'])
         side = (side - axis * side.dot(axis)).normalized()
         base = Vector(blade['base']) + side * 0.004
-        ref = tuple(side)
-        radii = [(0.012, 0.004), (0.016, 0.005), (0.014, 0.004), 0.0]
+        # 平たい帯の刃（light_blade_gauntlet.png：幅 4〜5cm、前腕＋手の約 1.3 倍の長さ、先は斜めに切った形）。
+        # 断面は 4 角を 45 度から置いた長方形（半幅 = rx·0.71、半厚 = ry·0.71）：幅 約 4.8cm、厚み 約 6mm。
+        # 長さ 0.58m、80% まで同じ幅で、最後の 10cm で片側（幅の向き）へ寄せて細め、斜めの切っ先にする
+        width_dir = axis.cross(side).normalized()
+        sock = C.empty('blade_socket', base)
+        sock.rotation_mode = 'QUATERNION'
+        sock.rotation_quaternion = Vector((0, 1, 0)).rotation_difference(axis)
+        M.parent_to_bone(sock, arm, 'forearm.L')
+        path = [Vector((0, 0, 0)), axis * 0.03, axis * 0.47, axis * 0.58]
+        radii = [(0.026, 0.0035), (0.034, 0.0042), (0.034, 0.0042), (0.005, 0.0012)]
+        offsets = [Vector((0, 0, 0))] * 3 + [width_dir * 0.021]
+        obj = M.loft('LightBlade', path, radii, sides=4, angle0=math.pi / 4, ref=tuple(side), offsets=offsets)
+        obj.location = base
+        obj.data.materials.append(blade_mat)
+        M.smooth(obj, 0)
+        M.parent_to_bone(obj, arm, 'forearm.L')
+        return obj
     else:
         base = hl.head_local + Vector((0.06, 0, 0.02))
         ref = (0, -1, 0)
@@ -707,10 +853,14 @@ def main() -> None:
     ap.add_argument('--gun')
     ap.add_argument('--blade-anchor')
     ap.add_argument('--grip-fist', help='右手を拳にして銃を握らせる。値は A ポーズの掌の向き x,y,z（ハルは 0,1,0）')
+    ap.add_argument('--fist-shapekey', action='store_true',
+                    help='拳を基準の姿勢に焼き込まず、シェイプキー fist にする（開いた手が基準。ゲームで fist = 1）')
     ap.add_argument('--rest-arm-deg', type=float, default=None,
                     help='基準の姿勢の腕の開き（正面から見た真下からの角度、度）。前後の軸まわりだけで下ろす')
     ap.add_argument('--fill-unweighted', type=float, default=0.0,
                     help='自動の重みが付かない頂点がこの割合までなら、近い頂点の重みで埋める（既定 0 = 従来どおり）')
+    ap.add_argument('--rigid-parts', action='store_true',
+                    help='膝当て・右肩の板（下地の色で探す）を 1 本の骨にだけ付ける（テクスチャのある入力）')
     ap.add_argument('--stats', help='数値の記録の JSON（既定は <出力>.stats.json）')
     ap.add_argument('--render')
     args = ap.parse_args([a for a in sys.argv[1:] if a != '--'])
@@ -744,6 +894,7 @@ def main() -> None:
     # 仮の骨（A ポーズ）で重みを付け、腕を下ろして基準の形にする
     tmp = H.build_armature(HEIGHT, 'TmpRig', joints_table(J))
     method = skin(body, tmp, args.fill_unweighted)
+    rigid = rigid_parts(body, J) if args.rigid_parts else None
     lowered, q_left = lower_arms(body, tmp, args.rest_arm_deg)
     bpy.data.objects.remove(tmp, do_unlink=True)
     body.parent = None
@@ -765,7 +916,8 @@ def main() -> None:
         blade_mat = blade_material()
         grip = None
         if args.grip_fist:
-            grip = grip_right_hand(body, arm, Vector([float(c) for c in args.grip_fist.split(',')]))
+            grip = grip_right_hand(body, arm, Vector([float(c) for c in args.grip_fist.split(',')]),
+                                   shape_key=args.fist_shapekey)
         parts = [add_recon_gun(arm, args.gun, grip)]
         if grip:
             grip_info = {'fingers_bent': grip['fingers'], 'twist_deg': round(grip['twist_deg'], 1),
@@ -794,6 +946,7 @@ def main() -> None:
         'joints_apose': {k: [round(x, 4) for x in v] for k, v in J.items()},
         'blade': {k: [round(x, 4) for x in v] for k, v in blade.items()} if blade else None,
         'grip': grip_info,
+        'rigid_parts': rigid,
     }
     with open(args.stats or (os.path.splitext(args.out)[0] + '.stats.json'), 'w') as f:
         json.dump(stats, f, indent=2, ensure_ascii=False)

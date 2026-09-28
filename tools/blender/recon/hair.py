@@ -12,7 +12,12 @@
     後ろの端：髪の中に隠れる頭の骨（あごの下では首へ）。
     前の半分の指数 n_f：右前斜めの絵の顔の右の縁（本人の左のほお）に届くように、高さごとに決める。
   断面を上下になめらかにつなぎ（節の値を PCHIP で補間）、ボクセルの占有から符号つき距離にしてぼかす。
-  鼻は小さな楕円体、首は縦の楕円柱（体の場の首とつなぐ）。耳は作らない（横の髪の中。色の絵が担う）。
+  前の端の口・あごは右真横の絵の小さなあごに合わせ、前の半分の指数はほお骨の 2.6 からあごの先の 2.0 へ下げる
+  （ほおの前を平らに、あごを細く。口の突き出た顔にしない）。
+  鼻は小さな楕円体、首は縦の楕円柱（体の場の首とつなぐ）。
+  耳（ears_field）：正面の絵（外の縁 |x| ≈ 0.133）と右真横の絵（y 0.005〜0.048、z 1.26〜1.33）の位置に、後ろへ
+  開いた平たい楕円体 ＋ 付け根 ＋ 外の面の浅いくぼみ。帽子と房は耳から 5mm 離す（耳が髪にうまらず見え、
+  絵の耳の肌色が耳の形の上に載る）。
 
 ■ 2. 髪の帽子（cap）：房の先を落とした髪の外形の内側の、なめらかな閉じた面
   髪と頭の外形を半径 3cm の円で開き（房の先を落とす）2cm で閉じた外形（正面・右真横・右前斜め）から、
@@ -23,8 +28,16 @@
   （真横の絵の前の端は前髪の先とゴーグルで、そのままだと額の上にひさしができる）。
   顔の範囲（生え際 hairline_z(|x|) より下で y < 0.02。正面の絵の肌の縁を読んだ節）では、帽子は頭の面より
   外へ出さない（なめらかな積）。顔・ほお・こめかみは頭の面がそのまま見え、髪はその外側と後ろ。
-  ゴーグル：正面の絵の枠の範囲（角の丸い長方形）の中で、帽子の面から外へ、横の端で 1.2cm・真ん中で 3cm まで、
-  ただし右真横の絵のレンズの前の面（y = -0.146）より後ろ（真ん中は平らなレンズの面、横は額の丸みに沿う帯）。
+  額の前（生え際 HAIRLINE の真ん中はゴーグルの下の縁 1.392 まで上げた）は帽子で覆わず、前髪の殻（下）が覆う。
+  ゴーグル（goggles_field）：正面の絵の枠とレンズの輪郭を読んだ多角形（GOGGLE_FRAME・GOGGLE_LENS、左右は反転）の
+  柱を、帽子の面からの厚みで切った 2 つの六角の枠（1.3cm）＋ 4mm 奥のレンズ ＋ 細い橋。額の丸みに沿って
+  回り込む（以前の、額の幅いっぱいの平らな板はひさしに見えた）。
+  ベルト（strap_field）：房のすき間をうめてなめらかにした髪の包みの面の上の、右真横の絵のとおり後ろへ下がる
+  幅 1.8cm の帯（包みの外 4mm〜内 2mm の殻）。
+  前髪（bangs_field）：正面の絵のゴーグルの下の前髪の範囲（髪の色、ゴーグルの下の帯につながる所）を、額の面から
+  前へ押し出した殻。厚みは範囲の縁からの距離で決まる（真ん中で最大 1.1cm、縁・先は 2mm のくさび）。
+  顔のアトラスに描かれた前髪の V が、どの向きからも V の形の上に載る（以前の、ゴーグルの下の楕円体の根元の
+  こぶの列と細い牙のような房はやめた）。
 
 ■ 3. 髪の房（Lock）：帽子に根をもつ、先の細る平たい葉の形の房（約 35 本 ＋ 前髪 4 本）
   頭の中心 C から見た向きで表す。根の向き d0 と先の向き d1 の間を大きな円に沿って進み（slerp）、
@@ -32,18 +45,18 @@
   先へ行くほど面から浮く（重なった房の段になる）。断面は楕円：幅 w（面に沿う向き。根元の 0.75 倍から
   30% の所で最も広く、先へ細る）と厚み h（面の法線の向き。w の 0.3 倍）。形の場は、房に沿って半径の
   0.4 倍の間隔で並べた楕円体の場の最大。
-  最初の並び：頭のてっぺんの後ろのつむじ W から放射状に流れる 4 つの輪（12・38・68・98 度に 4・9・12・12 本）と、
-  ゴーグルの上で前へ立ち上がる 3 本。顔の範囲に根か先がある房は置かない（前へ流れる房は額の上で止める）。
+  最初の並び：頭のてっぺんの後ろのつむじ W から放射状に流れる 3 つの輪（38・68・98 度に 9・12・12 本。つむじの
+  すぐまわりの輪はてっぺんのこぶに見えたので置かない）と、ゴーグルの上（後ろ）から立ち上がる大きな房 6 本
+  （根・先を絵から読んだ表。真ん中の高い房は前へかぶさる）。顔の範囲に根か先がある房は置かない（前へ流れる房は額の上で止める）。
   当てはめのあとも顔の範囲・ゴーグルの枠に入る房は、入らなくなるまで先を縮める（縮めきれない房は落とす）。
   当てはめ：3 視点の絵の外形（あごより上）と、帽子＋頭＋房の投影の IoU の重みつき平均（右真横 1.5、ほかは 1）
   が大きくなるよう、
   房ごとに先の向き（振り）・長さ（角度）・浮き・幅を座標ごとの探索で動かす（半分の解像度の投影を房ごとに
   差し替えて数えるので 1 巡 1 秒ほど、6 巡）。顔の範囲・ゴーグルの枠に入る房の点、最初の流れから 20 度より
   外れた向きは罰。外形の小さな切り欠きは追わない（色の絵が細部を担う）。房は最後に顔の範囲とゴーグルの枠で切る。
-  前髪：ゴーグルの下の縁から額に沿って下がる 4 本（額の上に載せる。正面の絵の前髪の先の位置）。
 
 ■ 4. つなぎ
-  頭・鼻・首・帽子・ゴーグル・房をなめらかな和（幅 3〜6mm。房の根元にすみ肉ができ、割れ目・食い込みが
+  頭・鼻・首・耳・帽子・ゴーグル・前髪・房・ベルトをなめらかな和（幅 3〜6mm。房の根元にすみ肉ができ、割れ目・食い込みが
   できない）で 1 つの場にし、fair.build_field で体の場（えりより下）となめらかな和でつなぐ。carve.py の 3 で
   マーチングキューブにして面にする（頭は snap.py の外形への引き寄せ・平滑化から外す）。
   計算は |x| < 0.3m の箱の中だけ（約 40 秒）。記録（断面の値の要約・房の向き・頭のまわりの外形の IoU）は
@@ -77,10 +90,23 @@ OUT = os.path.join(V.WORK, 'hair')
 
 HEAD_C = np.array([0.0, 0.03, 1.37])   # 頭の中心（房の向きの原点）
 Z_FIT = 1.215                          # 外形の当てはめに使う高さの下端（あごより上。えりを含めない）
+# 生え際：額の中ほどはゴーグルの下の縁まで上げる（額の前の髪は帽子ではなく、正面の絵の前髪を写した殻 bangs_field）
 HAIRLINE = {'y_face': 0.02, 'x': [0.0, 0.050, 0.070, 0.087, 0.094, 0.101, 0.20],
-            'z': [1.356, 1.355, 1.342, 1.318, 1.28, 1.24, 1.24]}
+            'z': [1.392, 1.390, 1.368, 1.325, 1.28, 1.24, 1.24]}
 # ゴーグル（額の上）：正面の絵の枠の範囲（x, z）、帽子の面からの厚みの上限、レンズの前の面（右真横の絵で y ≈ -0.146）
 GOGGLES = {'x': (-0.111, 0.125), 'z': (1.392, 1.488), 'round': 0.022, 'thick': (0.012, 0.030), 'front_y': -0.146}
+# ゴーグルの形（正面の絵の枠とレンズの輪郭を読んだ多角形。世界の (x, z)。本人の右のレンズ。左は x = MIRROR_X で
+# 反転）：枠は帽子の面から FRAME_T 外へ出た縁、レンズは LENS_T（枠より 4mm 奥）、真ん中は細い橋
+GOGGLE_FRAME = [(-0.1115, 1.410), (-0.110, 1.467), (-0.016, 1.487), (-0.006, 1.438), (-0.037, 1.391), (-0.104, 1.391)]
+GOGGLE_LENS = [(-0.095, 1.412), (-0.097, 1.4616), (-0.024, 1.4723), (-0.0176, 1.4508), (-0.0305, 1.4142)]
+GOGGLE_BRIDGE = ((-0.012, 0.021), (1.437, 1.474))
+GOGGLE_MIRROR_X = 0.0045
+FRAME_T, LENS_T, BRIDGE_T = 0.013, 0.009, 0.008
+# ベルト：右真横の絵で、ゴーグルの横（y = -0.035, z = 1.425）から後ろ（y = 0.145, z = 1.36）へ下がり、後ろは水平
+STRAP = {'y': (-0.035, 0.145), 'z': (1.425, 1.36), 'half': 0.0090, 'off': 0.004, 'inner': 0.002}
+# 耳：正面の絵（外の縁 |x| ≈ 0.133、z 1.26〜1.33）と右真横の絵（y 0.005〜0.048）から
+EAR = {'c': (0.112, 0.027, 1.294), 'r': (0.0085, 0.021, 0.033), 'yaw_deg': 22.0,
+       'root_c': (0.092, 0.020, 1.290), 'root_r': (0.013, 0.016, 0.022)}
 # 房の当てはめの視点の重み：右真横は頭の外形が全身の外形に占める割合が大きく、横顔・ゴーグル・後ろの房の形が
 # はっきり出るので重く
 VIEW_WEIGHT = {'front': 1.0, 'side_right': 1.5, 'three_quarter': 1.0}
@@ -89,7 +115,7 @@ PARAMS = {
     'cap_close_m': 0.02,       # その後で閉じる円の半径
     'cap_inset_m': 0.004,      # 帽子を外形より内側へ
     'union_k': 0.006,          # 房・頭・帽子のなめらかな和の幅
-    'lock_thick': 0.30,        # 房の厚み / 幅
+    'lock_thick': 0.38,        # 房の厚み / 幅（紙のように薄くならないように）
 }
 
 
@@ -272,7 +298,8 @@ def skin_stack(cams: dict[str, V.Cam], masks: dict[str, np.ndarray]) -> Stack:
     # 前の端（-y）：右真横の絵の顔の輪郭を読んだ節（鼻は除く。前髪の下の額・眉・目・口・あご）。
     # 真横の絵では前髪とゴーグルが額の前に出ていて、外形から直接は測れないので、肌の縁を読んだ値
     kz_f = [1.180, 1.190, 1.200, 1.215, 1.235, 1.250, 1.270, 1.300, 1.330, 1.360, 1.400, 1.430, 1.460, 1.475, 1.487]
-    ky_f = [-0.045, -0.072, -0.091, -0.105, -0.116, -0.119, -0.118, -0.115, -0.114, -0.111, -0.104, -0.092,
+    # 口・あごは右真横の絵の小さなあごに合わせて後ろへ（口 z 1.24 で y -0.107、鼻の下 -0.112）
+    ky_f = [-0.045, -0.070, -0.089, -0.100, -0.106, -0.111, -0.115, -0.116, -0.114, -0.111, -0.104, -0.092,
             -0.070, -0.046, -0.010]
     yf = PchipInterpolator(kz_f, ky_f)(zs)
     # 後ろの端：あごの下は首の前、上へ行くほど頭の骨の後ろ（髪の中）
@@ -285,15 +312,10 @@ def skin_stack(cams: dict[str, V.Cam], masks: dict[str, np.ndarray]) -> Stack:
     cx = np.full(len(zs), float(np.nanmedian(((hi_f + lo_f) / 2)[(zs > 1.2) & (zs < 1.25)])))
     # 前の半分の指数：右前斜めの絵の顔の右の縁（本人の左のほお）に届くように（あご〜ほお）
     nb = np.full(len(zs), 2.2)
-    nf = np.full(len(zs), 2.6)
+    # 前の半分の指数：ほお骨（z 1.28）で 2.6 から、あごの先で 2.0 へ（ほおの前を平らに、あごを細く。
+    # 右前斜めの外形に合わせて解くと、ほおが前へふくらんだ「口の突き出た」顔になった）
+    nf = np.interp(zs, [1.18, 1.21, 1.24, 1.28], [2.0, 2.1, 2.3, 2.6])
     r = t.r[:2]
-    for k, z in enumerate(zs):
-        if 1.20 < z < 1.262 and np.isfinite(hi_t[k]):
-            target = hi_t[k] - (cx[k] * r[0] + cy[k] * r[1])
-            nf[k] = solve_exponent(a[k], bf[k], bb[k], nb[k], r, target, True, 2.2, 3.5)
-        else:
-            nf[k] = np.nan
-    nf = _fill_smooth(nf, 4.0)
     return Stack(zs, a, cx, cy, bf, bb, nf, nb)
 
 
@@ -588,7 +610,7 @@ def initial_locks() -> list[Lock]:
     e2 = np.cross(W, e1)
     locks = []
     rings = [  # (つむじからの角度, 本数, 流れの長さの角度, 浮き, 幅, 位相)
-        (12, 4, 46, 0.035, 0.060, 0.1),
+        # （つむじのすぐまわりの 4 本の輪は、頭のてっぺんのこぶ・まげに見えたので置かない）
         (38, 9, 44, 0.024, 0.068, 0.5),
         (68, 12, 40, 0.020, 0.066, 0.0),
         (98, 12, 34, 0.016, 0.060, 0.5),
@@ -613,11 +635,19 @@ def initial_locks() -> list[Lock]:
                 else:
                     continue
             locks.append(Lock(tuple(d0), tuple(d1), lift, w, f'r{ri}_{j}'))
-    # 額の上（ゴーグルの上）の、前へ立ち上がる房 3 本（前へ流れる輪の房はゴーグルにかかるので、代わりに）
-    for j, x in enumerate((-0.06, 0.0, 0.06)):
-        d0 = _unit(np.array([x * 0.6, -0.01, 1.53]) - HEAD_C)
-        d1 = _unit(np.array([x * 1.5, -0.10, 1.515]) - HEAD_C)
-        locks.append(Lock(tuple(d0), tuple(d1), 0.02, 0.058, f'top_front_{j}'))
+    # ゴーグルの上（後ろ）から立ち上がる大きな房（正面・右前斜めの絵：ゴーグルの上に頭の高さの約 2 割の髪。
+    # 真ん中の高い房は前へかぶさり、本人の右へ流れる）。根・先は絵を読んだ表（つむじからの放射ではない）
+    top = [  # (根, 先, 浮き, 幅)
+        ((0.030, 0.015, 1.505), (-0.045, -0.050, 1.580), 0.045, 0.070),
+        ((-0.045, 0.020, 1.515), (-0.110, -0.050, 1.525), 0.030, 0.070),
+        ((0.050, 0.020, 1.515), (0.095, -0.075, 1.530), 0.030, 0.070),
+        ((-0.080, 0.030, 1.490), (-0.160, -0.030, 1.480), 0.025, 0.065),
+        ((0.090, 0.030, 1.490), (0.170, -0.020, 1.450), 0.025, 0.065),
+    ]
+    for j, (r0, r1, lift, w) in enumerate(top):
+        d0 = _unit(np.array(r0) - HEAD_C)
+        d1 = _unit(np.array(r1) - HEAD_C)
+        locks.append(Lock(tuple(d0), tuple(d1), lift, w, f'top_front_{j}'))
     return locks
 
 
@@ -773,14 +803,138 @@ def goggle_zone(lo, vox, shape, k0) -> np.ndarray:
     return smooth_min(np.broadcast_to(win, (len(zs), nx, ny)), np.broadcast_to(front, (len(zs), nx, ny)), 0.01)
 
 
-def bangs_locks() -> list[Lock]:
-    """前髪：ゴーグルの下の帽子の縁から、額に沿って下がる 4 本（正面の絵の前髪の先：中央は目の高さの上まで）"""
-    out = []
-    for x_root, x_tip, z_tip, w in ((-0.060, -0.070, 1.334, 0.046), (-0.020, -0.010, 1.310, 0.048),
-                                     (0.026, 0.032, 1.322, 0.046), (0.066, 0.076, 1.336, 0.042)):
-        d0 = _unit(np.array([x_root, -0.110, 1.396]) - HEAD_C)
-        d1 = _unit(np.array([x_tip, -0.110, z_tip]) - HEAD_C)
-        out.append(Lock(tuple(d0), tuple(d1), 0.0, w, f'bangs_{len(out)}'))
+def polygon_sdf2d(px: np.ndarray, pz: np.ndarray, poly) -> np.ndarray:
+    """凸でなくてもよい多角形の、平面 (x, z) の符号つき距離（中が正、m）"""
+    P = np.asarray(poly, float)
+    d = np.full(px.shape, np.inf)
+    inside = np.zeros(px.shape, bool)
+    for i in range(len(P)):
+        a, b = P[i], P[i - 1]
+        e = b - a
+        wx, wz = px - a[0], pz - a[1]
+        t = np.clip((wx * e[0] + wz * e[1]) / (e @ e), 0, 1)
+        d = np.minimum(d, np.hypot(wx - e[0] * t, wz - e[1] * t))
+        c1 = pz >= a[1]
+        c2 = pz < b[1]
+        c3 = e[0] * wz > e[1] * wx
+        flip = (c1 & c2 & c3) | (~c1 & ~c2 & ~c3)
+        inside ^= flip
+    return np.where(inside, d, -d).astype(np.float32)
+
+
+def _grid(lo, vox, shape, k0=0):
+    nz, nx, ny = shape
+    xs = lo[0] + (np.arange(nx) + 0.5) * vox
+    ys = lo[1] + (np.arange(ny) + 0.5) * vox
+    zs = lo[2] + (np.arange(k0, nz) + 0.5) * vox
+    return xs, ys, zs
+
+
+def goggle_outline2d(xs: np.ndarray, zs: np.ndarray) -> dict[str, np.ndarray]:
+    """ゴーグルの輪郭の平面の場 (nz, nx)：枠（2 つ）・レンズ（2 つ）・橋。中が正"""
+    X, Z = np.meshgrid(xs, zs)
+    out = {'frame': None, 'lens': None}
+    for key, poly in (('frame', GOGGLE_FRAME), ('lens', GOGGLE_LENS)):
+        right = polygon_sdf2d(X, Z, poly)
+        left = polygon_sdf2d(X, Z, [(2 * GOGGLE_MIRROR_X - x, z) for x, z in poly])
+        out[key] = np.maximum(right, left)
+    (bx0, bx1), (bz0, bz1) = GOGGLE_BRIDGE
+    out['bridge'] = np.minimum(np.minimum(X - bx0, bx1 - X), np.minimum(Z - bz0, bz1 - Z)).astype(np.float32)
+    return out
+
+
+def goggles_field(Cf: np.ndarray, lo, vox, shape) -> tuple[np.ndarray, np.ndarray]:
+    """ゴーグル：2 つの角の丸い六角の枠（帽子の面から FRAME_T）＋ 4mm 奥のレンズ ＋ 細い橋。
+    輪郭は正面の絵の枠・レンズ（正面の投影で切った柱を、帽子の面からの厚みで切る。額の丸みに沿って回り込む）。
+    返り値：(ゴーグルの場, 房を切る範囲の場)。どちらも中が正"""
+    xs, ys, zs = _grid(lo, vox, shape)
+    o = goggle_outline2d(xs, zs)
+    shp = Cf.shape
+    front = np.broadcast_to((0.015 - ys).astype(np.float32)[None, None, :], shp)
+
+    def prism(f2d):
+        return np.broadcast_to(f2d[:, :, None], shp)
+    ring = smooth_min(prism(o['frame']), -prism(o['lens']) + 0.0005, 0.0015)
+    frame = smooth_min(smooth_min(ring, Cf + FRAME_T, 0.003), front, 0.004)
+    lens = smooth_min(smooth_min(prism(o['lens']), Cf + LENS_T, 0.002), front, 0.004)
+    bridge = smooth_min(smooth_min(prism(o['bridge']), Cf + BRIDGE_T, 0.003), front, 0.004)
+    gog = np.maximum(np.maximum(frame, lens), bridge)
+    zone = smooth_min(prism(np.maximum(o['frame'], o['bridge'])) + 0.004,
+                      np.broadcast_to((-0.03 - ys).astype(np.float32)[None, None, :], shp), 0.01)
+    return gog.astype(np.float32), zone.astype(np.float32)
+
+
+def strap_field(env: np.ndarray, lo, vox, shape) -> np.ndarray:
+    """ゴーグルのベルト：なめらかにした髪の包み（env、中が正）の面から STRAP['off'] 外の、傾いた帯"""
+    xs, ys, zs = _grid(lo, vox, shape)
+    (y0, y1), (z0, z1) = STRAP['y'], STRAP['z']
+    zc = z0 + (z1 - z0) * np.clip((ys - y0) / (y1 - y0), 0, 1)          # (ny,)
+    band = (STRAP['half'] - np.abs(zs[:, None, None] - zc[None, None, :])).astype(np.float32)
+    band = np.broadcast_to(band, env.shape)
+    back = np.broadcast_to((ys - (y0 - 0.01)).astype(np.float32)[None, None, :], env.shape)
+    # 包みの面の外 4mm〜内側 2mm の殻だけ（房のすき間の上は橋のように渡る。中身の詰まったつばにしない）
+    shell = smooth_min(env + STRAP['off'], -(env - STRAP['inner']), 0.0015)
+    return smooth_min(smooth_min(band, shell, 0.002), back, 0.006)
+
+
+def bangs_mask_front(cams: dict[str, V.Cam]) -> np.ndarray:
+    """正面の絵の前髪（ゴーグルの下から額へ下がる髪の色の画素。ゴーグルの下の帯につながる所だけ）"""
+    from skimage.morphology import disk
+    im = _rgba('front')
+    r, g, b, a = im[..., 0], im[..., 1], im[..., 2], im[..., 3]
+    hair = (a > 128) & (r - b > 18) & (r < 175) & (g < 125) & (r > 45)
+    c = cams['front']
+    v_top, v_bot = int(c.v_of(1.445)), int(c.v_of(1.295))
+    u_a, u_b = int(c.u0 + (GOGGLE_MIRROR_X - 0.088) * c.ppm), int(c.u0 + (GOGGLE_MIRROR_X + 0.088) * c.ppm)
+    m = np.zeros_like(hair)
+    m[v_top:v_bot, u_a:u_b] = hair[v_top:v_bot, u_a:u_b]
+    m = ndi.binary_opening(m, disk(4))            # 眉（細い）を落とす
+    m = ndi.binary_closing(m, disk(2))
+    lab, nl = ndi.label(m)
+    v_root = int(c.v_of(1.392))
+    keep = set(np.unique(lab[v_top:v_root + 3])) - {0}
+    return np.isin(lab, list(keep))
+
+
+def bangs_field(S: np.ndarray, cams: dict[str, V.Cam], lo, vox, shape) -> np.ndarray:
+    """前髪：正面の絵の前髪の範囲を、額（頭の面 S）から前へ押し出した殻（中が正）。
+    厚みは範囲の縁からの距離で決める（真ん中で最大 1.1cm、縁と先は 2mm：レンズ形の断面のくさび）。
+    正面の絵（顔のアトラス）の前髪の V が、どの向きからも V の形の上に載る"""
+    xs, ys, zs = _grid(lo, vox, shape)
+    c = cams['front']
+    m = bangs_mask_front(cams)
+    d = np.where(m, ndi.distance_transform_edt(m) - 0.5, -(ndi.distance_transform_edt(~m) - 0.5)) / c.ppm
+    d = ndi.gaussian_filter(d, 1.5).astype(np.float32)
+    U, Vv = np.meshgrid(c.u0 + c.ppm * xs, c.v_of(zs))
+    d2 = ndi.map_coordinates(d, [Vv - 0.5, U - 0.5], order=1, mode='constant', cval=-0.05).astype(np.float32)
+    T = np.clip(0.002 + 0.9 * np.maximum(d2, 0), 0, 0.011) * ramp(zs, 1.29, 1.36, 0.6, 1.0)[:, None]
+    shell = S + T[:, :, None].astype(np.float32)
+    front = np.broadcast_to((-0.02 - ys).astype(np.float32)[None, None, :], S.shape)
+    return smooth_min(smooth_min(np.broadcast_to(d2[:, :, None], S.shape), shell, 0.002), front, 0.006)
+
+
+def ears_field(lo, vox, shape) -> np.ndarray:
+    """耳：左右の、少し後ろへ開いた平たい楕円体 ＋ 付け根 ＋ 外の面の浅いくぼみ（中が正）"""
+    xs, ys, zs = _grid(lo, vox, shape)
+    Z, X, Y = np.meshgrid(zs, xs, ys, indexing='ij')
+    out = np.full(Z.shape, -0.05, np.float32)
+    for sx in (1.0, -1.0):
+        cx, cy, cz = EAR['c']
+        yaw = math.radians(EAR['yaw_deg']) * sx
+        dx, dy, dz = X - sx * cx, Y - cy, Z - cz
+        # 耳の面は y-z 面を z 軸のまわりに回したもの（後ろの縁が外へ開く）
+        lx = dx * math.cos(yaw) - dy * math.sin(yaw)
+        ly = dx * math.sin(yaw) + dy * math.cos(yaw)
+        rx, ry, rz = EAR['r']
+        body = (1 - np.sqrt((lx / rx) ** 2 + (ly / ry) ** 2 + (dz / rz) ** 2)) * rx
+        rc, rr = EAR['root_c'], EAR['root_r']
+        root = (1 - np.sqrt(((X - sx * rc[0]) / rr[0]) ** 2 + ((Y - rc[1]) / rr[1]) ** 2
+                            + ((Z - rc[2]) / rr[2]) ** 2)) * min(rr)
+        ear = smooth_max(body.astype(np.float32), root.astype(np.float32), 0.006)
+        dimple = (1 - np.sqrt(((lx - sx * 0.0075) / 0.006) ** 2 + ((ly + 0.002) / 0.012) ** 2
+                              + ((dz + 0.002) / 0.019) ** 2)) * 0.006
+        ear = smooth_min(ear, -dimple.astype(np.float32), 0.002)
+        out = np.maximum(out, ear)
     return out
 
 
@@ -804,31 +958,30 @@ def build_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.ndar
     nose = ellipsoid_field((float(sk.cx[0]), -0.114, 1.279), (0.0062, 0.012, 0.016), lo_b, vox, shp, 0)
     S = smooth_max(S, nose, 0.007)
     S = smooth_max(S, neck_field(lo_b, vox, shp, 0), 0.012)
-    log('頭（顔・あご・首）')
+    ears = ears_field(lo_b, vox, shp)
+    S = smooth_max(S, ears, 0.006)
+    log('頭（顔・あご・首・耳）')
     # 2. 髪の帽子（顔の前を切り取る）
     cs, ci = cap_stack(cams, masks, p, sk)
     info['cap'] = ci
     cut = face_cut(lo_b, vox, shp, 0)
     # 顔の範囲では、帽子は頭（顔）の面より外へ出ない（顔の面が見える。範囲の縁でなめらかに切り替える）
-    allowed = smooth_max(S - 0.002, -cut, 0.006)
-    Cf = smooth_min(stack_field(cs, lo_b, vox, shp, 0), allowed, 0.006)
+    allowed = smooth_max(S - 0.002, -cut, 0.012)
+    Cf = smooth_min(stack_field(cs, lo_b, vox, shp, 0), allowed, 0.012)
     del allowed
+    # 耳のまわりは帽子を 5mm 離す（耳が髪の中にうまらず見える）
+    Cf = smooth_min(Cf, -(ears + 0.005), 0.004)
     log('髪の帽子', ci)
     base = smooth_max(S, Cf, p['union_k'])
-    # ゴーグル：枠の範囲の中で、帽子の面から厚み thick まで外、ただしレンズの前の面（front_y）より後ろ
-    # （真ん中は平らなレンズの面、横は額の丸みに沿って回り込む帯）
-    gz = goggle_zone(lo_b, vox, shp, 0)
-    ys_b = lo_b[1] + (np.arange(shp[2]) + 0.5) * vox
-    front = np.broadcast_to((ys_b - GOGGLES['front_y']).astype(np.float32)[None, None, :], shp)
-    # 厚みは枠の横の端で thick[0]、真ん中で thick[1]（レンズが前へ出る。横は頭に沿う）
-    xs_b = lo_b[0] + (np.arange(shp[1]) + 0.5) * vox
-    gx = GOGGLES['x']
-    u = np.clip(1 - ((xs_b - (gx[0] + gx[1]) / 2) / ((gx[1] - gx[0]) / 2)) ** 2, 0, 1)
-    thick = (GOGGLES['thick'][0] + (GOGGLES['thick'][1] - GOGGLES['thick'][0]) * u).astype(np.float32)
-    gog = smooth_min(smooth_min(Cf + thick[None, :, None], gz, 0.004), front, 0.004)
-    del front
-    base = smooth_max(base, gog, 0.003)
-    info['goggles'] = GOGGLES
+    # ゴーグル：2 つの六角の枠 ＋ 奥のレンズ ＋ 橋（帽子の面に沿って回り込む。平らな板にしない）
+    gog, gz = goggles_field(Cf, lo_b, vox, shp)
+    base = smooth_max(base, gog, 0.002)
+    # 前髪：正面の絵の前髪の範囲を額から押し出した殻（房の楕円体の並びは使わない：根元がこぶの列になった）
+    bang = bangs_field(S, cams, lo_b, vox, shp)
+    base = smooth_max(base, bang, 0.004)
+    info['goggles'] = {'frame': GOGGLE_FRAME, 'lens': GOGGLE_LENS, 'bridge': GOGGLE_BRIDGE,
+                       'mirror_x': GOGGLE_MIRROR_X, 'thick': (FRAME_T, LENS_T, BRIDGE_T)}
+    info['ears'] = EAR
     # 3. 房：最初の並び → 外形への当てはめ（房の道は、頭と帽子の和の面に沿う）
     rtab = RadialTable(base, lo_b, vox)
     v2 = Views2D(cams, masks)
@@ -861,7 +1014,7 @@ def build_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.ndar
     fit2 = Fitter(v2, base2d, rtab, p['lock_thick'], locks, locks)
     fit = fit2
     info['iou_head_region']['fitted_locks'] = {k: round(v, 4) for k, v in fit.ious().items()}
-    bangs = bangs_locks()
+    bangs = []
     info['locks'] = [dict(asdict(L), root=[round(v, 4) for v in L.root], tip=[round(v, 4) for v in L.tip])
                      for L in locks + bangs]
     info['n_locks'] = len(locks) + len(bangs)
@@ -878,9 +1031,12 @@ def build_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.ndar
             np.maximum(Lf[sl], f, out=Lf[sl])
         return Lf
 
-    Lf = smooth_min(add(locks), -np.maximum(cut, gz) - 0.004, 0.004)
-    Lb = add(bangs)
-    phi_b = smooth_max(smooth_max(base, Lf, p['union_k']), Lb, 0.004)
+    Lf = smooth_min(add(locks), -np.maximum(np.maximum(cut, gz), ears + 0.004) - 0.004, 0.004)
+    phi_b = smooth_max(base, Lf, p['union_k'])
+    # ベルト：髪の包み（房のすき間をうめてなめらかにした場）の面の上の帯
+    env = ndi.gaussian_filter(phi_b, 5.0)
+    phi_b = smooth_max(phi_b, smooth_min(strap_field(env, lo_b, vox, shp), -gz, 0.004), 0.002)
+    del env
     phi = np.full((shp[0], shape[1], shape[2]), -0.05, np.float32)
     phi[:, i0:i1] = phi_b
     # 箱の縁で場が切れないように（念のため）
@@ -956,7 +1112,7 @@ def main() -> None:
         json.dump(info, fp, indent=1, ensure_ascii=False, default=float)
     log('面', len(P), len(faces))
     if args.render:
-        for f in surfcheck.run(P, faces, os.path.join(OUT, args.name), which=('head',), samples=12):
+        for f in surfcheck.run(P, faces, os.path.join(OUT, args.name), which=('head', 'face'), samples=12):
             log(f)
 
 

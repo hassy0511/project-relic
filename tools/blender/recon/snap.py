@@ -8,7 +8,8 @@
      目標の外形の縁を探し、そこまでの動き（1 回に max_px 画素まで）を求める。その動きを面の上で隣の平均に
      spread 回広げ（縁のまわり約 1〜2cm がそろって動く）、0.8 倍だけ動かす。
      頭（首より上）は動かさない（hair.py の形の部品のまま。fair_mesh の freeze_z）。
-     右真横の視点では、左の腕（体の向こう側で、絵では隠れている）の輪郭は動かさない。右前斜めの視点では、
+     右真横の視点では、左の腕（体の向こう側で、絵では隠れている）の輪郭は内へだけ動かす（外形の外の背中の
+     こぶを切る）。右前斜めの視点では、右の前腕は動かさない（丸い断面のまま）。右前斜めの視点では、
      左の前腕（籠手）は縁ごとに動かさず、高さ 1cm ごとの縁の動きの平均で前腕ごと前後に動かす（絵の腕が丸い
      腕より太く、縁だけを寄せると断面がくさび形になる。前後の位置のずれだけを直す：正面の外形は変わらない）。
 釣り合った形は、なめらかな面で、縁だけが外形に沿う。最後に、広げ方を小さくした留めを 3 回。
@@ -89,7 +90,7 @@ def edges_of(faces: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 def snap_step(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], sds: dict[str, np.ndarray],
               W: sparse.csr_matrix, E: tuple, max_px: float = 3.0, search_px: int = 40, spread: int = 20,
               views=REAL, outward_only: np.ndarray | None = None, skip: dict | None = None,
-              shift: dict | None = None) -> tuple[np.ndarray, dict]:
+              shift: dict | None = None, inward_only: dict | None = None) -> tuple[np.ndarray, dict]:
     """外形の縁（輪郭線）の頂点を目標の外形へ動かす量を求め、面の上でなめらかに広げた動き（頂点ごと）。
 
     輪郭線は、視線に対して表と裏の三角形の境の辺。そのうち、画像の上で外向きのすぐ隣がメッシュに
@@ -144,6 +145,9 @@ def snap_step(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], sds: dic
         if outward_only is not None:
             # 外へだけ動かす頂点（頭：房の先は外形まで伸ばすが、房の間の切り欠きで面を削らない）
             mv = np.where(outward_only[idx], np.maximum(mv, 0.0), mv)
+        if inward_only is not None and name in inward_only:
+            # 内へだけ動かす頂点（その視点では隠れている部位：外形より外へはみ出さないように切るだけ）
+            mv = np.where(inward_only[name][idx], np.minimum(mv, 0.0), mv)
         dw = (mv / cam.ppm)[:, None] * (nu[:, None] * r[None] + nv[:, None] * np.array([0, 0, -1.0])[None])
         if shift is not None and name in shift:
             # まとめて動かす部位（前腕）：縁の動きを高さ 1cm ごとに平均し、部位の頂点すべてを同じだけ動かす
@@ -218,7 +222,13 @@ def fair_mesh(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], masks: d
     move = (move * move * (3 - 2 * move))[:, None]
     # 右真横の絵では、左の腕（体の向こう側）は体と右の腕に隠れて見えない。その輪郭を右真横の外形（右の腕の
     # カフ・手袋の段）へ寄せると、籠手の前後に段がつくので寄せない
-    skip = {'side_right': (X[:, 0] > 0.18) & (X[:, 2] > 0.45) & (X[:, 2] < 1.05)}
+    # ただし外形の外へはみ出す所（背中の後ろのこぶ）は内へだけ寄せる（inward_only）
+    left_arm = (X[:, 0] > 0.18) & (X[:, 2] > 0.45) & (X[:, 2] < 1.05)
+    # 右の前腕（肘〜手首）は右前斜めの外形へ縁ごとに寄せない：絵の腕は丸い腕より太く描かれていて、縁だけを
+    # 寄せると断面がくさび形・段になる。正面と右真横の外形だけで、ふくらみの丸い断面のまま
+    r_fore = (X[:, 0] < -0.20) & (X[:, 2] > 0.70) & (X[:, 2] < 1.0)
+    skip = {'three_quarter': r_fore}
+    inward = {'side_right': left_arm}
     # 左の前腕（肘〜手首、籠手）は、右前斜めの外形へは縁ごとではなく、前腕ごと前後に動かす（_shift_groups）。
     # 右前斜めの絵は前腕を丸い腕より太く描いていて、縁だけを寄せると断面が三角（くさび形）になる。
     # 左の前腕は右真横の絵では隠れているので、前後の位置は右前斜めの絵からしか決まらない。
@@ -233,12 +243,14 @@ def fair_mesh(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], masks: d
     E = edges_of(faces)
     for it in range(rounds):
         X = X + move * (taubin(X, W, smooth) - X)
-        D, st = snap_step(X, faces, cams, sds, W, E, max_px=max_px, spread=spread, skip=skip, shift=shift)
+        D, st = snap_step(X, faces, cams, sds, W, E, max_px=max_px, spread=spread, skip=skip, shift=shift,
+                          inward_only=inward)
         X = X + 0.8 * move * D
         if it % 5 == 0 or it == rounds - 1:
             log(f'  面の平滑化と縁の留め {it + 1}/{rounds}', st)
     for _ in range(final_snaps):
-        D, st = snap_step(X, faces, cams, sds, W, E, max_px=2.0, spread=8, skip=skip, shift=shift)
+        D, st = snap_step(X, faces, cams, sds, W, E, max_px=2.0, spread=8, skip=skip, shift=shift,
+                          inward_only=inward)
         X = X + move * D
         X = X + move * (taubin(X, W, 1) - X)
     log('  最後の留め', st)

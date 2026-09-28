@@ -110,6 +110,7 @@ ZONE_EDGE = 4           # 窓の縁からこの距離までは差し替えない
 
 # 土台（顔の絵と全身の正面の絵の混ぜ方）。アトラスの画素で
 BASE_EDGE = (2, 26)     # 窓の縁からの距離がこの間で、全身の絵 → 顔の絵へなめらかに移る
+SHARPEN_MAX = 0.3            # 表情の絵の鮮明さをそろえる強さの上限
 BASE_SIGMA = 2.0        # 顔の絵と全身の絵を比べる時のぼかし（正面の絵の画素で）
 BASE_DIFF = 0.07        # そのぼかしでの色の差がこれより大きい所（外枠につながる塊）は全身の絵を使う
 
@@ -668,7 +669,8 @@ def build_atlas(front, face, expr, fa: FrontAlign, ea: ExprAlign) -> dict:
     zmask = zone & (face_a > 0.5)
     r = (face_rgb - e0)[zmask]
     h = detail[zmask]
-    sharpen = float(np.clip((r * h).sum() / max((h * h).sum(), 1e-9), 0.0, 2.0))
+    # 当てはめた強さ（約 0.49）は暗い縁に淡い輪を残したので、SHARPEN_MAX までに抑える
+    sharpen = float(np.clip((r * h).sum() / max((h * h).sum(), 1e-9), 0.0, SHARPEN_MAX))
 
     # 5) 表情ごとに：鮮明さをそろえ、領域のまわりの帯で色を土台に合わせ、ぼかした領域だけ差し替える
     base_cmp = blur3(base, 0.5 * up)

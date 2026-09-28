@@ -6,26 +6,32 @@
       --only 名前       その段だけ
       --force           見る段を、最新でも作り直す
       --standin         テクスチャの段の代わりに代役（standin.py：絵をまっすぐ投影しただけの色）を使う
-      --review          最後に確認の画像（review.py、約 10 分）も作る
+      --review          最後に確認の画像（review.py の Cycles の画像と ingame_shots.py の Godot の画像、約 15 分）も作る
   npm run haru:recon でも動く（引数は -- のあとに：npm run haru:recon -- --from rig）
 
 ■ 段（上から順に動かす）
-  各段は (名前, スクリプト, 引数, 出力, 入力)。出力がすべてあり、どの出力も入力とスクリプト（と、その段が
-  使う補助のスクリプト）より新しければ、その段は飛ばす（ファイルの更新時刻で比べる）。
-  まだ無い段は TODO と印を付けてある（テクスチャの段）。統合する人は stages() の該当の行の
-  script・args・outputs・inputs を埋め、todo=False にするだけでよい。
+  各段は (名前, スクリプト, 引数, 出力, 入力)。段を動かし終えると、入力・スクリプト・補助のスクリプト・引数の
+  中身の指紋（sha1）を build/recon/stamps/<段>.json に残す。出力がすべてあり、今の指紋が残した指紋と同じなら、
+  その段は飛ばす（中身で比べるので、git の取り出しなどで更新時刻だけ変わっても作り直さない）。
+  calib.json は後の段が確認の値（silhouette_iou_final_mesh）を書き足すので、その値は指紋から除く。
+  指紋がまだ無い段は、更新時刻で比べる（出力が入力より新しければ最新とみなす）。
+      --adopt 名前|all  今ある出力を「今の入力で作ったもの」として指紋だけ残す（動かさない）。
+                        手で作り直した出力を受け入れるときに使う
+  まだ無い段を足すときは Stage(..., todo=True) で印を付けておくと、重い段を動かす前に止まる。
 
 ■ 座標・材質の約束（段の間の受け渡し）
   haru_textured_apose.glb：A ポーズ、身長 1.55m、正面 -Y（Blender）、靴底 z=0、物体 1 つ（殻は複数でもよい）、
     材質 'haru_body'（下地の色＋発光のテクスチャ）と 'haru_face'（face_atlas.png、UV は区画 0：
     Blender の u∈[0,0.5]、v∈[0.5,1]）
   spark_gun.glb：原点 = 握りの中心、銃身 +X、上 +Z、材質 'spark_gun'、空の目印 'muzzle'
-  haru_r.glb：標準の 20 本の骨・14 動作・銃（右手の拳で握る）・光刃 'LightBlade'（左の籠手のレール）・目印 'muzzle'、
+  haru_r.glb：標準の 20 本の骨・14 動作・銃（右手の拳で握る。拳はシェイプキー 'fist'、基準は開いた手）・光刃 'LightBlade'（左の籠手のレール）・目印 'muzzle'、
     'blade_socket'。材質 'haru_body'、'haru_face'、'spark_gun'、'haru_blade'
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -84,20 +90,20 @@ def stages(standin: bool) -> list[Stage]:
         Stage('gun', f'{RECON_PY}/gun.py', [],
               outputs=[f'{R}/spark_gun.glb'], inputs=SRC_GUN,
               note='銃（スパーク）'),
-        # ---- TODO：テクスチャの段（texture.py）。仕上がったら script・args・inputs を確かめて todo=False に。
-        Stage('texture', f'{RECON_PY}/texture.py' if not standin else None, [],
-              outputs=[f'{R}/haru_textured_apose.glb'],
-              inputs=[f'{R}/haru_mesh.blend', f'{R}/haru_mesh.glb', f'{R}/calib.json', f'{R}/face_atlas.png',
-                      f'{R}/face_atlas.json'] + SRC_FULL,
-              todo=not standin,
-              note='下地の色・発光を 2048 角に焼き、顔の材質と UV を付ける（A ポーズの GLB）'),
+        Stage('texture', f'{RECON_PY}/texture.py' if not standin else None, ['--mesh', f'{R}/haru_mesh.glb'],
+              outputs=[f'{R}/haru_textured_apose.glb', f'{R}/tex/haru_body_base.png', f'{R}/tex/haru_body_emit.png'],
+              inputs=[f'{R}/haru_mesh.glb', f'{R}/calib.json', f'{R}/face_atlas.png', f'{R}/face_atlas.json',
+                      f'{R}/face_align.json'] + SRC_FULL,
+              deps=[f'{RECON_PY}/views.py', f'{RECON_PY}/hair.py'],
+              note='下地の色・発光を 2048 角に焼き、顔の材質と UV を付ける（A ポーズの GLB、確認画像込みで約 5 分）'),
         Stage('joints', f'{RECON_PY}/joints.py', ['--mesh', textured, '--out', f'{PREP}/haru_joints.json'],
               outputs=[f'{PREP}/haru_joints.json'], inputs=[textured],
               note='関節の位置（左右・高さは絵で読んだ表、前後はメッシュから）'),
         Stage('rig', 'tools/blender/models/ai_character.py',
               ['--input', textured, '--out', OUT_GLB, '--keep-frame',
                '--joints', f'{PREP}/haru_joints.json', '--gun', f'{R}/spark_gun.glb', '--blade-anchor', 'auto',
-               '--rest-arm-deg', '12', '--fill-unweighted', '0.2', '--grip-fist', '0,1,0',
+               '--rest-arm-deg', '12', '--fill-unweighted', '0.2', '--grip-fist', '0,1,0', '--fist-shapekey',
+               '--rigid-parts',
                '--stats', f'{R}/haru_r.stats.json'],
               outputs=[OUT_GLB, f'{R}/haru_r.stats.json'],
               inputs=[textured, f'{PREP}/haru_joints.json', f'{R}/spark_gun.glb'],
@@ -115,17 +121,63 @@ def stages(standin: bool) -> list[Stage]:
     return lst
 
 
-REVIEW = Stage('review', f'{RECON_PY}/review.py', ['--glb', OUT_GLB, '--stats', f'{R}/haru_r.stats.json'],
-               outputs=[f'{R}/review/compare_views.png', f'{R}/review/face.png', f'{R}/review/poses.png',
-                        f'{R}/review/joints.png'],
-               inputs=[OUT_GLB, f'{R}/haru_r.stats.json', f'{R}/calib.json', f'{R}/face_atlas.png'] + SRC_FULL,
-               deps=[f'{RECON_PY}/views.py'],
-               note='確認の画像（build/recon/review/）')
+REVIEW = [
+    Stage('review', f'{RECON_PY}/review.py', ['--glb', OUT_GLB, '--stats', f'{R}/haru_r.stats.json'],
+          outputs=[f'{R}/review/compare_views.png', f'{R}/review/face.png', f'{R}/review/poses.png',
+                   f'{R}/review/joints.png'],
+          inputs=[OUT_GLB, f'{R}/haru_r.stats.json', f'{R}/calib.json', f'{R}/face_atlas.png'] + SRC_FULL,
+          deps=[f'{RECON_PY}/views.py'],
+          note='確認の画像（Cycles、build/recon/review/、約 8 分）'),
+    Stage('ingame', f'{RECON_PY}/ingame_shots.py', [],
+          outputs=[f'{R}/review/ingame_showcase.png', f'{R}/review/ingame_02_run.png'],
+          inputs=[OUT_GLB, 'godot/scripts/view/player_view.gd', 'godot/scripts/main.gd'],
+          deps=[f'{RECON_PY}/godot_showcase.gd'],
+          note='Godot の中の画像（見本の撮影と、全身・表情・動作の一覧。約 6 分）'),
+]
 
 
 def mtime(p: str) -> float | None:
     full = os.path.join(REPO, p)
     return os.path.getmtime(full) if os.path.exists(full) else None
+
+
+STAMPS = f'{R}/stamps'
+# 後の段が書き足す確認の値（入力の指紋から除く）
+REPORT_KEYS = {'calib.json': ('silhouette_iou_final_mesh',)}
+
+
+def file_digest(p: str) -> str:
+    full = os.path.join(REPO, p)
+    if not os.path.exists(full):
+        return 'missing'
+    base = os.path.basename(p)
+    if base in REPORT_KEYS:
+        with open(full, encoding='utf-8') as fp:
+            d = json.load(fp)
+        for k in REPORT_KEYS[base]:
+            d.pop(k, None)
+        return hashlib.sha1(json.dumps(d, sort_keys=True).encode()).hexdigest()
+    h = hashlib.sha1()
+    with open(full, 'rb') as fp:
+        for chunk in iter(lambda: fp.read(1 << 20), b''):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def fingerprint(s: Stage) -> dict:
+    """段の入力・スクリプト・補助・引数の指紋"""
+    files = sorted(set(s.inputs + [s.script] + s.deps))
+    return {'args': s.args, 'files': {p: file_digest(p) for p in files}}
+
+
+def stamp_path(s: Stage) -> str:
+    return os.path.join(REPO, STAMPS, f'{s.name}.json')
+
+
+def write_stamp(s: Stage) -> None:
+    os.makedirs(os.path.join(REPO, STAMPS), exist_ok=True)
+    with open(stamp_path(s), 'w', encoding='utf-8') as fp:
+        json.dump(fingerprint(s), fp, indent=1, ensure_ascii=False)
 
 
 def status(s: Stage) -> str:
@@ -135,6 +187,11 @@ def status(s: Stage) -> str:
     outs = [mtime(p) for p in s.outputs]
     if any(t is None for t in outs):
         return 'stale'
+    if os.path.exists(stamp_path(s)):
+        with open(stamp_path(s), encoding='utf-8') as fp:
+            old = json.load(fp)
+        return 'ok' if old == fingerprint(s) else 'stale'
+    # 指紋がまだ無い：更新時刻で比べる
     srcs = [mtime(p) for p in s.inputs + [s.script] + s.deps]
     newest = max((t for t in srcs if t is not None), default=0.0)
     return 'ok' if min(outs) >= newest else 'stale'
@@ -151,10 +208,7 @@ def run(s: Stage) -> None:
     missing = [p for p in s.outputs if mtime(p) is None]
     if missing:
         raise SystemExit(f'段 {s.name} の出力が無い：{missing}')
-    # 出力を書き直さなかった段（中身が同じなら書かないもの）でも、次に最新と分かるように時刻をそろえる
-    now = time.time()
-    for p in s.outputs:
-        os.utime(os.path.join(REPO, p), (now, now))
+    write_stamp(s)
     print(f'=== {s.name}: {time.time() - t0:.0f} 秒', flush=True)
 
 
@@ -166,13 +220,25 @@ def main() -> None:
     ap.add_argument('--force', action='store_true')
     ap.add_argument('--standin', action='store_true')
     ap.add_argument('--review', action='store_true')
+    ap.add_argument('--adopt')
     args = ap.parse_args([a for a in sys.argv[1:] if a != '--'])
 
-    lst = stages(args.standin) + ([REVIEW] if args.review or args.only == 'review' or args.start == 'review' else [])
+    want_review = args.review or any(n in ('review', 'ingame') for n in (args.only, args.start, args.adopt))
+    lst = stages(args.standin) + (REVIEW if want_review else [])
     names = [s.name for s in lst]
-    for n in (args.start, args.only):
+    for n in (args.start, args.only, None if args.adopt == 'all' else args.adopt):
         if n and n not in names:
             raise SystemExit(f'段の名前が違う：{n}（{", ".join(names)}）')
+    if args.adopt:
+        for s in lst:
+            if args.adopt in ('all', s.name):
+                missing = [p for p in s.outputs if mtime(p) is None]
+                if missing or status(s) == 'todo':
+                    print(f'{s.name}: 出力が無いか TODO なので受け入れない {missing}')
+                    continue
+                write_stamp(s)
+                print(f'{s.name}: 今の出力を受け入れた（指紋を残した）')
+        return
     if args.list:
         for s in lst:
             print(f'{s.name:8s} {status(s):5s} {s.script or "-":45s} {s.note}')

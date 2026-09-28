@@ -30,10 +30,23 @@
   7. 島の外は一番近い島の色で埋める（ミップマップで縁がにじまないように。島の縁から 8px 以上）。
   8. 顔：顔の窓（face_atlas.json の window_front_px）の中で正面を向き、正面から見える面に材質
      'haru_face' を付け、UV を正面の正投影でアトラスの区画 0（Blender の u∈[0,0.5]、v∈[0.5,1]）に置く。
+     あごの下（FACE_CHIN_PX より下の首・襟）は除き、表情で変わる画素の上で正面から一番手前に見える
+     三角形は向きにかかわらず加える（眉・目・口が必ず表情と一緒に変わるように。覆う割合を報告する）。
+  8b. 頭の塗り分け（head_cleanup）：形に耳が無いので、絵の耳の肌色が髪の房に、もみあげ・あごの線の暗い色が
+     ほおの横に写る。hair.py の顔の範囲で頭の面を肌と髪に分け、合わない色を同じ側の近くの色で塗り直す。
      顔の材質の縁の近く（FACE_FEATHER）の体のテクスチャは正面の絵（アトラスの通常）へ寄せて、
      材質の境で色がそろうようにする。
+  2b. 絵の腕の遮り：右真横・右前斜め・背面の絵では、腕・手が胴の横・太ももの板の手前に描かれていて、メッシュの
+     腕は絵の腕と数 cm ずれている（メッシュの奥行きでは分からない）。メッシュの腕・手（uvparts の部位）をその視点へ
+     投影して ART_OCC_BAND 画素広げた帯の中の、肌・手袋の色の画素を「絵の腕」とし、そこに写る胴・脚のテクセルは
+     その視点の重みを 0 にする（build/recon/tex/art_arm_<視点>.png に赤で示す）。
+  8c. 体の肌色の塗り直し（body_cleanup）：肌の出るはずのない所（胴の服・えり・脚・袖）に残った肌色を、同じ部位の
+     肌でない近くの色で塗り直す（絵の腕の色の写り、素肌の前腕から塗り足された袖の裏・わきの下）。えり・フードの
+     上を向いた面（胴の z < 1.19、n.z > 0.5）で塗り足した所も肌にしない。
+  8d. 髪の色合わせ（hair_colour_match）：髪のテクセルの色の平均・ばらつきを正面・背面の絵の髪の画素にそろえる。
   9. 発光：琥珀色（#FFBC52 付近：ゴーグルのレンズ・膝の継ぎ目・籠手のレール）を探して、発光の
-     テクスチャに焼く。材質は金属 0、粗さ 0.8。
+     テクスチャに焼く。その所の下地は EMIT_BASE_DARKEN だけ暗くし、発光の強さは EMIT_STRENGTH（照らされた
+     下地 ＋ 発光がおよそ絵の色。飽和してレモン色にならない）。材質は金属 0、粗さ 0.8、片面（閉じた面）。
 
 ■ 座標（views.py・calib.json と同じ）
   Blender は Z が上、正面 -Y、本人の左 +X、靴底 z=0。画素の座標は画像の左上を 0 とする連続値
@@ -88,8 +101,13 @@ MASK_RAMP = (0.5, 3.5)     # 絵の外形の縁からの内側への距離（画
 W_FULL = 0.06              # 視点の重みの和がこれ以上のテクセルは、投影の色だけを使う
 W_SEED = 0.10              # 塗り足しの元にするテクセルの重みの和の下限
 INPAINT_K = 16             # 塗り足しで引く近いテクセルの数
-FACE_FEATHER = 0.015       # 顔の材質の縁から、体のテクスチャを正面の色へ寄せる距離（m）
-FACE_NDV_MIN = 0.12        # 顔の材質にする面の、正面への向きの下限（n・(-Y)）
+FACE_FEATHER = 0.030       # 顔の材質の縁から、体のテクスチャを正面の色へ寄せる距離（m）
+FACE_NDV_MIN = 0.45        # 顔の材質にする面の、正面への向きの下限（n・(-Y)）。横を向いたほお・あごは
+                           # 正面の投影が引き伸ばされるので体の材質（複数の視点の色）にする
+FACE_CHIN_PX = 540         # 顔の材質にする三角形の重心の下限（正面の絵の画素の y。あごの先は約 535）
+HEAD_CLEAN_Z = (1.215, 1.47)  # 頭の肌と髪の塗り分けをする高さ（あごの下の首・えりより上）
+SKIN_CLEAN_ZMIN = 1.20     # 肌の側の下端（あごの下の首の横まで。フードの襟は約 1.19 より下）
+SKIN_CLEAN_ZMAX = 1.31     # 肌の側で暗い色を消すのはこれより下だけ（上は眉・前髪がある）
 ALIGN_RES = 1024           # 視点の合わせ込み（光学的流れ）の画像の大きさ
 ALIGN_SIGMA = 16.0         # 流れをなめらかにするぼかし（2048 の画素）
 ALIGN_MAX = 40.0           # ずらしの上限（2048 の画素）
@@ -97,7 +115,18 @@ ALIGN_ORDER = ('three_quarter', 'side_right', 'back')   # 正面を基準に、�
 DEBUG_ALIGN = True
 DILATE_PX = 16             # 島の外を埋める幅の目安（実際は全面を一番近い島の色で埋める）
 ROUGHNESS = 0.8
-EMIT_STRENGTH = 1.0
+# 発光：レンズなどの琥珀色は「照らされた下地 ＋ 発光」で絵の色になるように、下地を暗くして発光を弱める
+# （以前は下地そのままに同じ色の発光を 1.0 で足していて、赤と緑が飽和してレモン色になった）
+EMIT_STRENGTH = 0.55
+EMIT_BASE_DARKEN = 0.55    # 発光の所の下地の色を (1 - これ × 度合い) 倍に
+# 絵の腕・手の遮り（ART_OCCLUDE）：右真横・右前斜め・背面の絵では、腕・手が胴・太ももの板の手前に描かれている。
+# メッシュの腕は絵の腕と数 cm ずれるので、メッシュの奥行きでは遮りが分からない。絵の腕・手の画素（メッシュの腕・手を
+# その視点へ投影して ART_OCC_BAND 画素広げた帯の中の、肌・手袋の色）に写る「腕・手でない」テクセルは、
+# その視点の重みを 0 にする（正面の絵・塗り足しが色を出す）
+ART_OCCLUDE_VIEWS = ('side_right', 'three_quarter', 'back')
+ART_OCC_BAND = int(ALIGN_MAX + 10)
+NECK_V_HALF = 0.055       # 首の前の素肌の V の半幅（m。これより外の首まわりはフード・えり）
+HEAD_Z = V.HEIGHT - V.HEIGHT / 4.4   # 部位の分け（uvparts.region_of_point）の頭の高さ（carve.py と同じ）
 
 # 左右で違う部品（本人の右肩の板・右太ももの板・左前腕の籠手）の範囲。世界の (x, z) の箱
 # （正面の絵の mask_asymmetric_parts から、余裕を 3cm ほど足した）。本人の左側のテクセル p について、
@@ -370,9 +399,38 @@ def asymmetric_left(p: np.ndarray) -> np.ndarray:
     return bad
 
 
+def tri_regions(verts: np.ndarray, tris: np.ndarray) -> np.ndarray:
+    """三角形の部位（uvparts.region_of_point：0 頭、1 胴、2/3 右左の腕、4/5 右左の手、6/7 右左の脚）"""
+    from recon import uvparts
+    return uvparts.region_of_point(verts[tris].mean(1), HEAD_Z)
+
+
+def art_arm_mask(name: str, cam: V.Cam, verts: np.ndarray, tris: np.ndarray, arm_tri: np.ndarray,
+                 rgb: np.ndarray) -> np.ndarray:
+    """絵の中の腕・手の画素（2048²）：メッシュの腕・手の投影を ART_OCC_BAND 広げた帯の中の、肌・手袋の色"""
+    u, v = cam.project(verts)
+    p2 = np.stack([u[tris[arm_tri]], v[tris[arm_tri]]], -1)
+    pix, _, _ = raster(p2, V.IMG, V.IMG)
+    img = np.zeros(V.IMG * V.IMG, bool)
+    img[pix] = True
+    img = img.reshape(V.IMG, V.IMG)
+    band = ndi.binary_dilation(img, iterations=ART_OCC_BAND)
+    flat = rgb.reshape(-1, 3)
+    skin = skin_not_ivory(flat).reshape(V.IMG, V.IMG) > 0.1
+    mx, mn = rgb.max(-1), rgb.min(-1)
+    glove = (mx < 0.36) & (mx - mn < 0.10) & (mx > 0.05)
+    m = band & (skin | glove)
+    m = ndi.binary_opening(m, iterations=1)
+    m = ndi.binary_dilation(m, iterations=3)
+    save_png(os.path.join(TEX_DIR, f'art_arm_{name}.png'),
+             np.where(m[..., None], rgb * 0.5 + np.array([0.5, 0, 0]), rgb * 0.6 + 0.4 * band[..., None]))
+    return m
+
+
 def view_weights(cam: V.Cam, img: ViewImage, pos: np.ndarray, nrm: np.ndarray, z: np.ndarray,
                  edist: np.ndarray, field: np.ndarray | None = None, zocc: np.ndarray | None = None,
-                 bias_deg: float = 0.0) -> dict:
+                 bias_deg: float = 0.0, art_block: np.ndarray | None = None,
+                 block_texel: np.ndarray | None = None) -> dict:
     """1 つの視点について、テクセルごとの n・v、見えるか、重みの係数、色。
 
     field：絵を拾う位置のずらし (2, H, W)（画素。align_view の結果）。見えるかどうかはメッシュの奥行き
@@ -403,9 +461,14 @@ def view_weights(cam: V.Cam, img: ViewImage, pos: np.ndarray, nrm: np.ndarray, z
         us, vs = u + d[:, 0], v + d[:, 1]
     fm = ramp(nearest(img.mask_dist, us, vs), *MASK_RAMP)
     base = vis * fm * fe
+    blocked = np.zeros(len(p), bool)
+    if art_block is not None:
+        # 絵ではここに腕・手が描かれている：腕・手でないテクセルはこの視点から色をもらわない
+        blocked = block_texel & (nearest(art_block.astype(np.float32), us, vs) > 0.5)
+        base = base * ~blocked
     full, low = img.sample(us, vs)
     return {'ndv': ndv, 'ndv_raw': ndv_raw, 'base': base, 'vis': vis, 'fm': fm, 'full': full, 'low': low,
-            'u': u, 'v': v}
+            'u': u, 'v': v, 'blocked': blocked}
 
 
 def gray(rgb: np.ndarray) -> np.ndarray:
@@ -476,6 +539,12 @@ def bake(mesh: dict, size: int, cams: dict[str, V.Cam], atlas_meta: dict, align:
     nrw = (vns[tris[tri]] * bar[..., None]).sum(1)
     nrw /= np.maximum(np.linalg.norm(nrw, axis=1, keepdims=True), 1e-12)
     log(f'テクセル {len(pix):,}（{len(pix) / size / size:.1%}）{time.time() - t0:.1f}s')
+    treg = tri_regions(verts, tris)
+    arm_tri = np.isin(treg, (2, 3, 4, 5))
+    reg = treg[tri]
+    # 絵の腕に遮られうるテクセル：腕・手・頭でないもの（胴・脚。首の肌は頭の近くなので z < 1.15）
+    block_texel = ~np.isin(reg, (0, 2, 3, 4, 5)) & (pos[:, 2] < 1.15)
+    blocks = {}
 
     # 視点ごと
     per = {}
@@ -485,7 +554,10 @@ def bake(mesh: dict, size: int, cams: dict[str, V.Cam], atlas_meta: dict, align:
         img = ViewImage(name, atlas_meta if name == 'front' else None)
         z = zbuffer(verts, tris, cam)
         geo[name] = (img, z, depth_edge_dist(z), near_occluder_depth(z))
-        per[name] = view_weights(cam, img, pos, nrw, z, geo[name][2], None, geo[name][3], VIEW_BIAS_DEG[name])
+        if name in ART_OCCLUDE_VIEWS:
+            blocks[name] = art_arm_mask(name, cam, verts, tris, arm_tri, img.rgb)
+        per[name] = view_weights(cam, img, pos, nrw, z, geo[name][2], None, geo[name][3], VIEW_BIAS_DEG[name],
+                                 blocks.get(name), block_texel)
         per[name]['gain'] = VIEW_GAIN[name]
         per[name]['img'] = img
         log(f'{name}: 見える {per[name]["vis"].mean():.1%}  重み>0 {(per[name]["base"] * per[name]["ndv"] > 0).mean():.1%}')
@@ -503,7 +575,8 @@ def bake(mesh: dict, size: int, cams: dict[str, V.Cam], atlas_meta: dict, align:
             fields[name] = field
             img, z, ed, zo = geo[name]
             gain = per[name]['gain']
-            per[name] = view_weights(cams[name], img, pos, nrw, z, ed, field, zo, VIEW_BIAS_DEG[name])
+            per[name] = view_weights(cams[name], img, pos, nrw, z, ed, field, zo, VIEW_BIAS_DEG[name],
+                                     blocks.get(name), block_texel)
             per[name]['gain'] = gain
             per[name]['img'] = img
             align_stats[name] = st
@@ -517,7 +590,7 @@ def bake(mesh: dict, size: int, cams: dict[str, V.Cam], atlas_meta: dict, align:
         z = zbuffer(verts, tris, cam)
         # 実の視点で求めたずらしをそのまま使う（左右対称なら、反転した点も絵の同じ所に写るので）
         d = view_weights(cam, img, pos, nrw, z, depth_edge_dist(z), fields.get(name), near_occluder_depth(z),
-                         VIEW_BIAS_DEG[name])
+                         VIEW_BIAS_DEG[name], blocks.get(name), block_texel)
         d['gain'] = MIRROR_GAIN * (1.0 - ramp(best_real, *MIRROR_NDV)) * ~no_mirror * (pos[:, 0] > 0)
         per[name + '_mirror'] = d
         log(f'{name}_mirror: 使う {(d["gain"] * d["base"] * d["ndv"] > 0).mean():.1%}')
@@ -563,8 +636,157 @@ def bake(mesh: dict, size: int, cams: dict[str, V.Cam], atlas_meta: dict, align:
         a = np.clip(sl[qidx] / W_FULL, 0, 1)[:, None]
         col[qidx] = a * col[qidx] + (1 - a) * fill
 
+    # 確認：胴・脚のテクセルのうち、一番効いている視点の絵の画素が絵の腕・手の中にあるものの割合（0 のはず）
+    win_blocked = np.zeros(len(pos), bool)
+    for i, k in enumerate(keys):
+        win_blocked |= (winner == i) & per[k]['blocked']
+    occ_stats = {'blocked_texels': {k: int(d['blocked'].sum()) for k, d in per.items()},
+                 'winner_in_art_arm_fraction': round(float(win_blocked[block_texel].mean()), 6)}
+    log(f'絵の腕の遮り {occ_stats}')
     return {'pix': pix, 'tri': tri, 'bar': bar, 'pos': pos, 'nrm': nrm, 'col': col, 'sl': sl, 'winner': winner,
-            'keys': keys, 'per': per, 'size': size, 'align': align_stats}
+            'keys': keys, 'per': per, 'size': size, 'align': align_stats, 'reg': reg, 'art_occlusion': occ_stats}
+
+
+# ---------------------------------------------------------------- 頭の肌と髪の塗り分け
+
+def skin_likeness(col: np.ndarray, loose: bool = False) -> np.ndarray:
+    """肌の色（顔・耳。影の側も含む）らしさ 0..1。col は sRGB の 0..1（hair.skin_mask の範囲をなめらかに）。
+
+    loose：髪と混ざってくすんだ肌色（耳のまわりのぼかしの色、例 (198,134,94)）も肌とみなす
+    （髪の茶色 (155,75,42) は g が低いので入らない。琥珀色は b が低いので入らない）
+    """
+    r, g, b = col[:, 0], col[:, 1], col[:, 2]
+    r0, g0 = (0.66, 0.44) if loose else (0.74, 0.50)
+    return (ramp(r, r0, r0 + 0.06) * ramp(g, g0, g0 + 0.06) * (1 - ramp(g, 0.84, 0.88))
+            * ramp(b, 0.30, 0.35) * (1 - ramp(b, 0.72, 0.76)) * ramp(r - b, 0.16, 0.22))
+
+
+def head_cleanup(res: dict) -> None:
+    """頭の髪の房に付いた肌色（絵の耳）と、顔の横の肌に付いた髪の暗い色を、同じ側の近くの色で塗り直す。
+
+    形には耳が無く（hair.py：耳は横の髪の中）、あごも絵より後ろまである。そのため絵の耳の肌色が髪の房の
+    ところどころに、絵のもみあげ・あごの線の暗い色がほおの横に写り、斜めから見ると破れた模様になる。
+    頭の面を hair.py の顔の範囲（生え際より下・y < y_face）で「肌」と「髪」に分け、分けた側に合わない色の
+    テクセルを、同じ側の合う色のテクセルから 3D の近さで引いた色で置き換える。
+    """
+    from recon import hair as H
+    pos, col = res['pos'], res['col']
+    x, y, z = pos[:, 0], pos[:, 1], pos[:, 2]
+    zh = H.hairline_z(np.abs(x))
+    yf = H.HAIRLINE['y_face']
+    head = (z > HEAD_CLEAN_Z[0]) & (z < HEAD_CLEAN_Z[1]) & (np.abs(x) < 0.16)
+    skin_zone = ((z > SKIN_CLEAN_ZMIN) & (z < SKIN_CLEAN_ZMAX) & (np.abs(x) < 0.16)
+                 & (y < yf - 0.005) & (z < zh - 0.005))
+    hair_zone = head & ~((y < yf + 0.005) & (z < zh + 0.005))
+    sk = skin_likeness(col)
+    skl = skin_likeness(col, loose=True)
+    stats = {}
+    # 髪の側：くすんだ肌色も消す。肌の側：肌の色でないもの（髪・線の暗い色）はすべて消す
+    # 肌の側は横を向いた面（ほお・あごの横）だけ：正面・下を向いた面（あごの先・あごの下の影）は正面の絵の
+    # とおりが正しい（あごの線・影を消すと顔の材質の縁が見える）
+    side = ramp(np.abs(res['nrm'][:, 0]), 0.4, 0.6)
+    for name, zone, bad, good_src in (('hair', hair_zone, skl, skl < 0.02),
+                                      ('skin', skin_zone, (1.0 - skl) * side, sk > 0.6)):
+        tgt = np.nonzero(zone & (bad > 0.02))[0]
+        src = np.nonzero(zone & good_src)[0]
+        stats[name] = int((zone & (bad > 0.5)).sum())
+        if len(tgt) == 0 or len(src) < INPAINT_K:
+            continue
+        tree = cKDTree(pos[src])
+        dist, nb = tree.query(pos[tgt], k=INPAINT_K, workers=-1)
+        nb = src[nb]
+        cosn = np.einsum('qkc,qc->qk', res['nrm'][nb], res['nrm'][tgt])
+        w = np.exp(-dist / 0.006) * np.clip(cosn, 0.05, 1.0) ** 2 + 1e-12
+        fill = (w[..., None] * col[nb]).sum(1) / w.sum(1)[:, None]
+        # 顔の材質の縁の近く（正面の色へ寄せた所）は変えない：材質の境で色がそろうように
+        a = (bad[tgt] * (1.0 - res.get('face_feather', np.zeros(len(col)))[tgt]))[:, None]
+        col[tgt] = a * fill + (1 - a) * col[tgt]
+    res['col'] = col
+    res['head_cleanup'] = stats
+    log(f'頭の塗り分け：髪の側の肌色 {stats.get("hair", 0):,}、肌の側の肌でない色 {stats.get("skin", 0):,} テクセル')
+
+
+def _repaint(pos, nrm, col, tgt, src, amount, scale=0.01) -> None:
+    """tgt のテクセルの色を、src のテクセルから 3D の近さ・法線の近さで引いた色へ amount だけ寄せる（col を書き換える）"""
+    if len(tgt) == 0 or len(src) < INPAINT_K:
+        return
+    tree = cKDTree(pos[src])
+    dist, nb = tree.query(pos[tgt], k=INPAINT_K, workers=-1)
+    nb = src[nb]
+    cosn = np.einsum('qkc,qc->qk', nrm[nb], nrm[tgt])
+    w = np.exp(-dist / scale) * np.clip(cosn, 0.05, 1.0) ** 2 + 1e-12
+    fill = (w[..., None] * col[nb]).sum(1) / w.sum(1)[:, None]
+    a = np.clip(amount, 0, 1)[:, None]
+    col[tgt] = a * fill + (1 - a) * col[tgt]
+
+
+def skin_not_ivory(col: np.ndarray) -> np.ndarray:
+    """肌らしさ（くすんだ肌も含む）から、影の側の象牙色（板・膝当て：r と g がほぼ同じ）を除いたもの 0..1"""
+    rg = col[:, 0] - col[:, 1]
+    return skin_likeness(col, loose=True) * ramp(rg, 0.10, 0.14) * (1 - ramp(rg, 0.32, 0.36))
+
+
+def body_cleanup(res: dict) -> None:
+    """肌の出るはずのない所（胴の服・えり・脚・腕の袖）に付いた肌色を、同じ部位の肌でない近くの色で塗り直す。
+
+    絵の腕・手の色が胴の横・太ももの板・袖の裏に写った所や、どの視点もよく見ていないテクセルが近くの素肌の
+    前腕の色で塗り足された所（腕を下ろすと見える袖の裏・わきの下）。部位（uvparts）をまたがずに引く。
+    えり・フード：胴の z < 1.19 で上を向いた面（n.z > 0.5）は肌にしない（首の前の素肌は正面を向いている）。
+    """
+    pos, nrm, col, reg = res['pos'], res['nrm'], res['col'], res['reg']
+    z = pos[:, 2]
+    # えりの上を向いた面は、どの視点もよく見ていない（塗り足した）所だけ：正面から見える首の前の素肌は残す
+    x, y = pos[:, 0], pos[:, 1]
+    # フード・えり：首の前の V（正面の絵で |x| < 約 0.045）の外と、首の後ろは肌にしない（絵ではフードのれんが色）
+    hood = (reg == 1) & (z >= 1.10) & (z < 1.215) & ((np.abs(x) > NECK_V_HALF) | (y > 0.01))
+    nonskin = (((reg == 1) & (z < 1.10)) | hood | ((reg == 1) & (z < 1.19) & (nrm[:, 2] > 0.5) & (res['sl'] < 2 * W_FULL))
+               | np.isin(reg, (6, 7)) | (np.isin(reg, (2, 3)) & (z > 1.01)))
+    skl = skin_not_ivory(col)
+    stats = {}
+    for gname, group in (('torso', reg == 1), ('arms', np.isin(reg, (2, 3))), ('legs', np.isin(reg, (6, 7)))):
+        zone = nonskin & group
+        tgt = np.nonzero(zone & (skl > 0.02))[0]
+        src = np.nonzero(zone & (skl < 0.01) & (res['sl'] >= W_SEED))[0]
+        stats[gname] = int(len(tgt))
+        for _ in range(2):   # 2 回（肌色の広い所の真ん中は、1 回目は肌色の混ざった色になる）
+            _repaint(pos, nrm, col, tgt, src, np.clip(skl[tgt] * 3, 0, 1), 0.015)
+    res['col'] = col
+    res['body_cleanup'] = stats
+    log(f'体の肌色の塗り直し {stats}')
+
+
+def hair_colour_match(res: dict) -> None:
+    """髪のテクセルの色の平均・ばらつきを、正面・背面の絵の髪の画素にそろえる（塗り足しで灰色がかった髪を戻す）"""
+    from recon import hair as H
+
+    def hairish(c):
+        r, g, b = c[..., 0], c[..., 1], c[..., 2]
+        mx = np.maximum(np.maximum(r, g), b)
+        return (r - b > 0.06) & (mx < 0.62) & (mx > 0.08) & (skin_likeness(c.reshape(-1, 3), True).reshape(r.shape) < 0.05)
+
+    art = []
+    cams = V.load_calib()
+    for n in ('front', 'back'):
+        rgb, _ = srgb_float(V.load_rgba(n))
+        c = cams[n]
+        sub = rgb[int(c.v_of(1.56)):int(c.v_of(1.30)), int(c.u0 - 0.18 * c.ppm):int(c.u0 + 0.18 * c.ppm)]
+        mask = V.load_mask(n)[int(c.v_of(1.56)):int(c.v_of(1.30)), int(c.u0 - 0.18 * c.ppm):int(c.u0 + 0.18 * c.ppm)]
+        art.append(sub[hairish(sub) & mask])
+    art = np.concatenate(art)
+    pos, col = res['pos'], res['col']
+    x, y, z = pos[:, 0], pos[:, 1], pos[:, 2]
+    face = (y < H.HAIRLINE['y_face'] + 0.005) & (z < H.hairline_z(np.abs(x)) + 0.005)
+    hz = (res['reg'] == 0) & ~face & (z > 1.25) & hairish(col)
+    if hz.sum() < 100 or len(art) < 100:
+        return
+    m_a, s_a = art.mean(0), art.std(0)
+    m_t, s_t = col[hz].mean(0), col[hz].std(0)
+    new = (col[hz] - m_t) * np.clip(s_a / np.maximum(s_t, 1e-3), 0.7, 1.4) + m_a
+    col[hz] = 0.3 * col[hz] + 0.7 * new
+    res['col'] = col
+    res['hair_colour'] = {'art_mean': np.round(m_a * 255).tolist(), 'before_mean': np.round(m_t * 255).tolist(),
+                          'texels': int(hz.sum())}
+    log(f'髪の色合わせ {res["hair_colour"]}')
 
 
 # ---------------------------------------------------------------- 顔の材質
@@ -615,7 +837,61 @@ def face_polys(mesh: dict, cams: dict[str, V.Cam], atlas_meta: dict) -> np.ndarr
         m = lab2 == lv
         if m.sum() < 60 and not edge_v[tris[m]].any():
             sel |= m
+    # あごの下（首・フードの襟）は顔の材質にしない：横から見ると正面の投影が引き伸ばされるので
+    cy = fv[tris].mean(1)
+    sel &= cy <= FACE_CHIN_PX
+    # 表情で変わる画素（アトラスの 4 区画が違う所）の上で正面から一番手前に見える三角形は、向きに
+    # かかわらず顔の材質にする（前髪のすき間の横向きの面などで、眉の一部が表情で変わらなくなるのを防ぐ）
+    expr = expression_mask_front(atlas_meta)
+    pix, tri, bar = raster(np.stack([fu[tris], fv[tris]], -1), V.IMG, V.IMG)
+    dz = (((verts @ cam.d)[tris[tri]]) * bar).sum(1)
+    order = np.lexsort((dz, pix))
+    pix, tri = pix[order], tri[order]
+    first = np.r_[True, pix[1:] != pix[:-1]]
+    pix, tri = pix[first], tri[first]
+    hit = expr.ravel()[pix]
+    add = np.zeros(len(tris), bool)
+    add[tri[hit]] = True
+    add &= -fn[:, 1] > 0.0
+    sel |= add
     return sel
+
+
+def expression_mask_front(atlas_meta: dict) -> np.ndarray:
+    """表情で変わる画素（アトラスの 4 区画のどれかが区画 0 と違う所、3px 広げる）を正面の絵の画素 (2048²) で"""
+    a = np.asarray(Image.open(os.path.join(WORK, atlas_meta['atlas_file'])).convert('RGB')).astype(np.int16)
+    h = a.shape[0] // 2
+    q0 = a[:h, :h]
+    diff = np.zeros((h, h), bool)
+    for qy, qx in ((0, h), (h, 0), (h, h)):
+        diff |= np.abs(a[qy:qy + h, qx:qx + h] - q0).max(-1) > 3
+    k = atlas_meta['atlas_px_per_front_px']
+    wx0, wy0 = atlas_meta['window_front_px'][:2]
+    qx0, qy0 = atlas_meta['window_atlas_px'][:2]
+    ys, xs = np.nonzero(diff)
+    fx = np.floor(wx0 + (xs + 0.5 - qx0) / k).astype(np.int64)
+    fy = np.floor(wy0 + (ys + 0.5 - qy0) / k).astype(np.int64)
+    out = np.zeros((V.IMG, V.IMG), bool)
+    out[np.clip(fy, 0, V.IMG - 1), np.clip(fx, 0, V.IMG - 1)] = True
+    return ndi.binary_dilation(out, iterations=3)
+
+
+def expression_coverage(mesh: dict, cams: dict[str, V.Cam], atlas_meta: dict, sel: np.ndarray) -> float:
+    """表情で変わる画素のうち、正面から見て顔の材質の三角形が一番手前にある割合（確認用）"""
+    verts, tris = mesh['verts'], mesh['tris']
+    cam = cams['front']
+    fu, fv = cam.project(verts)
+    pix, tri, bar = raster(np.stack([fu[tris], fv[tris]], -1), V.IMG, V.IMG)
+    dz = (((verts @ cam.d)[tris[tri]]) * bar).sum(1)
+    order = np.lexsort((dz, pix))
+    pix, tri = pix[order], tri[order]
+    first = np.r_[True, pix[1:] != pix[:-1]]
+    pix, tri = pix[first], tri[first]
+    expr = ndi.binary_erosion(expression_mask_front(atlas_meta), iterations=3)
+    img = np.full(V.IMG * V.IMG, -1)
+    img[pix] = sel[tri].astype(int)
+    v = img[expr.ravel()]
+    return float((v == 1).sum() / max((v >= 0).sum(), 1))
 
 
 def face_uv(verts: np.ndarray, cams: dict[str, V.Cam], atlas_meta: dict) -> np.ndarray:
@@ -640,6 +916,8 @@ def feather_face_border(res: dict, mesh: dict, sel: np.ndarray) -> None:
     d, _ = tree.query(res['pos'], k=1, workers=-1)
     fr = res['per']['front']
     a = np.clip(1.0 - d / FACE_FEATHER, 0, 1) * (fr['vis'] & (fr['fm'] > 0.5) & (fr['ndv'] > 0.05))
+    # 横を向いた面（ほおの横・あご）には正面の色を持ち込まない（引き伸ばされた線・髪のしみになる）
+    a = a * ramp(fr['ndv_raw'], 0.2, 0.4)
     a = a * a * (3 - 2 * a)
     res['col'] = res['col'] * (1 - a[:, None]) + fr['full'] * a[:, None]
     res['face_feather'] = a
@@ -711,6 +989,7 @@ def build_materials_and_export(obj, mesh: dict, sel: np.ndarray, fuv: np.ndarray
     def mat(name: str, base: str, emit: str | None):
         m = bpy.data.materials.new(name)
         m.use_nodes = True
+        m.use_backface_culling = True   # 閉じた面なので片面（glTF の doubleSided = false）
         nt = m.node_tree
         bsdf = nt.nodes['Principled BSDF']
         bsdf.inputs['Roughness'].default_value = ROUGHNESS
@@ -980,6 +1259,7 @@ def main() -> None:
     ap.add_argument('--size', type=int, default=2048)
     ap.add_argument('--no-render', action='store_true')
     ap.add_argument('--no-align', action='store_true')
+    ap.add_argument('--no-head-cleanup', action='store_true')
     ap.add_argument('--render-only', action='store_true')
     ap.add_argument('--render-res', type=int, default=1024)
     args = ap.parse_args([a for a in sys.argv[1:] if a != '--'])
@@ -997,13 +1277,21 @@ def main() -> None:
         log(f'メッシュ {len(mesh["verts"]):,} 頂点、{len(mesh["tris"]):,} 三角形')
         res = bake(mesh, args.size, cams, atlas_meta, align=not args.no_align)
         sel = face_polys(mesh, cams, atlas_meta)
-        log(f'顔の材質 {int(sel.sum()):,} 三角形')
+        cover = expression_coverage(mesh, cams, atlas_meta, sel)
+        log(f'顔の材質 {int(sel.sum()):,} 三角形、表情で変わる画素の {cover:.2%} を覆う')
         feather_face_border(res, mesh, sel)
+        if not args.no_head_cleanup:
+            head_cleanup(res)
+        body_cleanup(res)
+        hair_colour_match(res)
         cov = np.zeros(args.size * args.size, bool)
         cov[res['pix']] = True
         cov = cov.reshape(args.size, args.size)
         base = to_image(res, res['col'])
         emit = emission_image(base, cov)
+        # 発光の所の下地を暗く（照らされた下地 ＋ 発光 ≒ 絵の色。飽和してレモン色にならないように）
+        em = ramp(amber_mask(base), 0.3, 0.6) * (emit.max(-1) > 0)
+        base = base * (1 - EMIT_BASE_DARKEN * em)[..., None]
         base_p = os.path.join(TEX_DIR, 'haru_body_base.png')
         emit_p = os.path.join(TEX_DIR, 'haru_body_emit.png')
         save_png(base_p, base)
@@ -1026,8 +1314,13 @@ def main() -> None:
             'texels': int(len(res['pix'])), 'texel_fraction': round(len(res['pix']) / args.size ** 2, 4),
             'inpainted_fraction': round(float((res['sl'] < W_FULL).mean()), 4),
             'face_tris': int(sel.sum()),
+            'head_cleanup_texels': res.get('head_cleanup', {}),
+            'face_expression_coverage': round(cover, 4),
             'align': res['align'],
-            'emissive_fraction': round(float((amber_mask(base) > 0.5).mean()), 5),
+            'emissive_fraction': round(float((emit.max(-1) > 0.05).mean()), 5),
+            'emit_strength': EMIT_STRENGTH, 'emit_base_darken': EMIT_BASE_DARKEN,
+            'art_occlusion': res.get('art_occlusion'), 'body_cleanup_texels': res.get('body_cleanup'),
+            'hair_colour': res.get('hair_colour'),
         }
     else:
         report = {}

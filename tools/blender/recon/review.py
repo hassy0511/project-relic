@@ -165,7 +165,13 @@ class Scene:
             self.blade.hide_render = not on
 
     def show_gun(self, on: bool) -> None:
-        """銃の材質の枠を、透明な材質と入れ替える（銃は体のメッシュに結合されている）"""
+        """銃の材質の枠を、透明な材質と入れ替える（銃は体のメッシュに結合されている）。
+        右手の拳（シェイプキー 'fist'）も、銃を持つときだけ握る（ゲームと同じ）"""
+        keys = self.body.data.shape_keys
+        if keys is not None:
+            for kb in keys.key_blocks:
+                if kb.name.startswith('fist'):
+                    kb.value = 1.0 if on else 0.0
         slots = [s for s in self.body.material_slots if s.material and s.material.name.startswith('spark_gun')]
         if not on:
             if self._hidden_mat is None:

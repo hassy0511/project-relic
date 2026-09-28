@@ -57,6 +57,10 @@ func load_model(path: String, shade: String = "soft") -> void:
 					body_mats.append(m)
 		if mi != blade:
 			meshes.append(mi)
+			# 右手の拳（haru_r：基準の姿勢は絵の開いた手、拳はシェイプキー fist）。銃は常に持つので握る
+			var fi := mi.find_blend_shape_by_name("fist")
+			if fi >= 0:
+				mi.set_blend_shape_value(fi, 1.0)
 	if blade:
 		blade.visible = false
 		(blade as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -91,14 +95,18 @@ func load_model(path: String, shade: String = "soft") -> void:
 
 
 ## 塗り方：soft（柔らかい陰影）／toon（3 段の塗り分け）。どちらも輪郭の光（リム）を少し入れる。
-## 光の当たり方だけを変え、下地の色・発光のテクスチャはそのまま使う
+## 光の当たり方だけを変え、下地の色・発光のテクスチャはそのまま使う。
+## 顔（肌）はつやの無い絵の肌に合わせて、リムと鏡面の照り返しをごく弱く（強いと面の折れ目ごとに
+## 明るい線が出て、ガラスのような肌に見える）。服も照り返しを少し弱く
 func set_shading(mode: String) -> void:
 	shading = mode
 	for m in body_mats:
+		var is_face := face_mats.has(m)
 		m.metallic = 0.0
-		m.roughness = 0.85
+		m.roughness = 1.0 if is_face else 0.85
+		m.metallic_specular = 0.12 if is_face else 0.3
 		m.rim_enabled = true
-		m.rim = 0.35
+		m.rim = 0.08 if is_face else 0.3
 		m.rim_tint = 0.6
 		if mode == "toon":
 			m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
