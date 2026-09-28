@@ -25,6 +25,13 @@ func _init(m, dir: String) -> void:
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	_steps = [
+		# F2 の見た目の切り替え（行って戻る）
+		{"ticks": 2, "setup": func(): main.toggle_haru()},
+		{"ticks": 1, "check": func():
+			return _check(main.haru_path.ends_with("haru_a.glb") and main.player_view.model != null, "ハルの見た目を切り替えられる")},
+		{"ticks": 2, "setup": func(): main.toggle_haru()},
+		{"ticks": 1, "check": func():
+			return _check(main.haru_path.ends_with("haru_r.glb") and main.player_view.model != null, "元の見た目に戻せる")},
 		{"ticks": 60, "input": {"move_y": 1.0}},
 		{"ticks": 1, "shot": "02_run"},
 		{"ticks": 2, "setup": func(): _stand(Vector3(1.95, 0, -4.5), Vector3(2.5, 0, -3))},

@@ -72,7 +72,9 @@ CI（GitHub Actions）で、テストと画面なしの通しの確認を毎回�
 | ブラウザ | GitHub Pages の URL の直下 | 軽い描画方式（影・光のにじみなどが一部効かない） |
 | 以前の three.js 版 | GitHub Pages の `/threejs/`（見た目の確認ページ `lookdev.html` を含む） | — |
 
-起動時の引数：`-- --haru=proxy`（MVP の仮のハル）、`-- --shade=toon`（3 段の塗り分け）、`-- --demo=<フォルダ>`（自動の見本）。F1 で性能の表示。
+ハルは絵から起こしたモデル（`haru_r`、`docs/art_orders/W1_ハル再構築の結果.md`）が既定。遊んでいる間に F2 で以前の試作（`haru_a`）と切り替えられる。
+
+起動時の引数：`-- --haru=a`（以前の試作のハル）、`-- --haru=proxy`（MVP の仮のハル）、`-- --shade=toon`（3 段の塗り分け）、`-- --demo=<フォルダ>`（自動の見本）。F1 で性能の表示。
 
 ## 8. この作業環境で動かすための準備
 - `bash tools/setup_godot.sh`：Godot 本体（`.tools/godot/`）と、画面を撮るための部品（Vulkan のソフトウェア実装、仮想ディスプレイ）。`--templates` で書き出し用の部品（約 1.3GB）も入れる。

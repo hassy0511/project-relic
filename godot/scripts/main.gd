@@ -1,7 +1,7 @@
 extends Node
 ## ゲーム全体：タイトル → プレイ ⇔ ポーズ。1/60 秒ごとにゲームの中身を進め、見た目・音・UI に反映する。
 ## 引数：-- --demo=<出力フォルダ>  自動の見本（起動 → 会話 → 戦闘 → 斬撃 → ドリル）を進めて各場面を撮り、終了する
-##       -- --haru=proxy            ハルを MVP の仮のモデルにする（b で AI 変換のハル、r で絵から起こしたハル haru_r）
+##       -- --haru=a                ハルを以前の試作にする（既定は絵から起こした haru_r。proxy で MVP の仮、b で AI 変換）。F2 で切り替え
 ##       -- --shade=toon            3 段の塗り分け
 
 const SAVE_PATH := "user://save_slot1.json"
@@ -24,6 +24,7 @@ var fx: Fx
 var sun: DirectionalLight3D
 var args := {}
 var demo: Demo = null
+var haru_path := ""
 
 
 func _ready() -> void:
@@ -109,20 +110,8 @@ func start_game(save) -> void:
 	})
 	views = Node3D.new()
 	add_child(views)
-	player_view = PlayerView.new()
-	views.add_child(player_view)
-	var model := "haru_a"
-	match args.get("haru", ""):
-		"proxy":
-			model = "haru_proxy"
-		"b":
-			model = "haru_b"
-		"r":
-			model = "haru_r"
-	var path := "res://assets/models/%s.glb" % model
-	if not ResourceLoader.exists(path):
-		path = "res://assets/models/haru_a.glb"
-	player_view.load_model(path, args.get("shade", "soft"))
+	player_view = null
+	_load_haru(_haru_path(args.get("haru", "r")))
 	enemy_view = EnemyView.new()
 	views.add_child(enemy_view)
 	props_view = PropsView.new()
@@ -136,6 +125,37 @@ func start_game(save) -> void:
 	audio.play_music("bgm_trial")
 	if save != null:
 		hud.show_toast("セーブした場所から再開しました")
+
+
+## ハルのモデル：r = 絵から起こしたもの（既定）、a = 箱の組み合わせの試作、proxy = MVP の仮、b = AI 変換
+func _haru_path(key: String) -> String:
+	var model: String = {"a": "haru_a", "proxy": "haru_proxy", "b": "haru_b"}.get(key, "haru_r")
+	var path := "res://assets/models/%s.glb" % model
+	if not ResourceLoader.exists(path):
+		path = "res://assets/models/haru_a.glb"
+	return path
+
+
+func _load_haru(path: String) -> void:
+	if player_view and is_instance_valid(player_view):
+		player_view.queue_free()
+	player_view = PlayerView.new()
+	views.add_child(player_view)
+	views.move_child(player_view, 0)
+	player_view.load_model(path, args.get("shade", "soft"))
+	haru_path = path
+	snap_views()
+
+
+## F2：ハルの見た目を切り替える（比べて確かめるため）
+func toggle_haru() -> void:
+	var order := ["res://assets/models/haru_r.glb", "res://assets/models/haru_a.glb"]
+	var i := order.find(haru_path)
+	var next: String = order[(i + 1) % order.size()]
+	if not ResourceLoader.exists(next):
+		return
+	_load_haru(next)
+	hud.show_toast("ハルの見た目：%s" % ("絵から起こしたもの" if next.contains("haru_r") else "以前の試作"))
 
 
 func pause() -> void:
@@ -161,6 +181,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if event is InputEventKey and event.pressed and event.physical_keycode == KEY_F1:
 		perf.visible = not perf.visible
+	if event is InputEventKey and event.pressed and event.physical_keycode == KEY_F2 and state == "playing" and demo == null:
+		toggle_haru()
 	if state == "paused" and event.is_action_pressed("pause"):
 		menu.hide_menu()
 		state = "playing"
