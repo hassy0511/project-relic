@@ -19,6 +19,18 @@ const HELP := [
 	["ハルの見た目の切り替え", "F2"],
 ]
 
+## スマホの画面の操作のときの説明
+const HELP_TOUCH := [
+	["移動", "画面の左半分に触れて、そのまま動かす"],
+	["カメラ", "画面の右半分をなぞる"],
+	["ボタン", "右下：ジャンプ・撃つ・斬る・ダッシュ・特殊・ロック・回復"],
+	["ロックオン", "「ロック」で入り切り。ロック中に右半分を左右に払うと対象の切り替え"],
+	["ポーズ・カメラを背後へ", "右上の「ポーズ」「背後」"],
+]
+
+## スマホの画面の操作が有効か（main が設定する）
+var touch_mode := false
+
 signal moved
 signal chosen
 
@@ -95,7 +107,7 @@ func _build(title: String, sub: String, badge: String, items: Array, dark: bool)
 	spacer2.custom_minimum_size = Vector2(0, 16)
 	box.add_child(spacer2)
 	box.add_child(help)
-	for h in HELP:
+	for h in (HELP_TOUCH if touch_mode else HELP):
 		help.add_child(Hud.make_label(h[0], 18, Color("#ffb23e"), true))
 		help.add_child(Hud.make_label(h[1], 18, Color("#e8dcc4")))
 	if first:

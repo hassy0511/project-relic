@@ -13,18 +13,21 @@ const AMBER := Color("#ffb23e")
 
 ## ボタン：名前、表示、中心（画面の右下・右上からの位置。単位は画面の高さに対する割合）、半径（同）
 const BUTTONS := [
-	["jump", "ジャンプ\n調べる", Vector2(-0.14, -0.14), 0.085],
-	["fire", "撃つ", Vector2(-0.33, -0.12), 0.075],
-	["sword", "斬る", Vector2(-0.27, -0.30), 0.075],
-	["dash", "ダッシュ", Vector2(-0.10, -0.36), 0.065],
-	["special", "特殊", Vector2(-0.45, -0.27), 0.06],
-	["lock_on", "ロック", Vector2(-0.44, -0.08), 0.06],
-	["heal", "回復", Vector2(-0.10, -0.54), 0.05],
+	["jump", "ジャンプ\n調べる", Vector2(-0.13, -0.15), 0.085],
+	["fire", "撃つ", Vector2(-0.33, -0.13), 0.075],
+	["sword", "斬る", Vector2(-0.27, -0.33), 0.07],
+	["dash", "ダッシュ", Vector2(-0.09, -0.37), 0.06],
+	["special", "特殊", Vector2(-0.47, -0.28), 0.058],
+	["lock_on", "ロック", Vector2(-0.50, -0.10), 0.058],
+	["heal", "回復", Vector2(-0.10, -0.55), 0.05],
 ]
+## 上の段（右上の「目的」の表示の下）
 const TOP_BUTTONS := [
-	["pause", "ポーズ", Vector2(-0.09, 0.08), 0.05],
-	["camera_reset", "背後", Vector2(-0.21, 0.08), 0.05],
+	["pause", "ポーズ", Vector2(-0.09, 0.21), 0.05],
+	["camera_reset", "背後", Vector2(-0.22, 0.21), 0.05],
 ]
+
+signal activated
 
 var active := false
 ## ロックオンの入り切り（押すたびに切り替え）
@@ -59,6 +62,7 @@ func activate() -> void:
 	if active:
 		return
 	active = true
+	activated.emit()
 	# 画面に触れると、マウスの左・右クリックとしても届く（メニューのボタンを押せるように）。
 	# そのままだと触れるたびに撃ってしまうので、マウスのボタンの割り当てを外す
 	for a in ["fire", "lock_on", "camera_reset"]:
@@ -69,6 +73,7 @@ func activate() -> void:
 
 func set_shown(on: bool) -> void:
 	visible = active and on
+	_draw.queue_redraw()
 	if not visible:
 		_release_all()
 
@@ -200,7 +205,12 @@ func end_frame() -> void:
 
 func _on_draw() -> void:
 	var font := ThemeDB.fallback_font
-	var h := _draw.get_viewport_rect().size.y
+	var vs := _draw.get_viewport_rect().size
+	var h := vs.y
+	if vs.x < vs.y:
+		_draw.draw_rect(Rect2(Vector2.ZERO, vs), Color(0, 0, 0, 0.6))
+		_draw.draw_string(font, Vector2(0, vs.y * 0.5), "スマホを横向きにしてください", HORIZONTAL_ALIGNMENT_CENTER, vs.x, int(vs.x * 0.06), Color.WHITE)
+		return
 	if _stick_finger >= 0:
 		_draw.draw_circle(_stick_origin, STICK_RADIUS, Color(1, 1, 1, 0.12))
 		_draw.draw_arc(_stick_origin, STICK_RADIUS, 0, TAU, 48, Color(1, 1, 1, 0.35), 3.0)

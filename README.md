@@ -4,7 +4,7 @@
 現在は **MVP（遊びの骨格を確かめる試遊版）** の段階。見た目は仮。エンジンは **Godot 4.5**（2026-09-28 に three.js から移行）。
 
 - 試遊版（本来の画質）：GitHub のリリース「[playtest](https://github.com/hassy0511/project-relic/releases/tag/playtest)」の Windows 版・Linux 版
-- 試遊版（ブラウザ・軽い画質）：https://hassy0511.github.io/project-relic/
+- 試遊版（ブラウザ・軽い画質）：https://hassy0511.github.io/project-relic/ （スマホでも横向きで操作できる）
 - 以前の three.js 版：https://hassy0511.github.io/project-relic/threejs/
 - 企画・設計：[`docs/`](docs/README.md)。Godot 版の構成は [`docs/design/41_Godot版の技術構成.md`](docs/design/41_Godot版の技術構成.md)
 

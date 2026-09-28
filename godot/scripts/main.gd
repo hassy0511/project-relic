@@ -41,6 +41,7 @@ func _ready() -> void:
 	input.touch = touch
 	if args.has("touch") or (DisplayServer.is_touchscreen_available() and OS.has_feature("web")):
 		touch.activate()
+	touch.activated.connect(func(): menu.touch_mode = true)
 	audio = GameAudio.new()
 	add_child(audio)
 	sun = EnvironmentSetup.build(self)
@@ -58,6 +59,7 @@ func _ready() -> void:
 	add_child(menu)
 	menu.moved.connect(func(): audio.play("ui_move"))
 	menu.chosen.connect(func(): audio.play("ui_ok"))
+	menu.touch_mode = touch.active
 	perf = Hud.make_label("", 16)
 	perf.position = Vector2(32, 150)
 	perf.visible = false
