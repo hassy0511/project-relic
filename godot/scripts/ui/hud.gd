@@ -198,7 +198,7 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 
 	# 調べる・話すの案内
 	var f = game.focus
-	var btn := "A" if device == "pad" else "Space"
+	var btn := "A" if device == "pad" else ("ジャンプ" if device == "touch" else "Space")
 	_prompt.text = "[%s] %s" % [btn, f.prompt] if f != null and game.story.dialogue.is_empty() else ""
 
 	# ロックオンの照準

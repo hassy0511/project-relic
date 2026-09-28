@@ -19,6 +19,8 @@ var _flick_accum := 0.0
 var _flick_cooldown := 0.0
 var _pad_flick_ready := true
 var _one_shot := {}
+## スマホの画面の操作（main が作って渡す。無いときは null）
+var touch: TouchControls = null
 
 
 static func setup_actions() -> void:
@@ -69,7 +71,7 @@ static func setup_actions() -> void:
 func _input(event: InputEvent) -> void:
 	if event is InputEventJoypadButton or (event is InputEventJoypadMotion and absf(event.axis_value) > 0.3):
 		last_device = "pad"
-	elif event is InputEventKey or event is InputEventMouseButton:
+	elif event is InputEventKey or (event is InputEventMouseButton and not (touch and touch.active)):
 		last_device = "keyboard"
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		_mouse += event.relative
@@ -85,6 +87,8 @@ func _input(event: InputEvent) -> void:
 
 ## 一度だけの操作（ポーズ等）を取り出す
 func take_one_shot(a: String) -> bool:
+	if touch and touch.take_one_shot(a):
+		return true
 	if _one_shot.has(a):
 		_one_shot.erase(a)
 		return true
@@ -153,6 +157,30 @@ func sample(dt: float) -> InputFrame:
 		f.look_x += rx * absf(rx) * PAD_SENS * dt
 		f.look_y += ry * absf(ry) * PAD_SENS * 0.7 * dt * inv
 		f.look_active = true
+	if touch and touch.visible:
+		_merge_touch(f)
 	if take_one_shot("camera_reset"):
 		f.camera_reset = true
 	return f
+
+
+## 画面の操作を混ぜる（スティックが倒れていればそちらを優先）
+func _merge_touch(f: InputFrame) -> void:
+	if touch.move.length() > 0.08:
+		f.move_x = touch.move.x
+		f.move_y = touch.move.y
+		last_device = "touch"
+	var lk := touch.take_look()
+	if lk != Vector2.ZERO:
+		f.look_x += lk.x
+		f.look_y += lk.y * (-1.0 if invert_y else 1.0)
+		f.look_active = true
+	for b in BUTTONS:
+		if touch.button(b):
+			f.set(b, true)
+			last_device = "touch"
+	var sw := touch.take_switch()
+	if sw != 0:
+		f.switch_left = sw < 0
+		f.switch_right = sw > 0
+	touch.end_frame()

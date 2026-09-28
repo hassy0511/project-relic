@@ -3,6 +3,7 @@ extends Node
 ## 引数：-- --demo=<出力フォルダ>  自動の見本（起動 → 会話 → 戦闘 → 斬撃 → ドリル）を進めて各場面を撮り、終了する
 ##       -- --haru=a                ハルを以前の試作にする（既定は絵から起こした haru_r。proxy で MVP の仮、b で AI 変換）。F2 で切り替え
 ##       -- --shade=toon            3 段の塗り分け
+##       -- --touch                 スマホの画面の操作を出す（スマホのブラウザでは自動で出る）
 
 const SAVE_PATH := "user://save_slot1.json"
 const AREA_ID := "area.mvp"
@@ -25,6 +26,7 @@ var sun: DirectionalLight3D
 var args := {}
 var demo: Demo = null
 var haru_path := ""
+var touch: TouchControls
 
 
 func _ready() -> void:
@@ -34,6 +36,11 @@ func _ready() -> void:
 	InputSource.setup_actions()
 	input = InputSource.new()
 	add_child(input)
+	touch = TouchControls.new()
+	add_child(touch)
+	input.touch = touch
+	if args.has("touch") or (DisplayServer.is_touchscreen_available() and OS.has_feature("web")):
+		touch.activate()
 	audio = GameAudio.new()
 	add_child(audio)
 	sun = EnvironmentSetup.build(self)
@@ -177,7 +184,7 @@ func pause() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if state == "playing" and event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+	if state == "playing" and event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not touch.active:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if event is InputEventKey and event.pressed and event.physical_keycode == KEY_F1:
 		perf.visible = not perf.visible
@@ -209,6 +216,7 @@ func _physics_process(dt: float) -> void:
 
 
 func _process(dt: float) -> void:
+	touch.set_shown(state == "playing" and demo == null or (demo != null and args.has("touch") and state == "playing"))
 	if game and state == "playing":
 		hud.sync(game, camera, dt)
 	if perf.visible:
