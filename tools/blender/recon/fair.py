@@ -51,23 +51,26 @@ import numpy as np  # noqa: E402
 from scipy import ndimage as ndi  # noqa: E402
 from scipy import sparse  # noqa: E402
 
+from recon import char as CH  # noqa: E402
 from recon import views as V  # noqa: E402
 
-REAL = ('front', 'side_right', 'three_quarter')
+REAL = CH.p('fair.REAL', ('front', 'side_right', 'three_quarter'))
 T0 = time.time()
 
 # 部位の境（m）。頭はあご（身長 / 4.4 頭身）より少し上から、手は手首より先
-HEAD_Z = (1.19, 1.24)          # 体のレンズに真横のレンズを足し始める高さ（首より上は hair.py の頭に置き換わる）
-BODY_TOP = 1.203               # 体の場の上の端（えり・フードの上の縁）。これより上は hair.py の頭
+HEAD_Z = CH.p('fair.HEAD_Z', (1.19, 1.24))         # 体のレンズに真横のレンズを足し始める高さ（首より上は hair.py の頭に置き換わる）
+BODY_TOP = CH.p('fair.BODY_TOP', 1.203)              # 体の場の上の端（えり・フードの上の縁）。これより上は hair.py の頭
 # のどの前の切り取り：右真横の絵の外形は、えりの上の縁の高さ（1.19〜1.20）では、あごの下まで前へ出ている。
 # 体のレンズがそのまま前へ出ると、あごの下に平らな棚（上の面が茶色の帯・こぶに見えた）ができる。
 # 首の前の面（W1-00b の haru_neck.png と右真横の絵：のどの前は y ≈ -0.03、胸の上 z 1.14 で y ≈ -0.075 へ
 # なだらかに下がる）より前の体を切る。節 (z, y) の間は線形。首の楕円柱の前（y = -0.032）へ段なしにつながるように。
-THROAT_CUT = {'z': (1.135, 1.160, 1.175, 1.190, 1.25), 'y': (-0.090, -0.047, -0.036, -0.030, -0.030)}
+THROAT_CUT = CH.p('fair.THROAT_CUT', {'z': (1.135, 1.160, 1.175, 1.190, 1.25),
+                                       'y': (-0.090, -0.047, -0.036, -0.030, -0.030)})
+SHOE_Z = CH.p('fair.SHOE_Z', (0.12, 0.17))   # これより下（くるぶしより下の靴）はレンズを使わない
 TRIM_VIEWS = ('front', 'side_right')   # 体を切る視体積の視点
-LEG_Z = (0.54, 0.59)          # これより下（股より下）は脚：行のすべてに同じ奥行きの倍率
-LEG_DEPTH_MAX = 1.5            # 脚の奥行きの倍率の上限（丸い断面より太らせてよい）
-HAND_ROWS = (0.60, 0.77)       # この高さの間の行（手首より先の手と指）は、目標の外形をならさない（指の間を埋めない）
+LEG_Z = CH.p('fair.LEG_Z', (0.54, 0.59))         # これより下（股より下）は脚：行のすべてに同じ奥行きの倍率
+LEG_DEPTH_MAX = CH.p('fair.LEG_DEPTH_MAX', 1.5)           # 脚の奥行きの倍率の上限（丸い断面より太らせてよい）
+HAND_ROWS = CH.p('fair.HAND_ROWS', (0.60, 0.77))      # この高さの間の行（手首より先の手と指）は、目標の外形をならさない（指の間を埋めない）
 
 # 既定の値（carve.py の報告にも書く）
 PARAMS = {
@@ -142,7 +145,7 @@ def _head_morph(masks: dict[str, np.ndarray], cams: dict[str, V.Cam], radius_m: 
     return out
 
 
-def closed_masks(masks, cams, radius_m: float = 0.02, z0: float = 1.21) -> dict[str, np.ndarray]:
+def closed_masks(masks, cams, radius_m: float = 0.02, z0: float = CH.p('fair.HEAD_CLOSE_Z', 1.21)) -> dict[str, np.ndarray]:
     """頭の外形の切り欠き（房の間・あごの下）を円で閉じた外形"""
     return _head_morph(masks, cams, radius_m, z0, 'close')
 
@@ -259,7 +262,7 @@ class Lens:
         Lf = np.where(dy < 0, (Hp * Sf + Hn)[:, :, None] + dy, (Hp * Sb + Hn)[:, :, None] - dy).astype(np.float32)
         del dy
         # 靴：レンズを使わない（大きな値にして、あとで視体積で切る）
-        Lf += (1 - ramp(zs, 0.12, 0.17)).astype(np.float32)[:, None, None] * 0.2
+        Lf += (1 - ramp(zs, *SHOE_Z)).astype(np.float32)[:, None, None] * 0.2
         # 真横のレンズ（頭の高さだけ）
         Ls = Hs[:, None, :] - np.abs(xs[None, :, None] - cs[:, None, None]).astype(np.float32)
         w_side = ramp(zs, HEAD_Z[0] - 0.02, HEAD_Z[1] - 0.02).astype(np.float32)[:, None, None]

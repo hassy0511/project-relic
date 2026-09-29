@@ -1,11 +1,11 @@
 """多視点の絵（正面・背面・右真横・右前斜め、追加の左真横・左右の前 45 度・腕の無い右真横）の「カメラ」と「外形のマスク」。
 
-ハルの 3D を、画家（Codex）が描いた多視点の絵から起こす（再構築する）ための共通の土台。
+キャラクター（ハル・ヤーナ。chars/<id>.json、char.py）の 3D を、画家（Codex）が描いた多視点の絵から起こす（再構築する）ための共通の土台。
 絵は正投影に近いので、各視点を「水平な向きの正投影カメラ」として扱う。
 
 ■ 座標の約束（tools/blender/lib/common.py と同じ）
   Blender は Z が上。キャラクターの正面は -Y、本人の左が +X。
-  身長 1.55m（髪の先〜靴底）、靴底が z=0、胴の中心が x=0, y=0。
+  身長 1.55m（髪の先〜靴底。どのキャラクターも再構築はこの基準の身長で行う）、靴底が z=0、胴の中心が x=0, y=0。
 
 ■ カメラの表し方
   方位角 azimuth（度）：キャラクターから見たカメラの位置の向き。
@@ -21,7 +21,7 @@
   右前斜めの絵を反転すると、左前斜め（方位角 -a）から見た絵の代わりになる
   （体が左右対称だと仮定できる部分だけに使うこと。carve.py を参照）。
 
-■ 較正の結果（build/recon/calib.json、carve.py で追い込んだもの）
+■ 較正の結果（<作業のフォルダ>/calib.json、carve.py で追い込んだもの）
   views.<視点>: azimuth_deg, direction, image_right, image_up, pixels_per_meter, u0, v0
   右前斜めは発注では 45 度だが、絵は約 31 度で描かれている（左右の手足の間隔の比から。carve.py を参照）。
   追加の絵（W1-00b）：左真横（-90 度）、右前・左前の斜め（手足の間隔の比から、それぞれ約 +43・-44 度）、
@@ -38,44 +38,33 @@ import json
 import math
 import os
 import subprocess
+import sys
 from dataclasses import dataclass, field
 
 import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 
-REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-WORK = os.path.join(REPO, 'build', 'recon')
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from recon import char as CH  # noqa: E402
+
+REPO = CH.REPO
+WORK = CH.WORK                      # 作業のフォルダ（ハルは build/recon。キャラクターの設定 chars/<id>.json の work）
 SRC = os.path.join(WORK, 'src')
-ART_REF = 'origin/art/w1-haru3d'
-ART_DIR = 'art/concepts/W1_haru_3d'
-HEIGHT = 1.55
+ART_REF = CH.CFG['art']['ref']
+ART_DIR = CH.CFG['art']['dir']
+HEIGHT = CH.RECON_HEIGHT            # 再構築の座標の身長（1.55m。本来の身長へは骨付けの段で拡大する）
 IMG = 2048
 
-# 全身の 4 枚。azimuth は最初の値（右前斜めは較正で追い込む）
-VIEWS: dict[str, dict] = {
-    'front': {'file': 'haru_3d_front.png', 'azimuth': 0.0},
-    'back': {'file': 'haru_3d_back.png', 'azimuth': 180.0},
-    'side_right': {'file': 'haru_3d_side_right.png', 'azimuth': 90.0},
-    'three_quarter': {'file': 'haru_3d_three_quarter.png', 'azimuth': 45.0},
-    # W1-00b の追加の絵（2026-09。頭頂 125 行・足の裏 1922 行・中心 1024 列で、W1-00 の正面とそろう）
-    'side_left': {'file': 'haru_3d_side_left.png', 'azimuth': -90.0},
-    'front_right45': {'file': 'haru_3d_front_right45.png', 'azimuth': 45.0},
-    'front_left45': {'file': 'haru_3d_front_left45.png', 'azimuth': -45.0},
-    # 右真横から両腕を肩で外した絵：胴の横・帯・ポーチ・ズボンの横の色だけに使う（外形は腕が無いので形には使わない）
-    'side_right_noarms': {'file': 'haru_3d_side_right_noarms.png', 'azimuth': 90.0},
-}
+# 全身の絵。azimuth は最初の値（斜めは較正で追い込む）。ハルの一覧：
+#   front・back・side_right・three_quarter（約 31 度の古い右前斜め）、W1-00b の追加の絵（頭頂 125 行・足の裏 1922 行・
+#   中心 1024 列で W1-00 の正面とそろう）side_left・front_right45・front_left45、
+#   side_right_noarms（右真横から両腕を肩で外した絵：胴の横・帯・ポーチ・ズボンの横の色だけに使う。外形は腕が無いので形には使わない）
+# ヤーナには約 31 度の絵が無いので、three_quarter の役（形に使う斜め）に右前 45 度の絵を当てる（chars/yana.json）
+VIEWS: dict[str, dict] = {k: dict(v) for k, v in CH.CFG['views'].items()}
 # 形の外形として使ってよい全身の絵（腕の無い絵は除く）
-SHAPE_VIEWS = ('front', 'back', 'side_right', 'three_quarter', 'side_left', 'front_right45', 'front_left45')
-SOURCE_FILES = [
-    'haru_3d_front.png', 'haru_3d_back.png', 'haru_3d_side_right.png', 'haru_3d_three_quarter.png',
-    'haru_face_front.png', 'haru_face_expressions.png', 'spark_gun_side.png', 'spark_gun_3d.png',
-    'light_blade_gauntlet.png', 'spec_haru_3d.md',
-    # W1-00b の追加の絵
-    'haru_3d_side_left.png', 'haru_3d_front_right45.png', 'haru_3d_front_left45.png',
-    'haru_3d_side_right_noarms.png', 'haru_head_side_right.png', 'haru_head_back.png', 'haru_head_top.png',
-    'haru_head_front_right45.png', 'haru_neck.png', 'haru_hands.png', 'haru_shoes.png', 'spec_haru_3d_add.md',
-]
+SHAPE_VIEWS = tuple(CH.CFG['shape_views'])
+SOURCE_FILES = list(CH.CFG['source_files'])
 
 
 # ---------------------------------------------------------------- 元の絵

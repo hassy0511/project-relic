@@ -1,4 +1,4 @@
-"""多視点の絵からハルの形を起こす（再構築）：較正 → なめらかな形の場 → 外形に留めた面 → 部位ごとの UV。
+"""多視点の絵からキャラクター（chars/<id>.json）の形を起こす（再構築）：較正 → なめらかな形の場 → 外形に留めた面 → 部位ごとの UV。
 
 ■ 使い方（.venv-blender の python で動かす。bpy をモジュールとして使うので Blender の画面は要らない）
   python tools/blender/recon/views.py                 元の絵の取り出し・マスク・最初の較正
@@ -75,11 +75,18 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import numpy as np  # noqa: E402
 from scipy import ndimage as ndi  # noqa: E402
 
+from recon import char as CH  # noqa: E402
 from recon import views as V  # noqa: E402
 
-REAL = ('front', 'side_right', 'three_quarter')
+REAL = CH.p('carve.REAL', ('front', 'side_right', 'three_quarter'))
 T0 = time.time()
-OUT = V.WORK   # 形・メッシュ・確認画像の出力先（--variant で build/recon/variants/<名前>/ に変わる）
+OUT = V.WORK   # 形・メッシュ・確認画像の出力先（--variant で <作業のフォルダ>/variants/<名前>/ に変わる）
+MESH = f'{CH.ID}_mesh'   # 出力のファイル名の頭（haru_mesh.glb など）
+# 斜めの絵の方位角を測る高さ（すね、前腕〜肘）と、部位の分け（手：|x| がこれより外で、この高さより下）
+LIMB_RATIO_Z = CH.p('carve.LIMB_RATIO_Z', ((0.16, 0.36), (0.68, 0.93)))
+HAND_REGION = CH.p('carve.HAND_REGION', (0.31, 0.85))
+# 頭の下端（首より上）：身長の 4.4 頭身から。頭は約 1.55/4.4 = 0.35m
+HEAD_Z = CH.p('carve.HEAD_Z', V.HEIGHT - V.HEIGHT / 4.4)
 
 
 def log(*a) -> None:
@@ -182,14 +189,14 @@ def estimate_three_quarter_azimuth(cams: dict[str, V.Cam], masks: dict[str, np.n
     def big(rs, w=30):
         return [r for r in rs if r[1] - r[0] > w]
 
-    for z in np.arange(0.16, 0.36, 0.005):   # すね（左右の脚が離れ、形が単純な高さ）
+    for z in np.arange(LIMB_RATIO_Z[0][0], LIMB_RATIO_Z[0][1], 0.005):   # すね（左右の脚が離れ、形が単純な高さ）
         rf = big(V.runs(masks['front'][int(f.v_of(z))]))
         rt = big(V.runs(masks[name][int(t.v_of(z))]))
         if len(rf) == 2 and len(rt) == 2:
             cf = [(a + b) / 2 for a, b in rf]
             ct = [(a + b) / 2 for a, b in rt]
             rows.append(('leg', float(z), (ct[1] - ct[0]) / (cf[1] - cf[0])))
-    for z in np.arange(0.68, 0.93, 0.005):   # 前腕〜肘（腕が胴から離れている高さ）
+    for z in np.arange(LIMB_RATIO_Z[1][0], LIMB_RATIO_Z[1][1], 0.005):   # 前腕〜肘（腕が胴から離れている高さ）
         rf = big(V.runs(masks['front'][int(f.v_of(z))]))
         rt = big(V.runs(masks[name][int(t.v_of(z))]))
         if len(rf) == 3 and len(rt) == 3:
@@ -411,7 +418,7 @@ def region_of(co: np.ndarray, head_z: float) -> np.ndarray:
     """頂点の部位：0 = 体、1 = 頭（首より上）、2 = 手（手首から先）"""
     reg = np.zeros(len(co), np.int8)
     reg[co[:, 2] > head_z] = 1
-    reg[(np.abs(co[:, 0]) > 0.31) & (co[:, 2] < 0.85)] = 2
+    reg[(np.abs(co[:, 0]) > HAND_REGION[0]) & (co[:, 2] < HAND_REGION[1])] = 2
     return reg
 
 
@@ -525,7 +532,7 @@ def blender_mesh(P: np.ndarray, faces: np.ndarray, target_tris: int, head_z: flo
     from lib import common as C
 
     C.reset_scene()
-    me = bpy.data.meshes.new('haru')
+    me = bpy.data.meshes.new(CH.ID)
     me.vertices.add(len(P))
     me.vertices.foreach_set('co', P.astype(np.float32).ravel())
     me.loops.add(len(faces) * 3)
@@ -534,7 +541,7 @@ def blender_mesh(P: np.ndarray, faces: np.ndarray, target_tris: int, head_z: flo
     me.polygons.foreach_set('loop_start', (np.arange(len(faces)) * 3).astype(np.int32))
     me.update(calc_edges=True)
     me.validate()
-    obj = bpy.data.objects.new('haru', me)
+    obj = bpy.data.objects.new(CH.ID, me)
     bpy.context.scene.collection.objects.link(obj)
     bpy.context.view_layer.objects.active = obj
     obj.select_set(True)
@@ -647,7 +654,7 @@ def blender_mesh(P: np.ndarray, faces: np.ndarray, target_tris: int, head_z: flo
     me = obj.data
     log('UV', {k: v for k, v in report['uv'].items() if k != 'parts'})
 
-    mat = C.material('haru_body', (0.6, 0.6, 0.6), roughness=0.8)
+    mat = C.material(CH.MAT_BODY, (0.6, 0.6, 0.6), roughness=0.8)
     obj.data.materials.append(mat)
     obj.vertex_groups.clear()
 
@@ -664,12 +671,12 @@ def blender_mesh(P: np.ndarray, faces: np.ndarray, target_tris: int, head_z: flo
     me.vertices.foreach_get('co', co)
     tri = np.empty(len(me.loop_triangles) * 3, np.int32)
     me.loop_triangles.foreach_get('vertices', tri)
-    np.savez_compressed(os.path.join(OUT, 'haru_mesh.npz'), verts=co.reshape(-1, 3), tris=tri.reshape(-1, 3))
+    np.savez_compressed(os.path.join(OUT, f'{MESH}.npz'), verts=co.reshape(-1, 3), tris=tri.reshape(-1, 3))
     bpy.ops.object.select_all(action='DESELECT')
     obj.select_set(True)
-    C.export_glb(os.path.join(OUT, 'haru_mesh.glb'), animations=False)
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, 'haru_mesh.blend'))
-    log('書き出し', os.path.join(OUT, 'haru_mesh.glb'))
+    C.export_glb(os.path.join(OUT, f'{MESH}.glb'), animations=False)
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, f'{MESH}.blend'))
+    log('書き出し', os.path.join(OUT, f'{MESH}.glb'))
 
 
 def _uv_islands(bm, uv) -> list[list]:
@@ -773,8 +780,7 @@ def main() -> None:
         report['hull'] = build_hull(cams, masks, args.vox)
 
     if args.stage in ('all', 'mesh', 'blender', 'surface'):
-        # 頭の下端（首より上）：身長の 4.4 頭身から。頭は約 1.55/4.4 = 0.35m
-        head_z = V.HEIGHT - V.HEIGHT / 4.4
+        head_z = HEAD_Z
         surf = os.path.join(OUT, 'surface.npz')
         if args.stage == 'blender':
             # 面を整えたあとの面（surface.npz）から、Blender の段だけをやり直す
@@ -788,7 +794,7 @@ def main() -> None:
         blender_mesh(P, faces, args.target_tris, head_z, report['mesh'])
         from recon import check, surfcheck
         report['check'] = check.run(OUT)
-        d = np.load(os.path.join(OUT, 'haru_mesh.npz'))
+        d = np.load(os.path.join(OUT, f'{MESH}.npz'))
         report['surf_check'] = [os.path.basename(p) for p in
                                 surfcheck.run(d['verts'], d['tris'], os.path.join(OUT, 'surf_check'), samples=32)]
         from recon import uvcheck

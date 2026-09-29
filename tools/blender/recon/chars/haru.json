@@ -1,0 +1,39 @@
+{
+  "id": "haru",
+  "name": "ハル",
+  "art": {"ref": "origin/art/w1-haru3d", "dir": "art/concepts/W1_haru_3d"},
+  "work": "build/recon",
+  "height_m": 1.55,
+  "recon_height_m": 1.55,
+  "out_glb": "godot/assets/models/haru_r.glb",
+  "views": {
+    "front": {"file": "haru_3d_front.png", "azimuth": 0.0},
+    "back": {"file": "haru_3d_back.png", "azimuth": 180.0},
+    "side_right": {"file": "haru_3d_side_right.png", "azimuth": 90.0},
+    "three_quarter": {"file": "haru_3d_three_quarter.png", "azimuth": 45.0},
+    "side_left": {"file": "haru_3d_side_left.png", "azimuth": -90.0},
+    "front_right45": {"file": "haru_3d_front_right45.png", "azimuth": 45.0},
+    "front_left45": {"file": "haru_3d_front_left45.png", "azimuth": -45.0},
+    "side_right_noarms": {"file": "haru_3d_side_right_noarms.png", "azimuth": 90.0}
+  },
+  "shape_views": ["front", "back", "side_right", "three_quarter", "side_left", "front_right45", "front_left45"],
+  "texture_only_views": ["side_right_noarms"],
+  "source_files": [
+    "haru_3d_front.png", "haru_3d_back.png", "haru_3d_side_right.png", "haru_3d_three_quarter.png",
+    "haru_face_front.png", "haru_face_expressions.png", "spark_gun_side.png", "spark_gun_3d.png",
+    "light_blade_gauntlet.png", "spec_haru_3d.md",
+    "haru_3d_side_left.png", "haru_3d_front_right45.png", "haru_3d_front_left45.png",
+    "haru_3d_side_right_noarms.png", "haru_head_side_right.png", "haru_head_back.png", "haru_head_top.png",
+    "haru_head_front_right45.png", "haru_neck.png", "haru_hands.png", "haru_shoes.png", "spec_haru_3d_add.md"
+  ],
+  "face": {
+    "file": "haru_face_front.png",
+    "expressions_file": "haru_face_expressions.png",
+    "expressions": ["normal", "smile", "surprise", "pain"]
+  },
+  "gun": {"sources": ["spark_gun_side.png", "spark_gun_3d.png"]},
+  "rig_args": ["--gun", "{work}/spark_gun.glb", "--blade-anchor", "auto", "--rest-arm-deg", "12",
+               "--fill-unweighted", "0.2", "--grip-fist", "0,1,0", "--fist-shapekey", "--rigid-parts"],
+  "stages_skip": [],
+  "params": {}
+}
