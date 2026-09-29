@@ -1,6 +1,6 @@
 {
   "id": "yana",
-  "name": "ヤーナ",
+  "name": "\u30e4\u30fc\u30ca",
   "art": {
     "ref": "origin/art/w1-yana",
     "dir": "art/concepts/W1_yana"
@@ -717,32 +717,6 @@
       1460,
       1640
     ],
-    "hair.LOCK_RINGS": [
-      [
-        30,
-        5,
-        45,
-        0.05,
-        0.11,
-        0.5
-      ],
-      [
-        58,
-        6,
-        40,
-        0.045,
-        0.11,
-        0.0
-      ],
-      [
-        80,
-        6,
-        18,
-        0.02,
-        0.09,
-        0.5
-      ]
-    ],
     "snap.LEFT_ARM_GAIN": 0.8,
     "texture.EAR_SKIN": true,
     "texture.VIEW_GAIN": {
@@ -765,8 +739,6 @@
       "front_left45": 8.0,
       "three_quarter": 8.0
     },
-    "hair.LOCK_LIFT_MAX": 0.11,
-    "hair.LOCK_WIDTH_MAX": 0.12,
     "texture.APRON_SIDE": {
       "z": [
         0.56,
