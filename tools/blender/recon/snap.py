@@ -275,6 +275,44 @@ def right_arm_target(X: np.ndarray, cams: dict[str, V.Cam], arm_mask: np.ndarray
             'y': np.interp(zb, zb[ok], y0[ok] + ARM_ALIGN_GAIN * (ya[ok] - y0[ok]))}
 
 
+# 左の前腕と手も、左真横の絵の腕の肌の色の前後の中点へ動かす（ヤーナ：左右の腕の前後の位置が絵で違い、体のレンズの
+# 左右対称の腕の位置では、左真横の絵の腕が胴の上に写った。ハルは使わない）。値は動かす割合（0 で使わない）
+LEFT_ARM_GAIN = CH.p('snap.LEFT_ARM_GAIN', 0.0)
+# 斜めの絵の外形へ縁を寄せない靴底の高さ（0 で使わない）
+SOLE_SKIP_Z = CH.p('snap.SOLE_SKIP_Z', 0.0)
+
+
+def left_arm_target(X: np.ndarray, cams: dict[str, V.Cam], bin_m: float = 0.01) -> dict | None:
+    """左の前腕と手の前後の中点の目標：左真横の絵の、腕の高さの肌の色のいちばん大きい塊（前腕と指）の中点へ LEFT_ARM_GAIN"""
+    if LEFT_ARM_GAIN <= 0 or 'side_left' not in cams:
+        return None
+    from recon import hair, uvparts
+    c = cams['side_left']
+    sk = hair.skin_mask('side_left')
+    band = np.zeros_like(sk)
+    band[int(c.v_of(ARM_Z[1])):int(c.v_of(ARM_Z[0]))] = True
+    sk &= band
+    lab, n = ndi.label(sk)
+    if n == 0:
+        return None
+    sizes = ndi.sum(sk, lab, range(1, n + 1))
+    m = lab == (int(np.argmax(sizes)) + 1)
+    reg = uvparts.region_of_point(X, V.HEIGHT - V.HEIGHT / 4.4)
+    arm = np.isin(reg, (3, 5)) & (X[:, 2] > ARM_Z[0] - 0.05) & (X[:, 2] < ARM_BLEND_Z[1])
+    zb = np.arange(ARM_Z[0], ARM_Z[1] + 1e-9, bin_m)
+    y0 = _arm_centres(X, arm, zb, bin_m)
+    ya = np.full(len(zb), np.nan)
+    for i, z in enumerate(zb):
+        cols = np.nonzero(m[int(c.v_of(z))])[0]
+        if len(cols) >= 10:
+            ya[i] = ((cols.min() + cols.max() + 1) / 2 - c.u0) / c.ppm   # 左真横の画像の右は +Y
+    ok = np.isfinite(y0) & np.isfinite(ya)
+    if ok.sum() < 5:
+        return None
+    return {'arm': arm, 'zb': zb, 'bin_m': bin_m,
+            'y': np.interp(zb, zb[ok], y0[ok] + LEFT_ARM_GAIN * (ya[ok] - y0[ok]))}
+
+
 def align_right_arm(X: np.ndarray, tgt: dict | None, log=print) -> np.ndarray:
     """右の前腕と手を前後（y）だけに動かして、高さごとの中点を目標（right_arm_target）にそろえる（本文の最後）"""
     if tgt is None:
@@ -316,6 +354,9 @@ def fair_mesh(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], masks: d
     # 縁を寄せない：寄せると指が内へ削られて、先のとがった爪のような指になった。正面の外形のふくらみのまま
     l_hand = (X[:, 0] > 0.30) & (X[:, 2] < 0.80)
     skip = {'three_quarter': r_fore | l_hand, 'side_right': l_hand}
+    if SOLE_SKIP_Z > 0:
+        # 靴底（ヤーナ）：斜めの絵では左右の靴が重なり、縁を寄せると靴の間の地面の高さにひれができた
+        skip['three_quarter'] = skip['three_quarter'] | (X[:, 2] < SOLE_SKIP_Z)
     inward = {'side_right': left_arm}
     # 左の前腕（肘〜手首、籠手）は、右前斜めの外形へは縁ごとではなく、前腕ごと前後に動かす（_shift_groups）。
     # 右前斜めの絵は前腕を丸い腕より太く描いていて、縁だけを寄せると断面が三角（くさび形）になる。
@@ -331,9 +372,12 @@ def fair_mesh(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], masks: d
     E = edges_of(faces)
     arm_tgt = right_arm_target(X, cams, side_arm_mask(cams))
     X = align_right_arm(X, arm_tgt, log=log)
+    left_tgt = left_arm_target(X, cams)
+    X = align_right_arm(X, left_tgt, log=log)
     for it in range(rounds):
         if it == rounds // 2:
             X = align_right_arm(X, arm_tgt, log=log)
+            X = align_right_arm(X, left_tgt, log=log)
         X = X + move * (taubin(X, W, smooth) - X)
         D, st = snap_step(X, faces, cams, sds, W, E, max_px=max_px, spread=spread, skip=skip, shift=shift,
                           inward_only=inward)
@@ -346,5 +390,6 @@ def fair_mesh(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], masks: d
         X = X + move * D
         X = X + move * (taubin(X, W, 1) - X)
     X = align_right_arm(X, arm_tgt, log=log)
+    X = align_right_arm(X, left_tgt, log=log)
     log('  最後の留め', st)
     return X

@@ -403,6 +403,16 @@ def cap_stack(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], p: dict, ski
     a = a * sc
     yf = mid + (yf - mid) * sc
     yb = mid + (yb - mid) * sc
+    uc = CAP.get('undercut')
+    if uc and skin is not None:
+        # 刈り上げ（ヤーナ）：この高さより下の帽子は頭の面（skin）から margin までに締める（横と後ろの髪は短い。
+        # 絵の外形の、下がった長い房で広がった帽子が耳を覆わないように）
+        w = 1.0 - ramp(zs, uc['z'][0], uc['z'][1])
+        m = uc['margin']
+        sa = np.interp(zs, skin.zs, skin.a + m, left=np.nan, right=np.nan)
+        syb = np.interp(zs, skin.zs, skin.cy + skin.bb + m, left=np.nan, right=np.nan)
+        a = np.where(np.isfinite(sa), a - w * np.maximum(a - sa, 0), a)
+        yb = np.where(np.isfinite(syb), yb - w * np.maximum(yb - syb, 0), yb)
     cy = (yf + yb) / 2
     bf, bb = cy - yf, yb - cy
     r = t.r[:2]

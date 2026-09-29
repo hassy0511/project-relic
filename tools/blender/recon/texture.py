@@ -178,6 +178,8 @@ BODY_CLEAN = CH.p('texture.BODY_CLEAN', {'torso_skin_z': 1.10, 'hood_z': (1.10, 
                                         'sleeve_z': 1.01})
 # 絵の腕に遮られうる胴・脚のテクセルの高さの上限（首の肌は頭の近く）
 BLOCK_Z = CH.p('texture.BLOCK_Z', 1.15)
+# 耳のまわりを肌の色にする（hair.py の耳の形が見えるキャラクター。ハルは使わない）
+EAR_SKIN = CH.p('texture.EAR_SKIN', False)
 
 AMBER_HEX = CH.p('texture.AMBER_HEX', '#FFBC52')
 
@@ -749,6 +751,21 @@ def head_cleanup(res: dict) -> None:
     sk = skin_likeness(col)
     skl = skin_likeness(col, loose=True)
     stats = {}
+    if EAR_SKIN and H.PARTS.get('ears'):
+        # 耳（ヤーナ：刈り上げで耳が見える）：耳の形のまわりは髪の側から外し、肌でない色を肌の色（顔の横の肌の中央値）にする
+        e = H.EAR
+        x0 = e.get('x0', 0.0)
+        cx, cy, cz = e['c']
+        ear = np.zeros(len(pos), bool)
+        for sx in (1.0, -1.0):
+            ear |= (((x - x0 - sx * cx) / 0.022) ** 2 + ((y - cy) / 0.03) ** 2 + ((z - cz) / 0.042) ** 2) < 1.0
+        hair_zone &= ~ear
+        ref = np.nonzero(skin_zone & (sk > 0.6))[0]
+        if len(ref) > 50:
+            tone = np.median(col[ref], 0)
+            a_ = (1.0 - skl[ear])[:, None]
+            col[ear] = a_ * tone + (1 - a_) * col[ear]
+        stats['ear'] = int(ear.sum())
     # 髪の側：くすんだ肌色も消す。肌の側：肌の色でないもの（髪・線の暗い色）はすべて消す
     # 肌の側は横を向いた面（ほお・あごの横）だけ：正面・下を向いた面（あごの先・あごの下の影）は正面の絵の
     # とおりが正しい（あごの線・影を消すと顔の材質の縁が見える）
