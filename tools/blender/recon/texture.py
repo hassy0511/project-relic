@@ -12,14 +12,18 @@
 ■ やり方
   1. UV の三角形を numpy で 2048 角に塗り（画素の中心で重心座標を求める）、テクセルごとの世界の位置と
      法線（なめらかな頂点法線の補間）を正確に出す。
-  2. 各視点（正面・背面・右真横・右前斜め）の正投影カメラで、メッシュの奥行き（z バッファ）を同じ塗りで作る。
+  2. 各視点（REAL_VIEWS：正面・背面・右真横・腕の無い右真横・左真横・右前 45 度・左前 45 度。W1-00b の追加の絵）の
+     正投影カメラで、メッシュの奥行き（z バッファ）を同じ塗りで作る。
      テクセルは「その視点の視線で一番手前の面」（奥行きの差 DEPTH_TOL 以内）で、絵の外形のマスクの内側に
      写るときだけ、その視点の色をもらえる。重み = 見える × マスクの縁からの距離 × 奥行きの段差からの距離
      × max(0, n・(-視線))^p。奥行きの段差（腕の縁など）と外形の縁の数 px は重みを落とす
      （絵とメッシュのずれで、腕の色が胴に付くのを防ぐ）。
-  3. 本人の左側を正面から見た絵は無い。右真横と右前斜めの絵を左右反転した「仮想の視点」を、実の視点が
-     よく見ていない所だけ弱い重みで使う。左右で違う部品（右肩の板・右太ももの板・左前腕の籠手）の所では
-     反転を使わない（ASYMMETRIC）。
+  3. 本人の左側は左真横・左前 45 度の実の絵から取る。左の胴の横（左真横の絵では左腕に隠れる）は、腕の無い右真横の
+     絵を左右反転した「仮想の視点」で、実の視点がよく見ていない所だけ弱く補う（左右で違う部品 ASYMMETRIC では使わない）。
+     頭の左側は、右真横・右前 45 度の絵の反転を主に使う（HEAD_MIRROR_VIEWS。形の頭は右の絵に合わせた左右対称の形で、
+     左の絵の髪・耳の位置は形と合わない）。
+  3b. 腕の無い右真横の絵（NOARM_VIEWS）：腕・手のテクセルは色をもらわず、奥行きは腕・手を除いたメッシュで調べる。
+     胴・脚の右の横はこの絵から取り、腕のある右真横の絵は胴・脚には弱く（ARMED_BODY_GAIN）使う。
   4. 色は 2 つの帯に分けて混ぜる：ぼかした色（低い周波数）は広い重み（p=P_LOW）でなめらかに、
      細部（高い周波数 = 色 - ぼかした色）はほぼ一番よく見える視点だけ（p=P_HIGH）から取る。
      視点の間で線が二重になる（ゴースト）のを防ぎつつ、視点の切り替わりの継ぎ目を目立たせない。
@@ -44,6 +48,12 @@
      肌でない近くの色で塗り直す（絵の腕の色の写り、素肌の前腕から塗り足された袖の裏・わきの下）。えり・フードの
      上を向いた面（胴の z < 1.19、n.z > 0.5）で塗り足した所も肌にしない。
   8d. 髪の色合わせ（hair_colour_match）：髪のテクセルの色の平均・ばらつきを正面・背面の絵の髪の画素にそろえる。
+  8e. 首の前（neck_cleanup）：のど・あごの下（NECK_ZONE）の肌でない色を、近くのよく見えている肌の色で塗り直す
+     （haru_neck.png：首の素肌を茶色の帯で横切らない）。
+  8e2. 手（hand_cleanup）：手に写った上着のれんが色を、同じ手の手袋・肌の色で塗り直す（手袋の縞）。
+  8f. 靴底（sole_cleanup）：高さ SOLE_TOP より下の靴は靴底の暗い灰色の一色（視点の継ぎ目のぎざぎざを消す）。
+  8g. 横を向いた髪の細部を弱める（hair_colour_match の中、HAIR_SIDE_DETAIL）：真横・斜めの絵の房の線は形の房と
+     位置が合わないので、3D の近さの平均の色へ寄せ、房の形は形の陰で見せる。
   9. 発光：琥珀色（#FFBC52 付近：ゴーグルのレンズ・膝の継ぎ目・籠手のレール）を探して、発光の
      テクスチャに焼く。その所の下地は EMIT_BASE_DARKEN だけ暗くし、発光の強さは EMIT_STRENGTH（照らされた
      下地 ＋ 発光がおよそ絵の色。飽和してレモン色にならない）。材質は金属 0、粗さ 0.8、片面（閉じた面）。
@@ -817,7 +827,7 @@ def neck_cleanup(res: dict) -> None:
     nz = NECK_ZONE
     zone = ((z > nz['z'][0]) & (z < nz['z'][1]) & (np.abs(x) < nz['x']) & (y < nz['y'])
             & np.isin(res['reg'], (0, 1)))
-    skl = skin_likeness(col, loose=True)
+    skl = skin_likeness(col)
     tgt = np.nonzero(zone & (skl < 0.6))[0]
     src = np.nonzero(zone & (skin_likeness(col) > 0.7) & (res['sl'] >= W_SEED))[0]
     if len(src) < INPAINT_K:   # 首の前によく見えた肌が無ければ、顔の下の肌から
@@ -830,6 +840,27 @@ def neck_cleanup(res: dict) -> None:
     res['col'] = col
     res['neck_cleanup'] = int(len(tgt))
     log(f'首の前の塗り直し {len(tgt):,} テクセル（元の肌 {len(src):,}）')
+
+
+def hand_cleanup(res: dict) -> None:
+    """手（uvparts の部位 4・5）に付いた上着のれんが色を、同じ手の近くの手袋・肌の色で塗り直す。
+
+    真横・斜めの絵の手は、形の手と数 cm ずれて描かれていて、手の横に胴・ズボンのれんが色が写り、手袋が縞に見えた。
+    """
+    pos, nrm, col, reg = res['pos'], res['nrm'], res['col'], res['reg']
+    r, g, b = col[:, 0], col[:, 1], col[:, 2]
+    brick = ramp(r - g, 0.18, 0.28) * ramp(r, 0.45, 0.55) * (1 - ramp(g, 0.52, 0.60))
+    stats = {}
+    for side, rg in (('right', 4), ('left', 5)):
+        hand = reg == rg
+        tgt = np.nonzero(hand & (brick > 0.05))[0]
+        src = np.nonzero(hand & (brick < 0.01) & (res['sl'] >= W_SEED))[0]
+        stats[side] = int(len(tgt))
+        for _ in range(2):
+            _repaint(pos, nrm, col, tgt, src, np.clip(brick[tgt] * 2, 0, 1), 0.008)
+    res['col'] = col
+    res['hand_cleanup'] = stats
+    log(f'手のれんが色の塗り直し {stats}')
 
 
 def sole_cleanup(res: dict) -> None:
@@ -1376,6 +1407,7 @@ def main() -> None:
             head_cleanup(res)
         body_cleanup(res)
         neck_cleanup(res)
+        hand_cleanup(res)
         sole_cleanup(res)
         hair_colour_match(res)
         cov = np.zeros(args.size * args.size, bool)
