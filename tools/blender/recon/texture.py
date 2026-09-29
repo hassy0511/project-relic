@@ -75,15 +75,35 @@ WORK = V.WORK
 TEX_DIR = os.path.join(WORK, 'tex')
 OUT_GLB = os.path.join(WORK, 'haru_textured_apose.glb')
 
-REAL_VIEWS = ('front', 'back', 'side_right', 'three_quarter')
-MIRROR_VIEWS = ('side_right', 'three_quarter')   # 左右反転して本人の左側の代わりに使う視点
-# 視点の重みの倍率。背面はゲームで一番よく見る向き（後ろからのカメラ）なので強め、右真横と右前斜めは
+# 色をもらう実の視点。W1-00b の追加の絵（左真横・左右の前 45 度・腕の無い右真横）で、本人の左側も実の絵から
+# 取る。以前の右前斜め（three_quarter、約 31 度）は 45 度の絵と部品の位置が食い違い、斜めの色がずれたので使わない
+REAL_VIEWS = ('front', 'back', 'side_right', 'side_right_noarms', 'side_left', 'front_right45', 'front_left45')
+# 左右反転して本人の左側の代わりに使う視点：腕の無い右真横だけ（左真横の絵では左腕が胴の横を隠すので、
+# 左の胴の横の色は、実の視点がよく見ていない所だけこれで補う）
+MIRROR_VIEWS = ('side_right_noarms',)
+# 腕の無い絵：腕・手のテクセルは色をもらわず、奥行きは腕・手を除いたメッシュで調べる（絵では胴の横が見えている）
+NOARM_VIEWS = ('side_right_noarms',)
+# 腕の無い絵がある向きの、腕のある絵の胴・脚への重みの倍率（胴の横は腕の無い絵から取る）
+ARMED_BODY_GAIN = {'side_right': 0.12}
+# 視点の重みの倍率。背面はゲームで一番よく見る向き（後ろからのカメラ）なので強め、真横と斜めは
 # 正面・背面から描き起こした絵で部品の位置の食い違いが多いので弱め
-VIEW_GAIN = {'front': 1.0, 'back': 1.2, 'side_right': 0.9, 'three_quarter': 0.9}
-# 向きの「ハンデ」（度）：面と視線の角度にこれを足してから重みを計算する。右真横・右前斜めは、正面・背面より
+VIEW_GAIN = {'front': 1.0, 'back': 1.2, 'side_right': 0.9, 'side_right_noarms': 0.9, 'side_left': 0.9,
+             'front_right45': 0.95, 'front_left45': 0.95, 'three_quarter': 0.9}
+# 向きの「ハンデ」（度）：面と視線の角度にこれを足してから重みを計算する。真横・斜めは、正面・背面より
 # この角度だけよく見えているときだけ勝つ（凸凹の面で視点が細かく入れ替わって縞になるのも防ぐ）
-VIEW_BIAS_DEG = {'front': 0.0, 'back': 0.0, 'side_right': 15.0, 'three_quarter': 8.0}
+VIEW_BIAS_DEG = {'front': 0.0, 'back': 0.0, 'side_right': 15.0, 'side_right_noarms': 15.0, 'side_left': 15.0,
+                 'front_right45': 8.0, 'front_left45': 8.0, 'three_quarter': 8.0}
 MIRROR_GAIN = 0.35         # 反転の視点の重み（実の視点がよく見ていない所だけ）
+# 頭（uvparts の部位 0）の左側：形の頭（hair.py）は右の絵（右真横・右前斜め）に合わせた左右対称の形なので、
+# 左の絵（左真横・左前斜め）の髪・耳・もみあげの位置は形と合わず、ほお・首に髪の暗い色がにじんだ。
+# 頭の左側は右の絵を反転した視点を主に使い、左の絵は弱く
+HEAD_MIRROR_VIEWS = ('side_right', 'front_right45')
+HEAD_MIRROR_GAIN = 0.9
+HEAD_LEFT_VIEW_GAIN = 0.15   # 頭の左側の、左の絵の重みの倍率
+# 靴底：絵（右真横・左真横・正面、haru_shoes.png）では靴底は高さ約 4cm の暗い灰色（#444641 に近い）のゴムの帯。
+# 視点の継ぎ目で靴底の縁がぎざぎざに見えたので、この高さより下の靴は靴底の色の一色に塗る
+SOLE_TOP = 0.039
+SOLE_RGB = (0.265, 0.25, 0.245)
 MIRROR_NDV = (0.25, 0.45)  # 実の視点の一番よい n・v がこの間なら反転を弱め、上なら使わない
 
 P_LOW = 4.0                # ぼかした色の重みの指数：max(0, n・v)^P_LOW
@@ -111,7 +131,7 @@ SKIN_CLEAN_ZMAX = 1.31     # 肌の側で暗い色を消すのはこれより下
 ALIGN_RES = 1024           # 視点の合わせ込み（光学的流れ）の画像の大きさ
 ALIGN_SIGMA = 16.0         # 流れをなめらかにするぼかし（2048 の画素）
 ALIGN_MAX = 40.0           # ずらしの上限（2048 の画素）
-ALIGN_ORDER = ('three_quarter', 'side_right', 'back')   # 正面を基準に、この順で合わせる
+ALIGN_ORDER = ('front_right45', 'front_left45', 'side_right_noarms', 'side_right', 'side_left', 'back')   # 正面を基準に、この順で合わせる
 DEBUG_ALIGN = True
 DILATE_PX = 16             # 島の外を埋める幅の目安（実際は全面を一番近い島の色で埋める）
 ROUGHNESS = 0.8
@@ -123,7 +143,7 @@ EMIT_BASE_DARKEN = 0.55    # 発光の所の下地の色を (1 - これ × 度�
 # メッシュの腕は絵の腕と数 cm ずれるので、メッシュの奥行きでは遮りが分からない。絵の腕・手の画素（メッシュの腕・手を
 # その視点へ投影して ART_OCC_BAND 画素広げた帯の中の、肌・手袋の色）に写る「腕・手でない」テクセルは、
 # その視点の重みを 0 にする（正面の絵・塗り足しが色を出す）
-ART_OCCLUDE_VIEWS = ('side_right', 'three_quarter', 'back')
+ART_OCCLUDE_VIEWS = ('side_right', 'side_left', 'front_right45', 'front_left45', 'three_quarter', 'back')
 ART_OCC_BAND = int(ALIGN_MAX + 10)
 NECK_V_HALF = 0.055       # 首の前の素肌の V の半幅（m。これより外の首まわりはフード・えり）
 HEAD_Z = V.HEIGHT - V.HEIGHT / 4.4   # 部位の分け（uvparts.region_of_point）の頭の高さ（carve.py と同じ）
@@ -504,6 +524,8 @@ def align_view(name: str, d: dict, img: ViewImage, ref_col: np.ndarray, ref_conf
     has = wac > 0.02
     pred = np.where(has[..., None], acc / np.maximum(wac, 1e-12)[..., None], art)
     conf = np.minimum(wac, 1.0)
+    if has.sum() < 2000:   # すでに決めた視点と重なる所がほとんど無い：ずらさない
+        return np.zeros((2, V.IMG, V.IMG), np.float32), {'flow_px_median': 0.0, 'skipped': True}
     t0 = time.time()
     flow = optical_flow_tvl1(gray(pred).astype(np.float32), gray(art).astype(np.float32),
                              attachment=10, tightness=0.3, num_warp=5, num_iter=30)
@@ -525,6 +547,19 @@ def align_view(name: str, d: dict, img: ViewImage, ref_col: np.ndarray, ref_conf
         vis_img = np.concatenate([art, pred, np.clip(0.5 + (pred - art) * 2, 0, 1)], 1)
         save_png(os.path.join(TEX_DIR, f'align_{name}.png'), vis_img)
     return field.astype(np.float32), stats
+
+
+def view_gain(name: str, reg: np.ndarray) -> np.ndarray:
+    """テクセルごとの視点の重みの倍率。腕の無い絵は腕・手に 0、腕の無い絵がある向きの腕のある絵は胴・脚に弱く"""
+    g = np.full(len(reg), VIEW_GAIN[name], np.float32)
+    arm = np.isin(reg, (2, 3, 4, 5))
+    if name in NOARM_VIEWS:
+        g[arm] = 0.0
+    if name in ARMED_BODY_GAIN:
+        g[~arm & (reg != 0)] *= ARMED_BODY_GAIN[name]
+    if name in ('side_left', 'front_left45'):
+        g[reg == 0] *= HEAD_LEFT_VIEW_GAIN
+    return g
 
 
 def bake(mesh: dict, size: int, cams: dict[str, V.Cam], atlas_meta: dict, align: bool = True) -> dict:
@@ -552,13 +587,13 @@ def bake(mesh: dict, size: int, cams: dict[str, V.Cam], atlas_meta: dict, align:
     for name in REAL_VIEWS:
         cam = cams[name]
         img = ViewImage(name, atlas_meta if name == 'front' else None)
-        z = zbuffer(verts, tris, cam)
+        z = zbuffer(verts, tris[~arm_tri] if name in NOARM_VIEWS else tris, cam)
         geo[name] = (img, z, depth_edge_dist(z), near_occluder_depth(z))
         if name in ART_OCCLUDE_VIEWS:
             blocks[name] = art_arm_mask(name, cam, verts, tris, arm_tri, img.rgb)
         per[name] = view_weights(cam, img, pos, nrw, z, geo[name][2], None, geo[name][3], VIEW_BIAS_DEG[name],
                                  blocks.get(name), block_texel)
-        per[name]['gain'] = VIEW_GAIN[name]
+        per[name]['gain'] = view_gain(name, reg)
         per[name]['img'] = img
         log(f'{name}: 見える {per[name]["vis"].mean():.1%}  重み>0 {(per[name]["base"] * per[name]["ndv"] > 0).mean():.1%}')
     # 視点の合わせ込み：正面を基準に、ほかの視点の絵をメッシュの上の模様がそろうようにずらす
@@ -587,13 +622,24 @@ def bake(mesh: dict, size: int, cams: dict[str, V.Cam], atlas_meta: dict, align:
     for name in MIRROR_VIEWS:
         cam = cams[name].mirrored()
         img = per[name]['img']
-        z = zbuffer(verts, tris, cam)
+        z = zbuffer(verts, tris[~arm_tri] if name in NOARM_VIEWS else tris, cam)
         # 実の視点で求めたずらしをそのまま使う（左右対称なら、反転した点も絵の同じ所に写るので）
         d = view_weights(cam, img, pos, nrw, z, depth_edge_dist(z), fields.get(name), near_occluder_depth(z),
                          VIEW_BIAS_DEG[name], blocks.get(name), block_texel)
         d['gain'] = MIRROR_GAIN * (1.0 - ramp(best_real, *MIRROR_NDV)) * ~no_mirror * (pos[:, 0] > 0)
+        if name in NOARM_VIEWS:
+            d['gain'] = d['gain'] * ~np.isin(reg, (2, 3, 4, 5))
         per[name + '_mirror'] = d
         log(f'{name}_mirror: 使う {(d["gain"] * d["base"] * d["ndv"] > 0).mean():.1%}')
+    for name in HEAD_MIRROR_VIEWS:   # 頭の左側（本文の 3。HEAD_MIRROR_VIEWS）
+        cam = cams[name].mirrored()
+        img = per[name]['img']
+        z = zbuffer(verts, tris, cam)
+        d = view_weights(cam, img, pos, nrw, z, depth_edge_dist(z), fields.get(name), near_occluder_depth(z),
+                         VIEW_BIAS_DEG[name], None, None)
+        d['gain'] = HEAD_MIRROR_GAIN * VIEW_GAIN[name] * ((reg == 0) & (pos[:, 0] > 0.0)).astype(np.float32)
+        per[name + '_head_mirror'] = d
+        log(f'{name}_head_mirror: 使う {(d["gain"] * d["base"] * d["ndv"] > 0).mean():.1%}')
 
     if os.environ.get('TEX_DEBUG_BOX'):   # 調べる箱の中のテクセルの、視点ごとの重みを表示する（調べ物用）
         bx = [float(c) for c in os.environ['TEX_DEBUG_BOX'].split(',')]
@@ -753,6 +799,15 @@ def body_cleanup(res: dict) -> None:
     res['col'] = col
     res['body_cleanup'] = stats
     log(f'体の肌色の塗り直し {stats}')
+
+
+def sole_cleanup(res: dict) -> None:
+    """靴底（SOLE_TOP より下の脚のテクセル）を靴底の色の一色にする（上の縁 4mm でなめらかに）"""
+    z = res['pos'][:, 2]
+    a = ((np.isin(res['reg'], (6, 7))) * (1.0 - ramp(z, SOLE_TOP - 0.002, SOLE_TOP + 0.002)))[:, None]
+    res['col'] = a * np.array(SOLE_RGB)[None] + (1 - a) * res['col']
+    res['sole_cleanup'] = int((a[:, 0] > 0.5).sum())
+    log(f'靴底の塗り {res["sole_cleanup"]:,} テクセル')
 
 
 def hair_colour_match(res: dict) -> None:
@@ -1155,21 +1210,15 @@ def render_checks(glb: str, res: int = 1024) -> dict:
         row = np.concatenate([label(art, f'art {name}'), label(img, 'textured (unlit, albedo)'),
                               label(lit, 'textured (lit)'), label(diff_image(art, img), 'abs diff (red = large)')], 1)
         Image.fromarray(row).save(os.path.join(WORK, f'tex_check_{name}.png'))
-    # 左前 45 度（絵の無い向き）：右前斜めの絵の反転を参考に並べる（左右で違う部品は合わない）
+    # 絵の無い向き（左後ろ斜め、少し上から）
     fr = cams['front'].blender_camera()
     center = fr['center']
     ortho = fr['ortho_scale']
-    imgs = []
-    ref = np.asarray(Image.fromarray(art_on_gray(V.VIEWS['three_quarter']['file'], res)).transpose(
-        Image.FLIP_LEFT_RIGHT))
-    imgs.append(label(ref, 'ref: 3/4 art mirrored (asymmetric parts differ)'))
-    imgs.append(label(shoot(scene, cam, sun, center, -45.0, 0.0, ortho, res, os.path.join(tmp, 'fl45.png')),
-                      'front-left 45 (unlit)'))
-    imgs.append(label(shoot(scene, cam, sun, center, -45.0, 0.0, ortho, res, os.path.join(tmp, 'fl45_lit.png'),
-                            lit=True), 'front-left 45 (lit)'))
-    imgs.append(label(shoot(scene, cam, sun, center, -135.0, 10.0, ortho, res, os.path.join(tmp, 'bl.png'),
-                            lit=True), 'back-left 135 el10 (lit)'))
-    Image.fromarray(np.concatenate(imgs, 1)).save(os.path.join(WORK, 'tex_check_front_left45.png'))
+    imgs = [label(shoot(scene, cam, sun, center, -135.0, 10.0, ortho, res, os.path.join(tmp, 'bl.png'), lit=True),
+                  'back-left 135 el10 (lit)'),
+            label(shoot(scene, cam, sun, center, 135.0, 10.0, ortho, res, os.path.join(tmp, 'br.png'), lit=True),
+                  'back-right 135 el10 (lit)')]
+    Image.fromarray(np.concatenate(imgs, 1)).save(os.path.join(WORK, 'tex_check_back_oblique.png'))
     # 顔の近写：顔の絵（haru_face_front.png）と同じ範囲を正面から
     with open(os.path.join(WORK, 'face_align.json')) as fp:
         fa = json.load(fp)['face_to_front']
@@ -1181,11 +1230,11 @@ def render_checks(glb: str, res: int = 1024) -> dict:
     face_art = art_on_gray(os.path.join(V.SRC, 'haru_face_front.png'), res)
     fimg = shoot(scene, cam, sun, (cx, 0.0, cz), 0.0, 0.0, ortho_f, res, os.path.join(tmp, 'face.png'))
     flit = shoot(scene, cam, sun, (cx, 0.0, cz), 0.0, 0.0, ortho_f, res, os.path.join(tmp, 'face_lit.png'), lit=True)
-    # 右前斜め（絵の 31 度）と左前斜めの頭
-    tq = cams['three_quarter']
+    # 右前斜め（45 度の絵）と左前斜めの頭
+    tq = cams['front_right45']
     hu, hv = tq.project(np.array([cx, 0.0, cz]))
     half = ortho_f * tq.ppm / 2
-    tq_art = np.asarray(Image.fromarray(art_on_gray(V.VIEWS['three_quarter']['file'], 2048)).crop(
+    tq_art = np.asarray(Image.fromarray(art_on_gray(V.VIEWS['front_right45']['file'], 2048)).crop(
         (int(hu - half), int(hv - half), int(hu + half), int(hv + half))).resize((res, res), Image.LANCZOS))
     center_tq = np.array([cx, 0.0, cz]) + 0.0
     tq_img = shoot(scene, cam, sun, center_tq, tq.azimuth, 0.0, ortho_f, res, os.path.join(tmp, 'face_tq.png'))
@@ -1193,8 +1242,8 @@ def render_checks(glb: str, res: int = 1024) -> dict:
                      lit=True)
     top = np.concatenate([label(face_art, 'art haru_face_front'), label(fimg, 'textured front (unlit)'),
                           label(flit, 'textured front (lit)')], 1)
-    bot = np.concatenate([label(tq_art, 'art 3/4 (31 deg) crop'), label(tq_img, 'textured 3/4 (unlit)'),
-                          label(left_img, 'textured front-left 31 (lit)')], 1)
+    bot = np.concatenate([label(tq_art, 'art front-right 45 crop'), label(tq_img, 'textured front-right 45 (unlit)'),
+                          label(left_img, 'textured front-left 45 (lit)')], 1)
     Image.fromarray(np.concatenate([top, bot], 0)).save(os.path.join(WORK, 'tex_check_face.png'))
     # 一覧（小さく）
     rows = []
@@ -1212,7 +1261,7 @@ def render_checks(glb: str, res: int = 1024) -> dict:
 def debug_images(res: dict, base: np.ndarray) -> None:
     """どの視点が一番効いたか（色分け）と重みの和の UV 画像"""
     colors = np.array([[230, 60, 60], [60, 120, 230], [60, 200, 90], [230, 200, 50], [170, 80, 220],
-                       [60, 210, 210]], np.float32) / 255
+                       [60, 210, 210], [240, 140, 40], [150, 150, 150], [120, 60, 30]], np.float32) / 255
     w = res['winner']
     c = np.where((w >= 0)[:, None], colors[np.clip(w, 0, None)], 0.1)
     s = res['size']
@@ -1283,6 +1332,7 @@ def main() -> None:
         if not args.no_head_cleanup:
             head_cleanup(res)
         body_cleanup(res)
+        sole_cleanup(res)
         hair_colour_match(res)
         cov = np.zeros(args.size * args.size, bool)
         cov[res['pix']] = True

@@ -170,9 +170,10 @@ def largest(occ: np.ndarray) -> np.ndarray:
 
 # ---------------------------------------------------------------- 1. 較正の追い込み
 
-def estimate_three_quarter_azimuth(cams: dict[str, V.Cam], masks: dict[str, np.ndarray]) -> tuple[float, list]:
-    """右前斜めの方位角を、左右の脚（膝下）と腕（肘〜手首）の間隔の比から求める"""
-    f, t = cams['front'], cams['three_quarter']
+def estimate_three_quarter_azimuth(cams: dict[str, V.Cam], masks: dict[str, np.ndarray],
+                                   name: str = 'three_quarter') -> tuple[float, list]:
+    """斜めの絵（name）の方位角の大きさを、左右の脚（膝下）と腕（肘〜手首）の間隔の比から求める"""
+    f, t = cams['front'], cams[name]
     rows = []
 
     def big(rs, w=30):
@@ -180,14 +181,14 @@ def estimate_three_quarter_azimuth(cams: dict[str, V.Cam], masks: dict[str, np.n
 
     for z in np.arange(0.16, 0.36, 0.005):   # すね（左右の脚が離れ、形が単純な高さ）
         rf = big(V.runs(masks['front'][int(f.v_of(z))]))
-        rt = big(V.runs(masks['three_quarter'][int(t.v_of(z))]))
+        rt = big(V.runs(masks[name][int(t.v_of(z))]))
         if len(rf) == 2 and len(rt) == 2:
             cf = [(a + b) / 2 for a, b in rf]
             ct = [(a + b) / 2 for a, b in rt]
             rows.append(('leg', float(z), (ct[1] - ct[0]) / (cf[1] - cf[0])))
     for z in np.arange(0.68, 0.93, 0.005):   # 前腕〜肘（腕が胴から離れている高さ）
         rf = big(V.runs(masks['front'][int(f.v_of(z))]))
-        rt = big(V.runs(masks['three_quarter'][int(t.v_of(z))]))
+        rt = big(V.runs(masks[name][int(t.v_of(z))]))
         if len(rf) == 3 and len(rt) == 3:
             cf = [(a + b) / 2 for a, b in rf]
             ct = [(a + b) / 2 for a, b in rt]
@@ -268,6 +269,84 @@ def refine_calibration(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], vox
     log('較正の追い込み 終わり', round(best, 5), best_r)
     return {'three_quarter_azimuth_from_limb_pairs': {'median_deg': az, 'rows': rows},
             'refined_params': params, 'hull_reprojection_iou_at_refine': best_r, 'refine_voxel_m': vox}
+
+
+ADDED_OBLIQUE = {'front_right45': +1, 'front_left45': -1}   # 追加の斜めの絵と方位角の符号（右前 +、左前 -）
+
+
+def calibrate_added_views(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], vox: float = 0.003) -> dict:
+    """W1-00b の追加の絵（左真横・左右の前斜め・腕の無い右真横）のカメラを追い込む。
+
+    上下（足の裏の行・身長の画素数）は正面とそろっているので動かさない。
+    - 斜め：方位角の大きさは右前斜めと同じく手足の間隔の比から（左前は符号を負に）。横位置の最初の値は
+      すねの高さの左右の脚の中点、そこから正面と右真横の視体積（左右対称）を投影した外形の IoU が最大に
+      なる横位置を探す（縮尺は正面のまま）。
+    - 左真横：同じく視体積の投影の IoU で横位置。
+    - 腕の無い右真横：右真横と同じ縮尺にし、腕の無い高さ（脚 z 0.03〜0.55、頭 z 1.25〜）で右真横の外形と
+      いちばん重なる横位置。
+    """
+    out: dict = {}
+    # 正面と右真横だけの視体積（左右対称。右前斜めで切ると、左前から見た外形が片寄る）
+    grid = Grid.around(cams, masks, vox)
+    occ = np.ones(grid.shape, bool)
+    for v in ('front', 'side_right'):
+        occ &= grid.lookup(cams[v], dilate2(masks[v], 1))
+    occ = largest(occ)
+    s = cams['side_right']
+    for name, sgn in ADDED_OBLIQUE.items():
+        if name not in cams:
+            continue
+        az, rows = estimate_three_quarter_azimuth(cams, masks, name)
+        c = cams[name]
+        c.azimuth = round(sgn * az, 2)
+        ys, us = [], []
+        for z in np.arange(0.18, 0.34, 0.01):
+            rsd = V.runs(masks['side_right'][int(s.v_of(z))])
+            rt = [r for r in V.runs(masks[name][int(c.v_of(z))]) if r[1] - r[0] > 30]
+            if len(rsd) == 1 and len(rt) == 2:
+                ys.append(-((rsd[0][0] + rsd[0][1]) / 2 - s.u0) / s.ppm)
+                us.append((rt[0][0] + rt[1][1]) / 2)
+        c.u0 = float(np.median(us)) - c.ppm * float(np.median(ys)) * c.r[1]
+        out[name] = {'azimuth_from_limb_pairs_deg': round(sgn * az, 2), 'rows': len(rows),
+                     'leg_ratio_median': round(math.cos(math.radians(az)), 4)}
+        log(f'{name}: 方位角 {sgn * az:.2f} 度（{len(rows)} 行、間隔の比 {math.cos(math.radians(az)):.3f}）')
+    for name in [n for n in ('front_right45', 'front_left45', 'side_left') if n in cams]:
+        c = cams[name]
+        u00, ppm0 = c.u0, c.ppm
+        best = (-1.0, 0.0, 1.0)
+        # 縮尺は動かさない（頭頂・足の裏の行は正面とそろっている。2 視点の視体積は斜めから見ると太いので、
+        # 縮尺を動かすと小さい方へ片寄る）
+        for sc in (1.0,):
+            for du in np.arange(-40, 40.5, 2.0):
+                c.u0, c.ppm = u00 + du, ppm0 * sc
+                r = iou(grid.reproject(occ, c), masks[name])
+                if r > best[0]:
+                    best = (r, du, sc)
+        du1, sc1 = best[1], best[2]
+        for du in np.arange(du1 - 2, du1 + 2.01, 0.5):
+            c.u0, c.ppm = u00 + du, ppm0 * sc1
+            r = iou(grid.reproject(occ, c), masks[name])
+            if r > best[0]:
+                best = (r, du, sc1)
+        c.u0, c.ppm = u00 + best[1], ppm0 * best[2]
+        out.setdefault(name, {}).update({'du_px': float(best[1]), 'scale': best[2],
+                                         'hull_reprojection_iou': round(best[0], 4)})
+        log(f'{name}: 横 {best[1]:+.1f}px 縮尺 {best[2]} 視体積の投影 IoU {best[0]:.4f}')
+    if 'side_right_noarms' in cams:
+        c = cams['side_right_noarms']
+        c.ppm, c.v0 = s.ppm, s.v0
+        rows = np.r_[int(s.v_of(0.55)):int(s.v_of(0.03)), int(s.v_of(1.55)):int(s.v_of(1.25))]
+        a = masks['side_right'][rows]
+        best = (-1.0, 0)
+        for sh in range(-40, 41):
+            b = np.roll(masks['side_right_noarms'][rows], -sh, axis=1)
+            r = (a & b).sum() / max((a | b).sum(), 1)
+            if r > best[0]:
+                best = (r, sh)
+        c.u0 = s.u0 + best[1]
+        out['side_right_noarms'] = {'shift_vs_side_right_px': best[1], 'iou_legs_head': round(float(best[0]), 4)}
+        log(f'side_right_noarms: 右真横から {best[1]:+d}px（脚と頭の外形の IoU {best[0]:.4f}）')
+    return out
 
 
 # ---------------------------------------------------------------- 2. 形の場
@@ -682,6 +761,7 @@ def main() -> None:
     if args.stage in ('all', 'calib'):
         cams = V.initial_calib(masks)
         cal = refine_calibration(cams, masks)
+        cal['added_views'] = calibrate_added_views(cams, masks)
         V.save_calib(cams, {'stage': 'refined', 'refine': cal})
         report['calib'] = cal
     cams = V.load_calib()

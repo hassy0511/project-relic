@@ -1,4 +1,4 @@
-"""多視点の絵（正面・背面・右真横・右前斜め）の「カメラ」と「外形のマスク」。
+"""多視点の絵（正面・背面・右真横・右前斜め、追加の左真横・左右の前 45 度・腕の無い右真横）の「カメラ」と「外形のマスク」。
 
 ハルの 3D を、画家（Codex）が描いた多視点の絵から起こす（再構築する）ための共通の土台。
 絵は正投影に近いので、各視点を「水平な向きの正投影カメラ」として扱う。
@@ -24,6 +24,8 @@
 ■ 較正の結果（build/recon/calib.json、carve.py で追い込んだもの）
   views.<視点>: azimuth_deg, direction, image_right, image_up, pixels_per_meter, u0, v0
   右前斜めは発注では 45 度だが、絵は約 31 度で描かれている（左右の手足の間隔の比から。carve.py を参照）。
+  追加の絵（W1-00b）：左真横（-90 度）、右前・左前の斜め（手足の間隔の比から、それぞれ約 +43・-44 度）、
+  腕の無い右真横（右真横と同じカメラ。胴の横の色だけに使う）。carve.py の calibrate_added_views で追い込む。
   refine：追い込みの記録。silhouette_iou_final_mesh：最終メッシュの外形の一致。
 
 ■ 使い方（.venv-blender の python で動かす）
@@ -56,11 +58,23 @@ VIEWS: dict[str, dict] = {
     'back': {'file': 'haru_3d_back.png', 'azimuth': 180.0},
     'side_right': {'file': 'haru_3d_side_right.png', 'azimuth': 90.0},
     'three_quarter': {'file': 'haru_3d_three_quarter.png', 'azimuth': 45.0},
+    # W1-00b の追加の絵（2026-09。頭頂 125 行・足の裏 1922 行・中心 1024 列で、W1-00 の正面とそろう）
+    'side_left': {'file': 'haru_3d_side_left.png', 'azimuth': -90.0},
+    'front_right45': {'file': 'haru_3d_front_right45.png', 'azimuth': 45.0},
+    'front_left45': {'file': 'haru_3d_front_left45.png', 'azimuth': -45.0},
+    # 右真横から両腕を肩で外した絵：胴の横・帯・ポーチ・ズボンの横の色だけに使う（外形は腕が無いので形には使わない）
+    'side_right_noarms': {'file': 'haru_3d_side_right_noarms.png', 'azimuth': 90.0},
 }
+# 形の外形として使ってよい全身の絵（腕の無い絵は除く）
+SHAPE_VIEWS = ('front', 'back', 'side_right', 'three_quarter', 'side_left', 'front_right45', 'front_left45')
 SOURCE_FILES = [
     'haru_3d_front.png', 'haru_3d_back.png', 'haru_3d_side_right.png', 'haru_3d_three_quarter.png',
     'haru_face_front.png', 'haru_face_expressions.png', 'spark_gun_side.png', 'spark_gun_3d.png',
     'light_blade_gauntlet.png', 'spec_haru_3d.md',
+    # W1-00b の追加の絵
+    'haru_3d_side_left.png', 'haru_3d_front_right45.png', 'haru_3d_front_left45.png',
+    'haru_3d_side_right_noarms.png', 'haru_head_side_right.png', 'haru_head_back.png', 'haru_head_top.png',
+    'haru_head_front_right45.png', 'haru_neck.png', 'haru_hands.png', 'haru_shoes.png', 'spec_haru_3d_add.md',
 ]
 
 
@@ -282,7 +296,17 @@ def initial_calib(masks: dict[str, np.ndarray]) -> dict[str, Cam]:
 
     s = cams['side_right']
     torso_rows = range(int(s.v_of(1.02)), int(s.v_of(0.85)), 4)
-    s.u0 = _center_of_runs(masks['side_right'], torso_rows, lambda rs: [max(rs, key=lambda r: r[1] - r[0])])
+    widest = lambda rs: [max(rs, key=lambda r: r[1] - r[0])]  # noqa: E731
+    s.u0 = _center_of_runs(masks['side_right'], torso_rows, widest)
+    # 追加の絵：左真横は胴の前後の中点（右真横と同じ決め方）、斜めは脚 2 本の中点。
+    # 腕の無い右真横は右真横と同じカメラ（横位置は carve.py で脚の外形を重ねて追い込む）
+    if 'side_left' in cams:
+        cams['side_left'].u0 = _center_of_runs(masks['side_left'], torso_rows, widest)
+    for k in ('front_right45', 'front_left45'):
+        if k in cams:
+            cams[k].u0 = _center_of_runs(masks[k], leg_rows, two_legs)
+    if 'side_right_noarms' in cams:
+        cams['side_right_noarms'].u0 = _center_of_runs(masks['side_right_noarms'], torso_rows, widest)
     return cams
 
 

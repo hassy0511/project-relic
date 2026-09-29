@@ -25,6 +25,7 @@ carve.py の 2（hull）から呼ばれる。以前の方法（輪切りごと�
 
 ■ 3. 首より上
   体のレンズの上を、えり・フードの上の縁の高さ BODY_TOP（1.203m）の面で切り、視体積 D で切る（体だけ）。
+  のどの前（THROAT_CUT）は、首の前の面より前の体を切る（あごの下の棚・こぶをなくす。haru_neck.png）。
   首より上（頭・顔・首・髪の帽子・房）は hair.build_head の場で、体の場となめらかな和（幅 8mm）でつなぐ。
   頭は視体積で切らない（視体積の面が角ばった箱・くさび形の顔・ひれの房の元だった）。以前の「丸い芯＋房の
   レンズ」の頭は git の履歴（コミット e576142）にある。
@@ -58,6 +59,11 @@ T0 = time.time()
 # 部位の境（m）。頭はあご（身長 / 4.4 頭身）より少し上から、手は手首より先
 HEAD_Z = (1.19, 1.24)          # 体のレンズに真横のレンズを足し始める高さ（首より上は hair.py の頭に置き換わる）
 BODY_TOP = 1.203               # 体の場の上の端（えり・フードの上の縁）。これより上は hair.py の頭
+# のどの前の切り取り：右真横の絵の外形は、えりの上の縁の高さ（1.19〜1.20）では、あごの下まで前へ出ている。
+# 体のレンズがそのまま前へ出ると、あごの下に平らな棚（上の面が茶色の帯・こぶに見えた）ができる。
+# 首の前の面（W1-00b の haru_neck.png と右真横の絵：のどの前は y ≈ -0.03、胸の上 z 1.14 で y ≈ -0.075 へ
+# なだらかに下がる）より前の体を切る。節 (z, y) の間は線形。
+THROAT_CUT = {'z': (1.135, 1.160, 1.175, 1.190, 1.25), 'y': (-0.090, -0.058, -0.042, -0.031, -0.031)}
 TRIM_VIEWS = ('front', 'side_right')   # 体を切る視体積の視点
 LEG_Z = (0.54, 0.59)          # これより下（股より下）は脚：行のすべてに同じ奥行きの倍率
 LEG_DEPTH_MAX = 1.5            # 脚の奥行きの倍率の上限（丸い断面より太らせてよい）
@@ -285,6 +291,13 @@ def build_field(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.nda
     top = np.broadcast_to((BODY_TOP - zs[kb:]).astype(np.float32)[:, None, None], phi[kb:].shape)
     phi[kb:] = -smooth_max(-phi[kb:], -top, 0.005)
     del top
+    # のどの前を切る（THROAT_CUT）：首の前の面より前の体を除く（首の楕円柱と頭のあごが見える）
+    kt = int(np.searchsorted(zs, THROAT_CUT['z'][0]))
+    ys = lo[1] + (np.arange(shape[2]) + 0.5) * vox
+    yl = np.interp(zs[kt:], THROAT_CUT['z'], THROAT_CUT['y']).astype(np.float32)
+    cut = (ys[None, None, :] - yl[:, None, None]).astype(np.float32)
+    phi[kt:] = -smooth_max(-phi[kt:], -np.broadcast_to(cut, phi[kt:].shape), 0.004)
+    del cut
     # 視体積で切る（体だけ。外形を 2 画素太らせた視体積。外形への細かな合わせは面の段で面ごとなめらかに行う）
     np.minimum(phi, D + 2.0 / cams['front'].ppm, out=phi)
     del D

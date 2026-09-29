@@ -45,10 +45,12 @@ PREP = 'build/recon/prep'
 RECON_PY = 'tools/blender/recon'
 OUT_GLB = 'godot/assets/models/haru_r.glb'
 
-SRC_FULL = [f'{R}/src/haru_3d_{v}.png' for v in ('front', 'back', 'side_right', 'three_quarter')]
+FULL_VIEWS = ('front', 'back', 'side_right', 'three_quarter',
+              'side_left', 'front_right45', 'front_left45', 'side_right_noarms')   # 後の 4 枚は W1-00b の追加の絵
+SRC_FULL = [f'{R}/src/haru_3d_{v}.png' for v in FULL_VIEWS]
 SRC_FACE = [f'{R}/src/haru_face_front.png', f'{R}/src/haru_face_expressions.png']
 SRC_GUN = [f'{R}/src/spark_gun_side.png', f'{R}/src/spark_gun_3d.png']
-MASKS = [f'{R}/mask_{v}.png' for v in ('front', 'back', 'side_right', 'three_quarter')]
+MASKS = [f'{R}/mask_{v}.png' for v in FULL_VIEWS]
 
 
 @dataclass
@@ -94,7 +96,7 @@ def stages(standin: bool) -> list[Stage]:
               outputs=[f'{R}/haru_textured_apose.glb', f'{R}/tex/haru_body_base.png', f'{R}/tex/haru_body_emit.png'],
               inputs=[f'{R}/haru_mesh.glb', f'{R}/calib.json', f'{R}/face_atlas.png', f'{R}/face_atlas.json',
                       f'{R}/face_align.json'] + SRC_FULL,
-              deps=[f'{RECON_PY}/views.py', f'{RECON_PY}/hair.py'],
+              deps=[f'{RECON_PY}/views.py', f'{RECON_PY}/hair.py', f'{RECON_PY}/uvparts.py'],
               note='下地の色・発光を 2048 角に焼き、顔の材質と UV を付ける（A ポーズの GLB、確認画像込みで約 5 分）'),
         Stage('joints', f'{RECON_PY}/joints.py', ['--mesh', textured, '--out', f'{PREP}/haru_joints.json'],
               outputs=[f'{PREP}/haru_joints.json'], inputs=[textured],

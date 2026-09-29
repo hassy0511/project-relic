@@ -13,6 +13,10 @@
      左の前腕（籠手）は縁ごとに動かさず、高さ 1cm ごとの縁の動きの平均で前腕ごと前後に動かす（絵の腕が丸い
      腕より太く、縁だけを寄せると断面がくさび形になる。前後の位置のずれだけを直す：正面の外形は変わらない）。
 釣り合った形は、なめらかな面で、縁だけが外形に沿う。最後に、広げ方を小さくした留めを 3 回。
+右の前腕と手の前後の位置（align_right_arm）：右真横の絵では前腕と手が胴の手前に重なって描かれ、外形の縁に
+ならないので、縁の留めでは前後の位置が決まらない（以前は前腕が絵より約 5cm 前にあり、真横の色で胴の色が
+腕に、腕の色が胴に付いた）。W1-00b の腕の無い右真横の絵との色の差から絵の腕（肘〜手）の範囲を切り出し、
+高さ 1cm ごとに前後の中点をそろえるように、右の前腕と手を前後（y）だけに動かす（肘の上でなめらかに 0 へ）。
 目標の外形（target）は元の絵の外形の符号つき距離を、上下に 6 画素・左右に 2 画素ならしたもの（頭は 2 画素）。
 上下に強くならすのは、縫い目・帯の端の細かな段で輪郭線が上下に波打たないように（横筋にしない）。
 """
@@ -209,6 +213,60 @@ def targets(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], sigma_v: float
     return {n: fair.target_sdf(masks[n], cams[n], (sigma_v, 2.0), 2.0) for n in REAL}
 
 
+ARM_Z = (0.56, 0.95)        # 絵の腕の前後の中点を使う高さ（肘の下〜指先の上）
+ARM_BLEND_Z = (0.90, 0.99)  # この間で動きを 1 → 0（上腕・肩は動かさない）
+
+
+def side_arm_mask(cams: dict[str, V.Cam]) -> np.ndarray | None:
+    """右真横の絵の中の右の前腕と手（腕の無い右真横の絵との色・外形の差の、いちばん大きい塊）"""
+    if 'side_right_noarms' not in cams or not os.path.exists(os.path.join(V.SRC, V.VIEWS['side_right_noarms']['file'])):
+        return None
+    a = V.load_rgba('side_right').astype(np.float32)
+    b = V.load_rgba('side_right_noarms').astype(np.float32)
+    sh = int(round(cams['side_right_noarms'].u0 - cams['side_right'].u0))
+    b = np.roll(b, -sh, axis=1)
+    ma, mb = a[..., 3] > 128, b[..., 3] > 128
+    arm = ma & (~mb | (np.abs(a[..., :3] - b[..., :3]).max(-1) > 40))
+    arm = ndi.binary_opening(arm, iterations=2)
+    lab, n = ndi.label(arm)
+    if n == 0:
+        return None
+    sizes = ndi.sum(arm, lab, range(1, n + 1))
+    return ndi.binary_closing(lab == (int(np.argmax(sizes)) + 1), iterations=4)
+
+
+def align_right_arm(X: np.ndarray, cams: dict[str, V.Cam], arm_mask: np.ndarray | None, log=print,
+                    bin_m: float = 0.01) -> np.ndarray:
+    """右の前腕と手を前後に動かして、右真横の絵の腕の前後の中点にそろえる（本文の最後）"""
+    if arm_mask is None:
+        return X
+    from recon import uvparts
+    s = cams['side_right']
+    reg = uvparts.region_of_point(X, V.HEIGHT - V.HEIGHT / 4.4)
+    arm = np.isin(reg, (2, 4)) & (X[:, 2] > ARM_Z[0] - 0.05) & (X[:, 2] < ARM_BLEND_Z[1])
+    zb = np.arange(ARM_Z[0], ARM_Z[1] + 1e-9, bin_m)
+    dz = np.full(len(zb), np.nan)
+    for i, z in enumerate(zb):
+        cols = np.nonzero(arm_mask[int(s.v_of(z))])[0]
+        sel = arm & (np.abs(X[:, 2] - z) < bin_m / 2)
+        if len(cols) < 20 or sel.sum() < 10:
+            continue
+        y_art = -((cols.min() + cols.max() + 1) / 2 - s.u0) / s.ppm
+        y_mesh = 0.5 * (X[sel, 1].min() + X[sel, 1].max())
+        dz[i] = y_art - y_mesh
+    ok = np.isfinite(dz)
+    if ok.sum() < 5:
+        return X
+    dz = np.interp(zb, zb[ok], dz[ok])
+    dz = ndi.gaussian_filter1d(dz, 3.0, mode='nearest')
+    t = ((ARM_BLEND_Z[1] - X[:, 2]) / (ARM_BLEND_Z[1] - ARM_BLEND_Z[0])).clip(0, 1)
+    w = (t * t * (3 - 2 * t)) * arm
+    X = X.copy()
+    X[:, 1] += w * np.interp(X[:, 2], zb, dz)
+    log(f'  右の前腕と手を前後に動かす：{dz.min() * 100:+.1f}〜{dz.max() * 100:+.1f}cm（{int((w > 0).sum())} 頂点）')
+    return X
+
+
 def fair_mesh(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], masks: dict[str, np.ndarray],
               rounds: int = 40, smooth: int = 8, final_snaps: int = 3, log=print, spread: int = 40,
               max_px: float = 4.0, freeze_z: tuple[float, float] = (1.195, 1.225)) -> np.ndarray:
@@ -227,7 +285,10 @@ def fair_mesh(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], masks: d
     # 右の前腕（肘〜手首）は右前斜めの外形へ縁ごとに寄せない：絵の腕は丸い腕より太く描かれていて、縁だけを
     # 寄せると断面がくさび形・段になる。正面と右真横の外形だけで、ふくらみの丸い断面のまま
     r_fore = (X[:, 0] < -0.20) & (X[:, 2] > 0.70) & (X[:, 2] < 1.0)
-    skip = {'three_quarter': r_fore}
+    # 左の手（手首より先）は、右真横（体の向こうで隠れている）でも右前斜め（指が重なって細く描かれる）でも
+    # 縁を寄せない：寄せると指が内へ削られて、先のとがった爪のような指になった。正面の外形のふくらみのまま
+    l_hand = (X[:, 0] > 0.30) & (X[:, 2] < 0.80)
+    skip = {'three_quarter': r_fore | l_hand, 'side_right': l_hand}
     inward = {'side_right': left_arm}
     # 左の前腕（肘〜手首、籠手）は、右前斜めの外形へは縁ごとではなく、前腕ごと前後に動かす（_shift_groups）。
     # 右前斜めの絵は前腕を丸い腕より太く描いていて、縁だけを寄せると断面が三角（くさび形）になる。
@@ -241,7 +302,11 @@ def fair_mesh(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], masks: d
     shift = {'three_quarter': (grp, w_grp)}
     W = laplacian(len(X), faces)
     E = edges_of(faces)
+    arm_mask = side_arm_mask(cams)
+    X = align_right_arm(X, cams, arm_mask, log=log)
     for it in range(rounds):
+        if it == rounds // 2:
+            X = align_right_arm(X, cams, arm_mask, log=log)
         X = X + move * (taubin(X, W, smooth) - X)
         D, st = snap_step(X, faces, cams, sds, W, E, max_px=max_px, spread=spread, skip=skip, shift=shift,
                           inward_only=inward)
@@ -253,5 +318,6 @@ def fair_mesh(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], masks: d
                           inward_only=inward)
         X = X + move * D
         X = X + move * (taubin(X, W, 1) - X)
+    X = align_right_arm(X, cams, arm_mask, log=log)
     log('  最後の留め', st)
     return X

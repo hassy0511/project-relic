@@ -84,7 +84,9 @@ from scipy.interpolate import PchipInterpolator  # noqa: E402
 
 from recon import views as V  # noqa: E402
 
-REAL = ('front', 'side_right', 'three_quarter')
+# 房の当てはめに使う外形の視点。W1-00b の追加の絵（左真横・左右の前 45 度）と背面も使う
+# （3 視点だけだと、房の後ろ・上への張り出しが決まらず、横と斜めから丸いもじゃもじゃに見えた）
+REAL = ('front', 'side_right', 'three_quarter', 'side_left', 'front_right45', 'front_left45', 'back')
 T0 = time.time()
 OUT = os.path.join(V.WORK, 'hair')
 
@@ -109,7 +111,12 @@ EAR = {'c': (0.112, 0.027, 1.294), 'r': (0.0085, 0.021, 0.033), 'yaw_deg': 22.0,
        'root_c': (0.092, 0.020, 1.290), 'root_r': (0.013, 0.016, 0.022)}
 # 房の当てはめの視点の重み：右真横は頭の外形が全身の外形に占める割合が大きく、横顔・ゴーグル・後ろの房の形が
 # はっきり出るので重く
-VIEW_WEIGHT = {'front': 1.0, 'side_right': 1.5, 'three_quarter': 1.0}
+VIEW_WEIGHT = {'front': 1.0, 'side_right': 1.5, 'three_quarter': 0.5, 'side_left': 1.5, 'front_right45': 1.0,
+               'front_left45': 1.0, 'back': 1.0}
+# 房の浮き・幅の上限：絵（W1-00b の頭の横・後ろ・上）の房は幅 5〜9cm の大きな葉で、先は頭から 6〜9cm 浮いて
+# 後ろ・上へ張り出す（以前の 7.5cm・9cm では、横から見た外形の後ろの房の先まで届かなかった）
+LOCK_LIFT_MAX = 0.095
+LOCK_WIDTH_MAX = 0.10
 PARAMS = {
     'cap_open_m': 0.03,        # 髪の帽子に使う外形を開く円の半径（房の先を落とす）
     'cap_close_m': 0.02,       # その後で閉じる円の半径
@@ -660,9 +667,9 @@ def rotate_toward(d: np.ndarray, axis: np.ndarray, ang: float) -> np.ndarray:
 def perturb(L: Lock, what: str, step: float) -> Lock:
     d0, d1 = _unit(L.root), _unit(L.tip)
     if what == 'lift':
-        return Lock(L.root, L.tip, float(np.clip(L.lift + step, 0.0, 0.075)), L.width, L.name)
+        return Lock(L.root, L.tip, float(np.clip(L.lift + step, 0.0, LOCK_LIFT_MAX)), L.width, L.name)
     if what == 'width':
-        return Lock(L.root, L.tip, L.lift, float(np.clip(L.width + step, 0.03, 0.09)), L.name)
+        return Lock(L.root, L.tip, L.lift, float(np.clip(L.width + step, 0.03, LOCK_WIDTH_MAX)), L.name)
     flow = _unit(np.cross(d0, d1))          # 大きな円の軸
     if what == 'len':                        # 流れに沿って伸ばす・縮める
         d1n = rotate_toward(d1, flow, math.radians(step))
