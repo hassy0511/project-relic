@@ -19,6 +19,7 @@ var level: Dictionary
 var game: GameSim = null
 var views: Node3D = null
 var player_view: PlayerView
+var nagomi_view: NagomiView = null
 var enemy_view: EnemyView
 var props_view: PropsView
 var fx: Fx
@@ -76,6 +77,8 @@ func snap_views() -> void:
 	if views:
 		player_view.position = game.player.pos
 		player_view.reset_physics_interpolation()
+		if nagomi_view:
+			nagomi_view.snap(game.player)
 		camera.sync(game, game.player.pos, 1.0, 0.0)
 		camera.reset_physics_interpolation()
 
@@ -120,6 +123,8 @@ func start_game(save) -> void:
 	views = Node3D.new()
 	add_child(views)
 	player_view = null
+	nagomi_view = NagomiView.new()
+	views.add_child(nagomi_view)
 	_load_haru(_haru_path(args.get("haru", "r")))
 	enemy_view = EnemyView.new()
 	views.add_child(enemy_view)
@@ -211,6 +216,7 @@ func _physics_process(dt: float) -> void:
 	game.step(f)
 	_handle_events()
 	player_view.sync(game.player, game, dt, _aim_dir())
+	nagomi_view.sync(game, camera.global_position, dt)
 	enemy_view.sync(game.enemies, dt)
 	props_view.sync(game, dt)
 	fx.sync(game, dt)
