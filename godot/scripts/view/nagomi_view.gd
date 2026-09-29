@@ -28,6 +28,7 @@ const EMOTIONS := {
 const OFFSET := Vector3(0.40, 1.32, -0.08)
 const FOLLOW := 6.0  # ついて行く速さ（大きいほど遅れが少ない）
 const BOB := 0.025  # 上下の揺れ（m）
+const LOOK_BACK := 0.85  # ふだんの向き：0 = ハルと同じ向き、1 = カメラを向く
 
 var model: Node3D
 var shells: Array[Node3D] = []
@@ -108,17 +109,18 @@ func sync(game, cam_pos: Vector3, dt: float) -> void:
 	emotion = pick_emotion(game)
 	var p = game.player
 	global_position = global_position.lerp(_target(p), 1.0 - exp(-FOLLOW * dt))
-	# 向き：ふだんはハルと同じ向き、ナゴミが話している間はカメラへ、解析中は相手へ
-	var want: float = p.yaw
+	# 向き：ふだんはハルの向きとカメラの間（後ろのカメラから種子光が見えるように、少し振り返る）、
+	# ナゴミが話している間はカメラへ、解析中は相手へ（少しだけカメラ寄り）
+	var cv: Vector3 = cam_pos - global_position
+	var cam_yaw := atan2(cv.x, cv.z)
+	# カメラが真後ろのとき向きが左右に跳ねないよう、回る向きはハルの右（ナゴミのいる外側）回りに決める
+	var want: float = p.yaw + wrapf(cam_yaw - p.yaw, -1.5 * PI, 0.5 * PI) * LOOK_BACK
 	var d: Dictionary = game.story.dialogue
-	var look = null
 	if not d.is_empty() and d.get("who", "") == "ナゴミ":
-		look = cam_pos
+		want = cam_yaw
 	elif game.lock_on.target != null:
-		look = game.lock_on.target.center()
-	if look != null:
-		var v: Vector3 = look - global_position
-		want = atan2(v.x, v.z)
+		var v: Vector3 = game.lock_on.target.center() - global_position
+		want = lerp_angle(atan2(v.x, v.z), cam_yaw, 0.3)
 	_yaw += wrapf(want - _yaw, -PI, PI) * (1.0 - exp(-5.0 * dt))
 	rotation.y = _yaw
 	# 首をかしげる程度の傾き（困惑）と、上下の揺れに合わせた小さな傾き
