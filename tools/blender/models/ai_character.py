@@ -26,6 +26,10 @@
                            自動の重み（熱）が付かない頂点がこの割合（0〜1）までなら、全体を距離の重みに替えず、
                            一番近い重みのある頂点の重みを写す（別の殻の髪の房・板など）。省略時は従来どおり
       [--rigid-parts]      膝当て（膝の前）と右肩の板（下地の色で探す）を 1 本の骨（すね・右の上腕）にだけ付け、曲げても形を保つ
+      [--no-weapon]        銃・光刃・目印を付けない（ヤーナなどの NPC。--gun・--blade-anchor・--grip-fist は無視）
+      [--final-height m]   最後に骨の物体を一様に拡大して、この身長にする（再構築は身長 1.55m の座標で行い、ヤーナは 1.72m）。
+                           骨の物体の拡大なので、動作（骨の回転・移動）はそのまま同じ割合で大きくなる
+      [--name 名前]        骨の物体・体の物体の名前（既定 HaruRig・Haru）
       [--stats <json>]     数値の記録の書き出し先（省略時は <出力>.stats.json）
       [--render <接頭辞>]  確認用の画像（関節の目印つき）
 
@@ -864,6 +868,9 @@ def main() -> None:
                     help='自動の重みが付かない頂点がこの割合までなら、近い頂点の重みで埋める（既定 0 = 従来どおり）')
     ap.add_argument('--rigid-parts', action='store_true',
                     help='膝当て・右肩の板（下地の色で探す）を 1 本の骨にだけ付ける（テクスチャのある入力）')
+    ap.add_argument('--no-weapon', action='store_true', help='銃・光刃・目印を付けない（NPC）')
+    ap.add_argument('--final-height', type=float, default=None, help='最後に一様に拡大する身長（m）')
+    ap.add_argument('--name', default='Haru', help='物体の名前（骨は <名前>Rig）')
     ap.add_argument('--stats', help='数値の記録の JSON（既定は <出力>.stats.json）')
     ap.add_argument('--render')
     args = ap.parse_args([a for a in sys.argv[1:] if a != '--'])
@@ -881,7 +888,7 @@ def main() -> None:
         decimate(body, target)
 
     # 光刃の根元（A ポーズで決めて、腕を下ろしたあとの位置へ移す）
-    anchor = parse_anchor(args.blade_anchor)
+    anchor = None if args.no_weapon else parse_anchor(args.blade_anchor)
     blade_apose = None
     if anchor == 'auto':
         if '_blade_anchor' in J:
@@ -909,12 +916,14 @@ def main() -> None:
                  'side': list(q_left @ Vector(blade_apose['side']))}
 
     # 標準の骨を入れ直す（重みは骨の名前で残っている）
-    arm = H.build_armature(HEIGHT, 'HaruRig', joints_table(J2))
+    arm = H.build_armature(HEIGHT, f'{args.name}Rig', joints_table(J2))
     H.finalize_skin(body, arm)
     tex_dir = tempfile.mkdtemp(prefix='ai_char_')
     fix_materials(body, tex_dir)
     grip_info = None
-    if args.gun:
+    if args.no_weapon:
+        parts = []
+    elif args.gun:
         # 絵から起こした銃。材質は入力（'haru_body'、'haru_face'）と銃（'spark_gun'）のまま
         blade_mat = blade_material()
         grip = None
@@ -931,9 +940,16 @@ def main() -> None:
         parts_mat.name = 'ai_parts'  # 銃など、色見本で塗る部品
         bpy.data.materials.remove(face_mat)
         parts = add_gun_and_blade(arm, parts_mat, blade_mat, blade)
-    body = C.join([body] + parts, 'Haru')
+    body = C.join([body] + parts, args.name) if parts else body
+    body.name = args.name
     name_images(body)
     H.bake_clips(arm, A.all_clips())
+    final_scale = 1.0
+    if args.final_height:
+        # 骨の物体を一様に拡大（子の体・目印も一緒に。動作の移動の値も骨の物体の中の値なので同じ割合で大きくなる）
+        final_scale = args.final_height / HEIGHT
+        arm.scale = (final_scale,) * 3
+        bpy.context.view_layer.update()
 
     C.export_glb(args.out)
     stats = {
@@ -943,7 +959,8 @@ def main() -> None:
         'skinning': method,
         'textured_input': textured,
         'decimate_target': target,
-        'materials': [m.name for m in body.data.materials if m] + ['haru_blade'],
+        'materials': [m.name for m in body.data.materials if m] + ([] if args.no_weapon else ['haru_blade']),
+        'final_scale': round(final_scale, 5),
         'joints': {k: [round(x, 4) for x in v] for k, v in J2.items()},
         # A ポーズ（入力の姿勢）の関節。確認の画像で腕を A ポーズへ戻すのに使う
         'joints_apose': {k: [round(x, 4) for x in v] for k, v in J.items()},

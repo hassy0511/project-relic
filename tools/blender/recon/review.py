@@ -1,4 +1,4 @@
-"""骨を入れたハル（haru_r.glb）の確認の画像を Cycles で描く（build/recon/review/）。
+"""骨を入れたキャラクター（chars/<id>.json の out_glb。ハルは haru_r.glb）の確認の画像を Cycles で描く（build/recon/review/）。
 
   .venv-blender/bin/python tools/blender/recon/review.py
       [--glb godot/assets/models/haru_r.glb]   骨・動作の入った GLB（ai_character.py の出力）
@@ -40,12 +40,13 @@ from mathutils import Matrix, Quaternion, Vector  # noqa: E402
 from PIL import Image, ImageDraw  # noqa: E402
 
 from lib import common as C  # noqa: E402
+from recon import char as CH  # noqa: E402
 from recon import views as V  # noqa: E402
 
 REPO = C.REPO
-RECON = os.path.join(REPO, 'build', 'recon')
+RECON = CH.WORK
 BG = 50            # 背景の灰色（8 bit）
-EXPRESSIONS = ['normal', 'smile', 'surprise', 'pain']
+EXPRESSIONS = list(CH.get('face.expressions'))
 
 # 動作の確認：(動作, フレーム, 光刃を出すか)
 POSES = [('run', 1, False), ('jump', 5, False), ('combo1', 5, True), ('combo3', 8, True),
@@ -75,6 +76,11 @@ class Scene:
         bpy.ops.import_scene.gltf(filepath=glb)
         objs = list(bpy.context.scene.objects)
         self.arm = next(o for o in objs if o.type == 'ARMATURE')
+        # 本来の身長へ拡大した GLB（ヤーナ）は、較正のカメラ（再構築の座標）に合わせて縮め直す
+        k = CH.HEIGHT / CH.RECON_HEIGHT
+        if abs(k - 1.0) > 1e-6:
+            self.arm.scale = tuple(c / k for c in self.arm.scale)
+            bpy.context.view_layer.update()
         self.blade = next((o for o in objs if o.name.startswith('LightBlade')), None)
         # 骨の形の表示に読み込まれる球などは描かない
         for o in objs:
@@ -271,7 +277,8 @@ def grid(rows: list[list[np.ndarray]]) -> np.ndarray:
 # ---------------------------------------------------------------- 各画像
 
 # 絵と比べる視点（W1-00b の左真横・左右の前 45 度を足した。右前斜め three_quarter は約 31 度の古い絵）
-COMPARE_VIEWS = ('front', 'back', 'side_right', 'side_left', 'front_right45', 'front_left45', 'three_quarter')
+COMPARE_VIEWS = CH.p('review.COMPARE_VIEWS', ('front', 'back', 'side_right', 'side_left', 'front_right45', 'front_left45',
+                                               'three_quarter'))
 
 
 def compare_views(S: Scene, stats: dict | None, out: str, size: int) -> None:
@@ -349,7 +356,7 @@ def joints(S: Scene, out: str, size: int, samples: int) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument('--glb', default=os.path.join(REPO, 'godot', 'assets', 'models', 'haru_r.glb'))
+    ap.add_argument('--glb', default=os.path.join(REPO, CH.OUT_GLB))
     ap.add_argument('--stats', default=None)
     ap.add_argument('--out', default=os.path.join(RECON, 'review'))
     ap.add_argument('--samples', type=int, default=64)
@@ -358,7 +365,7 @@ def main() -> None:
     args = ap.parse_args([a for a in sys.argv[1:] if a != '--'])
     stats_path = args.stats
     if stats_path is None:
-        for p in (os.path.join(RECON, 'haru_r.stats.json'), os.path.splitext(args.glb)[0] + '.stats.json'):
+        for p in (os.path.join(RECON, f'{CH.OUT_NAME}.stats.json'), os.path.splitext(args.glb)[0] + '.stats.json'):
             if os.path.exists(p):
                 stats_path = p
                 break

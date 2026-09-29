@@ -151,7 +151,7 @@ SKIN = CH.p('hair.SKIN', {
 CAP = CH.p('hair.CAP', {'zs': (1.200, 1.560), 'nape': (1.212, 1.242), 'cx_z': (1.3, 1.48), 'n_zmin': 1.25,
                         'fringe_ramp': (1.375, 1.42), 'fringe_ztop': 1.45})
 # 首（縦の楕円柱）：半径 (x, y)、前後の中心、高さの範囲
-NECK = CH.p('hair.NECK', {'r': (0.040, 0.044), 'cy': 0.012, 'z': (1.06, 1.27)})
+NECK = dict({'cx': 0.0}, **CH.p('hair.NECK', {'r': (0.040, 0.044), 'cy': 0.012, 'z': (1.06, 1.27)}))
 # 前髪の殻（bangs_field）：正面の絵で前髪を探す範囲。z：上・下、x：左右の範囲、root_z：根（この高さより上につながる塊だけ）、
 # thick_ramp：厚みを 0.6 → 1.0 倍にする高さ
 BANGS = CH.p('hair.BANGS', {'z': (1.445, 1.295), 'x': (GOGGLE_MIRROR_X - 0.088, GOGGLE_MIRROR_X + 0.088),
@@ -962,15 +962,16 @@ def ears_field(lo, vox, shape) -> np.ndarray:
     out = np.full(Z.shape, -0.05, np.float32)
     for sx in (1.0, -1.0):
         cx, cy, cz = EAR['c']
+        x0 = EAR.get('x0', 0.0)   # 耳の左右の中心（頭が体の中心から横へずれて描かれたキャラクター）
         yaw = math.radians(EAR['yaw_deg']) * sx
-        dx, dy, dz = X - sx * cx, Y - cy, Z - cz
+        dx, dy, dz = X - x0 - sx * cx, Y - cy, Z - cz
         # 耳の面は y-z 面を z 軸のまわりに回したもの（後ろの縁が外へ開く）
         lx = dx * math.cos(yaw) - dy * math.sin(yaw)
         ly = dx * math.sin(yaw) + dy * math.cos(yaw)
         rx, ry, rz = EAR['r']
         body = (1 - np.sqrt((lx / rx) ** 2 + (ly / ry) ** 2 + (dz / rz) ** 2)) * rx
         rc, rr = EAR['root_c'], EAR['root_r']
-        root = (1 - np.sqrt(((X - sx * rc[0]) / rr[0]) ** 2 + ((Y - rc[1]) / rr[1]) ** 2
+        root = (1 - np.sqrt(((X - x0 - sx * rc[0]) / rr[0]) ** 2 + ((Y - rc[1]) / rr[1]) ** 2
                             + ((Z - rc[2]) / rr[2]) ** 2)) * min(rr)
         ear = smooth_max(body.astype(np.float32), root.astype(np.float32), 0.006)
         dimple = (1 - np.sqrt(((lx - sx * 0.0075) / 0.006) ** 2 + ((ly + 0.002) / 0.012) ** 2
@@ -1104,7 +1105,7 @@ def neck_field(lo, vox, shape, k0) -> np.ndarray:
     ys = lo[1] + (np.arange(ny) + 0.5) * vox
     zs = lo[2] + (np.arange(k0, nz) + 0.5) * vox
     (rx, ry), cy, (z0, z1) = NECK['r'], NECK['cy'], NECK['z']
-    e = np.sqrt((xs[:, None] / rx) ** 2 + ((ys[None, :] - cy) / ry) ** 2)
+    e = np.sqrt(((xs[:, None] - NECK['cx']) / rx) ** 2 + ((ys[None, :] - cy) / ry) ** 2)
     f = ((1 - e) * rx).astype(np.float32)
     top = (z1 - zs)[:, None, None]
     bot = (zs - z0)[:, None, None]

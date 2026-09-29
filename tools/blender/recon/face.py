@@ -58,33 +58,39 @@ from skimage.morphology import convex_hull_object, disk
 from skimage.registration import optical_flow_tvl1, phase_cross_correlation
 from skimage.transform import rescale
 
-REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-WORK = os.path.join(REPO, 'build', 'recon')
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from recon import char as CH  # noqa: E402
+
+REPO = CH.REPO
+WORK = CH.WORK
 SRC = os.path.join(WORK, 'src')
-ART_REF = 'origin/art/w1-haru3d'
-ART_DIR = 'art/concepts/W1_haru_3d'
+ART_REF = CH.CFG['art']['ref']
+ART_DIR = CH.CFG['art']['dir']
 
-FRONT_FILE = 'haru_3d_front.png'
-FACE_FILE = 'haru_face_front.png'
-EXPR_FILE = 'haru_face_expressions.png'
-EXPRESSIONS = ['normal', 'smile', 'surprise', 'pain']   # 左上・右上・左下・右下（ゲームの表情番号の順）
+FRONT_FILE = CH.CFG['views']['front']['file']
+FACE_FILE = CH.get('face.file')
+EXPR_FILE = CH.get('face.expressions_file')
+EXPRESSIONS = list(CH.get('face.expressions'))   # 左上・右上・左下・右下（ゲームの表情番号の順）
 
-# 顔の絵（haru_face_front.png、2048 四方）の上の範囲 (x0, y0, x1, y1)
-FACE_FEATURES_RECT = (480, 360, 1580, 1650)   # ゴーグル〜あご。全身の正面の絵との粗い照合の型
-FACE_HEAD_RECT = (200, 140, 1850, 1760)       # 頭全体。細かい照合に使う範囲
-FACE_EXPR_RECT = (600, 820, 1460, 1600)       # 眉・目・口。表情で変わるので表情どうしの照合から外す
-FACE_NECK_Y = 1650                            # これより下（首の切り口）は絵ごとに違うので、ずれの場に使わない
-FACE_WINDOW = (615, 840, 1445, 1660)          # 顔の窓：頬〜頬（耳の手前）、ゴーグルの下〜あごの少し下
+# 顔の絵（<id>_face_front.png、2048 四方）の上の範囲 (x0, y0, x1, y1)。値はハルのもの（ほかは chars/<id>.json の params）
+FACE_FEATURES_RECT = CH.p('face.FACE_FEATURES_RECT', (480, 360, 1580, 1650))   # ゴーグル〜あご。全身の正面の絵との粗い照合の型
+FACE_HEAD_RECT = CH.p('face.FACE_HEAD_RECT', (200, 140, 1850, 1760))       # 頭全体。細かい照合に使う範囲
+FACE_EXPR_RECT = CH.p('face.FACE_EXPR_RECT', (600, 820, 1460, 1600))       # 眉・目・口。表情で変わるので表情どうしの照合から外す
+FACE_NECK_Y = CH.p('face.FACE_NECK_Y', 1650)                            # これより下（首の切り口）は絵ごとに違うので、ずれの場に使わない
+FACE_WINDOW = CH.p('face.FACE_WINDOW', (615, 840, 1445, 1660))          # 顔の窓：頬〜頬（耳の手前）、ゴーグルの下〜あごの少し下
+# 粗い照合の倍率の範囲（顔の絵 → 全身の正面の絵、顔の絵 → 表情の絵の区画）
+FRONT_SCALE = CH.p('face.FRONT_SCALE', (0.18, 0.40))
+EXPR_SCALE = CH.p('face.EXPR_SCALE', (0.40, 0.60))
 
 # 照合の確かめに使う目印（顔の絵の画素、中心）
-FRONT_LANDMARKS = {
+FRONT_LANDMARKS = CH.p('face.FRONT_LANDMARKS', {
     'eye_img_left': (810, 1160), 'eye_img_right': (1220, 1160), 'nose': (1020, 1330),
     'mouth': (1020, 1420), 'chin': (1020, 1610), 'ear_img_left': (530, 1260), 'ear_img_right': (1520, 1260),
-}
-EXPR_LANDMARKS = {
+})
+EXPR_LANDMARKS = CH.p('face.EXPR_LANDMARKS', {
     'hair_top': (1080, 260), 'ear_img_left': (530, 1260), 'ear_img_right': (1520, 1260),
     'cheek_left': (660, 1400), 'cheek_right': (1380, 1400), 'chin': (1020, 1610),
-}
+})
 STRUCT_MIN = 2e-4       # 残りのずれを測る小窓に要る「2 方向の模様」の強さ（構造テンソルの小さい方の固有値）
 
 ATLAS = 2048
@@ -409,7 +415,7 @@ def align_face_to_front(front: np.ndarray, face: np.ndarray) -> tuple[FrontAlign
     cols = np.nonzero(alpha[top:top + 300].any(0))[0]
     cx = int((cols[0] + cols[-1]) / 2)
     dst_rect = (cx - 300, max(0, top - 40), cx + 300, top + 520)
-    t0, c0 = coarse_match(gray(on_gray(face)), FACE_FEATURES_RECT, gray(on_gray(front)), dst_rect, 0.18, 0.40)
+    t0, c0 = coarse_match(gray(on_gray(face)), FACE_FEATURES_RECT, gray(on_gray(front)), dst_rect, *FRONT_SCALE)
     print(f'  粗い照合：倍率 {t0.scale:.4f} 相関 {c0:.4f}')
     t, c = refine(face, front, t0, FACE_HEAD_RECT)
     print(f'  相似変換：倍率 {t.scale:.5f} 回転 {math.degrees(t.angle):.3f}° '
@@ -488,7 +494,7 @@ def align_expressions_to_face(expr: np.ndarray, face: np.ndarray) -> tuple[ExprA
     ts, infos = [], []
     for i, name in enumerate(EXPRESSIONS):
         qx, qy = (i % 2) * QUAD, (i // 2) * QUAD
-        t0, c0 = coarse_match(face_g, FACE_HEAD_RECT, expr_g, (qx, qy, qx + QUAD, qy + QUAD), 0.40, 0.60)
+        t0, c0 = coarse_match(face_g, FACE_HEAD_RECT, expr_g, (qx, qy, qx + QUAD, qy + QUAD), *EXPR_SCALE)
         t, c = refine(face, expr, t0, FACE_HEAD_RECT, exclude=FACE_EXPR_RECT)
         print(f'  {name}: 倍率 {t.scale:.5f} 回転 {math.degrees(t.angle):.3f}° '
               f'移動 ({t.tx:.2f}, {t.ty:.2f}) 相関 {c:.4f}（粗い {c0:.4f}）')

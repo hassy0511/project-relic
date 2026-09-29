@@ -28,15 +28,25 @@ import numpy as np
 from scipy import ndimage as ndi
 from scipy import sparse
 
+import os  # noqa: E402
+import sys  # noqa: E402
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from recon import char as CH  # noqa: E402
+
 ARM_DEG = 35.0      # A ポーズの腕の開き（手の板の向きに使う）
-HAND_X = 0.31       # 手首の面 |x|
-CUT_Z = {'legs': 0.60, 'torso': 0.86, 'arm': 0.92, 'leg': 0.31}   # 股・ベルト・ひじ・膝の高さ
+HAND_X = CH.p('uvparts.HAND_X', 0.31)      # 手首の面 |x|
+CUT_Z = CH.p('uvparts.CUT_Z', {'legs': 0.60, 'torso': 0.86, 'arm': 0.92, 'leg': 0.31})   # 股・ベルト・ひじ・膝の高さ
+
+
+# 腕と胴を分ける |x| の節 (高さ, |x|)。わきの下 0.97、肩 1.15
+ARM_GAP = CH.p('uvparts.ARM_GAP', ((0.50, 0.70, 0.80, 0.90, 0.97, 1.15, 1.30),
+                                   (0.27, 0.25, 0.22, 0.16, 0.138, 0.169, 0.195)))
 
 
 def _arm_gap_x(z: np.ndarray) -> np.ndarray:
     """腕と胴を分ける |x|（高さ z ごと）。わきの下より上は肩へ傾いた面、下は腕と胴の間のすき間の中ほど"""
-    zz = np.array([0.50, 0.70, 0.80, 0.90, 0.97, 1.15, 1.30])
-    xx = np.array([0.27, 0.25, 0.22, 0.16, 0.138, 0.169, 0.195])
+    zz, xx = (np.array(a) for a in ARM_GAP)
     return np.interp(z, zz, xx)
 
 
@@ -90,12 +100,12 @@ def cut_parts(bm, head_z: float) -> tuple[np.ndarray, list[str]]:
             (0, 0, head_z), (0, 0, 1))
     # 腕と胴：わきの下より上の傾いた面（左右）
     for s in (-1, 1):
-        p0 = np.array([s * 0.138, 0, 0.97])
-        p1 = np.array([s * 0.169, 0, 1.15])
+        p0 = np.array([s * ARM_GAP[1][4], 0, ARM_GAP[0][4]])
+        p1 = np.array([s * ARM_GAP[1][5], 0, ARM_GAP[0][5]])
         d = p1 - p0
         no = np.cross(d, [0, 1, 0])
         no /= np.linalg.norm(no)
-        _bisect(bm, faces_where(lambda C: (C[:, 2] > 0.93) & (C[:, 2] < head_z) & (C[:, 0] * s > 0.08)), p0, no)
+        _bisect(bm, faces_where(lambda C: (C[:, 2] > ARM_GAP[0][4] - 0.04) & (C[:, 2] < head_z) & (C[:, 0] * s > 0.08)), p0, no)
     # 手首：|x| = HAND_X の面（腕の低い所だけ）
     for s in (-1, 1):
         _bisect(bm, faces_where(lambda C: (C[:, 2] < 0.85) & (C[:, 2] > 0.45) & (C[:, 0] * s > 0.25)),

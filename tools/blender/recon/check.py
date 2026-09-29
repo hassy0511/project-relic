@@ -28,7 +28,7 @@ RENDER = 1024   # 確認の画像の大きさ（元の絵の半分）
 
 
 def load_mesh(out: str = V.WORK) -> tuple[np.ndarray, np.ndarray]:
-    d = np.load(os.path.join(out, 'haru_mesh.npz'))
+    d = np.load(os.path.join(out, f'{V.CH.ID}_mesh.npz'))
     return d['verts'].astype(np.float64), d['tris'].astype(np.int64)
 
 

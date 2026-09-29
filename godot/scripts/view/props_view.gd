@@ -6,8 +6,15 @@ var _walls := {}
 var _chests := {}
 var _beams: Array[StandardMaterial3D] = []
 var _npcs := {}
+var _npc_models := {}   # id → {anim, face_mats, expr}
 var _pickups := {}
 var _time := 0.0
+
+## 住人の 3D モデル（絵から起こした GLB。tools/blender/recon/build_char.py）。無ければ従来の簡単な形で描く
+const NPC_MODELS := {"npc_yana": "res://assets/models/yana.glb"}
+## 会話の行の顔（dialogue の face）→ 顔のテクスチャの 2×2 の区画（ヤーナ：0 通常、1 豪快に笑う、2 驚き、3 怒る）。
+## 区画の無い顔は近いものか通常にする
+const NPC_FACES := {"normal": 0, "smile": 0, "smirk": 0, "serious": 0, "sad": 0, "laugh": 1, "surprised": 2, "angry": 3}
 
 
 func build(game: GameSim) -> void:
@@ -44,13 +51,17 @@ func build(game: GameSim) -> void:
 		root.position = n.pos
 		root.rotation.y = n.yaw
 		add_child(root)
-		var cap := CapsuleMesh.new()
-		cap.radius = 0.3
-		cap.height = 1.6
-		MeshKit.add(root, cap, MeshKit.mat(Color("#7a5a3a")), Vector3(0, 0.8, 0))
-		MeshKit.add(root, MeshKit.sphere(0.2), MeshKit.mat(Color("#d9a07a")), Vector3(0, 1.55, 0))
-		MeshKit.add(root, MeshKit.box(Vector3(0.45, 0.7, 0.05)), MeshKit.mat(Color("#4d5a4a")), Vector3(0, 0.8, 0.3))
-		MeshKit.add(root, MeshKit.box(Vector3(0.12, 0.6, 0.12)), MeshKit.mat(Color("#8a8a8a"), 0.3, 0.7), Vector3(-0.4, 0.95, 0))
+		var path: String = NPC_MODELS.get(n.id, "")
+		if path != "" and ResourceLoader.exists(path):
+			_npc_models[n.id] = _add_npc_model(root, path)
+		else:
+			var cap := CapsuleMesh.new()
+			cap.radius = 0.3
+			cap.height = 1.6
+			MeshKit.add(root, cap, MeshKit.mat(Color("#7a5a3a")), Vector3(0, 0.8, 0))
+			MeshKit.add(root, MeshKit.sphere(0.2), MeshKit.mat(Color("#d9a07a")), Vector3(0, 1.55, 0))
+			MeshKit.add(root, MeshKit.box(Vector3(0.45, 0.7, 0.05)), MeshKit.mat(Color("#4d5a4a")), Vector3(0, 0.8, 0.3))
+			MeshKit.add(root, MeshKit.box(Vector3(0.12, 0.6, 0.12)), MeshKit.mat(Color("#8a8a8a"), 0.3, 0.7), Vector3(-0.4, 0.95, 0))
 		root.add_child(MeshKit.label(n.name, 2.1, Color("#ffe7b8"), 48))
 		_npcs[n.id] = root
 	for b in game.beacons:
@@ -83,6 +94,14 @@ func sync(game: GameSim, dt: float) -> void:
 		var r: Node3D = _npcs.get(n.id)
 		if r:
 			r.rotation.y += U.wrap_angle(n.yaw - r.rotation.y) * minf(1.0, dt * 8.0)
+		var info: Dictionary = _npc_models.get(n.id, {})
+		if not info.is_empty():
+			# 話している行の顔（この住人のセリフのときだけ。ほかは通常）
+			var d: Dictionary = game.story.dialogue
+			var face := 0
+			if not d.is_empty() and d.get("who", "") == n.name:
+				face = int(NPC_FACES.get(String(d.get("face", "normal")), 0))
+			_set_npc_face(info, face)
 	for beam in _beams:
 		beam.albedo_color.a = 0.25 + sin(_time * 2.0) * 0.08
 	# 拾える物
@@ -101,3 +120,36 @@ func sync(game: GameSim, dt: float) -> void:
 		if not alive.has(k):
 			_pickups[k].queue_free()
 			_pickups.erase(k)
+
+
+## 住人のモデルを置く：材質を複製し（顔の区画のずれを共有しない）、待機の動作をくり返す
+func _add_npc_model(root: Node3D, path: String) -> Dictionary:
+	var scene: PackedScene = load(path)
+	var model: Node3D = scene.instantiate()
+	root.add_child(model)
+	var face_mats: Array[BaseMaterial3D] = []
+	for node in model.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		for s in mi.mesh.get_surface_count():
+			var src := mi.mesh.surface_get_material(s)
+			if src is BaseMaterial3D:
+				var m: BaseMaterial3D = src.duplicate()
+				mi.set_surface_override_material(s, m)
+				if m.resource_name.contains("face"):
+					face_mats.append(m)
+	var anim: AnimationPlayer = model.find_child("AnimationPlayer", true, false)
+	if anim and anim.has_animation("idle"):
+		anim.get_animation("idle").loop_mode = Animation.LOOP_LINEAR
+		anim.play("idle")
+		# 何人いても同じ動きにそろわないように、始めの時刻をずらす
+		anim.seek(fmod(absf(root.position.x * 0.37 + root.position.z * 0.23), 1.0) * anim.current_animation_length, true)
+	return {"anim": anim, "face_mats": face_mats, "expr": 0}
+
+
+func _set_npc_face(info: Dictionary, i: int) -> void:
+	if int(info.expr) == i:
+		return
+	info.expr = i
+	for m in info.face_mats:
+		(m as BaseMaterial3D).uv1_offset = Vector3((i % 2) * 0.5, (i / 2) * 0.5, 0)

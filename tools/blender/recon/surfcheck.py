@@ -245,7 +245,7 @@ def run(verts: np.ndarray, tris: np.ndarray, prefix: str, res: int = 640, sample
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument('--mesh', default=os.path.join(V.WORK, 'haru_mesh.npz'))
+    ap.add_argument('--mesh', default=os.path.join(V.WORK, f'{V.CH.ID}_mesh.npz'))
     ap.add_argument('--prefix', default=os.path.join(V.WORK, 'surf_check'))
     ap.add_argument('--res', type=int, default=640)
     ap.add_argument('--samples', type=int, default=16)

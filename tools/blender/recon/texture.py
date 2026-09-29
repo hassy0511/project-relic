@@ -79,22 +79,24 @@ from PIL import Image, ImageDraw  # noqa: E402
 from scipy import ndimage as ndi  # noqa: E402
 from scipy.spatial import cKDTree  # noqa: E402
 
+from recon import char as CH  # noqa: E402
 from recon import views as V  # noqa: E402
 
 WORK = V.WORK
 TEX_DIR = os.path.join(WORK, 'tex')
-OUT_GLB = os.path.join(WORK, 'haru_textured_apose.glb')
+OUT_GLB = os.path.join(WORK, f'{CH.ID}_textured_apose.glb')
 
 # 色をもらう実の視点。W1-00b の追加の絵（左真横・左右の前 45 度・腕の無い右真横）で、本人の左側も実の絵から
 # 取る。以前の右前斜め（three_quarter、約 31 度）は 45 度の絵と部品の位置が食い違い、斜めの色がずれたので使わない
-REAL_VIEWS = ('front', 'back', 'side_right', 'side_right_noarms', 'side_left', 'front_right45', 'front_left45')
+REAL_VIEWS = CH.p('texture.REAL_VIEWS', ('front', 'back', 'side_right', 'side_right_noarms', 'side_left', 'front_right45',
+                                         'front_left45'))
 # 左右反転して本人の左側の代わりに使う視点：腕の無い右真横だけ（左真横の絵では左腕が胴の横を隠すので、
 # 左の胴の横の色は、実の視点がよく見ていない所だけこれで補う）
-MIRROR_VIEWS = ('side_right_noarms',)
+MIRROR_VIEWS = CH.p('texture.MIRROR_VIEWS', ('side_right_noarms',))
 # 腕の無い絵：腕・手のテクセルは色をもらわず、奥行きは腕・手を除いたメッシュで調べる（絵では胴の横が見えている）
-NOARM_VIEWS = ('side_right_noarms',)
+NOARM_VIEWS = CH.p('texture.NOARM_VIEWS', ('side_right_noarms',))
 # 腕の無い絵がある向きの、腕のある絵の胴・脚への重みの倍率（胴の横は腕の無い絵から取る）
-ARMED_BODY_GAIN = {'side_right': 0.12}
+ARMED_BODY_GAIN = CH.p('texture.ARMED_BODY_GAIN', {'side_right': 0.12})
 # 視点の重みの倍率。背面はゲームで一番よく見る向き（後ろからのカメラ）なので強め、真横と斜めは
 # 正面・背面から描き起こした絵で部品の位置の食い違いが多いので弱め
 VIEW_GAIN = {'front': 1.0, 'back': 1.2, 'side_right': 0.9, 'side_right_noarms': 0.9, 'side_left': 0.9,
@@ -107,17 +109,17 @@ MIRROR_GAIN = 0.35         # 反転の視点の重み（実の視点がよく見
 # 頭（uvparts の部位 0）の左側：形の頭（hair.py）は右の絵（右真横・右前斜め）に合わせた左右対称の形なので、
 # 左の絵（左真横・左前斜め）の髪・耳・もみあげの位置は形と合わず、ほお・首に髪の暗い色がにじんだ。
 # 頭の左側は右の絵を反転した視点を主に使い、左の絵は弱く
-HEAD_MIRROR_VIEWS = ('side_right', 'front_right45')
+HEAD_MIRROR_VIEWS = CH.p('texture.HEAD_MIRROR_VIEWS', ('side_right', 'front_right45'))
 HEAD_MIRROR_GAIN = 0.9
-HEAD_LEFT_VIEW_GAIN = 0.15   # 頭の左側の、左の絵の重みの倍率
+HEAD_LEFT_VIEW_GAIN = CH.p('texture.HEAD_LEFT_VIEW_GAIN', 0.15)   # 頭の左側の、左の絵の重みの倍率
 # 靴底：絵（右真横・左真横・正面、haru_shoes.png）では靴底は高さ約 4cm の暗い灰色（#444641 に近い）のゴムの帯。
 # 視点の継ぎ目で靴底の縁がぎざぎざに見えたので、この高さより下の靴は靴底の色の一色に塗る
-SOLE_TOP = 0.039
+SOLE_TOP = CH.p('texture.SOLE_TOP', 0.039)
 # 首の前（のど・あごの下）：haru_neck.png と正面の絵で素肌の範囲（あごの下 1.21 から、フードの襟の内側 |x| < 0.042、
 # 首の前の半分）
-NECK_ZONE = {'z': (1.155, 1.215), 'x': 0.042, 'y': 0.0}
-HAIR_SIDE_DETAIL = 0.85    # 横を向いた髪の細部（3D の近さの平均からの差）を弱める割合
-SOLE_RGB = (0.265, 0.25, 0.245)
+NECK_ZONE = CH.p('texture.NECK_ZONE', {'z': (1.155, 1.215), 'x': 0.042, 'y': 0.0})
+HAIR_SIDE_DETAIL = CH.p('texture.HAIR_SIDE_DETAIL', 0.85)    # 横を向いた髪の細部（3D の近さの平均からの差）を弱める割合
+SOLE_RGB = CH.p('texture.SOLE_RGB', (0.265, 0.25, 0.245))
 MIRROR_NDV = (0.25, 0.45)  # 実の視点の一番よい n・v がこの間なら反転を弱め、上なら使わない
 
 P_LOW = 4.0                # ぼかした色の重みの指数：max(0, n・v)^P_LOW
@@ -138,14 +140,14 @@ INPAINT_K = 16             # 塗り足しで引く近いテクセルの数
 FACE_FEATHER = 0.030       # 顔の材質の縁から、体のテクスチャを正面の色へ寄せる距離（m）
 FACE_NDV_MIN = 0.45        # 顔の材質にする面の、正面への向きの下限（n・(-Y)）。横を向いたほお・あごは
                            # 正面の投影が引き伸ばされるので体の材質（複数の視点の色）にする
-FACE_CHIN_PX = 540         # 顔の材質にする三角形の重心の下限（正面の絵の画素の y。あごの先は約 535）
-HEAD_CLEAN_Z = (1.215, 1.47)  # 頭の肌と髪の塗り分けをする高さ（あごの下の首・えりより上）
-SKIN_CLEAN_ZMIN = 1.20     # 肌の側の下端（あごの下の首の横まで。フードの襟は約 1.19 より下）
-SKIN_CLEAN_ZMAX = 1.31     # 肌の側で暗い色を消すのはこれより下だけ（上は眉・前髪がある）
+FACE_CHIN_PX = CH.p('texture.FACE_CHIN_PX', 540)        # 顔の材質にする三角形の重心の下限（正面の絵の画素の y。あごの先は約 535）
+HEAD_CLEAN_Z = CH.p('texture.HEAD_CLEAN_Z', (1.215, 1.47))  # 頭の肌と髪の塗り分けをする高さ（あごの下の首・えりより上）
+SKIN_CLEAN_ZMIN = CH.p('texture.SKIN_CLEAN_ZMIN', 1.20)    # 肌の側の下端（あごの下の首の横まで。フードの襟は約 1.19 より下）
+SKIN_CLEAN_ZMAX = CH.p('texture.SKIN_CLEAN_ZMAX', 1.31)    # 肌の側で暗い色を消すのはこれより下だけ（上は眉・前髪がある）
 ALIGN_RES = 1024           # 視点の合わせ込み（光学的流れ）の画像の大きさ
 ALIGN_SIGMA = 16.0         # 流れをなめらかにするぼかし（2048 の画素）
-ALIGN_MAX = 40.0           # ずらしの上限（2048 の画素）
-ALIGN_ORDER = ('front_right45', 'front_left45', 'side_right_noarms', 'side_right', 'side_left', 'back')   # 正面を基準に、この順で合わせる
+ALIGN_MAX = CH.p('texture.ALIGN_MAX', 40.0)           # ずらしの上限（2048 の画素）
+ALIGN_ORDER = CH.p('texture.ALIGN_ORDER', ('front_right45', 'front_left45', 'side_right_noarms', 'side_right', 'side_left', 'back'))   # 正面を基準に、この順で合わせる
 DEBUG_ALIGN = True
 DILATE_PX = 16             # 島の外を埋める幅の目安（実際は全面を一番近い島の色で埋める）
 ROUGHNESS = 0.8
@@ -157,21 +159,27 @@ EMIT_BASE_DARKEN = 0.55    # 発光の所の下地の色を (1 - これ × 度�
 # メッシュの腕は絵の腕と数 cm ずれるので、メッシュの奥行きでは遮りが分からない。絵の腕・手の画素（メッシュの腕・手を
 # その視点へ投影して ART_OCC_BAND 画素広げた帯の中の、肌・手袋の色）に写る「腕・手でない」テクセルは、
 # その視点の重みを 0 にする（正面の絵・塗り足しが色を出す）
-ART_OCCLUDE_VIEWS = ('side_right', 'side_left', 'front_right45', 'front_left45', 'three_quarter', 'back')
+ART_OCCLUDE_VIEWS = CH.p('texture.ART_OCCLUDE_VIEWS', ('side_right', 'side_left', 'front_right45', 'front_left45', 'three_quarter', 'back'))
 ART_OCC_BAND = int(ALIGN_MAX + 10)
-NECK_V_HALF = 0.055       # 首の前の素肌の V の半幅（m。これより外の首まわりはフード・えり）
-HEAD_Z = V.HEIGHT - V.HEIGHT / 4.4   # 部位の分け（uvparts.region_of_point）の頭の高さ（carve.py と同じ）
+NECK_V_HALF = CH.p('texture.NECK_V_HALF', 0.055)      # 首の前の素肌の V の半幅（m。これより外の首まわりはフード・えり）
+HEAD_Z = CH.p('carve.HEAD_Z', V.HEIGHT - V.HEIGHT / 4.4)  # 部位の分け（uvparts.region_of_point）の頭の高さ（carve.py と同じ）
 
 # 左右で違う部品（本人の右肩の板・右太ももの板・左前腕の籠手）の範囲。世界の (x, z) の箱
 # （正面の絵の mask_asymmetric_parts から、余裕を 3cm ほど足した）。本人の左側のテクセル p について、
 # (x, z) が左の部品の箱に入るか、(-x, z) が右の部品の箱に入るなら、反転の視点を使わない。
-ASYMMETRIC = {
+ASYMMETRIC = CH.p('texture.ASYMMETRIC', {
     'right_shoulder_plate': ((-0.31, -0.10), (0.99, 1.22)),
     'right_thigh_plate': ((-0.27, -0.03), (0.54, 0.84)),
     'left_gauntlet': ((0.16, 0.38), (0.72, 0.96)),
-}
+})
+# 体の肌色の塗り直し（body_cleanup）の高さ：胴はこれより下に肌が無い、えり・フードの範囲、上を向いたえりの上端、
+# 腕はこれより上が袖（肌が無い）
+BODY_CLEAN = CH.p('texture.BODY_CLEAN', {'torso_skin_z': 1.10, 'hood_z': (1.10, 1.215), 'collar_up_z': 1.19,
+                                        'sleeve_z': 1.01})
+# 絵の腕に遮られうる胴・脚のテクセルの高さの上限（首の肌は頭の近く）
+BLOCK_Z = CH.p('texture.BLOCK_Z', 1.15)
 
-AMBER_HEX = '#FFBC52'
+AMBER_HEX = CH.p('texture.AMBER_HEX', '#FFBC52')
 
 
 def log(msg: str) -> None:
@@ -187,8 +195,8 @@ def import_mesh(path: str):
     C.reset_scene()
     bpy.ops.import_scene.gltf(filepath=path)
     meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
-    obj = C.join(meshes, 'haru') if len(meshes) > 1 else meshes[0]
-    obj.name = 'haru'
+    obj = C.join(meshes, CH.ID) if len(meshes) > 1 else meshes[0]
+    obj.name = CH.ID
     for o in list(bpy.context.scene.objects):
         if o is not obj:
             bpy.data.objects.remove(o, do_unlink=True)
@@ -592,7 +600,7 @@ def bake(mesh: dict, size: int, cams: dict[str, V.Cam], atlas_meta: dict, align:
     arm_tri = np.isin(treg, (2, 3, 4, 5))
     reg = treg[tri]
     # 絵の腕に遮られうるテクセル：腕・手・頭でないもの（胴・脚。首の肌は頭の近くなので z < 1.15）
-    block_texel = ~np.isin(reg, (0, 2, 3, 4, 5)) & (pos[:, 2] < 1.15)
+    block_texel = ~np.isin(reg, (0, 2, 3, 4, 5)) & (pos[:, 2] < BLOCK_Z)
     blocks = {}
 
     # 視点ごと
@@ -798,9 +806,11 @@ def body_cleanup(res: dict) -> None:
     # えりの上を向いた面は、どの視点もよく見ていない（塗り足した）所だけ：正面から見える首の前の素肌は残す
     x, y = pos[:, 0], pos[:, 1]
     # フード・えり：首の前の V（正面の絵で |x| < 約 0.045）の外と、首の後ろは肌にしない（絵ではフードのれんが色）
-    hood = (reg == 1) & (z >= 1.10) & (z < 1.215) & ((np.abs(x) > NECK_V_HALF) | (y > 0.01))
-    nonskin = (((reg == 1) & (z < 1.10)) | hood | ((reg == 1) & (z < 1.19) & (nrm[:, 2] > 0.5) & (res['sl'] < 2 * W_FULL))
-               | np.isin(reg, (6, 7)) | (np.isin(reg, (2, 3)) & (z > 1.01)))
+    bc = BODY_CLEAN
+    hood = (reg == 1) & (z >= bc['hood_z'][0]) & (z < bc['hood_z'][1]) & ((np.abs(x) > NECK_V_HALF) | (y > 0.01))
+    nonskin = (((reg == 1) & (z < bc['torso_skin_z'])) | hood
+               | ((reg == 1) & (z < bc['collar_up_z']) & (nrm[:, 2] > 0.5) & (res['sl'] < 2 * W_FULL))
+               | np.isin(reg, (6, 7)) | (np.isin(reg, (2, 3)) & (z > bc['sleeve_z'])))
     skl = skin_not_ivory(col)
     stats = {}
     for gname, group in (('torso', reg == 1), ('arms', np.isin(reg, (2, 3))), ('legs', np.isin(reg, (6, 7)))):
@@ -1136,8 +1146,8 @@ def build_materials_and_export(obj, mesh: dict, sel: np.ndarray, fuv: np.ndarray
             bsdf.inputs['Emission Strength'].default_value = EMIT_STRENGTH
         return m
 
-    me.materials.append(mat('haru_body', base_p, emit_p))
-    me.materials.append(mat('haru_face', atlas_p, None))
+    me.materials.append(mat(CH.MAT_BODY, base_p, emit_p))
+    me.materials.append(mat(CH.MAT_FACE, atlas_p, None))
     mi = np.zeros(len(me.polygons), np.int32)
     poly_of_tri = np.arange(len(me.polygons))
     mi[poly_of_tri[sel]] = 1
@@ -1300,7 +1310,7 @@ def render_checks(glb: str, res: int = 1024) -> dict:
     f = cams['front']
     cx, cz = (fc[0] - f.u0) / f.ppm, (f.v0 - fc[1]) / f.ppm
     ortho_f = 2048 * fa['scale'] / f.ppm
-    face_art = art_on_gray(os.path.join(V.SRC, 'haru_face_front.png'), res)
+    face_art = art_on_gray(os.path.join(V.SRC, CH.get('face.file')), res)
     fimg = shoot(scene, cam, sun, (cx, 0.0, cz), 0.0, 0.0, ortho_f, res, os.path.join(tmp, 'face.png'))
     flit = shoot(scene, cam, sun, (cx, 0.0, cz), 0.0, 0.0, ortho_f, res, os.path.join(tmp, 'face_lit.png'), lit=True)
     # 右前斜め（45 度の絵）と左前斜めの頭
@@ -1313,7 +1323,7 @@ def render_checks(glb: str, res: int = 1024) -> dict:
     tq_img = shoot(scene, cam, sun, center_tq, tq.azimuth, 0.0, ortho_f, res, os.path.join(tmp, 'face_tq.png'))
     left_img = shoot(scene, cam, sun, center_tq, -tq.azimuth, 0.0, ortho_f, res, os.path.join(tmp, 'face_tql.png'),
                      lit=True)
-    top = np.concatenate([label(face_art, 'art haru_face_front'), label(fimg, 'textured front (unlit)'),
+    top = np.concatenate([label(face_art, 'art ' + os.path.splitext(CH.get('face.file'))[0]), label(fimg, 'textured front (unlit)'),
                           label(flit, 'textured front (lit)')], 1)
     bot = np.concatenate([label(tq_art, 'art front-right 45 crop'), label(tq_img, 'textured front-right 45 (unlit)'),
                           label(left_img, 'textured front-left 45 (lit)')], 1)
@@ -1377,7 +1387,7 @@ def numpy_render(mesh: dict, cam: V.Cam, tex: np.ndarray, res: int = 1024) -> np
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--mesh', default=os.path.join(WORK, 'haru_mesh.glb'))
+    ap.add_argument('--mesh', default=os.path.join(WORK, f'{CH.ID}_mesh.glb'))
     ap.add_argument('--out', default=OUT_GLB)
     ap.add_argument('--size', type=int, default=2048)
     ap.add_argument('--no-render', action='store_true')
@@ -1390,7 +1400,7 @@ def main() -> None:
     t0 = time.time()
     if not args.render_only:
         V.extract_sources()
-        copy = os.path.join(TEX_DIR, 'haru_mesh_in.glb')
+        copy = os.path.join(TEX_DIR, f'{CH.ID}_mesh_in.glb')
         shutil.copyfile(args.mesh, copy)   # ほかの作業が書き換えている最中でも崩れないように
         with open(os.path.join(WORK, 'face_atlas.json')) as fp:
             atlas_meta = json.load(fp)
@@ -1418,8 +1428,8 @@ def main() -> None:
         # 発光の所の下地を暗く（照らされた下地 ＋ 発光 ≒ 絵の色。飽和してレモン色にならないように）
         em = ramp(amber_mask(base), 0.3, 0.6) * (emit.max(-1) > 0)
         base = base * (1 - EMIT_BASE_DARKEN * em)[..., None]
-        base_p = os.path.join(TEX_DIR, 'haru_body_base.png')
-        emit_p = os.path.join(TEX_DIR, 'haru_body_emit.png')
+        base_p = os.path.join(TEX_DIR, f'{CH.MAT_BODY}_base.png')
+        emit_p = os.path.join(TEX_DIR, f'{CH.MAT_BODY}_emit.png')
         save_png(base_p, base)
         save_png(emit_p, emit)
         debug_images(res, base)

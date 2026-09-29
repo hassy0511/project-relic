@@ -15,7 +15,8 @@
     "audio": "python3 tools/audio/build.py",
     "setup:blender": "bash tools/setup_blender.sh",
     "ai:haru": ".venv-blender/bin/python tools/blender/models/ai_character.py --input art/3d_sources/haru_trellis_front.glb --out godot/assets/models/haru_b.glb --render art/renders/haru_b",
-    "haru:recon": ".venv-blender/bin/python tools/blender/recon/build_haru_r.py"
+    "haru:recon": ".venv-blender/bin/python tools/blender/recon/build_haru_r.py",
+    "yana:recon": ".venv-blender/bin/python tools/blender/recon/build_char.py --char yana"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

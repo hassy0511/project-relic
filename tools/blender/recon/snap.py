@@ -32,9 +32,12 @@ import numpy as np  # noqa: E402
 from scipy import ndimage as ndi  # noqa: E402
 from scipy import sparse  # noqa: E402
 
+from recon import char as CH  # noqa: E402
 from recon import views as V  # noqa: E402
 
-REAL = ('front', 'side_right', 'three_quarter')
+REAL = CH.p('snap.REAL', ('front', 'side_right', 'three_quarter'))
+# 頭（首より上）は動かさない：この高さの間で動きを 1 → 0
+FREEZE_Z = CH.p('snap.FREEZE_Z', (1.195, 1.225))
 
 
 def laplacian(n: int, faces: np.ndarray) -> sparse.csr_matrix:
@@ -214,11 +217,11 @@ def targets(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], sigma_v: float
     return {n: fair.target_sdf(masks[n], cams[n], (sigma_v, 2.0), 2.0) for n in REAL}
 
 
-ARM_Z = (0.56, 0.95)        # 絵の腕の前後の中点を使う高さ（肘の下〜指先の上）
-ARM_BLEND_Z = (0.90, 0.99)  # この間で動きを 1 → 0（上腕・肩は動かさない）
+ARM_Z = CH.p('snap.ARM_Z', (0.56, 0.95))        # 絵の腕の前後の中点を使う高さ（肘の下〜指先の上）
+ARM_BLEND_Z = CH.p('snap.ARM_BLEND_Z', (0.90, 0.99))  # この間で動きを 1 → 0（上腕・肩は動かさない）
 # 動かす割合：右前 45 度の絵は、右真横の絵より前腕を約 3cm 前に描いている（絵どうしの食い違い）。
 # 真横に全部合わせると 45 度の絵と外れるので、6 割だけ動かす（残りは texture.py の視点ごとの合わせ込みで吸収）
-ARM_ALIGN_GAIN = 0.6
+ARM_ALIGN_GAIN = CH.p('snap.ARM_ALIGN_GAIN', 0.6)
 
 
 def side_arm_mask(cams: dict[str, V.Cam]) -> np.ndarray | None:
@@ -293,7 +296,7 @@ def align_right_arm(X: np.ndarray, tgt: dict | None, log=print) -> np.ndarray:
 
 def fair_mesh(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], masks: dict[str, np.ndarray],
               rounds: int = 40, smooth: int = 8, final_snaps: int = 3, log=print, spread: int = 40,
-              max_px: float = 4.0, freeze_z: tuple[float, float] = (1.195, 1.225)) -> np.ndarray:
+              max_px: float = 4.0, freeze_z: tuple[float, float] = FREEZE_Z) -> np.ndarray:
     """本文の 1 と 2 を rounds 回。最後は留めるだけを数回（縁を外形にぴったり）。masks は元の絵の外形。
 
     頭（freeze_z より上）は動かさない：頭・髪の房は hair.py の形の部品そのもので、外形への引き寄せや

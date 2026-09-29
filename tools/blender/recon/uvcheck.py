@@ -118,7 +118,7 @@ def checker_renders(path_blend: str, tmp: str, res: int = 512) -> list[np.ndarra
 def run(out: str = V.WORK) -> dict:
     """out の haru_mesh.blend を調べて uv_check.png を書く。島の数・使われる面積・すき間の最小を返す"""
     import bpy
-    path = os.path.join(out, 'haru_mesh.blend')
+    path = os.path.join(out, f'{V.CH.ID}_mesh.blend')
     bpy.ops.wm.open_mainfile(filepath=path)
     obj = [o for o in bpy.data.objects if o.type == 'MESH'][0]
     uv, isl = uv_islands(obj.data)

@@ -29,9 +29,11 @@ from PIL import Image  # noqa: E402
 from scipy import ndimage as ndi  # noqa: E402
 
 from lib import common as C  # noqa: E402
+from recon import char as CH  # noqa: E402
+from recon import views as V  # noqa: E402
 
 REPO = C.REPO
-RECON = os.path.join(REPO, 'build', 'recon')
+RECON = CH.WORK
 PREP = os.path.join(RECON, 'prep')
 SRC = os.path.join(RECON, 'src')
 IMG = 2048
@@ -44,7 +46,7 @@ def load_json(name: str) -> dict:
 
 def filled_rgba(view: str) -> np.ndarray:
     """絵の RGB。透明な所は一番近い不透明な画素の色で埋める（外形から少しはみ出た頂点が黒くならないように）"""
-    a = np.asarray(Image.open(os.path.join(SRC, f'haru_3d_{view}.png')).convert('RGBA'))
+    a = np.asarray(Image.open(os.path.join(SRC, V.VIEWS[view]['file'])).convert('RGBA'))
     hole = a[..., 3] < 128
     _, (iy, ix) = ndi.distance_transform_edt(hole, return_indices=True)
     rgb = a[..., :3][iy, ix]
@@ -85,11 +87,11 @@ def textured_material(name: str, base: str, emit: str | None) -> bpy.types.Mater
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument('--mesh', default=os.path.join(RECON, 'haru_mesh.glb'))
+    ap.add_argument('--mesh', default=os.path.join(RECON, f'{CH.ID}_mesh.glb'))
     ap.add_argument('--out', default=os.path.join(PREP, 'standin_textured.glb'))
     args = ap.parse_args([a for a in sys.argv[1:] if a != '--'])
     os.makedirs(PREP, exist_ok=True)
-    copy = os.path.join(PREP, 'haru_mesh_copy.glb')
+    copy = os.path.join(PREP, f'{CH.ID}_mesh_copy.glb')
     shutil.copyfile(args.mesh, copy)
 
     cal = load_json('calib.json')['views']
@@ -97,8 +99,8 @@ def main() -> None:
     C.reset_scene()
     bpy.ops.import_scene.gltf(filepath=copy)
     meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
-    obj = C.join(meshes, 'haru') if len(meshes) > 1 else meshes[0]
-    obj.name = 'haru'
+    obj = C.join(meshes, CH.ID) if len(meshes) > 1 else meshes[0]
+    obj.name = CH.ID
     me = obj.data
     for o in list(bpy.context.scene.objects):
         if o is not obj:
@@ -155,8 +157,8 @@ def main() -> None:
     me.materials.clear()
     for m in old:  # 名前を空ける（同じ名前だと 'haru_body.001' になる）
         bpy.data.materials.remove(m)
-    me.materials.append(textured_material('haru_body', base_p, emit_p))
-    me.materials.append(textured_material('haru_face', os.path.join(RECON, atlas['atlas_file']), None))
+    me.materials.append(textured_material(CH.MAT_BODY, base_p, emit_p))
+    me.materials.append(textured_material(CH.MAT_FACE, os.path.join(RECON, atlas['atlas_file']), None))
     me.polygons.foreach_set('material_index', face_poly.astype(np.int32))
     me.update()
 
