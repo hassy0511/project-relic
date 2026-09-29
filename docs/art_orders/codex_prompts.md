@@ -334,3 +334,163 @@ W0 A案の絵はブランチ `art/w0` にあるので、別のフォルダに取
 - 送れなかった場合は、エラーの内容をそのまま報告する。
 - 納品したファイルの一覧と、デザインの要点を 5 行以内で報告する。
 ```
+
+---
+
+## 6. 第2弾（2026-09-29）：番機・閂・第1章の住人（そのまま貼れる）
+
+3 本は別々の作業ブランチなので、同時に出してよい。閂は番機のデザイン言語に合わせるので、できれば番機の納品のあとに出す（同時に出した場合は、発注書の「デザイン言語」に従って描いてもらう）。
+
+### 6.1 W2-02：番機 5 種（設計＋3D 変換用）
+
+```text
+あなたはゲーム開発プロジェクト『アークウォーカー』の作画担当です。下のリポジトリに接続し、発注書を読み、指示どおりに画像を制作して納品してください。
+
+【リポジトリ】
+- URL：https://github.com/hassy0511/project-relic
+- 元にするブランチ：claude/busy-bell-oagnck
+- 作業ブランチ：art/w2-banki（元にするブランチから新しく作る。すでにあればそれを使う）
+- 参照するブランチ（読むだけ・取り込まない）：art/w0（画風の基準 W0 A案）、art/w1-haru3d・art/w1-yana・art/w1-nagomi（3D 変換用の絵の塗り・光の手本）
+
+【最初に行うこと】
+1. git clone https://github.com/hassy0511/project-relic.git（取得済みなら git fetch --all）
+   cd project-relic
+   git checkout claude/busy-bell-oagnck && git pull
+2. git checkout -b art/w2-banki（すでにあれば git checkout art/w2-banki && git pull）
+3. 参照する絵を別のフォルダに取り出す：
+   git worktree add ../relic-w0 origin/art/w0
+   git worktree add ../relic-haru3d origin/art/w1-haru3d
+   git worktree add ../relic-yana origin/art/w1-yana
+   git worktree add ../relic-nagomi origin/art/w1-nagomi
+4. 下の「必ず読む文書」がそろっていることを確認する。見つからない場合は作業を止め、見つからないファイル名を報告する。
+
+【必ず読む文書】
+1. docs/art_orders/W2_02_番機_第1章.md（今回の発注書。設計の絵と 3D 変換用の絵の両方）
+2. docs/art_orders/00_共通ルール.md（設計の絵のルール）
+3. docs/art_orders/01_3D変換用の絵の条件.md（3D 変換用の絵のルール。3D 変換用の絵ではこちらを優先）
+4. ../relic-w0/art/concepts/W0_art_bible/spec_a.md と artbible_a_*_r3.png（画風・色の基準）
+5. ../relic-haru3d/art/concepts/W1_haru_3d/、../relic-yana/art/concepts/W1_yana/、../relic-nagomi/art/concepts/W1_nagomi/ の 3D 変換用の絵と spec（塗り・光・頭身の手本。大きさの比較の基準はハル 155cm）
+6. docs/design/30_レベルデザイン設計.md の第1章（番機が出てくる場所と戦い方。参考）
+
+【作業】
+- 画像生成機能を使い、発注書の設計の絵と 3D 変換用の絵をすべて制作する。先に設計の絵でデザインを決め、同じデザインで 3D 変換用の絵を描く。
+- 保存先：art/concepts/W2_banki/　ファイル名は発注書の表のとおり。
+- 説明書き：spec.md（設計の絵。共通ルール 6 章の項目）と spec_banki_3d.md（3D 変換用の絵。01_3D変換用の絵の条件.md 6 章の項目。自己確認の数値を含む）。
+- 3D 変換用の絵は、向きごとに大きさと位置をそろえ（01_3D変換用の絵の条件.md）、納品前に測って数値を spec に書く。
+- 類似チェック：共通ルール 5 章の作品と発注書の「避けるもの」と見比べ、結果を spec.md に書く。
+- 一貫性の自己確認：設計の絵と 3D 変換用の絵で、形・部品の数・色が一致しているかを見直し、食い違いは直す。
+
+【守ること】
+- art/concepts/W2_banki/ 以外のファイルは変更しない。参照した絵を作業ブランチにコピーしない。
+- 既存の絵や写真をなぞったり合成したりしない。署名・透かし・実在ブランドの文字やロゴを入れない。
+- 制作できなかった項目は、作らずに spec の冒頭に「未納品」と理由を書く。
+
+【完了したら】
+- 1 コミットにまとめ（メッセージ："art: W2-02 banki (design + 3D)"）、git push -u origin art/w2-banki で送る。
+- 取り出したフォルダを片付ける：git worktree remove ../relic-w0（relic-haru3d・relic-yana・relic-nagomi も同じく）
+- 送れなかった場合は、エラーの内容をそのまま報告する。
+- 納品したファイルの一覧と、デザインの要点を 5 行以内で報告する。
+```
+
+### 6.2 W2-03：大番機「閂」（設計＋3D 変換用）
+
+```text
+あなたはゲーム開発プロジェクト『アークウォーカー』の作画担当です。下のリポジトリに接続し、発注書を読み、指示どおりに画像を制作して納品してください。
+
+【リポジトリ】
+- URL：https://github.com/hassy0511/project-relic
+- 元にするブランチ：claude/busy-bell-oagnck
+- 作業ブランチ：art/w2-kannuki（元にするブランチから新しく作る。すでにあればそれを使う）
+- 参照するブランチ（読むだけ・取り込まない）：art/w0（画風の基準 W0 A案）、art/w1-haru3d・art/w1-yana・art/w1-nagomi（3D 変換用の絵の塗り・光の手本）、art/w2-banki（番機。あれば）
+
+【最初に行うこと】
+1. git clone https://github.com/hassy0511/project-relic.git（取得済みなら git fetch --all）
+   cd project-relic
+   git checkout claude/busy-bell-oagnck && git pull
+2. git checkout -b art/w2-kannuki（すでにあれば git checkout art/w2-kannuki && git pull）
+3. 参照する絵を別のフォルダに取り出す：
+   git worktree add ../relic-w0 origin/art/w0
+   git worktree add ../relic-haru3d origin/art/w1-haru3d
+   git worktree add ../relic-yana origin/art/w1-yana
+   git worktree add ../relic-nagomi origin/art/w1-nagomi
+   （あれば）git worktree add ../relic-banki origin/art/w2-banki
+4. 下の「必ず読む文書」がそろっていることを確認する。見つからない場合は作業を止め、見つからないファイル名を報告する。
+
+【必ず読む文書】
+1. docs/art_orders/W2_03_大番機_閂.md（今回の発注書。設計の絵と 3D 変換用の絵の両方）
+2. docs/art_orders/00_共通ルール.md（設計の絵のルール）
+3. docs/art_orders/01_3D変換用の絵の条件.md（3D 変換用の絵のルール。3D 変換用の絵ではこちらを優先）
+4. ../relic-w0/art/concepts/W0_art_bible/spec_a.md と artbible_a_*_r3.png（画風・色の基準）
+5. ../relic-haru3d/art/concepts/W1_haru_3d/、../relic-yana/art/concepts/W1_yana/、../relic-nagomi/art/concepts/W1_nagomi/ の 3D 変換用の絵と spec（塗り・光・頭身の手本。大きさの比較の基準はハル 155cm）
+6. 番機のデザイン言語：ブランチ art/w2-banki がすでにあれば ../relic-banki/art/concepts/W2_banki/ の banki_family.png と spec.md に合わせる。まだ無ければ、発注書 W2_02_番機_第1章.md の「デザイン言語」に従う
+
+【作業】
+- 画像生成機能を使い、発注書の設計の絵と 3D 変換用の絵をすべて制作する。先に設計の絵でデザインを決め、同じデザインで 3D 変換用の絵を描く。
+- 保存先：art/concepts/W2_kannuki/　ファイル名は発注書の表のとおり。
+- 説明書き：spec.md（設計の絵。共通ルール 6 章の項目）と spec_kannuki_3d.md（3D 変換用の絵。01_3D変換用の絵の条件.md 6 章の項目。自己確認の数値を含む）。
+- 3D 変換用の絵は、向きごとに大きさと位置をそろえ（01_3D変換用の絵の条件.md）、納品前に測って数値を spec に書く。
+- 類似チェック：共通ルール 5 章の作品と発注書の「避けるもの」と見比べ、結果を spec.md に書く。
+- 一貫性の自己確認：設計の絵と 3D 変換用の絵で、形・部品の数・色が一致しているかを見直し、食い違いは直す。
+
+【守ること】
+- art/concepts/W2_kannuki/ 以外のファイルは変更しない。参照した絵を作業ブランチにコピーしない。
+- 既存の絵や写真をなぞったり合成したりしない。署名・透かし・実在ブランドの文字やロゴを入れない。
+- 制作できなかった項目は、作らずに spec の冒頭に「未納品」と理由を書く。
+
+【完了したら】
+- 1 コミットにまとめ（メッセージ："art: W2-03 kannuki (design + 3D)"）、git push -u origin art/w2-kannuki で送る。
+- 取り出したフォルダを片付ける：git worktree remove ../relic-w0（relic-haru3d・relic-yana・relic-nagomi・relic-banki も同じく）
+- 送れなかった場合は、エラーの内容をそのまま報告する。
+- 納品したファイルの一覧と、デザインの要点を 5 行以内で報告する。
+```
+
+### 6.3 W2-01：第1章の住人（設計＋3D 変換用）
+
+```text
+あなたはゲーム開発プロジェクト『アークウォーカー』の作画担当です。下のリポジトリに接続し、発注書を読み、指示どおりに画像を制作して納品してください。
+
+【リポジトリ】
+- URL：https://github.com/hassy0511/project-relic
+- 元にするブランチ：claude/busy-bell-oagnck
+- 作業ブランチ：art/w2-townsfolk（元にするブランチから新しく作る。すでにあればそれを使う）
+- 参照するブランチ（読むだけ・取り込まない）：art/w0（画風の基準 W0 A案）、art/w1-haru3d・art/w1-yana・art/w1-nagomi（3D 変換用の絵の塗り・光の手本）
+
+【最初に行うこと】
+1. git clone https://github.com/hassy0511/project-relic.git（取得済みなら git fetch --all）
+   cd project-relic
+   git checkout claude/busy-bell-oagnck && git pull
+2. git checkout -b art/w2-townsfolk（すでにあれば git checkout art/w2-townsfolk && git pull）
+3. 参照する絵を別のフォルダに取り出す：
+   git worktree add ../relic-w0 origin/art/w0
+   git worktree add ../relic-haru3d origin/art/w1-haru3d
+   git worktree add ../relic-yana origin/art/w1-yana
+   git worktree add ../relic-nagomi origin/art/w1-nagomi
+4. 下の「必ず読む文書」がそろっていることを確認する。見つからない場合は作業を止め、見つからないファイル名を報告する。
+
+【必ず読む文書】
+1. docs/art_orders/W2_01_第1章の住人.md（今回の発注書。設計の絵と 3D 変換用の絵の両方）
+2. docs/art_orders/00_共通ルール.md（設計の絵のルール）
+3. docs/art_orders/01_3D変換用の絵の条件.md（3D 変換用の絵のルール。3D 変換用の絵ではこちらを優先）
+4. ../relic-w0/art/concepts/W0_art_bible/spec_a.md と artbible_a_*_r3.png（画風・色の基準）
+5. ../relic-haru3d/art/concepts/W1_haru_3d/、../relic-yana/art/concepts/W1_yana/、../relic-nagomi/art/concepts/W1_nagomi/ の 3D 変換用の絵と spec（塗り・光・頭身の手本。大きさの比較の基準はハル 155cm）
+6. docs/design/11_キャラクター設定.md の「オルド背町の住人（第1章）」
+
+【作業】
+- 画像生成機能を使い、発注書の設計の絵と 3D 変換用の絵をすべて制作する。先に設計の絵でデザインを決め、同じデザインで 3D 変換用の絵を描く。
+- 保存先：art/concepts/W2_townsfolk/　ファイル名は発注書の表のとおり。
+- 説明書き：spec.md（設計の絵。共通ルール 6 章の項目）と spec_townsfolk_3d.md（3D 変換用の絵。01_3D変換用の絵の条件.md 6 章の項目。自己確認の数値を含む）。
+- 3D 変換用の絵は、向きごとに大きさと位置をそろえ（01_3D変換用の絵の条件.md）、納品前に測って数値を spec に書く。
+- 類似チェック：共通ルール 5 章の作品と発注書の「避けるもの」と見比べ、結果を spec.md に書く。
+- 一貫性の自己確認：設計の絵と 3D 変換用の絵で、形・部品の数・色が一致しているかを見直し、食い違いは直す。
+
+【守ること】
+- art/concepts/W2_townsfolk/ 以外のファイルは変更しない。参照した絵を作業ブランチにコピーしない。
+- 既存の絵や写真をなぞったり合成したりしない。署名・透かし・実在ブランドの文字やロゴを入れない。
+- 制作できなかった項目は、作らずに spec の冒頭に「未納品」と理由を書く。
+
+【完了したら】
+- 1 コミットにまとめ（メッセージ："art: W2-01 townsfolk (design + 3D)"）、git push -u origin art/w2-townsfolk で送る。
+- 取り出したフォルダを片付ける：git worktree remove ../relic-w0（relic-haru3d・relic-yana・relic-nagomi も同じく）
+- 送れなかった場合は、エラーの内容をそのまま報告する。
+- 納品したファイルの一覧と、デザインの要点を 5 行以内で報告する。
+```
