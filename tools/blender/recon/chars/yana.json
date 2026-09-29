@@ -744,6 +744,26 @@
       ]
     ],
     "snap.LEFT_ARM_GAIN": 0.8,
-    "texture.EAR_SKIN": true
+    "texture.EAR_SKIN": true,
+    "texture.VIEW_GAIN": {
+      "front": 1.0,
+      "back": 1.0,
+      "side_right": 0.9,
+      "side_right_noarms": 1.0,
+      "side_left": 0.95,
+      "front_right45": 0.95,
+      "front_left45": 0.95,
+      "three_quarter": 0.9
+    },
+    "texture.VIEW_BIAS_DEG": {
+      "front": 0.0,
+      "back": 0.0,
+      "side_right": 15.0,
+      "side_right_noarms": 5.0,
+      "side_left": 8.0,
+      "front_right45": 8.0,
+      "front_left45": 8.0,
+      "three_quarter": 8.0
+    }
   }
 }

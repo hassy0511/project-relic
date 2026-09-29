@@ -99,12 +99,12 @@ NOARM_VIEWS = CH.p('texture.NOARM_VIEWS', ('side_right_noarms',))
 ARMED_BODY_GAIN = CH.p('texture.ARMED_BODY_GAIN', {'side_right': 0.12})
 # 視点の重みの倍率。背面はゲームで一番よく見る向き（後ろからのカメラ）なので強め、真横と斜めは
 # 正面・背面から描き起こした絵で部品の位置の食い違いが多いので弱め
-VIEW_GAIN = {'front': 1.0, 'back': 1.2, 'side_right': 0.9, 'side_right_noarms': 0.9, 'side_left': 0.9,
-             'front_right45': 0.95, 'front_left45': 0.95, 'three_quarter': 0.9}
+VIEW_GAIN = CH.p('texture.VIEW_GAIN', {'front': 1.0, 'back': 1.2, 'side_right': 0.9, 'side_right_noarms': 0.9, 'side_left': 0.9,
+             'front_right45': 0.95, 'front_left45': 0.95, 'three_quarter': 0.9})
 # 向きの「ハンデ」（度）：面と視線の角度にこれを足してから重みを計算する。真横・斜めは、正面・背面より
 # この角度だけよく見えているときだけ勝つ（凸凹の面で視点が細かく入れ替わって縞になるのも防ぐ）
-VIEW_BIAS_DEG = {'front': 0.0, 'back': 0.0, 'side_right': 15.0, 'side_right_noarms': 15.0, 'side_left': 15.0,
-                 'front_right45': 8.0, 'front_left45': 8.0, 'three_quarter': 8.0}
+VIEW_BIAS_DEG = CH.p('texture.VIEW_BIAS_DEG', {'front': 0.0, 'back': 0.0, 'side_right': 15.0, 'side_right_noarms': 15.0, 'side_left': 15.0,
+                 'front_right45': 8.0, 'front_left45': 8.0, 'three_quarter': 8.0})
 MIRROR_GAIN = 0.35         # 反転の視点の重み（実の視点がよく見ていない所だけ）
 # 頭（uvparts の部位 0）の左側：形の頭（hair.py）は右の絵（右真横・右前斜め）に合わせた左右対称の形なので、
 # 左の絵（左真横・左前斜め）の髪・耳・もみあげの位置は形と合わず、ほお・首に髪の暗い色がにじんだ。
