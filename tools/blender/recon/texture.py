@@ -116,7 +116,7 @@ SOLE_TOP = 0.039
 # 首の前（のど・あごの下）：haru_neck.png と正面の絵で素肌の範囲（あごの下 1.21 から、フードの襟の内側 |x| < 0.042、
 # 首の前の半分）
 NECK_ZONE = {'z': (1.155, 1.215), 'x': 0.042, 'y': 0.0}
-HAIR_SIDE_DETAIL = 0.6     # 横を向いた髪の細部（3D の近さの平均からの差）を弱める割合
+HAIR_SIDE_DETAIL = 0.85    # 横を向いた髪の細部（3D の近さの平均からの差）を弱める割合
 SOLE_RGB = (0.265, 0.25, 0.245)
 MIRROR_NDV = (0.25, 0.45)  # 実の視点の一番よい n・v がこの間なら反転を弱め、上なら使わない
 
@@ -908,7 +908,7 @@ def hair_colour_match(res: dict) -> None:
         tree = cKDTree(pos[idx])
         _, nb = tree.query(pos[idx], k=24, workers=-1)
         mean = col[idx][nb].mean(1)
-        side = ramp(np.abs(res['nrm'][idx, 0]), 0.35, 0.8)
+        side = ramp(np.abs(res['nrm'][idx, 0]), 0.25, 0.7)
         keep = (1.0 - HAIR_SIDE_DETAIL * side)[:, None]
         col[idx] = mean + keep * (col[idx] - mean)
     res['col'] = col
