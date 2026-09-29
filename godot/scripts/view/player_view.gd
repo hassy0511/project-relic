@@ -175,7 +175,8 @@ func sync(p: Player, game: GameSim, dt: float, aim_dir: Vector3) -> void:
 	if blade:
 		blade.visible = p.attack != null or p.sword_hold > 0.25
 		if blade_mat:
-			blade_mat.emission_energy_multiplier = 6.0 if p.sword_hold >= 0.7 else 3.0
+			# 琥珀（#FFBC52）の緑が飽和してレモン色にならない明るさ（溜めきったときだけ強く）
+			blade_mat.emission_energy_multiplier = 2.2 if p.sword_hold >= 0.7 else 1.2
 		blade.scale = Vector3.ONE * (0.6 if p.sword_hold > 0.25 and p.attack == null else 1.0)
 
 	# 表情：被弾と倒れたときは痛みの顔

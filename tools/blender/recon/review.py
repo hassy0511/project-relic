@@ -269,21 +269,27 @@ def grid(rows: list[list[np.ndarray]]) -> np.ndarray:
 
 # ---------------------------------------------------------------- 各画像
 
+# 絵と比べる視点（W1-00b の左真横・左右の前 45 度を足した。右前斜め three_quarter は約 31 度の古い絵）
+COMPARE_VIEWS = ('front', 'back', 'side_right', 'side_left', 'front_right45', 'front_left45', 'three_quarter')
+
+
 def compare_views(S: Scene, stats: dict | None, out: str, size: int) -> None:
     cams = V.load_calib()
     S.apose(stats)
     S.show_blade(False)
     S.show_gun(False)
-    rows = []
-    for name in ('front', 'three_quarter', 'side_right', 'back'):
+    cells = []
+    for name in COMPARE_VIEWS:
         c = cams[name]
         b = c.blender_camera()
         ren = S.render(b['center'], b['direction'], b['right'], b['ortho_scale'], size,
                        os.path.join(out, 'tmp', f'cmp_{name}.png'))
         art = art_on_grey(name, size)
         mix = (art.astype(np.float32) * 0.5 + ren.astype(np.float32) * 0.5).astype(np.uint8)
-        rows.append([label(art, f'art {name}'), label(ren, f'render {name} (az {c.azimuth:.1f}, calib camera)'),
-                     label(mix, 'overlay 50/50')])
+        cells.append([label(art, f'art {name}'), label(ren, f'render {name} (az {c.azimuth:.1f}, calib camera)'),
+                      label(mix, 'overlay 50/50')])
+    # 1 行に 2 視点（絵・形・重ね）
+    rows = [cells[i] + (cells[i + 1] if i + 1 < len(cells) else []) for i in range(0, len(cells), 2)]
     S.show_gun(True)
     Image.fromarray(grid(rows)).save(os.path.join(out, 'compare_views.png'))
 

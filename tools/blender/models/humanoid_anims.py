@@ -28,26 +28,30 @@ def idle() -> Clip:
     return Clip('idle', 60, [(1, base), (31, breathe), (61, base)])
 
 
+# 走りで右の上腕をひねる角度（Y）：肘を曲げた前腕と銃が体の前を横切って内（左）を向かないように、外へ向ける
+RUN_GUN_TWIST = 15
+
+
 def run() -> Clip:
     contact: Pose = {
         'spine': (12, 0, 0), 'chest': (0, -8, 0), 'head': (-8, 6, 0),
         'thigh.L': (-45, 0, 0), 'shin.L': (15, 0, 0),
         'thigh.R': (35, 0, 0), 'shin.R': (55, 0, 0),
         'upper_arm.L': (35, 0, -10), 'forearm.L': (-50, 0, 0),
-        'upper_arm.R': (-30, 0, 10), 'forearm.R': (-70, 0, 0),
+        'upper_arm.R': (-30, RUN_GUN_TWIST, 10), 'forearm.R': (-70, 0, 0),
     }
     passing: Pose = {
         'spine': (12, 0, 0), 'chest': (0, 0, 0), 'head': (-8, 0, 0),
         'thigh.L': (0, 0, 0), 'shin.L': (25, 0, 0),
         'thigh.R': (-35, 0, 0), 'shin.R': (95, 0, 0),
         'upper_arm.L': (5, 0, -10), 'forearm.L': (-50, 0, 0),
-        'upper_arm.R': (0, 0, 10), 'forearm.R': (-70, 0, 0),
+        'upper_arm.R': (0, RUN_GUN_TWIST, 10), 'forearm.R': (-70, 0, 0),
     }
     c2 = mirror(contact)
     p2 = mirror(passing)
     # 右手は銃を持っているので、反対の足のときも振りを小さくする
     for p in (c2, p2):
-        p['upper_arm.R'] = (p['upper_arm.R'][0] * 0.6, 0, 10)
+        p['upper_arm.R'] = (p['upper_arm.R'][0] * 0.6, RUN_GUN_TWIST, 10)
         p['forearm.R'] = (-70, 0, 0)
     return Clip('run', 20, [(1, contact), (6, passing), (11, c2), (16, p2), (21, contact)],
                 bob=[(1, 0.0), (6, 0.05), (11, 0.0), (16, 0.05), (21, 0.0)])
@@ -129,7 +133,9 @@ def combo2() -> Clip:
 
 def combo3() -> Clip:
     """振り下ろし（とどめ）"""
-    start = stance({'spine': (-12, 0, 0), 'chest': (-5, 10, 0), 'upper_arm.L': (-150, 0, -32), 'forearm.L': (-15, 0, 0)})
+    # 振り上げた左腕が頭（髪の房）に入らないように、上腕を外へ開いて少し下げ（真上ではなく左上へ）、胸を左へひねる。
+    # haru_r で前腕・手と頭の中心の距離 0.12m → 0.20m（髪の外）
+    start = stance({'spine': (-12, 0, 0), 'chest': (-5, 18, 0), 'upper_arm.L': (-120, 0, -62), 'forearm.L': (-15, 0, 0)})
     mid = stance({'spine': (10, 0, 0), 'upper_arm.L': (-100, 0, 0), 'forearm.L': (0, 0, 0)})
     end = stance({'spine': (28, 0, 0), 'head': (-15, 0, 0), 'upper_arm.L': (-35, 0, 0), 'forearm.L': (-5, 0, 0)})
     return Clip('combo3', 14, [(1, start), (5, start), (8, mid), (10, end), (15, end)], loop=False)

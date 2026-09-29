@@ -801,14 +801,17 @@ def add_blade(arm: bpy.types.Object, blade_mat, blade: dict | None = None) -> bp
 
 
 def blade_material() -> bpy.types.Material:
-    """光刃の材質（haru_a と同じ琥珀の発光、少し透ける）"""
+    """光刃の材質（haru_a と同じ琥珀の発光、少し透ける）。
+
+    発光の強さは 1.0：以前の 3.0 では緑が飽和して、琥珀ではなく白っぽいレモン色に見えた
+    （ゲームの player_view.gd も発光の倍率を下げた）"""
     blade = bpy.data.materials.new('haru_blade')
     blade.use_nodes = True
     b = blade.node_tree.nodes['Principled BSDF']
     amber = C.hex_color('#FFBC52')
     b.inputs['Base Color'].default_value = (*amber, 1)
     b.inputs['Emission Color'].default_value = (*amber, 1)
-    b.inputs['Emission Strength'].default_value = 3.0
+    b.inputs['Emission Strength'].default_value = 1.0
     b.inputs['Alpha'].default_value = 0.85
     blade.surface_render_method = 'BLENDED'
     return blade

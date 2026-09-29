@@ -17,6 +17,7 @@
 ならないので、縁の留めでは前後の位置が決まらない（以前は前腕が絵より約 5cm 前にあり、真横の色で胴の色が
 腕に、腕の色が胴に付いた）。W1-00b の腕の無い右真横の絵との色の差から絵の腕（肘〜手）の範囲を切り出し、
 高さ 1cm ごとに前後の中点をそろえるように、右の前腕と手を前後（y）だけに動かす（肘の上でなめらかに 0 へ）。
+右前 45 度の絵とは約 3cm 食い違うので、絵の中点へ 6 割だけ（ARM_ALIGN_GAIN）。
 目標の外形（target）は元の絵の外形の符号つき距離を、上下に 6 画素・左右に 2 画素ならしたもの（頭は 2 画素）。
 上下に強くならすのは、縫い目・帯の端の細かな段で輪郭線が上下に波打たないように（横筋にしない）。
 """
@@ -215,6 +216,9 @@ def targets(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], sigma_v: float
 
 ARM_Z = (0.56, 0.95)        # 絵の腕の前後の中点を使う高さ（肘の下〜指先の上）
 ARM_BLEND_Z = (0.90, 0.99)  # この間で動きを 1 → 0（上腕・肩は動かさない）
+# 動かす割合：右前 45 度の絵は、右真横の絵より前腕を約 3cm 前に描いている（絵どうしの食い違い）。
+# 真横に全部合わせると 45 度の絵と外れるので、6 割だけ動かす（残りは texture.py の視点ごとの合わせ込みで吸収）
+ARM_ALIGN_GAIN = 0.6
 
 
 def side_arm_mask(cams: dict[str, V.Cam]) -> np.ndarray | None:
@@ -235,29 +239,49 @@ def side_arm_mask(cams: dict[str, V.Cam]) -> np.ndarray | None:
     return ndi.binary_closing(lab == (int(np.argmax(sizes)) + 1), iterations=4)
 
 
-def align_right_arm(X: np.ndarray, cams: dict[str, V.Cam], arm_mask: np.ndarray | None, log=print,
-                    bin_m: float = 0.01) -> np.ndarray:
-    """右の前腕と手を前後に動かして、右真横の絵の腕の前後の中点にそろえる（本文の最後）"""
+def _arm_centres(X: np.ndarray, arm: np.ndarray, zb: np.ndarray, bin_m: float) -> np.ndarray:
+    """高さ zb ごとの、右の前腕と手の頂点の前後（y）の中点（無い高さは nan）"""
+    out = np.full(len(zb), np.nan)
+    for i, z in enumerate(zb):
+        sel = arm & (np.abs(X[:, 2] - z) < bin_m / 2)
+        if sel.sum() >= 10:
+            out[i] = 0.5 * (X[sel, 1].min() + X[sel, 1].max())
+    return out
+
+
+def right_arm_target(X: np.ndarray, cams: dict[str, V.Cam], arm_mask: np.ndarray | None,
+                     bin_m: float = 0.01) -> dict | None:
+    """右の前腕と手の前後の中点の目標（高さごと）：最初の位置から、右真横の絵の腕の中点へ ARM_ALIGN_GAIN の割合"""
     if arm_mask is None:
-        return X
+        return None
     from recon import uvparts
     s = cams['side_right']
     reg = uvparts.region_of_point(X, V.HEIGHT - V.HEIGHT / 4.4)
     arm = np.isin(reg, (2, 4)) & (X[:, 2] > ARM_Z[0] - 0.05) & (X[:, 2] < ARM_BLEND_Z[1])
     zb = np.arange(ARM_Z[0], ARM_Z[1] + 1e-9, bin_m)
-    dz = np.full(len(zb), np.nan)
+    y0 = _arm_centres(X, arm, zb, bin_m)
+    ya = np.full(len(zb), np.nan)
     for i, z in enumerate(zb):
         cols = np.nonzero(arm_mask[int(s.v_of(z))])[0]
-        sel = arm & (np.abs(X[:, 2] - z) < bin_m / 2)
-        if len(cols) < 20 or sel.sum() < 10:
-            continue
-        y_art = -((cols.min() + cols.max() + 1) / 2 - s.u0) / s.ppm
-        y_mesh = 0.5 * (X[sel, 1].min() + X[sel, 1].max())
-        dz[i] = y_art - y_mesh
-    ok = np.isfinite(dz)
+        if len(cols) >= 20:
+            ya[i] = -((cols.min() + cols.max() + 1) / 2 - s.u0) / s.ppm
+    ok = np.isfinite(y0) & np.isfinite(ya)
+    if ok.sum() < 5:
+        return None
+    return {'arm': arm, 'zb': zb, 'bin_m': bin_m,
+            'y': np.interp(zb, zb[ok], y0[ok] + ARM_ALIGN_GAIN * (ya[ok] - y0[ok]))}
+
+
+def align_right_arm(X: np.ndarray, tgt: dict | None, log=print) -> np.ndarray:
+    """右の前腕と手を前後（y）だけに動かして、高さごとの中点を目標（right_arm_target）にそろえる（本文の最後）"""
+    if tgt is None:
+        return X
+    zb, arm = tgt['zb'], tgt['arm']
+    cur = _arm_centres(X, arm, zb, tgt['bin_m'])
+    ok = np.isfinite(cur)
     if ok.sum() < 5:
         return X
-    dz = np.interp(zb, zb[ok], dz[ok])
+    dz = np.interp(zb, zb[ok], (tgt['y'] - cur)[ok])
     dz = ndi.gaussian_filter1d(dz, 3.0, mode='nearest')
     t = ((ARM_BLEND_Z[1] - X[:, 2]) / (ARM_BLEND_Z[1] - ARM_BLEND_Z[0])).clip(0, 1)
     w = (t * t * (3 - 2 * t)) * arm
@@ -302,11 +326,11 @@ def fair_mesh(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], masks: d
     shift = {'three_quarter': (grp, w_grp)}
     W = laplacian(len(X), faces)
     E = edges_of(faces)
-    arm_mask = side_arm_mask(cams)
-    X = align_right_arm(X, cams, arm_mask, log=log)
+    arm_tgt = right_arm_target(X, cams, side_arm_mask(cams))
+    X = align_right_arm(X, arm_tgt, log=log)
     for it in range(rounds):
         if it == rounds // 2:
-            X = align_right_arm(X, cams, arm_mask, log=log)
+            X = align_right_arm(X, arm_tgt, log=log)
         X = X + move * (taubin(X, W, smooth) - X)
         D, st = snap_step(X, faces, cams, sds, W, E, max_px=max_px, spread=spread, skip=skip, shift=shift,
                           inward_only=inward)
@@ -318,6 +342,6 @@ def fair_mesh(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], masks: d
                           inward_only=inward)
         X = X + move * D
         X = X + move * (taubin(X, W, 1) - X)
-    X = align_right_arm(X, cams, arm_mask, log=log)
+    X = align_right_arm(X, arm_tgt, log=log)
     log('  最後の留め', st)
     return X

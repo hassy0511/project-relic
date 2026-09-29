@@ -103,6 +103,10 @@ HEAD_LEFT_VIEW_GAIN = 0.15   # 頭の左側の、左の絵の重みの倍率
 # 靴底：絵（右真横・左真横・正面、haru_shoes.png）では靴底は高さ約 4cm の暗い灰色（#444641 に近い）のゴムの帯。
 # 視点の継ぎ目で靴底の縁がぎざぎざに見えたので、この高さより下の靴は靴底の色の一色に塗る
 SOLE_TOP = 0.039
+# 首の前（のど・あごの下）：haru_neck.png と正面の絵で素肌の範囲（あごの下 1.21 から、フードの襟の内側 |x| < 0.042、
+# 首の前の半分）
+NECK_ZONE = {'z': (1.155, 1.215), 'x': 0.042, 'y': 0.0}
+HAIR_SIDE_DETAIL = 0.6     # 横を向いた髪の細部（3D の近さの平均からの差）を弱める割合
 SOLE_RGB = (0.265, 0.25, 0.245)
 MIRROR_NDV = (0.25, 0.45)  # 実の視点の一番よい n・v がこの間なら反転を弱め、上なら使わない
 
@@ -730,7 +734,7 @@ def head_cleanup(res: dict) -> None:
     # 髪の側：くすんだ肌色も消す。肌の側：肌の色でないもの（髪・線の暗い色）はすべて消す
     # 肌の側は横を向いた面（ほお・あごの横）だけ：正面・下を向いた面（あごの先・あごの下の影）は正面の絵の
     # とおりが正しい（あごの線・影を消すと顔の材質の縁が見える）
-    side = ramp(np.abs(res['nrm'][:, 0]), 0.4, 0.6)
+    side = ramp(np.abs(res['nrm'][:, 0]), 0.3, 0.5)
     for name, zone, bad, good_src in (('hair', hair_zone, skl, skl < 0.02),
                                       ('skin', skin_zone, (1.0 - skl) * side, sk > 0.6)):
         tgt = np.nonzero(zone & (bad > 0.02))[0]
@@ -801,6 +805,33 @@ def body_cleanup(res: dict) -> None:
     log(f'体の肌色の塗り直し {stats}')
 
 
+def neck_cleanup(res: dict) -> None:
+    """首の前（のど）とあごの下を肌の色にそろえる（haru_neck.png：首の素肌を茶色の帯で横切らない）。
+
+    あごの下・首の上の端の面は下や上を向いていて、どの視点もよく見ていない。塗り足しで、えり・フードのれんが色や
+    髪の暗い色が混ざり、のどを横切る茶色の帯に見えた。首の前の範囲（NECK_ZONE）の肌でない色を、同じ範囲の
+    よく見えている肌のテクセルの色で塗り直す。
+    """
+    pos, nrm, col = res['pos'], res['nrm'], res['col']
+    x, y, z = pos[:, 0], pos[:, 1], pos[:, 2]
+    nz = NECK_ZONE
+    zone = ((z > nz['z'][0]) & (z < nz['z'][1]) & (np.abs(x) < nz['x']) & (y < nz['y'])
+            & np.isin(res['reg'], (0, 1)))
+    skl = skin_likeness(col, loose=True)
+    tgt = np.nonzero(zone & (skl < 0.6))[0]
+    src = np.nonzero(zone & (skin_likeness(col) > 0.7) & (res['sl'] >= W_SEED))[0]
+    if len(src) < INPAINT_K:   # 首の前によく見えた肌が無ければ、顔の下の肌から
+        src = np.nonzero((z > nz['z'][0]) & (z < nz['z'][1] + 0.03) & (np.abs(x) < 0.06)
+                         & (skin_likeness(col) > 0.7) & (res['sl'] >= W_SEED))[0]
+    # 範囲の縁（左右・下）はなめらかに
+    edge = (ramp(nz['x'] - np.abs(x[tgt]), 0.0, 0.008) * ramp(z[tgt] - nz['z'][0], 0.0, 0.008))
+    for _ in range(2):
+        _repaint(pos, nrm, col, tgt, src, edge * (1 - 0.8 * skl[tgt]), 0.012)
+    res['col'] = col
+    res['neck_cleanup'] = int(len(tgt))
+    log(f'首の前の塗り直し {len(tgt):,} テクセル（元の肌 {len(src):,}）')
+
+
 def sole_cleanup(res: dict) -> None:
     """靴底（SOLE_TOP より下の脚のテクセル）を靴底の色の一色にする（上の縁 4mm でなめらかに）"""
     z = res['pos'][:, 2]
@@ -838,6 +869,17 @@ def hair_colour_match(res: dict) -> None:
     m_t, s_t = col[hz].mean(0), col[hz].std(0)
     new = (col[hz] - m_t) * np.clip(s_a / np.maximum(s_t, 1e-3), 0.7, 1.4) + m_a
     col[hz] = 0.3 * col[hz] + 0.7 * new
+    # 横・斜めを向いた髪の細部を弱める（HAIR_SIDE_DETAIL）：真横・斜めの絵の房の線は、形の房と位置が合わず、
+    # 横から見ると細かな線のまだら（丸いもじゃもじゃ）に見えた。3D の近さで平均した色（房 1 本の大きさ）へ寄せ、
+    # 房の形は形の陰で見せる。正面・背面を向いた髪は絵の細部のまま
+    idx = np.nonzero(hz)[0]
+    if len(idx) > 1000:
+        tree = cKDTree(pos[idx])
+        _, nb = tree.query(pos[idx], k=24, workers=-1)
+        mean = col[idx][nb].mean(1)
+        side = ramp(np.abs(res['nrm'][idx, 0]), 0.35, 0.8)
+        keep = (1.0 - HAIR_SIDE_DETAIL * side)[:, None]
+        col[idx] = mean + keep * (col[idx] - mean)
     res['col'] = col
     res['hair_colour'] = {'art_mean': np.round(m_a * 255).tolist(), 'before_mean': np.round(m_t * 255).tolist(),
                           'texels': int(hz.sum())}
@@ -1261,9 +1303,10 @@ def render_checks(glb: str, res: int = 1024) -> dict:
 def debug_images(res: dict, base: np.ndarray) -> None:
     """どの視点が一番効いたか（色分け）と重みの和の UV 画像"""
     colors = np.array([[230, 60, 60], [60, 120, 230], [60, 200, 90], [230, 200, 50], [170, 80, 220],
-                       [60, 210, 210], [240, 140, 40], [150, 150, 150], [120, 60, 30]], np.float32) / 255
+                       [60, 210, 210], [240, 140, 40], [150, 150, 150], [120, 60, 30], [250, 120, 200],
+                       [20, 90, 60], [200, 230, 120]], np.float32) / 255
     w = res['winner']
-    c = np.where((w >= 0)[:, None], colors[np.clip(w, 0, None)], 0.1)
+    c = np.where((w >= 0)[:, None], colors[np.clip(w, 0, None) % len(colors)], 0.1)
     s = res['size']
     win = to_image(res, c, fill_all=False)
     conf = to_image(res, np.clip(res['sl'] / W_FULL, 0, 1)[:, None], fill_all=False)[..., 0]
@@ -1332,6 +1375,7 @@ def main() -> None:
         if not args.no_head_cleanup:
             head_cleanup(res)
         body_cleanup(res)
+        neck_cleanup(res)
         sole_cleanup(res)
         hair_colour_match(res)
         cov = np.zeros(args.size * args.size, bool)
