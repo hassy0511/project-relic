@@ -744,8 +744,6 @@
       ]
     ],
     "snap.LEFT_ARM_GAIN": 0.8,
-    "snap.SOLE_SKIP_Z": 0.06,
-    "texture.EAR_SKIN": true,
-    "snap.SOLE_SKIP_X": 0.1
+    "texture.EAR_SKIN": true
   }
 }
