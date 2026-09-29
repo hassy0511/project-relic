@@ -22,7 +22,7 @@ description: Codex が描いた多視点の絵（正面・背面・真横・斜�
 
 ## 2. 流れとコマンド（すべて `.venv-blender/bin/python`、スクリプトは `tools/blender/recon/`）
 
-一度に作る：`npm run haru:recon`（`build_haru_r.py`。中身の指紋で変わった段だけ作り直す。`--list`、`--from 段`、`--only 段`、`--review`）。
+一度に作る：`npm run haru:recon`・`npm run yana:recon`（`build_char.py --char <id>`。中身の指紋で変わった段だけ作り直す。`--list`、`--from 段`、`--only 段`、`--review`）。下の表の `build/recon/` はハルの作業のフォルダ（キャラクターごとに 5 章の `work`）。
 
 | 段 | スクリプト | やること | 時間 |
 |----|-----------|---------|------|
@@ -79,15 +79,25 @@ Godot：`godot/assets/models/<名前>.glb` に置き、`tools/godot.sh import` �
 - 追加の斜めの絵も角度は測る（W1-00b の「45 度」は約 46.5 度）。絵どうしで腕の位置が数 cm 食い違うので、形はどれか 1 枚に
   全部は合わせず、色は視点ごとの合わせ込み（texture.py の光学的流れ）で吸収する。
 
-## 5. 新しいキャラクターに使う前にやること
+## 5. キャラクターごとの設定（2 体目から）
 
-今のスクリプトは**ハル専用の値**を含む。2 体目の前に、キャラクターごとの設定ファイル（例：`tools/blender/recon/chars/<id>.json`）へ出す：
-- ファイル名（`haru_3d_*.png`、`haru_mesh.*`、出力 `haru_r.glb`）→ `<id>_*`
-- 身長（1.55m）、頭の高さ・あごの高さ、ベルトの高さ（`fair.py`・`hair.py`・`uvparts.py` の切る高さ）
-- 左右非対称の部品の一覧（`carve.py`・`texture.py`）
-- 頭の部品（ゴーグル・前髪・耳の有無と形）：`hair.py` の関数を部品ごとに選べるようにする
-- 持ち物（`gun.py` は銃「スパーク」専用）、発光する色（琥珀 `#FFBC52`）、材質名
-- 関節の比率（`joints.py`、`tools/blender/models/haru_a.py` の `JOINTS_HARU`）
+流れは `build_char.py --char <id>`（`npm run haru:recon`・`npm run yana:recon`）。キャラクターの違いは
+`tools/blender/recon/chars/<id>.json` だけに書く（読み込み口は `char.py`。各段は環境変数 `RECON_CHAR` で同じ設定を読む）：
+- `art`（絵のブランチ・フォルダ）、`work`（作業のフォルダ。ハル `build/recon`、ヤーナ `build/yana`）、`out_glb`、`source_files`
+- `views`：視点ごとの絵と最初の方位角。`three_quarter` は「形に使う斜めの絵」の役（ハルは約 31 度の古い絵、ヤーナは右前 45 度の絵を当てる）
+- `face`：顔の絵・表情の絵・表情の順（アトラスの左上・右上・左下・右下。ゲームの区画の番号）
+- `height_m`：本来の身長。**再構築は基準の身長 1.55m の座標で行い**（ハルで決めた長さの定数がそのまま使える）、骨付けの段で
+  `ai_character.py --final-height` が骨の物体を一様に拡大する（ヤーナ 1.72m）
+- `rig_args`（持ち物：ハルは銃・光刃・拳、NPC は `--no-weapon`）、`stages_skip`（ヤーナは `gun` なし）
+- `params`：各スクリプトの定数の上書き `{"モジュール.定数名": 値}`。書かなければハルの値。2 体目で上書きしたもの：
+  頭と首の高さ（`carve.HEAD_Z`、`fair.BODY_TOP`・`THROAT_CUT`、`snap.FREEZE_Z`）、頭の断面の節・耳・首・前髪・房の表・頭の部品の有無
+  （`hair.SKIN`・`EAR`・`NECK`・`BANGS`・`LOCK_TABLE`・`PARTS`：ヤーナはゴーグルとベルトなし）、UV の切る高さ（`uvparts.CUT_Z`・`ARM_GAP`）、
+  顔の絵の範囲と目印（`face.*`）、色の後処理の高さ・左右非対称の部品（`texture.*`）、関節の表（`joints.ART_XZ`）
+- 値の読み方：`calib.json` のカメラで絵に 1cm の格子を重ねた画像を作り、あご・首・耳・関節を読む（1 体 20 分ほど）。
+  絵の縮尺が同じなら（頭頂・足の裏の行がそろう）、多くの値はハルの値の近くになる。
+
+新しいキャラクター：`chars/haru.json` を写して名前・絵・視点・顔を書き、`--only views`・`--only calib --force` で較正し、格子の画像から
+`params` を埋めてから `--from hull` で通す。
 
 人型でないもの（ナゴミ、番機）：
 - 丸い・角ばった機械は、視体積（正面・真横・上面の外形を掛け合わせる）がそのまま使える。**上面の絵が必須**。

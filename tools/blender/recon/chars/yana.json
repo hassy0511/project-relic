@@ -163,13 +163,13 @@
         1030,
         1740
       ],
-      "ear_img_left": [
-        580,
-        1320
+      "cheek_left": [
+        680,
+        1400
       ],
-      "ear_img_right": [
-        1640,
-        1280
+      "cheek_right": [
+        1400,
+        1400
       ]
     },
     "face.EXPR_LANDMARKS": {
@@ -689,6 +689,12 @@
       ]
     },
     "joints.SHAFT_Z": 0.15,
-    "joints.BLADE_XZ": null
+    "joints.BLADE_XZ": null,
+    "face.ZONE_RECT": [
+      640,
+      840,
+      1460,
+      1640
+    ]
   }
 }

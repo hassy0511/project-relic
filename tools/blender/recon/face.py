@@ -81,6 +81,9 @@ FACE_WINDOW = CH.p('face.FACE_WINDOW', (615, 840, 1445, 1660))          # 顔の
 # 粗い照合の倍率の範囲（顔の絵 → 全身の正面の絵、顔の絵 → 表情の絵の区画）
 FRONT_SCALE = CH.p('face.FRONT_SCALE', (0.18, 0.40))
 EXPR_SCALE = CH.p('face.EXPR_SCALE', (0.40, 0.60))
+# 表情で差し替える所を、顔の絵のこの範囲 (x0, y0, x1, y1) の中だけにする（None は限らない）。ヤーナの表情の絵は
+# 表情ごとに前髪の房の描き方が違い、髪の違いが窓の縁まで「変わった所」になったので、眉・目・口の範囲に限る
+ZONE_RECT = CH.p('face.ZONE_RECT', None)
 
 # 照合の確かめに使う目印（顔の絵の画素、中心）
 FRONT_LANDMARKS = CH.p('face.FRONT_LANDMARKS', {
@@ -621,6 +624,8 @@ def build_atlas(front, face, expr, fa: FrontAlign, ea: ExprAlign) -> dict:
     for e in exprs[1:]:
         d = np.abs(blur3(e[..., :3], 0.5 * up) - e0_cmp).max(-1)
         m = (d > ZONE_DIFF) & window & (face_a > 0.5) & (e[..., 3] > 0.5)
+        if ZONE_RECT:
+            m &= (ux >= ZONE_RECT[0]) & (ux < ZONE_RECT[2]) & (uy >= ZONE_RECT[1]) & (uy < ZONE_RECT[3])
         m = ndi.binary_opening(m, structure=disk(ZONE_OPEN))
         lab, n = ndi.label(m)
         if n:
