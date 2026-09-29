@@ -280,6 +280,7 @@ def right_arm_target(X: np.ndarray, cams: dict[str, V.Cam], arm_mask: np.ndarray
 LEFT_ARM_GAIN = CH.p('snap.LEFT_ARM_GAIN', 0.0)
 # 斜めの絵の外形へ縁を寄せない靴底の高さ（0 で使わない）
 SOLE_SKIP_Z = CH.p('snap.SOLE_SKIP_Z', 0.0)
+SOLE_SKIP_X = CH.p('snap.SOLE_SKIP_X', 1.0)   # そのうち |x| がこれより内（靴の内側の半分。外側の角は寄せる）
 
 
 def left_arm_target(X: np.ndarray, cams: dict[str, V.Cam], bin_m: float = 0.01) -> dict | None:
@@ -355,8 +356,9 @@ def fair_mesh(X: np.ndarray, faces: np.ndarray, cams: dict[str, V.Cam], masks: d
     l_hand = (X[:, 0] > 0.30) & (X[:, 2] < 0.80)
     skip = {'three_quarter': r_fore | l_hand, 'side_right': l_hand}
     if SOLE_SKIP_Z > 0:
-        # 靴底（ヤーナ）：斜めの絵では左右の靴が重なり、縁を寄せると靴の間の地面の高さにひれができた
-        skip['three_quarter'] = skip['three_quarter'] | (X[:, 2] < SOLE_SKIP_Z)
+        # 靴底（ヤーナ）：斜めの絵では左右の靴が重なり、縁を寄せると靴の間の地面の高さにひれができた。
+        # 靴の内側の半分だけ寄せない（全部を寄せないと、外側の角に視体積の板が残った）
+        skip['three_quarter'] = skip['three_quarter'] | ((X[:, 2] < SOLE_SKIP_Z) & (np.abs(X[:, 0]) < SOLE_SKIP_X))
     inward = {'side_right': left_arm}
     # 左の前腕（肘〜手首、籠手）は、右前斜めの外形へは縁ごとではなく、前腕ごと前後に動かす（_shift_groups）。
     # 右前斜めの絵は前腕を丸い腕より太く描いていて、縁だけを寄せると断面が三角（くさび形）になる。
