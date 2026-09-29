@@ -92,10 +92,12 @@ Godot：`godot/assets/models/<名前>.glb` に置き、`tools/godot.sh import` �
 - `params`：各スクリプトの定数の上書き `{"モジュール.定数名": 値}`。書かなければハルの値。2 体目で上書きしたもの：
   頭と首の高さ（`carve.HEAD_Z`、`fair.BODY_TOP`・`THROAT_CUT`、`snap.FREEZE_Z`）、頭の断面の節・耳・首・前髪・房の表・頭の部品の有無
   （`hair.SKIN`・`EAR`・`NECK`・`BANGS`・`LOCK_TABLE`・`PARTS`：ヤーナはゴーグルとベルトなし）、UV の切る高さ（`uvparts.CUT_Z`・`ARM_GAP`）、
-  顔の絵の範囲と目印（`face.*`）、色の後処理の高さ・左右非対称の部品（`texture.*`）、関節の表（`joints.ART_XZ`）
+  顔の絵の範囲と目印・表情で差し替える範囲（`face.*`）、色の後処理の高さ・左右非対称の部品・視点の重み・耳の肌色（`texture.*`）、
+  左の前腕の前後の合わせ（`snap.LEFT_ARM_GAIN`）、関節の表（`joints.ART_XZ`）。刈り上げは `hair.CAP.undercut`
 - 値の読み方：`calib.json` のカメラで絵に 1cm の格子を重ねた画像を作り、あご・首・耳・関節を読む（1 体 20 分ほど）。
   絵の縮尺が同じなら（頭頂・足の裏の行がそろう）、多くの値はハルの値の近くになる。
 
+確認：`build/<id>/review/`（`--review`）、Godot の住人は `godot_npc_showcase.gd`。結果：`docs/art_orders/W1_ヤーナ3D化の結果.md`。
 新しいキャラクター：`chars/haru.json` を写して名前・絵・視点・顔を書き、`--only views`・`--only calib --force` で較正し、格子の画像から
 `params` を埋めてから `--from hull` で通す。
 
