@@ -1,0 +1,17 @@
+{
+  "vertices": 2320,
+  "triangles": 4240,
+  "bbox_min_xyz_m": [
+    -2.62,
+    -5.4,
+    -2.74
+  ],
+  "bbox_max_xyz_m": [
+    2.62,
+    5.25,
+    2.195
+  ],
+  "body_length_m": 10.0,
+  "body_diameter_m": 3.5,
+  "arm_length_m": 4.0
+}
