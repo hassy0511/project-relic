@@ -890,6 +890,94 @@ def hand_cleanup(res: dict) -> None:
     log(f'手のれんが色の塗り直し {stats}')
 
 
+# エプロンの横の塗り直し（None で使わない。ハルは使わない）。絵どうしの食い違い（背面の絵の背中はれんが色の布、真横の絵は
+# 白いシャツと胴の横のズボン）で、エプロンの幅の外の胴・脚の横に白とれんが色のまだらができた。
+# 'z'：胴・脚の高さの範囲、'belt_z'：(下の帯の上端, 上の帯の下端)。上の帯の横は白いシャツ、下の帯はズボン、'margin'：正面のエプロンの幅の外へ足す余白（m）、
+# 'ramp'：境をなめらかにする幅（m）、'keep'：塗り直さない箱の名前（ASYMMETRIC の、タオル・ポーチ）
+APRON_SIDE = CH.p('texture.APRON_SIDE', None)
+
+
+def _white(col: np.ndarray) -> np.ndarray:
+    """白・象牙色（シャツ・タオル）らしさ 0..1"""
+    mn, mx = col.min(1), col.max(1)
+    return ramp(mn, 0.60, 0.72) * (1 - ramp(mx - mn, 0.16, 0.26))
+
+
+def _olive(col: np.ndarray) -> np.ndarray:
+    """ズボンのオリーブ色らしさ 0..1"""
+    r, g, b = col[:, 0], col[:, 1], col[:, 2]
+    return ramp(g - b, 0.06, 0.12) * (1 - ramp(r - g, 0.06, 0.12)) * ramp(g, 0.18, 0.26) * (1 - ramp(g, 0.5, 0.6))
+
+
+def _brick(col: np.ndarray) -> np.ndarray:
+    r, g = col[:, 0], col[:, 1]
+    return ramp(r - g, 0.18, 0.28) * ramp(r, 0.45, 0.55) * (1 - ramp(g, 0.52, 0.60))
+
+
+def apron_cleanup(res: dict) -> None:
+    """エプロンの幅の外の胴・脚の横（左右の面）の、白いまだらとれんが色のまだらを塗り直す。
+
+    エプロンの幅 hw(z) は、正面を向いたれんが色のテクセルの |x| の広がりから測る。その外側の横の面は、
+    belt_z より上は白いシャツ、下はズボン（タオル・ポーチの箱は除く）。違う色のテクセルを、同じ高さの帯の
+    正しい色のテクセルの色で塗り直す（_repaint）。
+    """
+    cfg = APRON_SIDE
+    if not cfg:
+        return
+    pos, nrm, col, reg = res['pos'], res['nrm'], res['col'], res['reg']
+    x, y, z = pos[:, 0], pos[:, 1], pos[:, 2]
+    z0, z1 = cfg['z']
+    zone = np.isin(reg, (1, 6, 7)) & (z >= z0) & (z <= z1)
+    brick = _brick(col)
+    front = zone & (nrm[:, 1] < -0.6) & (brick > 0.5) & (res['sl'] >= W_SEED)
+    bins = np.arange(z0, z1 + 0.02, 0.02)
+    hw_b = np.full(len(bins) - 1, np.nan)
+    for i in range(len(bins) - 1):
+        m = front & (z >= bins[i]) & (z < bins[i + 1])
+        if m.sum() > 50:
+            hw_b[i] = np.percentile(np.abs(x[m]), 97)
+    ok = np.isfinite(hw_b)
+    if ok.sum() < 3:
+        log('エプロンの幅を測れず（塗り直さない）')
+        return
+    zc = 0.5 * (bins[:-1] + bins[1:])
+    hw = np.interp(z, zc[ok], hw_b[ok]) + cfg.get('margin', 0.01)
+    keep = np.zeros(len(z), bool)
+    for name in cfg.get('keep', ()):
+        (xa, xb), (za, zb) = ASYMMETRIC[name]
+        keep |= (x >= xa) & (x <= xb) & (z >= za) & (z <= zb)
+    side = zone & ~keep & (np.abs(x) > hw)
+    edge = ramp(np.abs(x) - hw, 0.0, cfg.get('ramp', 0.02))
+    # ベルト（暗い色）は塗り直さない：上の帯は belt_z[1] より上、下の帯は belt_z[0] より下
+    upper = side & (z >= cfg['belt_z'][1])
+    lower = side & (z < cfg['belt_z'][0])
+    white, olive = _white(col), _olive(col)
+    stats = {'hw': [round(float(v), 3) for v in hw_b[ok][::3]]}
+    # (帯、正しい色、間違った色の度合い)：上は白いシャツの中のれんが色、下はズボンの中の白・れんが色
+    for nm, band, good, wrong in (('upper', upper, white, brick), ('lower', lower, olive, np.maximum(brick, white))):
+        src = np.nonzero(band & (good > 0.5) & (res['sl'] >= W_SEED))[0]
+        tgt = np.nonzero(band & (wrong > 0.1))[0]
+        stats[nm] = (int(len(tgt)), int(len(src)))
+        for _ in range(2):
+            _repaint(pos, nrm, col, tgt, src, edge[tgt] * np.clip(wrong[tgt] * 3, 0, 1), cfg.get('scale', 0.03))
+    # タオルの箱の、エプロンの幅の外（横）：タオルの下端 z_hem より上はれんが色を白へ、下は白・れんが色をズボンの色へ
+    tw = cfg.get('towel')
+    if tw:
+        (xa, xb), (za, zb) = ASYMMETRIC[tw['box']]
+        box = np.isin(reg, (1, 6, 7)) & (x >= xa) & (x <= xb) & (z >= za) & (z <= zb) & (np.abs(x) > hw)
+        hem = tw['z_hem']
+        for nm, band, good, wrong in (('towel_up', box & (z >= hem), white, brick),
+                                      ('towel_low', box & (z < hem), olive, np.maximum(brick, white))):
+            src = np.nonzero(band & (good > 0.5) & (res['sl'] >= W_SEED))[0]
+            tgt = np.nonzero(band & (wrong > 0.1))[0]
+            stats[nm] = (int(len(tgt)), int(len(src)))
+            for _ in range(2):
+                _repaint(pos, nrm, col, tgt, src, np.clip(wrong[tgt] * 3, 0, 1), cfg.get('scale', 0.03))
+    res['col'] = col
+    res['apron_cleanup'] = stats
+    log(f'エプロンの横の塗り直し {stats}')
+
+
 def sole_cleanup(res: dict) -> None:
     """靴底（SOLE_TOP より下の脚のテクセル）を靴底の色の一色にする（上の縁 4mm でなめらかに）"""
     z = res['pos'][:, 2]
@@ -1435,6 +1523,7 @@ def main() -> None:
         body_cleanup(res)
         neck_cleanup(res)
         hand_cleanup(res)
+        apron_cleanup(res)
         sole_cleanup(res)
         hair_colour_match(res)
         cov = np.zeros(args.size * args.size, bool)
