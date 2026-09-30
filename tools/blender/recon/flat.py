@@ -229,6 +229,22 @@ def paint_body(res: dict, mesh: dict) -> dict:
     a = np.clip((t - 0.5) / (2 * EDGE_SHARP) + 0.5, 0, 1)
     a = a * a * (3 - 2 * a)
     out = a[:, None] * pal[i1] + (1 - a[:, None]) * pal[i2]
+    # 頭の琥珀（レンズ）の縁は、箱でなく texel の近さの多数決で引き直す（レンズの角ばった形。箱の近くの琥珀の所だけ）
+    ia = names.index('amber')
+    near = (reg == 0) & (pv[:, ia] > 0)
+    if near.any():
+        hi = np.nonzero(reg == 0)[0]
+        ht = cKDTree(pos[hi])
+        qi = np.nonzero(near)[0]
+        dd, nn = ht.query(pos[qi], k=24, workers=-1)
+        nn = hi[nn]
+        wn = np.exp(-0.5 * (dd / 0.0015) ** 2) * (np.einsum('qkc,qc->qk', nrm[nn], nrm[qi]) > 0.3)
+        fa = (wn * (lbl[nn] == ia)).sum(1) / np.maximum(wn.sum(1), 1e-12)
+        other = np.where(i1[qi] != ia, i1[qi], np.where(i2[qi] != ia, i2[qi], names.index('graphite')))
+        aa = np.clip((fa - 0.5) / 0.3 + 0.5, 0, 1)
+        aa = aa * aa * (3 - 2 * aa)
+        out[qi] = aa[:, None] * pal[ia] + (1 - aa[:, None]) * pal[other]
+        i1[qi] = np.where(fa > 0.5, ia, other)
     res['col'] = out.astype(np.float32)
     res['flat_label'] = i1
     frac = {k: round(float((area * (i1 == i)).sum() / area.sum()), 4) for i, k in enumerate(names)}
