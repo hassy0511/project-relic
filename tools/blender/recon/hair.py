@@ -33,7 +33,7 @@
   柱を、帽子の面からの厚みで切った 2 つの六角の枠（1.3cm）＋ 4mm 奥のレンズ ＋ 細い橋。額の丸みに沿って
   回り込む（以前の、額の幅いっぱいの平らな板はひさしに見えた）。
   ベルト（strap_field）：房のすき間をうめてなめらかにした髪の包みの面の上の、右真横の絵のとおり後ろへ下がる
-  幅 1.8cm の帯（包みの外 4mm〜内 2mm の殻）。
+  幅 2.3cm の帯（包みの外 4mm〜内 2mm の殻）。塗りの段はこの形で色を決める（part_fields_at）。
   前髪（bangs_field）：正面の絵のゴーグルの下の前髪の範囲（髪の色、ゴーグルの下の帯につながる所）を、額の面から
   前へ押し出した殻。厚みは範囲の縁からの距離で決まる（真ん中で最大 1.1cm、縁・先は 2mm のくさび）。
   顔のアトラスに描かれた前髪の V が、どの向きからも V の形の上に載る（以前の、ゴーグルの下の楕円体の根元の
@@ -106,8 +106,9 @@ GOGGLE_LENS = [(-0.095, 1.412), (-0.097, 1.4616), (-0.024, 1.4723), (-0.0176, 1.
 GOGGLE_BRIDGE = ((-0.012, 0.021), (1.437, 1.474))
 GOGGLE_MIRROR_X = 0.0045
 FRAME_T, LENS_T, BRIDGE_T = 0.013, 0.009, 0.008
-# ベルト：右真横の絵で、ゴーグルの横（y = -0.035, z = 1.425）から後ろ（y = 0.145, z = 1.36）へ下がり、後ろは水平
-STRAP = {'y': (-0.035, 0.145), 'z': (1.425, 1.36), 'half': 0.0090, 'off': 0.004, 'inner': 0.002}
+# ベルト：右真横の絵で、ゴーグルの横（y = -0.035, z = 1.418）から後ろ（y = 0.145, z = 1.35）へ下がり、後ろは水平。
+# 幅 2.3cm（絵の帯の幅。左右の真横の絵は後ろで 1.335、背面の絵は 1.364 と食い違うので、その間）
+STRAP = {'y': (-0.035, 0.145), 'z': (1.418, 1.35), 'half': 0.0115, 'off': 0.004, 'inner': 0.002}
 # 頭の部品の有無（キャラクターごと。ハル：ゴーグル・ベルト・前髪の殻・耳。ヤーナ：ゴーグルとベルトは無い）
 PARTS = CH.p('hair.PARTS', {'goggles': True, 'strap': True, 'bangs': True, 'ears': True})
 # 耳：正面の絵（外の縁 |x| ≈ 0.133、z 1.26〜1.33）と右真横の絵（y 0.005〜0.048）から
@@ -1106,6 +1107,72 @@ def build_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.ndar
         v2.splat_field(n, phi_b, lo_b, vox))), 4) for n in REAL}
     log('房', info['n_locks'], '本', info['iou_head_region'])
     return k0, phi, info
+
+
+def part_fields_at(P: np.ndarray, x_half: float = 0.26, z0: float = 1.12) -> dict[str, np.ndarray]:
+    """面の点 P (n,3) での頭の部品の場（中が正、m）：'skin'（頭・鼻・首。耳は含めない）、'ear'、'strap'。
+    塗りの段（flat.py）が「形の部品の色は形から」決めるのに使う。形の場は build_head と同じ作り方で、
+    ベルトの基準の髪の包みは hull.npz の場（形の段の出力）をぼかしたもの"""
+    d = np.load(os.path.join(V.WORK, 'hull.npz'))
+    lo, vox, shape = d['lo'], float(d['vox']), tuple(int(s) for s in d['shape'])
+    zs_all = lo[2] + (np.arange(shape[0]) + 0.5) * vox
+    xs_all = lo[0] + (np.arange(shape[1]) + 0.5) * vox
+    k0 = int(np.searchsorted(zs_all, z0))
+    ix = np.nonzero(np.abs(xs_all) < x_half)[0]
+    i0, i1 = int(ix[0]), int(ix[-1]) + 1
+    lo_b = lo + np.array([i0 * vox, 0.0, k0 * vox])
+    shp = (shape[0] - k0, i1 - i0, shape[2])
+    cams = V.load_calib()
+    masks = {n: V.load_mask(n) for n in V.VIEWS}
+    sk = skin_stack(cams, masks)
+    S = stack_field(sk, lo_b, vox, shp, 0)
+    nose = ellipsoid_field((float(sk.cx[0]),) + tuple(SKIN['nose'][0]), tuple(SKIN['nose'][1]), lo_b, vox, shp, 0)
+    S = smooth_max(S, nose, 0.007)
+    S = smooth_max(S, neck_field(lo_b, vox, shp, 0), 0.012)
+    out = {'skin': S}
+    ears = ears_field(lo_b, vox, shp) if PARTS['ears'] else np.full(S.shape, -0.05, np.float32)
+    out['ear'] = ears
+    # 髪（帽子・前髪・房）：build_head と同じ作り方。房は形の段が当てはめた値（recon_report.json）をそのまま使う
+    p = dict(PARAMS)
+    Se = smooth_max(S, ears, 0.006) if PARTS['ears'] else S
+    cs, _ = cap_stack(cams, masks, p, sk)
+    cut = face_cut(lo_b, vox, shp, 0)
+    Cf = smooth_min(stack_field(cs, lo_b, vox, shp, 0), smooth_max(Se - 0.002, -cut, 0.012), 0.012)
+    Cf = smooth_min(Cf, -(ears + 0.005), 0.004)
+    base = smooth_max(Se, Cf, p['union_k'])
+    gz = np.full(S.shape, -0.05, np.float32)
+    if PARTS['goggles']:
+        gog, gz = goggles_field(Cf, lo_b, vox, shp)
+        base = smooth_max(base, gog, 0.002)
+    hair = Cf
+    if PARTS['bangs']:
+        bang = bangs_field(Se, cams, lo_b, vox, shp)
+        base = smooth_max(base, bang, 0.004)
+        hair = np.maximum(hair, bang)
+    try:
+        with open(os.path.join(V.WORK, 'recon_report.json')) as fp:
+            locks = [Lock(tuple(L['root']), tuple(L['tip']), L['lift'], L['width'], L.get('name', ''))
+                     for L in json.load(fp)['hull']['head']['locks']]
+    except (OSError, KeyError):
+        locks = []
+    if locks:
+        rtab = RadialTable(base, lo_b, vox)
+        Lf = np.full(S.shape, -0.02, np.float32)
+        for L in locks:
+            r_ = lock_field(lock_samples(L, rtab, p['lock_thick']), lo_b, vox, S.shape)
+            if r_ is None:
+                continue
+            (a, b, c), f = r_
+            sl = (slice(a, a + f.shape[0]), slice(b, b + f.shape[1]), slice(c, c + f.shape[2]))
+            np.maximum(Lf[sl], f, out=Lf[sl])
+        Lf = smooth_min(Lf, -np.maximum(np.maximum(cut, gz), ears + 0.004) - 0.004, 0.004)
+        hair = np.maximum(hair, Lf)
+    out['hair'] = hair
+    if PARTS['strap']:
+        env = ndi.gaussian_filter(d['phi'][k0:, i0:i1].astype(np.float32), 5.0)
+        out['strap'] = strap_field(env, lo_b, vox, shp)
+    idx = ((P[:, [2, 0, 1]] - lo_b[[2, 0, 1]]) / vox - 0.5).T
+    return {k: ndi.map_coordinates(f, idx, order=1, mode='constant', cval=-0.05) for k, f in out.items()}
 
 
 def neck_field(lo, vox, shape, k0) -> np.ndarray:

@@ -384,7 +384,10 @@ def unwrap(obj, head_z: float, head_scale: float = 2.0, hand_scale: float = 1.35
         fi = np.nonzero(lab == p)[0]
         r = a2[fi] / np.maximum(a3[fi], 1e-12)
         med = float(np.median(r))
-        if med <= 0 or float(np.mean(r < 0.05 * med)) > 0.02:
+        # つぶれた面が島の面の数の 2% 未満でも、面積で 0.5% を超えれば展開し直す（ハルの首の後ろの左の島：
+        # 約 40cm² がつぶれ、塗りの色が隣の島から来て、しみになっていた）
+        bad = r < 0.05 * med
+        if med <= 0 or float(np.mean(bad)) > 0.02 or float(a3[fi][bad].sum() / max(a3[fi].sum(), 1e-12)) > 0.005:
             redo.append(p)
     if redo:
         sel = np.isin(lab, redo)

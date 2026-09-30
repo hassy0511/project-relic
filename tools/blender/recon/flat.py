@@ -81,6 +81,12 @@ FRONT_ZONE = CH.p('flat.FRONT_ZONE', {'z': (0.79, 1.215), 'ramp_z': 0.02, 'ndv':
                                       'sigma_px': 2.5, 'min_px': 150, 'min_px_brass': 12, 'l_weight': 0.3})
 # ゴーグルは形の部品（hair.py の枠・レンズの輪郭）で塗る：レンズ＝琥珀、枠・橋＝グラファイト
 GOGGLE_PAINT = CH.p('flat.GOGGLE_PAINT', True)
+# 頭の形の部品の色は形から（hair.part_fields_at の場。絵の色は使わない。head_parts）：
+#   頭（部位 0。と、胴の側の neck_z より上で肌か茶に塗られた首）はまず全部肌（顔・首・あごの下。あごの下や首の後ろはどの絵もよく見ていないので決まりで）。
+#   髪の場（帽子・前髪・形の段が当てはめた房）の面の上（髪の場 > hair_tol）で頭の面より外（髪の場 − 頭の場 > hair_out）＝髪の茶、
+#   耳（場 > ear）＝肌、ベルト（場 > strap）＝グラファイト。ゴーグルはこのあと GOGGLE_PAINT。ramp は境目を混ぜる幅（m）
+HEAD_PARTS = CH.p('flat.HEAD_PARTS', {'strap': -0.0012, 'ear': -0.002, 'hair_tol': -0.004, 'hair_out': 0.001, 'ramp': 0.001,
+                                      'neck_z': 1.15})
 
 
 def log(msg: str) -> None:
@@ -201,6 +207,43 @@ def goggle_colour(pos: np.ndarray, nrm: np.ndarray, reg: np.ndarray, names: list
     a = np.clip((lens - 0.0003) / 0.0012 + 0.5, 0, 1) * np.clip((front - 0.35) / 0.2, 0, 1)
     a = a * a * (3 - 2 * a)
     return cand[on], a[on]
+
+
+def head_parts(pos: np.ndarray, nrm: np.ndarray, reg: np.ndarray, names: list[str], pal: np.ndarray,
+               out: np.ndarray, i1: np.ndarray) -> dict:
+    """頭（部位 0）の形の部品の色を形から決める（HEAD_PARTS の説明）。out（色）と i1（色の番号）を書き換える"""
+    from recon import hair as HR
+    hp = HEAD_PARTS
+    isk, ium, igr = names.index('skin'), names.index('umber'), names.index('graphite')
+    # 頭と、首の後ろ・横の胴の側（z > neck_z。襟の色でなく肌か茶に塗られた所：房の先が首に下がる所）
+    hi = np.nonzero((reg == 0) | ((reg == 1) & (pos[:, 2] > hp['neck_z']) & np.isin(i1, (isk, ium))))[0]
+    f = HR.part_fields_at(pos[hi])
+    rp = hp['ramp']
+
+    def ramp_(v, t):   # 場 v が閾値 t を rp だけ越えると 1
+        a = np.clip((v - t) / rp + 0.5, 0, 1)
+        return a * a * (3 - 2 * a)
+
+    def put(a, k, sel=None):
+        a = a if sel is None else a * sel
+        idx = hi[a > 0]
+        out[idx] = a[a > 0, None] * pal[k] + (1 - a[a > 0, None]) * out[idx]
+        i1[idx] = np.where(a[a > 0] > 0.5, k, i1[idx])
+        return int((a > 0.5).sum())
+
+    st = {}
+    # 髪・耳・ベルト・ゴーグルでない頭の面（顔・首・あごの下）は肌（絵の多数決の茶・襟の色・ベルトの帯の塗りを使わない）。
+    # 髪は次で茶に塗る（境目は髪の場で決まる）
+    st['head_recoloured'] = int((i1[hi] != isk).sum())
+    out[hi] = pal[isk]
+    i1[hi] = isk
+    # 髪の部品（帽子・房・前髪）：髪の場の面の上（hair_tol より近い）で、頭の面より外（hair_out より外）なら茶
+    h = np.minimum(f['hair'] - hp['hair_tol'], f['hair'] - f['skin'] - hp['hair_out'])
+    st['hair'] = put(ramp_(h, 0.0), ium)
+    st['ear'] = put(ramp_(f['ear'], hp['ear']), isk)
+    if 'strap' in f:
+        st['strap'] = put(ramp_(f['strap'], hp['strap']), igr, (f['ear'] < hp['ear']).astype(np.float32))
+    return st
 
 
 # ---------------------------------------------------------------- 体
@@ -367,6 +410,10 @@ def paint_body(res: dict, mesh: dict, cams: dict | None = None) -> dict:
         out[zi] = tt * zc + (1 - tt) * out[zi]
         i1[zi] = np.where(t[zi] > 0.5, np.argmax(pz, 1), i1[zi])
         stats[f'{view}_zone']['texels'] = int(len(zi))
+    # 頭の部品（ベルト・耳・髪・あごの下）：形で
+    if HEAD_PARTS:
+        stats['head_parts'] = head_parts(pos, nrm, reg, names, pal, out, i1)
+        log(f'頭の部品 {stats["head_parts"]}')
     # ゴーグル：部品の形で
     if GOGGLE_PAINT:
         gi, ga = goggle_colour(pos, nrm, reg, names)
