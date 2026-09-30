@@ -3,6 +3,7 @@
 > 開発全体の「いまどこか」を 1 枚で見るための表。**進捗があったら Claude が更新する**（ルールは `CLAUDE.md`）。
 > 詳しい経過は `progress.md`、発注書の一覧は `art_orders/README.md`。Codex に出す依頼文は 7 章。
 > ブラウザで見る：https://hassy0511.github.io/project-relic/dashboard/ （push のたびに自動で更新）
+> 3D モデルを回して見る：https://hassy0511.github.io/project-relic/models/ （4 章の「見る」から各モデルへ）
 > 最終更新：2026-09-30
 
 ---
@@ -46,14 +47,14 @@
 
 ## 4. 3D モデルの状態
 
-| モデル | ゲームでの使い道 | 状態 | 結果の文書 |
-|--------|----------------|------|-----------|
-| ハル（`haru_r`） | 主人公（既定。F2 で以前の試作と切り替え） | 使える。残課題あり（5 章） | `art_orders/W1_ハル再構築の結果.md` |
-| ヤーナ（`yana`） | 会話の相手（NPC） | 使える。残課題あり | `art_orders/W1_ヤーナ3D化の結果.md` |
-| ナゴミ（`nagomi`） | ハルの肩のそばに浮く相棒 | 使える。残課題あり | `art_orders/W1_ナゴミ3D化の結果.md` |
-| 番機 5 種（`banki_*`） | 敵。歩哨型・突撃型はゲームに入った（歩く・予備動作・センサーの色・壊れ方） | 使える。歩哨型・子番機・突撃型は絵に近い色。盾型・浮遊型は真鍮がまだら。子番機・盾型・浮遊型は動きなし | `art_orders/W2_番機3D化の結果.md` |
-| 閂（`kannuki`） | ボス（まだ戦いは無い。ゲームには未組み込み） | 仮の出来：部品は全部動かせる（腕 4 本・ドリル・核のふた）が、形が箱っぽく絵より太い | `art_orders/W2_番機3D化の結果.md` |
-| 地形 | ステージ | 仮の灰色の箱（MVP） | — |
+| モデル | ゲームでの使い道 | 状態 | 結果の文書 | 見る |
+|--------|----------------|------|-----------|------|
+| ハル（`haru_r`） | 主人公（既定。F2 で以前の試作と切り替え） | 使える。残課題あり（5 章） | `art_orders/W1_ハル再構築の結果.md` | [見る](https://hassy0511.github.io/project-relic/models/?m=haru_r) |
+| ヤーナ（`yana`） | 会話の相手（NPC） | 使える。残課題あり | `art_orders/W1_ヤーナ3D化の結果.md` | [見る](https://hassy0511.github.io/project-relic/models/?m=yana) |
+| ナゴミ（`nagomi`） | ハルの肩のそばに浮く相棒 | 使える。残課題あり | `art_orders/W1_ナゴミ3D化の結果.md` | [見る](https://hassy0511.github.io/project-relic/models/?m=nagomi) |
+| 番機 5 種（`banki_*`） | 敵。歩哨型・突撃型はゲームに入った（歩く・予備動作・センサーの色・壊れ方） | 使える。歩哨型・子番機・突撃型は絵に近い色。盾型・浮遊型は真鍮がまだら。子番機・盾型・浮遊型は動きなし | `art_orders/W2_番機3D化の結果.md` | [歩哨](https://hassy0511.github.io/project-relic/models/?m=banki_sentry) [突撃](https://hassy0511.github.io/project-relic/models/?m=banki_charger) [子](https://hassy0511.github.io/project-relic/models/?m=banki_mini) [盾](https://hassy0511.github.io/project-relic/models/?m=banki_shield) [浮遊](https://hassy0511.github.io/project-relic/models/?m=banki_floater) |
+| 閂（`kannuki`） | ボス（まだ戦いは無い。ゲームには未組み込み） | 仮の出来：部品は全部動かせる（腕 4 本・ドリル・核のふた）が、形が箱っぽく絵より太い | `art_orders/W2_番機3D化の結果.md` | [見る](https://hassy0511.github.io/project-relic/models/?m=kannuki) |
+| 地形 | ステージ | 仮の灰色の箱（MVP） | — | — |
 
 ## 5. 残課題
 

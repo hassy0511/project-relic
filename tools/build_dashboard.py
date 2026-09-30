@@ -3,7 +3,7 @@
   python3 tools/build_dashboard.py [出力フォルダ]     既定：site/dashboard
 
 外部のライブラリは使わない（CI でそのまま動くように）。dashboard.md で使っている書き方だけを扱う：
-見出し、表、箇条書き、引用、コードブロック（コピーのボタンを付ける）、**太字**、`コード`。
+見出し、表、箇条書き、引用、コードブロック（コピーのボタンを付ける）、**太字**、`コード`、[文字](URL)。
 `...md`・`...jpg` などのファイル名の `コード` は、GitHub のそのファイルへのリンクにする。
 """
 from __future__ import annotations
@@ -37,7 +37,8 @@ def inline(text: str) -> str:
             continue
         t = html.escape(p)
         t = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', t)
-        t = re.sub(r'(https?://[^\s<）)]+)', r'<a href="\1">\1</a>', t)
+        t = re.sub(r'\[([^\]]+)\]\((https?://[^)\s]+)\)', r'<a href="\2">\1</a>', t)
+        t = re.sub(r'(?<!["=>])(https?://[^\s<）)"]+)', r'<a href="\1">\1</a>', t)
         out.append(t)
     return ''.join(out)
 

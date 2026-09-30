@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>アークウォーカー 3D モデル</title>
+<!--
+  3D モデルの確認ページ（GitHub Pages の /models/）。
+  pages.yml が、このファイルと godot/assets/models/*.glb を site/models/ に置く。
+  ?m=<モデルの名前> で、そのモデルを開く（ダッシュボードの 4 章からのリンク）。
+  モデルを足したら、下の MODELS に 1 行足す。
+-->
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+<style>
+:root { --bg:#f7f4ee; --fg:#26221d; --muted:#6b6358; --line:#ddd5c8; --card:#fff; --accent:#b75b43; --stage:#d9d3c9; }
+@media (prefers-color-scheme: dark) { :root { --bg:#1c1a17; --fg:#ece6dc; --muted:#a59b8c; --line:#3a352e; --card:#26231f; --accent:#e08a6f; --stage:#34302a; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+main { max-width:1100px; margin:0 auto; padding:12px 16px 24px; }
+h1 { font-size:1.2em; margin:.2em 0 .6em; }
+h1 a { color:var(--accent); font-size:.75em; font-weight:normal; margin-left:.6em; }
+.list { display:flex; flex-wrap:wrap; gap:6px 14px; margin-bottom:10px; }
+.group { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.group span { color:var(--muted); font-size:.85em; }
+.list button { padding:.3em .7em; border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:4px; font:inherit; font-size:.9em; cursor:pointer; }
+.list button.on { border-color:var(--accent); background:var(--accent); color:#fff; }
+model-viewer { width:100%; height:min(70vh, 640px); background:var(--stage); border-radius:6px; --poster-color:transparent; }
+.bar { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; margin:8px 0; }
+.bar select, .bar button { font:inherit; font-size:.9em; padding:.25em .5em; border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:4px; }
+.bar label { display:flex; gap:4px; align-items:center; font-size:.9em; }
+.note { color:var(--muted); font-size:.9em; overflow-wrap:anywhere; }
+.note a { color:var(--accent); }
+</style>
+</head>
+<body><main>
+<h1>アークウォーカー 3D モデル<a href="../dashboard/">ダッシュボードへ</a></h1>
+<div class="list" id="list"></div>
+<model-viewer id="mv" camera-orbit="35deg 75deg auto" camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1" environment-image="neutral" interaction-prompt="none" autoplay></model-viewer>
+<div class="bar">
+  <label>動作 <select id="anim"></select></label>
+  <label><input type="checkbox" id="rotate"> 回す</label>
+  <button id="reset">視点を戻す</button>
+</div>
+<p class="note" id="note"></p>
+<p class="note">ドラッグで回す、ピンチ・ホイールで寄る、2 本指・右ドラッグで動かす。ゲームの中の見た目（光・塗り方）とは少し違う。</p>
+</main>
+<script>
+const REPO = 'https://github.com/hassy0511/project-relic/blob/claude/busy-bell-oagnck/docs/art_orders/';
+// [名前, 表示名, 分類, 説明, 結果の文書]
+const MODELS = [
+  ['haru_r', 'ハル', 'キャラクター', '主人公。高さ 155cm。動作 14 種', 'W1_ハル再構築の結果.md'],
+  ['yana', 'ヤーナ', 'キャラクター', '会話の相手（NPC）', 'W1_ヤーナ3D化の結果.md'],
+  ['nagomi', 'ナゴミ', 'キャラクター', 'ハルの肩のそばに浮く相棒', 'W1_ナゴミ3D化の結果.md'],
+  ['banki_sentry', '番機・歩哨型', '敵', '動きはゲームの中で付ける', 'W2_番機3D化の結果.md'],
+  ['banki_charger', '番機・突撃型', '敵', '動きはゲームの中で付ける', 'W2_番機3D化の結果.md'],
+  ['banki_mini', '子番機', '敵', '', 'W2_番機3D化の結果.md'],
+  ['banki_shield', '番機・盾型', '敵', '', 'W2_番機3D化の結果.md'],
+  ['banki_floater', '番機・浮遊型', '敵', '', 'W2_番機3D化の結果.md'],
+  ['kannuki', '閂（大番機）', 'ボス', '全長 10m。仮の出来。腕・ドリル・核のふたは部品として動かせる（このページでは閉じた形）', 'W2_番機3D化の結果.md'],
+  ['haru_a', 'ハル（以前の試作）', '以前の試作', 'ゲームで F2 を押すと切り替わる版', ''],
+];
+
+const mv = document.getElementById('mv');
+const list = document.getElementById('list');
+const animSel = document.getElementById('anim');
+const note = document.getElementById('note');
+const buttons = new Map();
+
+const groups = new Map();
+for (const m of MODELS) {
+  if (!groups.has(m[2])) {
+    const g = document.createElement('div');
+    g.className = 'group';
+    g.innerHTML = `<span>${m[2]}</span>`;
+    list.appendChild(g);
+    groups.set(m[2], g);
+  }
+  const b = document.createElement('button');
+  b.textContent = m[1];
+  b.onclick = () => show(m[0]);
+  groups.get(m[2]).appendChild(b);
+  buttons.set(m[0], b);
+}
+
+function show(id) {
+  const m = MODELS.find((x) => x[0] === id) || MODELS[0];
+  for (const [k, b] of buttons) b.classList.toggle('on', k === m[0]);
+  mv.src = `${m[0]}.glb`;
+  mv.alt = m[1];
+  const doc = m[4] ? `　<a href="${REPO}${encodeURIComponent(m[4])}">結果の文書</a>` : '';
+  note.innerHTML = `${m[1]}（<code>${m[0]}.glb</code>）${m[3] ? '：' + m[3] : ''}${doc}`;
+  animSel.innerHTML = '<option>読み込み中…</option>';
+  history.replaceState(null, '', `?m=${m[0]}`);
+}
+
+mv.addEventListener('load', () => {
+  const names = mv.availableAnimations || [];
+  animSel.innerHTML = names.length ? '' : '<option value="">（動作なし）</option>';
+  for (const n of names) animSel.add(new Option(n, n));
+  if (names.includes('idle')) animSel.value = 'idle';
+  mv.animationName = animSel.value || undefined;
+  if (names.length) mv.play();
+});
+mv.addEventListener('error', () => { note.textContent = `読み込めなかった：${mv.src}`; });
+animSel.onchange = () => { mv.animationName = animSel.value; mv.play(); };
+document.getElementById('rotate').onchange = (e) => { mv.autoRotate = e.target.checked; };
+document.getElementById('reset').onclick = () => { mv.cameraOrbit = '35deg 75deg auto'; mv.cameraTarget = 'auto auto auto'; mv.fieldOfView = 'auto'; mv.jumpCameraToGoal(); };
+
+show(new URLSearchParams(location.search).get('m') || 'haru_r');
+</script>
+</body></html>
