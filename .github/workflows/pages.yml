@@ -2,6 +2,7 @@ name: 試遊版を GitHub Pages に公開
 
 # URL の直下：Godot 版のブラウザ版（軽い描画方式）
 # /threejs/：以前の three.js 版（見た目の確認ページ lookdev.html を含む）
+# /dashboard/：開発ダッシュボード（docs/dashboard.md から作る）
 on:
   push:
     branches: ['claude/busy-bell-oagnck', 'main']
@@ -40,6 +41,7 @@ jobs:
           mkdir -p site
           cp -r build/web/* site/
           cp -r dist site/threejs
+          python3 tools/build_dashboard.py site/dashboard
       - uses: actions/configure-pages@v5
         with:
           enablement: true

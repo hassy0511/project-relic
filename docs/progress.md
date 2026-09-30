@@ -101,3 +101,4 @@
 
 - W2-02 の描き直し（r2）を受領。今回は画像生成の手描きで、5 種ともデザインの味がある。全身の絵の高さ・中心もそろっている。3D 化を開始。
 - 閂（W2-03）の描き直しは、番機 r2 が届いたので依頼できる（`art_orders/codex_prompts.md` 8.2）。
+- ダッシュボードに Codex に出す依頼文（7 章。コピーのボタン付き）を入れ、ブラウザで見られるページにした：https://hassy0511.github.io/project-relic/dashboard/ （`tools/build_dashboard.py` が push のたびに作る）。
