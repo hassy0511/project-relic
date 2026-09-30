@@ -21,7 +21,9 @@
      部品ごとに少しぼかしてから marching cubes で面にし、Blender の Decimate で三角形を減らす。
      部品の境は少し隙間が空く（板の継ぎ目に見える）。原点は回転軸（PIVOT。'top' は部品の上端の断面の重心）、
      ローカル +X が回転軸の向き（ナゴミと同じ約束。Godot で「元の姿勢 * Basis(RIGHT, 角度)」と回す）。
-  3. 色：全部品をまとめて UV を開き（Smart UV Project）、各テクセルに、正面・背面・真横（左右）・真上の絵の色を、
+  3. 色（清書）：黒鉛は「関節（回転軸）のまわり・関節の部品（susp・wheel・muzzle）・部品の境の近く・型ごとの暗い領域」だけ、真鍮は絵の帯の欠けを埋めて
+     小さな塊を消したもの、ほかは白磁（部品ごと・関節ごとに決める。JOINT_*・BRASS_*・DARK_*）。
+     もとになる投影の色：全部品をまとめて UV を開き（Smart UV Project）、各テクセルに、正面・背面・真横（左右）・真上の絵の色を、
      その視点から見えるか（奥行き）× 外形の内側か × 面の向き^3 の重みで混ぜて焼く（texture.py と同じ考えの小さな版）。
      どの視点も見ていない所（真下など）は、3D で一番近い色の付いたテクセルの色。琥珀色（センサー・核）は暗い硝子の色に置き換える。
   4. 発光（sensor・core）：絵の琥珀色の画素を、その視点の向きから形の表面へ落として（Blender の BVH の光線）、表面から
@@ -96,7 +98,7 @@ TYPES = {
     'mini': dict(
         name='子番機', height=30.0, rows=(144, 1904), center=1024,
         side=('side_right', -1, False), top=True, p=2.3, tris=3000,
-        body_pivot=(0, 0, 12.0),
+        body_pivot=(0, 0, 12.0), joint_r=0.06, dark_zone=lambda x, y, z: (z > 7.0) & (z < 15.0), joints=['thigh_l', 'thigh_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r'],
         parts=[
             ('horn_l', 'body', lambda x, y, z: (x > 5.5) & (z > 21.5), 'top', X),
             ('horn_r', 'body', lambda x, y, z: (x < -5.5) & (z > 21.5), 'top', X),
@@ -109,7 +111,7 @@ TYPES = {
     'sentry': dict(
         name='歩哨型', height=110.0, rows=(144, 1904), center=1024,
         side=('side_right', 1, False), top=False, p=2.2, tris=5000,
-        body_pivot=(0, 0, 47.0),
+        body_pivot=(0, 0, 47.0), joint_r=0.04, joints=['thigh_l', 'thigh_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r'],
         parts=[
             ('spike', 'body', lambda x, y, z: z > 97.0, 'top', X),
             ('muzzle_cover', 'body', lambda x, y, z: (z > 46) & (z < 60) & (y < -5) & (np.abs(x) < 13), (0, -4, 48.0), X),
@@ -145,7 +147,12 @@ TYPES = {
         side=('side_left', 1, False), extra_sides=[('side_right', -1, False)], top=True, p=2.6, tris=8000,
         top_flip=True,
         side_split=(33.0, (-60.0, 4.0), (-8.0, 60.0)),   # x < 33cm は体（y < 4cm）、それより外は盾
-        body_pivot=(0, 0, 95.0),
+        body_pivot=(0, 0, 95.0), joint_r=0.035,
+        # 絵の暗い所を残す領域：腰・首・本人の左の肩（本人の右の肩と肘は関節の球）
+        dark_zone=lambda x, y, z: ((z > 86) & (z < 104) & (np.abs(x) < 30)) | ((z > 128) & (z < 142) & (np.abs(x) < 20))
+        | ((x > 16) & (x < 34) & (z > 118) & (z < 140)) | ((np.abs(x) > 34) & (z > 96) & (z < 112)),
+        brass_min=0.16,
+        joints=['thigh_l', 'thigh_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r', 'upperarm_r', 'forearm_r', 'head', 'shield'],
         parts=[
             ('shield', 'body', lambda x, y, z: x > 33.0, (30, 5, 127.0), Z),
             ('head', 'body', lambda x, y, z: (z > 133) & (np.abs(x) < 19), (0, 0, 133.0), X),
@@ -160,7 +167,7 @@ TYPES = {
     'floater': dict(
         name='浮遊型', height=51.3, rows=(464, 1582), center=1024, px_per_cm=21.8,
         side=('side_right', -1, False), top=True, p=2.6, tris=5000,
-        body_pivot=(0, 0, 25.0),
+        body_pivot=(0, 0, 25.0), brass_min=0.16, dark_zone=lambda x, y, z: (np.hypot(x, y) < 19.0) & (z < 38.0),
         parts=[
             ('crown', 'body', lambda x, y, z: (z > 37.5) & (np.hypot(x, y) < 14), (0, 8, 37.5), X),
             ('muzzle', 'body', lambda x, y, z: z < 12.5, (0, 0, 12.5), X),
@@ -599,17 +606,58 @@ VIEW_POWER = 8       # 視点の重み = (法線・視線)^これ（大きいほ
 
 
 CLEAN = os.environ.get('BANKI_CLEAN', '1') != '0'   # 平らな色へ寄せる（0 = 従来の投影の色）
-DARK_VOTE = 0.62     # 黒鉛は近くの過半（この割合）が黒鉛のときだけ。板の面は白磁に倒す
-DARK_SURE = 2.0      # 近くがほぼ全部黒鉛なら（関節の塊）継ぎ目でなくても残す
-SEAM_K = 0.65        # 黒鉛は、部品の境（継ぎ目）から radius（全高の 1/60）× これまで、または関節の部品の中だけ残す
-JOINT_PARTS = ('susp', 'wheel', 'muzzle')   # 名前がこれで始まる部品は黒鉛をそのまま残す
-BRASS_SAT = 0.44     # 真鍮の彩度の下限（白磁の陰の黄ばみを真鍮にしない）
+DARK_VOTE = 0.5      # 黒鉛：近くの半分以上が黒鉛（絵の関節・胴の暗い所は広いので、しみだけ落とす）
+DARK_MIN = 0.032     # 黒鉛の塊の最小の大きさ（全高に対する比）。これより小さい黒い点・筋は消す（視点のずれのしみ）
+BRASS_MIN = 0.10     # 真鍮の塊の最小の大きさ（全高に対する比）。細い縁は連続していれば残り、孤立した点は消える
+BRASS_FILL = 0.25    # 真鍮の帯の途切れ（欠け）を埋める：広い範囲の真鍮の割合がこれ以上で、まわりを囲まれている所
+JOINT_PARTS = ('susp', 'wheel', 'muzzle')   # 名前がこれで始まる部品は全部黒鉛（関節・懸架・砲口）
+JOINT_NEAR = 2.2     # 関節のまわりで絵の暗い所を残す範囲（joint_r の倍）
+JOINT_FORCE = 0.75   # 関節（各部品の回転軸の位置）の黒鉛の球の半径（joint_r × 全高）のうち、必ず黒鉛にする範囲。外側 1.45 倍までは絵が暗い所だけ
+SEAM_K = 0.65        # 継ぎ目の近さ（radius × これ）
+BRASS_SAT = 0.50     # 真鍮の彩度の下限（白磁の陰の黄ばみを真鍮にしない）
 BRASS_VOTE = 0.5
 FLAT_GAMMA = 0.12    # 清書の色に残す絵の明暗（Godot の光で立体感は出る）
 
 
+def _components(mask: np.ndarray, pos: np.ndarray, link: float):
+    """mask の点を、3D で link 以内どうしにつないだ塊に分ける。戻り値：(塊の番号（mask の点ごと）, 塊ごとの外接の箱の最大の辺)"""
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import connected_components
+    from scipy.spatial import cKDTree
+    idx = np.nonzero(mask)[0]
+    if len(idx) == 0:
+        return idx, np.zeros(0, int), np.zeros(0)
+    pts = pos[idx]
+    pr = cKDTree(pts).query_pairs(link, output_type='ndarray')
+    g = coo_matrix((np.ones(len(pr)), (pr[:, 0], pr[:, 1])), shape=(len(idx), len(idx)))
+    n, lab = connected_components(g, directed=False)
+    ext = np.zeros(n)
+    for ax in range(3):
+        mx = np.full(n, -np.inf)
+        mn = np.full(n, np.inf)
+        np.maximum.at(mx, lab, pts[:, ax])
+        np.minimum.at(mn, lab, pts[:, ax])
+        ext = np.maximum(ext, mx - mn)
+    return idx, lab, ext
+
+
+def _drop_small(cls: np.ndarray, k: int, pos: np.ndarray, link: float, min_ext: float, keep=None) -> np.ndarray:
+    """クラス k の塊のうち、外接の箱の最大の辺が min_ext 未満のものを白磁（0）に戻す（keep の点は残す）"""
+    m = cls == k
+    idx, lab, ext = _components(m, pos, link)
+    if len(idx) == 0:
+        return cls
+    small = ext[lab] < min_ext
+    if keep is not None:
+        small &= ~keep[idx]
+    out = cls.copy()
+    out[idx[small]] = 0
+    return out
+
+
 def snap_palette(col: np.ndarray, pos: np.ndarray | None = None, radius: float = 2.0,
-                 part: np.ndarray | None = None, pnames: list | None = None) -> np.ndarray:
+                 part: np.ndarray | None = None, pnames: list | None = None,
+                 joints: np.ndarray | None = None, joint_r: float = 0.0, height: float = 100.0, zone=None, brass_min: float = BRASS_MIN) -> np.ndarray:
     mx, mn = col.max(1), col.min(1)
     sat = (mx - mn) / np.maximum(mx, 1e-6)
     lum = col.mean(1)
@@ -624,15 +672,45 @@ def snap_palette(col: np.ndarray, pos: np.ndarray | None = None, radius: float =
         cj = cls[np.where(valid, j, 0)]
         frac = np.stack([((cj == k) & valid).sum(1) for k in range(3)], 1) / np.maximum(valid.sum(1, keepdims=True), 1)
         if CLEAN:
-            # 白磁に倒す：黒鉛は過半、真鍮は 45% 以上のときだけ
+            raw = cls
             cls = np.where(frac[:, 2] >= DARK_VOTE, 2, np.where(frac[:, 1] >= BRASS_VOTE, 1, 0))
+            link = radius * 0.9
+            cls = _drop_small(cls, 2, pos, link, DARK_MIN * height)
+            # 絵の暗い所を残すのは、関節（回転軸）のまわり・部品の境の近く・型ごとの暗い領域（zone）だけ。
+            # それ以外の暗い所は、絵の陰や視点のずれのしみ（まだら）なので白磁に倒す（清書：部品ごとに黒鉛か白磁か）
+            allow = np.zeros(len(pos), bool)
+            if zone is not None:
+                allow |= zone(pos[:, 0], pos[:, 1], pos[:, 2])
+            if joints is not None and len(joints) and joint_r > 0:
+                from scipy.spatial import cKDTree as _T0
+                allow |= _T0(joints).query(pos)[0] < JOINT_NEAR * joint_r
             if part is not None:
-                # 黒鉛は関節の部品か、部品の境（継ぎ目）の近くだけ。ほかは白磁
-                joint = np.array([n.startswith(JOINT_PARTS) for n in pnames])[part]
-                _, jn = tree.query(pos, k=16, distance_upper_bound=radius * SEAM_K)
-                vn = jn < len(pos)
-                other = ((part[np.where(vn, jn, 0)] != part[:, None]) & vn).any(1)
-                cls = np.where((cls == 2) & ~joint & ~other & (frac[:, 2] < DARK_SURE), 0, cls)
+                _, jn0 = tree.query(pos, k=16, distance_upper_bound=radius * 1.2)
+                vn0 = jn0 < len(pos)
+                allow |= ((part[np.where(vn0, jn0, 0)] != part[:, None]) & vn0).any(1)
+            cls = np.where((cls == 2) & ~allow, 0, cls)
+            cls = _drop_small(cls, 2, pos, link, DARK_MIN * height)   # 領域で切ったあとの残りかす
+            # 真鍮の帯の欠けを埋める：広い範囲（radius × 4）に真鍮が BRASS_FILL 以上あり、その重心が自分の近く（帯の内側）の所
+            _, j2 = tree.query(pos, k=64, distance_upper_bound=radius * 6.0)
+            v2 = j2 < len(pos)
+            jj = np.where(v2, j2, 0)
+            for _it in range(2):
+                b = (cls[jj] == 1) & v2
+                cnt = b.sum(1)
+                cen = (pos[jj] * b[..., None]).sum(1) / np.maximum(cnt, 1)[:, None] - pos
+                fill = (cls == 0) & (cnt / np.maximum(v2.sum(1), 1) >= BRASS_FILL) & (np.linalg.norm(cen, axis=1) <= radius * 2.2)
+                cls = np.where(fill, 1, cls)
+            cls = _drop_small(cls, 1, pos, link * 1.4, brass_min * height)
+            # 関節：部品ぜんぶが黒鉛の部品と、回転軸の位置のまわりの球
+            forced = np.zeros(len(pos), bool)
+            if part is not None and pnames is not None:
+                forced |= np.array([n.startswith(JOINT_PARTS) for n in pnames])[part]
+            if joints is not None and len(joints) and joint_r > 0:
+                from scipy.spatial import cKDTree as _T
+                d, _ = _T(joints).query(pos)
+                forced |= d < JOINT_FORCE * joint_r
+                forced |= (d < 1.45 * joint_r) & (raw == 2)
+            cls = np.where(forced, 2, cls)
         else:
             cls = (frac * 1.0).argmax(1)
     out = np.zeros_like(col)
@@ -646,7 +724,8 @@ def snap_palette(col: np.ndarray, pos: np.ndarray | None = None, radius: float =
 
 
 def bake(views: dict, tris: np.ndarray, uvs: np.ndarray, size: int = 1024, radius: float = 2.0,
-         tri_part: np.ndarray | None = None, pnames: list | None = None) -> np.ndarray:
+         tri_part: np.ndarray | None = None, pnames: list | None = None,
+         joints: np.ndarray | None = None, joint_r: float = 0.0, height: float = 100.0, zone=None, brass_min: float = BRASS_MIN) -> np.ndarray:
     """テクセルごとに、見えている視点の絵の色を重みで混ぜる。戻り値：(size,size,3) の sRGB 0..1"""
     from scipy.spatial import cKDTree
     p2 = np.stack([uvs[..., 0] * size, (1.0 - uvs[..., 1]) * size], -1)
@@ -698,7 +777,7 @@ def bake(views: dict, tris: np.ndarray, uvs: np.ndarray, size: int = 1024, radiu
         tree = cKDTree(pos[good])
         _, j = tree.query(pos[~good], k=6)
         col[~good] = col[good][j].mean(1)
-    col = snap_palette(col, pos, radius, None if tri_part is None else tri_part[tri], pnames)
+    col = snap_palette(col, pos, radius, None if tri_part is None else tri_part[tri], pnames, joints, joint_r, height, zone, brass_min)
     img = np.zeros((size * size, 3))
     have = np.zeros(size * size, bool)
     img[pix] = col
@@ -861,7 +940,10 @@ def build(t: str, out_glb: str) -> dict:
     # UV と焼き
     smart_uv(shell_objs)
     tris, uvs, tid = mesh_world(shell_objs, ids=True)
-    tex = bake(views, tris, uvs, 1024, cfg['height'] / 60.0, tid, [o.name.split('.')[0] for o in shell_objs])
+    jn = [n for n in cfg.get('joints', []) if n in raw]
+    joints = np.array([raw[n][1] for n in jn]) if jn else None
+    tex = bake(views, tris, uvs, 1024, cfg['height'] / 60.0, tid, [o.name.split('.')[0] for o in shell_objs],
+               joints, cfg.get('joint_r', 0.04) * cfg['height'], cfg['height'], cfg.get('dark_zone'), cfg.get('brass_min', BRASS_MIN))
     from PIL import Image
     os.makedirs(os.path.join(WORK, 'tex'), exist_ok=True)
     tex_path = os.path.join(WORK, 'tex', f'banki_{t}.png')
