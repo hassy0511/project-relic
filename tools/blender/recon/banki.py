@@ -528,10 +528,10 @@ def smart_uv(objs) -> None:
     bpy.ops.object.mode_set(mode='OBJECT')
 
 
-def mesh_world(objs):
+def mesh_world(objs, ids=False):
     """物体たちの三角形（世界 cm）と UV。戻り値：頂点 (T,3,3)、UV (T,3,2)"""
-    P, U = [], []
-    for ob in objs:
+    P, U, ID = [], [], []
+    for k, ob in enumerate(objs):
         me = ob.data
         me.calc_loop_triangles()
         mw = np.array(ob.matrix_world)
@@ -544,6 +544,9 @@ def mesh_world(objs):
         li = np.array([t.loops for t in lt]).reshape(-1, 3)
         P.append(co[vi])
         U.append(uv[li])
+        ID.append(np.full(len(vi), k))
+    if ids:
+        return np.concatenate(P), np.concatenate(U), np.concatenate(ID)
     return np.concatenate(P), np.concatenate(U)
 
 
@@ -595,29 +598,55 @@ MAJORITY_K = 24
 VIEW_POWER = 8       # 視点の重み = (法線・視線)^これ（大きいほど一番よく見える視点だけになる）
 
 
-def snap_palette(col: np.ndarray, pos: np.ndarray | None = None, radius: float = 2.0) -> np.ndarray:
+CLEAN = os.environ.get('BANKI_CLEAN', '1') != '0'   # 平らな色へ寄せる（0 = 従来の投影の色）
+DARK_VOTE = 0.62     # 黒鉛は近くの過半（この割合）が黒鉛のときだけ。板の面は白磁に倒す
+DARK_SURE = 2.0      # 近くがほぼ全部黒鉛なら（関節の塊）継ぎ目でなくても残す
+SEAM_K = 0.65        # 黒鉛は、部品の境（継ぎ目）から radius（全高の 1/60）× これまで、または関節の部品の中だけ残す
+JOINT_PARTS = ('susp', 'wheel', 'muzzle')   # 名前がこれで始まる部品は黒鉛をそのまま残す
+BRASS_SAT = 0.44     # 真鍮の彩度の下限（白磁の陰の黄ばみを真鍮にしない）
+BRASS_VOTE = 0.5
+FLAT_GAMMA = 0.12    # 清書の色に残す絵の明暗（Godot の光で立体感は出る）
+
+
+def snap_palette(col: np.ndarray, pos: np.ndarray | None = None, radius: float = 2.0,
+                 part: np.ndarray | None = None, pnames: list | None = None) -> np.ndarray:
     mx, mn = col.max(1), col.min(1)
     sat = (mx - mn) / np.maximum(mx, 1e-6)
     lum = col.mean(1)
-    cls = np.where(lum < 0.30, 2, np.where(sat > 0.38, 1, 0))
+    cls = np.where(lum < 0.30, 2, np.where(sat > (BRASS_SAT if CLEAN else 0.38), 1, 0))
     if pos is not None:
-        # 3D で近いテクセルの多数決（半径 radius cm = 全高の 1/60）：視点のずれで出る小さなしみ・点を消す
+        # 3D で近いテクセルの多数決（半径 radius cm）：視点のずれで出る小さなしみ・点を消す
         from scipy.spatial import cKDTree
         tree = cKDTree(pos)
-        _, j = tree.query(pos, k=MAJORITY_K, distance_upper_bound=radius)
+        r = radius * (1.8 if CLEAN else 1.0)
+        _, j = tree.query(pos, k=MAJORITY_K, distance_upper_bound=r)
         valid = j < len(pos)
-        votes = np.stack([((cls[np.where(valid, j, 0)] == k) & valid).sum(1) for k in range(3)], 1)
-        cls = votes.argmax(1)
+        cj = cls[np.where(valid, j, 0)]
+        frac = np.stack([((cj == k) & valid).sum(1) for k in range(3)], 1) / np.maximum(valid.sum(1, keepdims=True), 1)
+        if CLEAN:
+            # 白磁に倒す：黒鉛は過半、真鍮は 45% 以上のときだけ
+            cls = np.where(frac[:, 2] >= DARK_VOTE, 2, np.where(frac[:, 1] >= BRASS_VOTE, 1, 0))
+            if part is not None:
+                # 黒鉛は関節の部品か、部品の境（継ぎ目）の近くだけ。ほかは白磁
+                joint = np.array([n.startswith(JOINT_PARTS) for n in pnames])[part]
+                _, jn = tree.query(pos, k=16, distance_upper_bound=radius * SEAM_K)
+                vn = jn < len(pos)
+                other = ((part[np.where(vn, jn, 0)] != part[:, None]) & vn).any(1)
+                cls = np.where((cls == 2) & ~joint & ~other & (frac[:, 2] < DARK_SURE), 0, cls)
+        else:
+            cls = (frac * 1.0).argmax(1)
     out = np.zeros_like(col)
+    gam = FLAT_GAMMA if CLEAN else SHADE_GAMMA
     for k, (hexc, ref) in enumerate(PALETTE.values()):
         m = cls == k
         base = np.array([int(hexc[i:i + 2], 16) for i in (1, 3, 5)]) / 255.0
-        shade = np.clip(lum[m] / ref, 0.7, 1.08) ** SHADE_GAMMA * (SHELL_GAIN if k == 0 else 1.0)
+        shade = np.clip(lum[m] / ref, 0.7, 1.08) ** gam * (SHELL_GAIN if k == 0 else 1.0)
         out[m] = base * shade[:, None]
     return np.clip(out, 0, 1)
 
 
-def bake(views: dict, tris: np.ndarray, uvs: np.ndarray, size: int = 1024, radius: float = 2.0) -> np.ndarray:
+def bake(views: dict, tris: np.ndarray, uvs: np.ndarray, size: int = 1024, radius: float = 2.0,
+         tri_part: np.ndarray | None = None, pnames: list | None = None) -> np.ndarray:
     """テクセルごとに、見えている視点の絵の色を重みで混ぜる。戻り値：(size,size,3) の sRGB 0..1"""
     from scipy.spatial import cKDTree
     p2 = np.stack([uvs[..., 0] * size, (1.0 - uvs[..., 1]) * size], -1)
@@ -669,7 +698,7 @@ def bake(views: dict, tris: np.ndarray, uvs: np.ndarray, size: int = 1024, radiu
         tree = cKDTree(pos[good])
         _, j = tree.query(pos[~good], k=6)
         col[~good] = col[good][j].mean(1)
-    col = snap_palette(col, pos, radius)
+    col = snap_palette(col, pos, radius, None if tri_part is None else tri_part[tri], pnames)
     img = np.zeros((size * size, 3))
     have = np.zeros(size * size, bool)
     img[pix] = col
@@ -831,8 +860,8 @@ def build(t: str, out_glb: str) -> dict:
         ob.matrix_world = mw
     # UV と焼き
     smart_uv(shell_objs)
-    tris, uvs = mesh_world(shell_objs)
-    tex = bake(views, tris, uvs, 1024, cfg['height'] / 60.0)
+    tris, uvs, tid = mesh_world(shell_objs, ids=True)
+    tex = bake(views, tris, uvs, 1024, cfg['height'] / 60.0, tid, [o.name.split('.')[0] for o in shell_objs])
     from PIL import Image
     os.makedirs(os.path.join(WORK, 'tex'), exist_ok=True)
     tex_path = os.path.join(WORK, 'tex', f'banki_{t}.png')
