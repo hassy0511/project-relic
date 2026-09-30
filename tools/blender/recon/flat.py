@@ -70,6 +70,19 @@ EDGE_SIGMA = 1.0        # texel の色を決める近くの箱の重みの幅（
 EDGE_SHARP = 0.10       # 境目の混ぜる幅（2 色の重みの比 0.5 ± これ）
 
 
+# 胸・襟・首・帯の前（正面の絵がいちばんきれいに描いている所）は、多視点の多数決でなく、正面の絵そのものを 2D で色に分けて
+# 掃除した「色の地図」を正面からまっすぐ貼る（シャツの V・フードの襟・帯の肩ひも・バックルの形が絵どおりになる）
+# 上を向いた面（フード・肩の上）も正面の絵の縁の色を引く（ndv の下限を 0 近くに）。絵の襟の内側の暗い陰は茶に分けてから
+# 上着の赤にする（umber_to_brick_z より下）
+FRONT_ZONE = CH.p('flat.FRONT_ZONE', {'z': (0.79, 1.215), 'ramp_z': 0.02, 'ndv': (-0.05, 0.15),
+                                      'labels': ['brick', 'ivory', 'graphite', 'brass', 'skin', 'umber'],
+                                      'umber_to_brick_z': 1.215, 'arm_z_min': 1.08, 'skin_x': 0.065, 'skin_z_max': 1.19, 'back_skin_z_min': 1.17, 'back_z_top': 1.26, 'back_neck_z': 1.185, 'back_neck_x': 0.055,
+                                      'views': ['front', 'back'],
+                                      'sigma_px': 2.5, 'min_px': 150, 'min_px_brass': 12, 'l_weight': 0.3})
+# ゴーグルは形の部品（hair.py の枠・レンズの輪郭）で塗る：レンズ＝琥珀、枠・橋＝グラファイト
+GOGGLE_PAINT = CH.p('flat.GOGGLE_PAINT', True)
+
+
 def log(msg: str) -> None:
     print(f'[flat {time.strftime("%H:%M:%S")}] {msg}', flush=True)
 
@@ -88,14 +101,15 @@ def lab(rgb: np.ndarray) -> np.ndarray:
     return np.stack([116 * f[..., 1] - 16, 500 * (f[..., 0] - f[..., 1]), 200 * (f[..., 1] - f[..., 2])], -1)
 
 
-def classify(col: np.ndarray, names: list[str], forbid: np.ndarray | None = None, iters: int = 3):
+def classify(col: np.ndarray, names: list[str], forbid: np.ndarray | None = None, iters: int = 3,
+             l_weight: float = L_WEIGHT):
     """色 (n,3) → 色の表の番号。forbid (n, len(names)) の真の所は選ばない"""
     lb = lab(col.astype(np.float32))
     ref = lab(np.stack([hex_rgb(PALETTE[k]) for k in names]))
     cen = ref.copy()
     for _ in range(iters):
         d = lb[:, None, :] - cen[None]
-        d[..., 0] *= L_WEIGHT
+        d[..., 0] *= l_weight
         d = (d ** 2).sum(-1)
         if forbid is not None:
             d[forbid] = 1e9
@@ -107,9 +121,91 @@ def classify(col: np.ndarray, names: list[str], forbid: np.ndarray | None = None
     return lbl, cen
 
 
+# ---------------------------------------------------------------- 正面の絵の色の地図・ゴーグル
+
+def front_label_maps(names: list[str], cam, view: str = 'front') -> tuple[np.ndarray, dict]:
+    """正面（背面）の絵の、FRONT_ZONE の高さの帯を色に分け、2D で掃除した色ごとのなめらかな地図 (L, H, W)（texel は双線形で引く）"""
+    fz = FRONT_ZONE
+    path = os.path.join(CH.REPO, CH.CFG['work'], 'src', CH.CFG['views'][view]['file'])
+    rgba = np.asarray(Image.open(path).convert('RGBA')).astype(np.float32) / 255.0
+    H, W = rgba.shape[:2]
+    _, v_top = cam.project(np.array([0.0, 0.0, max(fz['z'][1], fz.get('back_z_top', 0)) + 0.03]))
+    _, v_bot = cam.project(np.array([0.0, 0.0, fz['z'][0] - 0.03]))
+    y0, y1 = max(0, int(v_top)), min(H, int(v_bot) + 1)
+    sub = rgba[y0:y1]
+    opaque = sub[..., 3] > 0.5
+    allowed = [names.index(k) for k in fz['labels']]
+    li, _ = classify(sub[..., :3].reshape(-1, 3)[opaque.ravel()], [names[i] for i in allowed], l_weight=fz['l_weight'])
+    lab2 = np.full(opaque.shape, -1, int)
+    lab2[opaque] = np.array(allowed)[li]
+    rows_z = (cam.v0 - (np.arange(y0, y1) + 0.5)) / cam.ppm
+    low = np.broadcast_to((rows_z < fz['umber_to_brick_z'])[:, None], lab2.shape)
+    lab2[low & (lab2 == names.index('umber'))] = names.index('brick')
+    # 肌は首の前（左右の中心の近く）だけ。襟の明るい折り目が肌に分けられないように
+    cols_x = np.abs((np.arange(sub.shape[1]) + 0.5 - cam.u0) / cam.ppm)
+    no_skin = (cols_x[None, :] > fz['skin_x']) & (rows_z[:, None] < fz['skin_z_max'])
+    if view == 'back':   # 背中に肌は無い（首の後ろだけ）
+        no_skin = no_skin | (rows_z[:, None] < fz['back_skin_z_min'])
+    lab2[no_skin & (lab2 == names.index('skin'))] = names.index('brick')
+    L = len(names)
+    # 多数決のぼかし（mode filter）
+    oh = np.stack([ndi.gaussian_filter((lab2 == i).astype(np.float32), fz['sigma_px']) for i in range(L)], 0)
+    lab2 = np.where(opaque, np.argmax(oh, 0), -1)
+    # 小さな島を周りの色へ
+    ib = names.index('brass')
+    merged = 0
+    for _ in range(3):
+        changed = False
+        for i in range(L):
+            m = lab2 == i
+            if not m.any():
+                continue
+            cc, n = ndi.label(m)
+            if not n:
+                continue
+            sizes = ndi.sum(m, cc, range(1, n + 1))
+            lim = fz['min_px_brass'] if i == ib else fz['min_px']
+            small = np.isin(cc, np.nonzero(sizes < lim)[0] + 1)
+            if small.any():
+                oh2 = oh.copy()
+                oh2[i] = -1
+                lab2[small] = np.argmax(oh2, 0)[small]
+                merged += int((sizes < lim).sum())
+                changed = True
+        if not changed:
+            break
+    soft = np.zeros((L, H, W), np.float32)
+    for i in range(L):
+        soft[i, y0:y1] = ndi.gaussian_filter((lab2 == i).astype(np.float32), 0.8)
+    return soft, {'rows': [int(y0), int(y1)], 'merged_islands_2d': merged}
+
+
+def goggle_colour(pos: np.ndarray, nrm: np.ndarray, reg: np.ndarray, names: list[str]):
+    """ゴーグルの部品の texel と、そこでの琥珀の割合（レンズ）。hair.py の輪郭（正面の絵の枠・レンズ）から"""
+    from recon import hair as HR
+    if not HR.PARTS.get('goggles'):
+        return None, None
+    g = HR.GOGGLES
+    cand = np.nonzero((reg == 0) & (pos[:, 1] < -0.03) & (pos[:, 2] > g['z'][0] - 0.01) & (pos[:, 2] < g['z'][1] + 0.01))[0]
+    x, z = pos[cand, 0], pos[cand, 2]
+    mx = 2 * HR.GOGGLE_MIRROR_X
+
+    def sdf(poly):
+        return np.maximum(HR.polygon_sdf2d(x, z, poly), HR.polygon_sdf2d(x, z, [(mx - a, b) for a, b in poly]))
+    frame = sdf(HR.GOGGLE_FRAME)
+    lens = sdf(HR.GOGGLE_LENS)
+    (bx0, bx1), (bz0, bz1) = HR.GOGGLE_BRIDGE
+    bridge = np.minimum(np.minimum(x - bx0, bx1 - x), np.minimum(z - bz0, bz1 - z))
+    on = np.maximum(frame, bridge) > -0.0015
+    front = -nrm[cand, 1]
+    a = np.clip((lens - 0.0003) / 0.0012 + 0.5, 0, 1) * np.clip((front - 0.35) / 0.2, 0, 1)
+    a = a * a * (3 - 2 * a)
+    return cand[on], a[on]
+
+
 # ---------------------------------------------------------------- 体
 
-def paint_body(res: dict, mesh: dict) -> dict:
+def paint_body(res: dict, mesh: dict, cams: dict | None = None) -> dict:
     t0 = time.time()
     names = list(PALETTE)
     pal = np.stack([hex_rgb(PALETTE[k]) for k in names])
@@ -245,12 +341,78 @@ def paint_body(res: dict, mesh: dict) -> dict:
         aa = aa * aa * (3 - 2 * aa)
         out[qi] = aa[:, None] * pal[ia] + (1 - aa[:, None]) * pal[other]
         i1[qi] = np.where(fa > 0.5, ia, other)
+    stats = {}
+    # 胸・襟・首・帯の前：正面の絵の色の地図
+    for view in (FRONT_ZONE or {}).get('views', []) if cams is not None else []:
+        fz = FRONT_ZONE
+        cam = cams[view]
+        soft, stats[f'{view}_zone'] = front_label_maps(names, cam, view)
+        z = pos[:, 2]
+        ztop = fz['back_z_top'] if view == 'back' else fz['z'][1]   # 首の後ろ（髪とフードの間のまだら）まで
+        tz = np.clip((z - fz['z'][0]) / fz['ramp_z'], 0, 1) * np.clip((ztop - z) / fz['ramp_z'], 0, 1)
+        n0 = np.full(len(z), fz['ndv'][0])
+        if view == 'back':   # 首の後ろの下を向いた面（髪の下・フードの上）も背面の絵から（首の幅の中だけ。ほおの横は除く）
+            n0[z > fz['back_neck_z']] = -0.35
+            tz = tz * ((z < fz['z'][1]) | (np.abs(pos[:, 0]) < fz['back_neck_x']))
+        tn = np.clip((-(nrm @ cam.d) - n0) / (fz['ndv'][1] - fz['ndv'][0]), 0, 1)
+        t = tz * tn * (np.isin(reg, (0, 1)) | (np.isin(reg, (2, 3)) & (z > fz['arm_z_min'])))
+        zi = np.nonzero(t > 0)[0]
+        u, v = cam.project(pos[zi])
+        from recon import texture as T
+        pz = T.bilinear(np.ascontiguousarray(soft.transpose(1, 2, 0)), u, v)
+        ok = pz.sum(1) > 0.5
+        zi, pz = zi[ok], pz[ok]
+        zc = (pz[:, :, None] * pal[None]).sum(1) / pz.sum(1, keepdims=True)
+        tt = t[zi][:, None]
+        out[zi] = tt * zc + (1 - tt) * out[zi]
+        i1[zi] = np.where(t[zi] > 0.5, np.argmax(pz, 1), i1[zi])
+        stats[f'{view}_zone']['texels'] = int(len(zi))
+    # ゴーグル：部品の形で
+    if GOGGLE_PAINT:
+        gi, ga = goggle_colour(pos, nrm, reg, names)
+        if gi is not None:
+            ia, ig = names.index('amber'), names.index('graphite')
+            out[gi] = ga[:, None] * pal[ia] + (1 - ga[:, None]) * pal[ig]
+            i1[gi] = np.where(ga > 0.5, ia, ig)
+            stats['goggle_texels'] = int(len(gi))
     res['col'] = out.astype(np.float32)
     res['flat_label'] = i1
     frac = {k: round(float((area * (i1 == i)).sum() / area.sum()), 4) for i, k in enumerate(names)}
     log(f'平らな色 {time.time() - t0:.0f}s：{frac}')
-    return {'cells': int(nc), 'merged_islands': merged, 'area_fraction': frac,
+    return {**stats, 'cells': int(nc), 'merged_islands': merged, 'area_fraction': frac,
             'centres_lab': {k: [round(float(v), 1) for v in cen[i]] for i, k in enumerate(names)}}
+
+
+def patch_empty_tris(img: np.ndarray, cov: np.ndarray, res: dict, mesh: dict) -> int:
+    """UV がつぶれて texel を 1 つも持たない三角形（首の後ろなど、合わせて約 300cm²）は、隣の島の色を拾って
+    まだらになる。その三角形の UV の角・重心のまわり 3×3 の画素（ほかの texel でない所）へ、3D で一番近い texel の色を書く"""
+    verts, tris, uv = mesh['verts'], mesh['tris'], mesh['uv']
+    S = img.shape[0]
+    cnt = np.bincount(res['tri'], minlength=len(tris))
+    e = np.nonzero(cnt == 0)[0]
+    if not len(e):
+        return 0
+    cen = verts[tris[e]].mean(1)
+    fn = np.cross(verts[tris[e, 1]] - verts[tris[e, 0]], verts[tris[e, 2]] - verts[tris[e, 0]])
+    fn /= np.maximum(np.linalg.norm(fn, axis=1, keepdims=True), 1e-12)
+    tree = cKDTree(res['pos'])
+    d, nb = tree.query(cen, k=8, workers=-1)
+    good = np.einsum('ekc,ec->ek', res['nrm'][nb], fn) > 0.3
+    pick = np.where(good.any(1), np.argmax(good, 1), 0)
+    colour = res['col'][nb[np.arange(len(e)), pick]]
+    uvt = uv[e] if uv.ndim == 3 else uv[tris[e]]
+    pts = np.concatenate([uvt, uvt.mean(1, keepdims=True)], 1)   # (n, 4, 2)
+    px = np.clip((pts[..., 0] * S).astype(int), 0, S - 1)
+    py = np.clip(((1 - pts[..., 1]) * S).astype(int), 0, S - 1)
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            X = np.clip(px + dx, 0, S - 1)
+            Y = np.clip(py + dy, 0, S - 1)
+            free = ~cov[Y, X]
+            for k in range(pts.shape[1]):
+                f = free[:, k]
+                img[Y[f, k], X[f, k]] = colour[f]
+    return int(len(e))
 
 
 # ---------------------------------------------------------------- 顔

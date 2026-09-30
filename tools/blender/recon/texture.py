@@ -1536,12 +1536,14 @@ def main() -> None:
         atlas_p = os.path.join(WORK, atlas_meta['atlas_file'])
         if PAINT == 'flat':   # 部位ごとに平らな色で塗る（本文の「平らに塗る」。PAINT=proj で前のやり方）
             from recon import flat as FL
-            res['flat'] = FL.paint_body(res, mesh)
+            res['flat'] = FL.paint_body(res, mesh, cams)
             atlas_p = FL.paint_face_atlas(atlas_p, atlas_meta, os.path.join(TEX_DIR, f'{CH.ID}_face_atlas_flat.png'))
         cov = np.zeros(args.size * args.size, bool)
         cov[res['pix']] = True
         cov = cov.reshape(args.size, args.size)
         base = to_image(res, res['col'])
+        if PAINT == 'flat':
+            res['flat']['empty_tris_patched'] = FL.patch_empty_tris(base, cov, res, mesh)
         emit = emission_image(base, cov)
         # 発光の所の下地を暗く（照らされた下地 ＋ 発光 ≒ 絵の色。飽和してレモン色にならないように）
         em = ramp(amber_mask(base), 0.3, 0.6) * (emit.max(-1) > 0)
