@@ -1513,7 +1513,12 @@ def main():
         with open(rp) as f:
             report = json.load(f)
     for t in types:
-        info = build(t, os.path.join(MODELS, f'banki_{t}.glb'))
+        # 既定は部品を形で組む方式（banki_parts.py、閂と同じ）。その型の組み方がまだない・BANKI_MODEL=hull のときは視体積
+        import banki_parts as BP
+        if os.environ.get('BANKI_MODEL', 'parts') != 'hull' and t in BP.BUILDERS:
+            info = BP.build(t, os.path.join(MODELS, f'banki_{t}.glb'))
+        else:
+            info = build(t, os.path.join(MODELS, f'banki_{t}.glb'))
         if args.review:
             info['iou'] = render_review(t, os.path.join(WORK, 'review'))
             log(f'{t} IoU {info["iou"]}')
