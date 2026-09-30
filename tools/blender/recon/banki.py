@@ -1,0 +1,993 @@
+"""番機 5 種（子番機・歩哨型・突撃型・盾型・浮遊型）を、Codex の手描きの絵（r2）から部品ごとの 3D にする。
+
+  npm run banki:build
+  （= .venv-blender/bin/python tools/blender/recon/banki.py --all --review）
+  .venv-blender/bin/python tools/blender/recon/banki.py --type sentry [--review]
+  絵は build/banki/r2/ に置く。なければ絵のブランチ（ART_REF）から git show で取り出す（_r2 の絵だけを使う）。
+
+できるもの
+  godot/assets/models/banki_<型>.glb   モデル（部品の階層・投影で焼いたテクスチャ 1 枚・発光の材質 2 つ）
+  build/banki/tex/banki_<型>.png      焼いたテクスチャ
+  build/banki/review/                 --review のとき：絵と Cycles の画像の比較（正面・真横・背面・上面・斜め）と外形の重なり
+
+■ やり方（ナゴミの「数式の部品」とハルの「視体積＋投影」の間）
+  番機の絵は、白磁の板・真鍮の縁・黒鉛色の関節が細かく入り組んでいて、数式の部品で組むと手間が大きい。
+  一方で全体の形は丸い卵・楔・円盤なので、正面と真横の外形を掛け合わせるだけでほぼ形になる。そこで：
+  1. 形（視体積）：正面・真横（型によって真上も）の絵の外形を、ボクセルの格子（最大の寸法の 1/170）で掛け合わせる。
+     2 枚の外形だけだと断面が四角くなるので、各行で「正面の外形の区間」と「真横の外形の区間」に内接する
+     超楕円（|u|^p + |v|^p ≤ 1、p は型ごと）で角を落とす。真上の絵は縮尺が正面・真横と合わない
+     （Codex の絵は正確な図面ではない）ので、使う型（突撃型・浮遊型）では外接の箱を正面の幅と真横の奥行きに合わせる。
+  2. 部品：ボクセルを「部品の規則」（型ごとの PARTS。世界の座標 cm の条件、先に当てはまったもの）で分け、
+     部品ごとに少しぼかしてから marching cubes で面にし、Blender の Decimate で三角形を減らす。
+     部品の境は少し隙間が空く（板の継ぎ目に見える）。原点は回転軸（PIVOT。'top' は部品の上端の断面の重心）、
+     ローカル +X が回転軸の向き（ナゴミと同じ約束。Godot で「元の姿勢 * Basis(RIGHT, 角度)」と回す）。
+  3. 色：全部品をまとめて UV を開き（Smart UV Project）、各テクセルに、正面・背面・真横（左右）・真上の絵の色を、
+     その視点から見えるか（奥行き）× 外形の内側か × 面の向き^3 の重みで混ぜて焼く（texture.py と同じ考えの小さな版）。
+     どの視点も見ていない所（真下など）は、3D で一番近い色の付いたテクセルの色。琥珀色（センサー・核）は暗い硝子の色に置き換える。
+  4. 発光（sensor・core）：絵の琥珀色の画素を、その視点の向きから形の表面へ落として（Blender の BVH の光線）、表面から
+     少し浮かせた薄い板にする。材質 banki_sensor・banki_core は別なので、Godot で色（通常 #FFBC52・警戒 #E26A4A・消灯）を
+     別々に変えられる。
+  5. 車輪（突撃型）は回るので、視体積ではなく円柱でつくる（視体積の車輪の所は削る）。
+
+■ 座標（Blender、cm で計算して m で書き出す）
+  原点 = 足もと（地面）の中心。正面は -Y、上は +Z、正面の絵の右（本人の左）は +X。glTF（Godot）では正面 +Z、上 +Y。
+  絵の向き：Codex の「右側面」の絵は型によって向きが違う（歩哨型は顔が左＝+X から見た絵、子番機・盾型・浮遊型は顔が右＝
+  -X から見た絵）。突撃型は spec の「核は本人の右」に合わせるため、側面と斜めの絵を左右反転して使う（VIEWS の flip）。
+  突撃型は絵の縮尺（高さ 120cm）だと全長 230cm になるので、前後だけ Y_STRETCH 倍して spec の全長 200cm にする。
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import os
+import subprocess
+import time
+
+import numpy as np
+from scipy import ndimage as ndi
+
+REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+WORK = os.path.join(REPO, 'build', 'banki')
+SRC = os.path.join(WORK, 'r2')
+MODELS = os.path.join(REPO, 'godot', 'assets', 'models')
+ART_REF = 'origin/art/w2-banki:art/concepts/W2_banki'
+IMG = 2048
+UV_ANGLE = float(os.environ.get("BANKI_UV_ANGLE", 80))
+
+COLORS = {'shell': '#F3E9D2', 'brass': '#A98749', 'dark': '#444641', 'amber': '#FFBC52', 'off': '#302F2B'}
+
+# ---------------------------------------------------------------- 型ごとの設定
+# rows：全身の絵の上端・下端の行（spec_banki_3d_r2.md の実測）。height：実寸の全高 cm（下端〜上端）。
+# side：形に使う側面の絵と、その絵を見たカメラの側（+1 = +X から、-1 = -X から）と左右反転。
+# views_extra：色だけに使う側面（左右の違う型は両側。左右対称の型は side の絵を反対側から見た鏡の視点を自動で足す）。
+# top：真上の絵を形に使うか。p：断面の超楕円の指数（大きいほど四角い）。tris：三角形の目安（発光の板を除く）。
+# PARTS：(名前, 親（'root' は一番上の空の物体）, 条件 f(x,y,z)（cm、世界）, 回転軸の位置（'top' か (x,y,z) cm）, 回転軸の向き)。上から順に当てはめ、
+#        どれにも当たらないボクセルは 'body'（原点 = BODY_PIVOT）。
+# DECALS：(名前, 絵, 世界の箱 ((x0,x1),(y0,y1),(z0,z1)) cm, 親)。発光の板。
+
+X, Y, Z = (1, 0, 0), (0, 1, 0), (0, 0, 1)
+
+
+def _leg(side: str, sgn: float, bands, extra=None):
+    """脚の部品（太もも・すね・足）：x の符号と高さの帯で分ける。bands = (股の高さ, 膝の高さ, 足首の高さ)"""
+    hip, knee, ankle = bands
+    ok = (lambda x, y, z: sgn * x > 0) if extra is None else (lambda x, y, z: (sgn * x > 0) & extra(x, y, z))
+    return [
+        (f'foot_{side}', f'shin_{side}', lambda x, y, z, ok=ok: ok(x, y, z) & (z < ankle), 'top', X),
+        (f'shin_{side}', f'thigh_{side}', lambda x, y, z, ok=ok: ok(x, y, z) & (z < knee), 'top', X),
+        (f'thigh_{side}', 'body', lambda x, y, z, ok=ok: ok(x, y, z) & (z < hip), 'top', X),
+    ]
+
+
+def _lobe(k: int, ang_deg: float):
+    """浮遊型の葉：中心からの角度が ang_deg に一番近い扇（120 度ごと）で、ハブの外"""
+    a0 = math.radians(ang_deg)
+
+    def f(x, y, z):
+        d = np.angle(np.exp(1j * (np.arctan2(y, x) - a0)))
+        return (np.hypot(x, y) > 17.0) & (np.abs(d) < math.pi / 3) & (z > 15) & (z < 36)
+    r = 17.0
+    return (f'lobe_{k}', 'body', f, (r * math.cos(a0), r * math.sin(a0), 25.0),
+            (-math.sin(a0), math.cos(a0), 0.0))
+
+
+TYPES = {
+    'mini': dict(
+        name='子番機', height=30.0, rows=(144, 1904), center=1024,
+        side=('side_right', -1, False), top=False, p=2.3, tris=3000,
+        body_pivot=(0, 0, 12.0),
+        parts=[
+            ('horn_l', 'body', lambda x, y, z: (x > 5.5) & (z > 21.5), 'top', X),
+            ('horn_r', 'body', lambda x, y, z: (x < -5.5) & (z > 21.5), 'top', X),
+            *_leg('l', 1, (11.0, 5.2, 2.6)),
+            *_leg('r', -1, (11.0, 5.2, 2.6)),
+        ],
+        decals=[('sensor', 'front', ((-9, 9), (-99, 0), (12, 19)), 'body'),
+                ('core', 'back', ((-6, 6), (0, 99), (9, 14)), 'body')],
+    ),
+    'sentry': dict(
+        name='歩哨型', height=110.0, rows=(144, 1904), center=1024,
+        side=('side_right', 1, False), top=False, p=2.2, tris=5000,
+        body_pivot=(0, 0, 47.0),
+        parts=[
+            ('spike', 'body', lambda x, y, z: z > 97.0, 'top', X),
+            ('muzzle_cover', 'body', lambda x, y, z: (z > 46) & (z < 60) & (y < -5) & (np.abs(x) < 13), (0, -4, 48.0), X),
+            *_leg('l', 1, (46.0, 31.0, 9.0)),
+            *_leg('r', -1, (46.0, 31.0, 9.0)),
+        ],
+        decals=[('sensor', 'front', ((-15, 15), (-99, 0), (72, 82)), 'body'),
+                ('core', 'back', ((-15, 15), (0, 99), (60, 97)), 'body')],
+    ),
+    'charger': dict(
+        name='突撃型', height=120.0, rows=(564, 1484), center=1024, y_stretch=200.0 / 230.0,
+        side=('side_right', -1, True), extra_sides=[('side_left', 1, True)], top=True, p=6.0, tris=6000,
+        body_pivot=(0, 0, 30.0),
+        # 車輪（円柱）：(名前, 親, 中心 cm（世界）, 半径, 幅)
+        wheels=[('wheel_fl', 'susp_fl', (47, -28, 16.5), 16.0, 12.0), ('wheel_fr', 'susp_fr', (-47, -28, 16.5), 16.0, 12.0),
+                ('wheel_rl', 'susp_rl', (47, 72, 16.5), 16.0, 12.0), ('wheel_rr', 'susp_rr', (-47, 72, 16.5), 16.0, 12.0)],
+        # 箱（黒鉛色）：(名前, 親, 中心 cm（世界）, 大きさ cm)。衝角のレール（伸ばしたとき胴との間に見える）
+        boxes=[('ram_rail', 'ram', (0, -61, 24), (12, 42, 8))],
+        parts=[
+            ('ram', 'body', lambda x, y, z: (y < -82) & (z < 60), (0, -82, 25.0), X),
+            ('fin', 'body', lambda x, y, z: (z > 92) & (np.abs(x) < 9), 'top', X),
+            ('core_cover', 'body', lambda x, y, z: (x < -22) & (y > -18) & (y < 30) & (z > 58) & (z < 86), (-22, 6, 86.0), (0, -1, 0)),
+            ('susp_fl', 'root', lambda x, y, z: (x > 30) & (z < 42) & (np.abs(y + 28) < 26), (30, -28, 30.0), X),
+            ('susp_fr', 'root', lambda x, y, z: (x < -30) & (z < 42) & (np.abs(y + 28) < 26), (-30, -28, 30.0), X),
+            ('susp_rl', 'root', lambda x, y, z: (x > 30) & (z < 42) & (np.abs(y - 72) < 26), (30, 72, 30.0), X),
+            ('susp_rr', 'root', lambda x, y, z: (x < -30) & (z < 42) & (np.abs(y - 72) < 26), (-30, 72, 30.0), X),
+        ],
+        decals=[('sensor', 'front', ((-25, 25), (-999, 0), (55, 75)), 'body'),
+                ('core', 'side_right', ((-99, 0), (-30, 40), (35, 80)), 'body')],
+    ),
+    'shield': dict(
+        name='盾型', height=180.0, rows=(144, 1904), center=1024,
+        side=('side_left', 1, False), extra_sides=[('side_right', -1, False)], top=True, p=2.6, tris=8000,
+        body_pivot=(0, 0, 95.0),
+        parts=[
+            ('shield', 'body', lambda x, y, z: x > 33.0, (30, 5, 127.0), Z),
+            ('head', 'body', lambda x, y, z: (z > 133) & (np.abs(x) < 19), (0, 0, 133.0), X),
+            ('forearm_r', 'upperarm_r', lambda x, y, z: (x < -38) & (z < 104), (-52, 0, 104.0), X),
+            ('upperarm_r', 'body', lambda x, y, z: (x < -38), (-42, 0, 130.0), X),
+            *_leg('l', 1, (92.0, 52.0, 16.0)),
+            *_leg('r', -1, (92.0, 52.0, 16.0)),
+        ],
+        decals=[('sensor', 'front', ((-15, 15), (-999, 0), (140, 155)), 'head'),
+                ('core', 'back', ((-15, 15), (0, 999), (100, 150)), 'body')],
+    ),
+    'floater': dict(
+        name='浮遊型', height=51.3, rows=(464, 1582), center=1024, px_per_cm=21.8,
+        side=('side_right', -1, False), top=True, p=2.6, tris=5000,
+        body_pivot=(0, 0, 25.0),
+        parts=[
+            ('crown', 'body', lambda x, y, z: (z > 37.5) & (np.hypot(x, y) < 14), (0, 8, 37.5), X),
+            ('muzzle', 'body', lambda x, y, z: z < 12.5, (0, 0, 12.5), X),
+            _lobe(0, 90.0), _lobe(1, 210.0), _lobe(2, 330.0),
+        ],
+        decals=[('sensor', 'front', ((-15, 15), (-999, 0), (18, 30)), 'body'),
+                ('core', 'front', ((-10, 10), (-999, 0), (30, 45)), 'crown')],
+    ),
+}
+
+# 斜めの確認用のカメラ：Codex の「右前 45 度」の絵は、+X（本人の左）前から見た向きに描かれている（突撃型は反転して使う）
+THREE_Q = {'mini': (1, False), 'sentry': (1, False), 'charger': (1, True), 'shield': (1, False), 'floater': (1, False)}
+
+
+def log(msg: str) -> None:
+    print(f'[banki] {msg}', flush=True)
+
+
+# ---------------------------------------------------------------- 絵と視点
+
+class View:
+    """正投影の絵 1 枚。世界の点 p（cm）→ 絵の画素 (col, row) = (c0 + (p/stretch)·r * sr, r0 - (p/stretch)·u * su)"""
+
+    def __init__(self, name, rgba, d, r, u, c0, r0, sr, su, stretch):
+        self.name, self.rgba = name, rgba
+        self.d, self.r, self.u = np.array(d, float), np.array(r, float), np.array(u, float)
+        self.c0, self.r0, self.sr, self.su = c0, r0, sr, su
+        self.stretch = np.array([1.0, stretch, 1.0])
+        self.alpha = rgba[..., 3] > 128
+
+    def project(self, p: np.ndarray):
+        q = p / self.stretch
+        return self.c0 + q @ self.r * self.sr, self.r0 - q @ self.u * self.su
+
+
+def fetch_art() -> None:
+    os.makedirs(SRC, exist_ok=True)
+    for t in TYPES:
+        for n in ('3d_front', '3d_back', '3d_side_right', '3d_side_left', '3d_top', '3d_front_right45'):
+            p = os.path.join(SRC, f'{t}_{n}_r2.png')
+            if os.path.exists(p):
+                continue
+            r = subprocess.run(['git', 'show', f'{ART_REF}/{t}_{n}_r2.png'], cwd=REPO, capture_output=True)
+            if r.returncode == 0:
+                with open(p, 'wb') as f:
+                    f.write(r.stdout)
+
+
+def load_rgba(t: str, n: str) -> np.ndarray:
+    from PIL import Image
+    return np.asarray(Image.open(os.path.join(SRC, f'{t}_3d_{n}_r2.png')).convert('RGBA'))
+
+
+def scale_of(cfg) -> float:
+    return cfg.get('px_per_cm') or (cfg['rows'][1] - cfg['rows'][0]) / cfg['height']
+
+
+def side_view(t, cfg, name, cam_sign, flip, s, mirror=False):
+    rgba = load_rgba(t, name)
+    sgn = cam_sign * (-1 if mirror else 1)
+    r = (0, 1, 0) if cam_sign > 0 else (0, -1, 0)
+    if flip:
+        r = tuple(-c for c in r)
+    label = name + ('_mirror' if mirror else '')
+    return View(label, rgba, (sgn, 0, 0), r, Z, cfg['center'], cfg['rows'][1], s, s, cfg.get('y_stretch', 1.0))
+
+
+def build_views(t: str, cfg) -> dict:
+    """形と色に使う視点。top は形の外接の箱に合わせる（extent_cm が要るので build_hull で後から作る）"""
+    s = scale_of(cfg)
+    st = cfg.get('y_stretch', 1.0)
+    v = {'front': View('front', load_rgba(t, 'front'), (0, -1, 0), X, Z, cfg['center'], cfg['rows'][1], s, s, st),
+         'back': View('back', load_rgba(t, 'back'), (0, 1, 0), (-1, 0, 0), Z, cfg['center'], cfg['rows'][1], s, s, st)}
+    name, cs, fl = cfg['side']
+    v['side'] = side_view(t, cfg, name, cs, fl, s)
+    v[name] = v['side']
+    extra = cfg.get('extra_sides')
+    if extra:
+        for n2, cs2, fl2 in extra:
+            v[n2] = side_view(t, cfg, n2, cs2, fl2, s)
+    else:
+        v['side_mirror'] = side_view(t, cfg, name, cs, fl, s, mirror=True)
+    return v
+
+
+def fit_top(t: str, cfg, ext) -> View:
+    """真上の絵：外形の外接の箱を、正面の幅（x）と真横の奥行き（y、絵の cm）に合わせる"""
+    rgba = load_rgba(t, 'top')
+    a = rgba[..., 3] > 128
+    rows = np.nonzero(a.any(1))[0]
+    cols = np.nonzero(a.any(0))[0]
+    (x0, x1), (y0, y1) = ext
+    sr = (cols[-1] + 1 - cols[0]) / (x1 - x0)
+    su = (rows[-1] + 1 - rows[0]) / (y1 - y0)
+    c0 = cols[0] - x0 * sr
+    r0 = rows[0] + y1 * su
+    return View('top', rgba, (0, 0, 1), X, (0, 1, 0), c0, r0, sr, su, cfg.get('y_stretch', 1.0))
+
+
+# ---------------------------------------------------------------- 形（視体積＋超楕円の断面）
+
+def runs_along(m: np.ndarray, coord: np.ndarray):
+    """m (N, K) の各列 k について、軸 0 の区間（True の続き）ごとの中点と半幅。各要素 → その区間の値"""
+    n, k = m.shape
+    mid = np.zeros(m.shape)
+    half = np.full(m.shape, 1e-6)
+    for j in range(k):
+        col = m[:, j]
+        if not col.any():
+            continue
+        lab, cnt = ndi.label(col)
+        for i in range(1, cnt + 1):
+            idx = np.nonzero(lab == i)[0]
+            a, b = coord[idx[0]], coord[idx[-1]]
+            mid[idx, j] = (a + b) / 2
+            half[idx, j] = max((b - a) / 2, 1e-3) + (coord[1] - coord[0]) / 2
+    return mid, half
+
+
+def sample(view: View, pts: np.ndarray) -> np.ndarray:
+    c, r = view.project(pts)
+    ci, ri = np.floor(c).astype(int), np.floor(r).astype(int)
+    ok = (ci >= 0) & (ci < IMG) & (ri >= 0) & (ri < IMG)
+    out = np.zeros(len(pts), bool)
+    out[ok] = view.alpha[ri[ok], ci[ok]]
+    return out
+
+
+def build_hull(t: str, cfg, views: dict):
+    """ボクセルの視体積。戻り値：(占有 (nx,ny,nz) bool, 格子の座標 xs, ys, zs（世界 cm）, ボクセルの大きさ)"""
+    s = scale_of(cfg)
+    st = cfg.get('y_stretch', 1.0)
+    fa, sa = views['front'].alpha, views['side'].alpha
+    fc = np.nonzero(fa.any(0))[0]
+    sc = np.nonzero(sa.any(0))[0]
+    x0, x1 = (fc[0] - cfg['center']) / s, (fc[-1] + 1 - cfg['center']) / s
+    ys_art = sorted([((sc[0] - cfg['center']) / s), ((sc[-1] + 1 - cfg['center']) / s)])
+    if views['side'].r[1] < 0:   # 絵の右 = -Y
+        ys_art = sorted([-ys_art[0], -ys_art[1]])
+    top_px = min(np.nonzero(fa.any(1))[0][0], np.nonzero(sa.any(1))[0][0])
+    z1 = (cfg['rows'][1] - top_px) / s
+    ext = ((x0, x1), (ys_art[0], ys_art[1]))
+    if cfg['top']:
+        views['top'] = fit_top(t, cfg, ext)
+    vox = max(x1 - x0, (ys_art[1] - ys_art[0]) * st, z1) / 170.0
+    xs = np.arange(x0 - vox, x1 + vox, vox)
+    ys = np.arange(ys_art[0] * st - vox, ys_art[1] * st + vox, vox)
+    zs = np.arange(vox / 2, z1 + vox, vox)
+    # 正面 (x, z)・真横 (y, z) の外形
+    XZ = np.stack(np.meshgrid(xs, zs, indexing='ij'), -1).reshape(-1, 2)
+    F = sample(views['front'], np.c_[XZ[:, 0], np.zeros(len(XZ)), XZ[:, 1]]).reshape(len(xs), len(zs))
+    YZ = np.stack(np.meshgrid(ys, zs, indexing='ij'), -1).reshape(-1, 2)
+    S = sample(views['side'], np.c_[np.zeros(len(YZ)), YZ[:, 0], YZ[:, 1]]).reshape(len(ys), len(zs))
+    fm, fh = runs_along(F, xs)
+    sm, sh = runs_along(S, ys)
+    p = cfg['p']
+    u = np.abs(xs[:, None, None] - fm[:, None, :]) / fh[:, None, :]
+    v = np.abs(ys[None, :, None] - sm[None, :, :]) / sh[None, :, :]
+    occ = F[:, None, :] & S[None, :, :] & (u ** p + v ** p <= 1.0)
+    if cfg['top']:
+        XY = np.stack(np.meshgrid(xs, ys, indexing='ij'), -1).reshape(-1, 2)
+        T = sample(views['top'], np.c_[XY, np.zeros(len(XY))]).reshape(len(xs), len(ys))
+        occ &= T[:, :, None]
+    # 車輪の所を削る（円柱は別につくる）
+    for _n, _par, c, rad, w in cfg.get('wheels', []):
+        dx = np.abs(xs - c[0])[:, None, None] <= w / 2 + 1.5
+        rr = np.hypot((ys - c[1])[None, :, None], (zs - c[2])[None, None, :]) <= rad + 1.0
+        occ &= ~(dx & rr)
+    log(f'{t}: voxel {vox:.2f}cm grid {occ.shape} filled {int(occ.sum())}')
+    return occ, xs, ys, zs, vox
+
+
+def label_parts(cfg, occ, xs, ys, zs):
+    """ボクセル → 部品の番号（0 = body）"""
+    Xg, Yg, Zg = np.meshgrid(xs, ys, zs, indexing='ij')
+    lab = np.zeros(occ.shape, np.int16)
+    free = occ.copy()
+    for i, (_n, _par, f, *_r) in enumerate(cfg['parts'], start=1):
+        m = free & f(Xg, Yg, Zg)
+        lab[m] = i
+        free &= ~m
+    lab[~occ] = -1
+    return lab
+
+
+def part_mesh(mask: np.ndarray, xs, ys, zs, vox):
+    """部品のボクセルを少しぼかして marching cubes。戻り値：頂点 (cm、世界), 三角形"""
+    from skimage import measure
+    pad = np.pad(mask.astype(np.float32), 2)
+    sm = ndi.gaussian_filter(pad, 0.8)
+    if sm.max() < 0.5:
+        return None
+    v, f, _n, _ = measure.marching_cubes(sm, 0.5)
+    v = (v - 2) * vox + np.array([xs[0], ys[0], zs[0]])
+    return v, f[:, ::-1]   # 外向き
+
+
+def pivot_of(spec, mask, xs, ys, zs):
+    if spec != 'top':
+        return np.array(spec, float)
+    idx = np.nonzero(mask)
+    ztop = idx[2].max()
+    sel = idx[2] >= ztop - 2
+    return np.array([xs[idx[0][sel]].mean(), ys[idx[1][sel]].mean(), zs[ztop]])
+
+
+def axis_matrix(axis) -> np.ndarray:
+    """ローカル +X を axis に向ける回転（3×3）。+Z はなるべく上"""
+    a = np.array(axis, float)
+    a /= np.linalg.norm(a)
+    up = np.array([0, 0, 1.0]) if abs(a[2]) < 0.9 else np.array([0, -1.0, 0])
+    yv = np.cross(up, a)
+    yv /= np.linalg.norm(yv)
+    zv = np.cross(a, yv)
+    return np.stack([a, yv, zv], 1)
+
+
+def cylinder(center, radius, width, segs=16):
+    """X 軸向きの円柱（車輪）。戻り値：頂点（cm）、面（四角と多角形）"""
+    c = np.array(center, float)
+    vs, fs = [], []
+    for sx in (-0.5, 0.5):
+        for k in range(segs):
+            a = 2 * math.pi * k / segs
+            vs.append(c + [sx * width, radius * math.cos(a), radius * math.sin(a)])
+    for k in range(segs):
+        k2 = (k + 1) % segs
+        fs.append([k, k2, segs + k2, segs + k])
+    fs.append(list(range(segs))[::-1])
+    fs.append(list(range(segs, 2 * segs)))
+    return np.array(vs), fs
+
+
+def c_disc(center, radius, width, segs=20, gap_deg=70.0):
+    """車輪の外側の C 字の蓋（白磁）：扇の切り欠きのある薄い円盤。絵の車輪の白い「C」"""
+    c = np.array(center, float)
+    side = np.sign(c[0]) or 1.0
+    x_in, x_out = c[0] + side * (width / 2 - 0.5), c[0] + side * (width / 2 + 1.2)
+    a0 = math.radians(gap_deg / 2)
+    angs = np.linspace(a0, 2 * math.pi - a0, segs)
+    vs = []
+    for xx in (x_in, x_out):
+        vs.append([xx, c[1], c[2]])
+        for a in angs:
+            vs.append([xx, c[1] + radius * math.cos(a + math.pi), c[2] + radius * math.sin(a + math.pi)])
+    n = segs + 1
+    fs = []
+    for k in range(1, segs):
+        fs.append([0, k, k + 1])
+        fs.append([n, n + k + 1, n + k])
+        fs.append([k, n + k, n + k + 1, k + 1])
+    fs.append([0, n, n + 1, 1])
+    fs.append([0, segs, n + segs, n])
+    return np.array(vs), fs
+
+
+# ---------------------------------------------------------------- Blender
+
+def srgb_to_linear(hexstr: str):
+    h = hexstr.lstrip('#')
+    c = [int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
+    return tuple(x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4 for x in c)
+
+
+def make_materials(t: str, tex_path: str | None):
+    import bpy
+    mats = {}
+    shell = bpy.data.materials.new(f'banki_{t}_shell')
+    shell.use_nodes = True
+    b = shell.node_tree.nodes['Principled BSDF']
+    b.inputs['Roughness'].default_value = 0.62
+    if tex_path:
+        img = bpy.data.images.load(tex_path)
+        tn = shell.node_tree.nodes.new('ShaderNodeTexImage')
+        tn.image = img
+        shell.node_tree.links.new(tn.outputs['Color'], b.inputs['Base Color'])
+    mats['shell'] = shell
+    for key, hexc, rough, metal in (('dark', COLORS['dark'], 0.7, 0.3), ('brass', COLORS['brass'], 0.45, 0.6),
+                                    ('shell_flat', COLORS['shell'], 0.62, 0.0)):
+        m = bpy.data.materials.new(f'banki_{key}')
+        m.use_nodes = True
+        bb = m.node_tree.nodes['Principled BSDF']
+        bb.inputs['Base Color'].default_value = (*srgb_to_linear(hexc), 1)
+        bb.inputs['Roughness'].default_value = rough
+        bb.inputs['Metallic'].default_value = metal
+        mats[key] = m
+    for key in ('sensor', 'core'):
+        m = bpy.data.materials.new(f'banki_{key}')
+        m.use_nodes = True
+        bb = m.node_tree.nodes['Principled BSDF']
+        col = srgb_to_linear(COLORS['amber'])
+        bb.inputs['Base Color'].default_value = (*col, 1)
+        bb.inputs['Emission Color'].default_value = (*col, 1)
+        bb.inputs['Emission Strength'].default_value = 1.5
+        bb.inputs['Roughness'].default_value = 0.4
+        mats[key] = m
+    return mats
+
+
+def new_object(name: str, verts_cm, faces, mat, pivot_cm, rot3, smooth=True):
+    """頂点（世界 cm）の物体を、原点 = pivot、向き = rot3 で置く（m）"""
+    import bpy
+    from mathutils import Matrix
+    v = (np.asarray(verts_cm) - pivot_cm) @ rot3 * 0.01
+    me = bpy.data.meshes.new(name)
+    me.from_pydata(v.tolist(), [], [list(map(int, f)) for f in faces])
+    me.validate()
+    me.materials.append(mat)
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    M = np.eye(4)
+    M[:3, :3] = rot3
+    M[:3, 3] = np.asarray(pivot_cm) * 0.01
+    ob.matrix_world = Matrix(M.tolist())
+    for pl in me.polygons:
+        pl.use_smooth = smooth
+    return ob
+
+
+def decimate(ob, ratio: float) -> None:
+    import bpy
+    if ratio >= 1.0:
+        return
+    mod = ob.modifiers.new('dec', 'DECIMATE')
+    mod.ratio = max(ratio, 0.01)
+    bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.select_all(action='DESELECT')
+    ob.select_set(True)
+    bpy.ops.object.modifier_apply(modifier='dec')
+
+
+def smooth_by_angle(objs, deg=38.0) -> None:
+    import bpy
+    bpy.ops.object.select_all(action='DESELECT')
+    for ob in objs:
+        ob.select_set(True)
+    bpy.context.view_layer.objects.active = objs[0]
+    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(deg))
+
+
+def smart_uv(objs) -> None:
+    import bpy
+    bpy.ops.object.select_all(action='DESELECT')
+    for ob in objs:
+        ob.select_set(True)
+    bpy.context.view_layer.objects.active = objs[0]
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.smart_project(angle_limit=math.radians(UV_ANGLE), island_margin=0.006, area_weight=0.0)
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+
+def mesh_world(objs):
+    """物体たちの三角形（世界 cm）と UV。戻り値：頂点 (T,3,3)、UV (T,3,2)"""
+    P, U = [], []
+    for ob in objs:
+        me = ob.data
+        me.calc_loop_triangles()
+        mw = np.array(ob.matrix_world)
+        co = np.array([v.co for v in me.vertices]).reshape(-1, 3)
+        co = (co @ mw[:3, :3].T + mw[:3, 3]) * 100.0
+        uvl = me.uv_layers.active.data
+        uv = np.array([d.uv for d in uvl]).reshape(-1, 2)
+        lt = me.loop_triangles
+        vi = np.array([t.vertices for t in lt]).reshape(-1, 3)
+        li = np.array([t.loops for t in lt]).reshape(-1, 3)
+        P.append(co[vi])
+        U.append(uv[li])
+    return np.concatenate(P), np.concatenate(U)
+
+
+# ---------------------------------------------------------------- 焼く（絵の投影）
+
+def raster(p2: np.ndarray, w: int, h: int):
+    """三角形 (T,3,2)（画素の連続座標）を塗る。画素の中心が入る (画素の番号, 三角形, 重心座標)。texture.py の小さな版"""
+    x, y = p2[..., 0], p2[..., 1]
+    x0 = np.clip(np.ceil(x.min(1) - 0.5), 0, w).astype(np.int64)
+    x1 = np.clip(np.floor(x.max(1) - 0.5), -1, w - 1).astype(np.int64)
+    y0 = np.clip(np.ceil(y.min(1) - 0.5), 0, h).astype(np.int64)
+    y1 = np.clip(np.floor(y.max(1) - 0.5), -1, h - 1).astype(np.int64)
+    nx, ny = np.maximum(x1 - x0 + 1, 0), np.maximum(y1 - y0 + 1, 0)
+    cnt = nx * ny
+    ax, ay, bx, by, cx, cy = x[:, 0], y[:, 0], x[:, 1], y[:, 1], x[:, 2], y[:, 2]
+    area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
+    sel = np.nonzero((np.abs(area) > 1e-9) & (cnt > 0))[0]
+    c = cnt[sel]
+    tid = np.repeat(sel, c)
+    off = np.repeat(np.cumsum(c) - c, c)
+    loc = np.arange(int(c.sum())) - off
+    px = x0[tid] + loc % nx[tid]
+    py = y0[tid] + loc // nx[tid]
+    qx, qy = px + 0.5, py + 0.5
+    ar = area[tid]
+    w0 = ((bx[tid] - qx) * (cy[tid] - qy) - (by[tid] - qy) * (cx[tid] - qx)) / ar
+    w1 = ((cx[tid] - qx) * (ay[tid] - qy) - (cy[tid] - qy) * (ax[tid] - qx)) / ar
+    w2 = 1.0 - w0 - w1
+    ins = (w0 >= -1e-7) & (w1 >= -1e-7) & (w2 >= -1e-7)
+    return py[ins] * w + px[ins], tid[ins], np.stack([w0[ins], w1[ins], w2[ins]], 1)
+
+
+def amber_mask(rgb: np.ndarray, bright: float = 0.6) -> np.ndarray:
+    """琥珀色（発光のセンサー・核）の画素。rgb は 0..1。bright：明るさの下限（真鍮の光る所と分けたいときは上げる）"""
+    mx, mn = rgb.max(-1), rgb.min(-1)
+    sat = (mx - mn) / np.maximum(mx, 1e-6)
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    return (mx > bright) & (sat > 0.62) & (r >= g) & (g > b) & ((g - b) / np.maximum(r - b, 1e-6) > 0.25)
+
+
+# 絵の色を材質の基準色へ寄せる：各テクセルを白磁・真鍮・黒鉛のどれかに分け、spec の hex × 絵の明暗（弱め）にする。
+# 視点の間のずれで混ざった中間の色（白磁と黒鉛の混ざった灰色のしみ）が消え、絵の平らな塗りに近くなる
+PALETTE = {'shell': ('#F3E9D2', 0.84), 'brass': ('#A98749', 0.52), 'dark': ('#444641', 0.26)}
+SHADE_GAMMA = 0.45   # 絵の明暗をどれだけ残すか（0 = 平らな色）
+MIN_COS = 0.6
+VIEW_POWER = 8       # 視点の重み = (法線・視線)^これ（大きいほど一番よく見える視点だけになる）
+
+
+def snap_palette(col: np.ndarray) -> np.ndarray:
+    mx, mn = col.max(1), col.min(1)
+    sat = (mx - mn) / np.maximum(mx, 1e-6)
+    lum = col.mean(1)
+    cls = np.where(lum < 0.30, 2, np.where(sat > 0.38, 1, 0))
+    out = np.zeros_like(col)
+    for k, (hexc, ref) in enumerate(PALETTE.values()):
+        m = cls == k
+        base = np.array([int(hexc[i:i + 2], 16) for i in (1, 3, 5)]) / 255.0
+        shade = np.clip(lum[m] / ref, 0.7, 1.12) ** SHADE_GAMMA
+        out[m] = base * shade[:, None]
+    return np.clip(out, 0, 1)
+
+
+def bake(views: dict, tris: np.ndarray, uvs: np.ndarray, size: int = 1024) -> np.ndarray:
+    """テクセルごとに、見えている視点の絵の色を重みで混ぜる。戻り値：(size,size,3) の sRGB 0..1"""
+    from scipy.spatial import cKDTree
+    p2 = np.stack([uvs[..., 0] * size, (1.0 - uvs[..., 1]) * size], -1)
+    pix, tri, bar = raster(p2, size, size)
+    pix, first = np.unique(pix, return_index=True)
+    tri, bar = tri[first], bar[first]
+    pos = (tris[tri] * bar[..., None]).sum(1)
+    fn = np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0])
+    fn /= np.maximum(np.linalg.norm(fn, axis=1, keepdims=True), 1e-9)
+    nrm = fn[tri]
+    acc = np.zeros((len(pix), 3))
+    wsum = np.zeros(len(pix))
+    cbest = np.zeros(len(pix))
+    ZS = 512
+    for name, v in views.items():
+        if name == 'side' or name.startswith('3q'):
+            continue
+        rgb = v.rgba[..., :3].astype(np.float32) / 255.0
+        am = amber_mask(rgb)
+        rgb[am] = np.array([0x30, 0x2F, 0x2B]) / 255.0
+        inside = ndi.binary_erosion(v.alpha, iterations=4)
+        # 奥行き（視線の向きの手前ほど大きい）
+        c, r = v.project(tris.reshape(-1, 3))
+        q2 = np.stack([c, r], -1).reshape(-1, 3, 2) * (ZS / IMG)
+        dep = (tris.reshape(-1, 3) @ v.d).reshape(-1, 3)
+        zp, zt, zb = raster(q2, ZS, ZS)
+        zbuf = np.full(ZS * ZS, -np.inf)
+        np.maximum.at(zbuf, zp, (dep[zt] * zb).sum(1))
+        tc, tr = v.project(pos)
+        ic = np.clip((tc * ZS / IMG).astype(int), 0, ZS - 1)
+        ir = np.clip((tr * ZS / IMG).astype(int), 0, ZS - 1)
+        near = ndi.maximum_filter(zbuf.reshape(ZS, ZS), size=3).ravel()
+        vis = pos @ v.d >= np.minimum(zbuf[ir * ZS + ic], near[ir * ZS + ic]) - 1.5
+        ci = np.clip(tc.astype(int), 0, IMG - 1)
+        ri = np.clip(tr.astype(int), 0, IMG - 1)
+        ok = vis & inside[ri, ci]
+        w = np.clip(nrm @ v.d, 0, 1) ** VIEW_POWER * ok
+        if name.endswith('mirror') or name == 'top':
+            w *= 0.7
+        acc += w[:, None] * rgb[ri, ci]
+        wsum += w
+        cbest = np.maximum(cbest, np.clip(nrm @ v.d, 0, 1) * ok)
+    # 斜めにしか見えていないテクセル（一番よい視点でも法線と視線が MIN_COS 未満）は、絵の平らな塗りが引き伸ばされて
+    # 黒い筋・しみになるので、3D で近い「よく見えているテクセル」の色で埋める
+    good = (wsum > 0.02) & (cbest >= MIN_COS)
+    col = np.zeros((len(pix), 3))
+    col[good] = acc[good] / wsum[good, None]
+    if (~good).any() and good.any():
+        tree = cKDTree(pos[good])
+        _, j = tree.query(pos[~good], k=6)
+        col[~good] = col[good][j].mean(1)
+    col = snap_palette(col)
+    img = np.zeros((size * size, 3))
+    have = np.zeros(size * size, bool)
+    img[pix] = col
+    have[pix] = True
+    _, (iy, ix) = ndi.distance_transform_edt(~have.reshape(size, size), return_indices=True)
+    return img.reshape(size, size, 3)[iy, ix]
+
+
+# ---------------------------------------------------------------- 発光の板（絵の琥珀色を形の表面へ落とす）
+
+def decal(view: View, box, objs, cell_px: float, name: str, mat, parent_ob, bright: float = 0.6):
+    import bpy
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+    rgb = view.rgba[..., :3].astype(np.float32) / 255.0
+    m = amber_mask(rgb, bright) & view.alpha
+    m = ndi.binary_opening(m, iterations=2)
+    # 世界の箱を絵へ写して、その中だけ使う
+    (bx0, bx1), (by0, by1), (bz0, bz1) = box
+    corners = np.array([[x, y, z] for x in (bx0, bx1) for y in (by0, by1) for z in (bz0, bz1)], float)
+    cc, rr = view.project(corners)
+    c0, c1 = int(max(cc.min(), 0)), int(min(cc.max(), IMG))
+    r0, r1 = int(max(rr.min(), 0)), int(min(rr.max(), IMG))
+    sub = np.zeros_like(m)
+    sub[r0:r1, c0:c1] = m[r0:r1, c0:c1]
+    if sub.sum() < 30:
+        log(f'  decal {name}: no amber in {view.name}')
+        return None
+    # 格子：セルの中心で琥珀色の割合 > 0.35
+    rows = np.nonzero(sub.any(1))[0]
+    cols = np.nonzero(sub.any(0))[0]
+    gc = np.arange(cols[0] - cell_px, cols[-1] + 2 * cell_px, cell_px)
+    gr = np.arange(rows[0] - cell_px, rows[-1] + 2 * cell_px, cell_px)
+    cov = np.zeros((len(gr) - 1, len(gc) - 1))
+    for i in range(len(gr) - 1):
+        for j in range(len(gc) - 1):
+            blk = sub[int(gr[i]):int(gr[i + 1]), int(gc[j]):int(gc[j + 1])]
+            cov[i, j] = blk.mean() if blk.size else 0
+    cells = cov > 0.35
+    # 画素 → 世界の点（視線に沿う直線上）。r・u の基底で逆算（stretch を戻す）
+    deps = []
+    for ob in objs:
+        deps.append(ob)
+    bm_list = []
+    import bmesh
+    bm = bmesh.new()
+    for ob in deps:
+        tmp = ob.data.copy()
+        tmp.transform(ob.matrix_world)
+        bm.from_mesh(tmp)
+        bpy.data.meshes.remove(tmp)
+    tree = BVHTree.FromBMesh(bm)
+    bm.free()
+    st = view.stretch
+
+    def ray_point(col, row):
+        a = (col - view.c0) / view.sr
+        b = (view.r0 - row) / view.su
+        q = view.r * a + view.u * b          # 絵の cm
+        p = q * st * 0.01 + view.d * 5.0     # 世界 m、カメラの側の遠く
+        hit = tree.ray_cast(Vector(p.tolist()), Vector((-view.d).tolist()), 20.0)
+        if hit[0] is None:
+            return None
+        return np.array(hit[0]) + view.d * 0.004
+    vid = {}
+    verts, faces = [], []
+    for i in range(cells.shape[0]):
+        for j in range(cells.shape[1]):
+            if not cells[i, j]:
+                continue
+            quad = []
+            for (ii, jj) in ((i + 1, j), (i + 1, j + 1), (i, j + 1), (i, j)):
+                if (ii, jj) not in vid:
+                    pt = ray_point(gc[jj], gr[ii])
+                    vid[(ii, jj)] = None if pt is None else len(verts)
+                    if pt is not None:
+                        verts.append(pt)
+                quad.append(vid[(ii, jj)])
+            if None not in quad:
+                faces.append(quad)
+    if not faces:
+        return None
+    verts = np.array(verts) * 100.0
+    # 面の向き：視点の方を向くように
+    f0 = faces[0]
+    nrm = np.cross(verts[f0[1]] - verts[f0[0]], verts[f0[2]] - verts[f0[0]])
+    if nrm @ view.d < 0:
+        faces = [f[::-1] for f in faces]
+    piv = np.array(parent_ob.matrix_world.translation) * 100.0
+    ob = new_object(name, verts, faces, mat, piv, np.eye(3), smooth=True)
+    mw = ob.matrix_world.copy()
+    ob.parent = parent_ob
+    ob.matrix_world = mw
+    log(f'  decal {name}: {len(faces)} quads from {view.name}')
+    return ob
+
+
+# ---------------------------------------------------------------- 組み立て
+
+def build(t: str, out_glb: str) -> dict:
+    import bpy
+    from mathutils import Matrix
+    cfg = TYPES[t]
+    t0 = time.time()
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    views = build_views(t, cfg)
+    occ, xs, ys, zs, vox = build_hull(t, cfg, views)
+    lab = label_parts(cfg, occ, xs, ys, zs)
+    names = ['body'] + [p[0] for p in cfg['parts']]
+    parents = {'body': None, **{p[0]: p[1] for p in cfg['parts']}}
+    specs = {'body': (cfg['body_pivot'], X), **{p[0]: (p[3], p[4]) for p in cfg['parts']}}
+    mats = make_materials(t, None)
+    raw = {}
+    for i, n in enumerate(names):
+        mask = lab == i
+        if mask.sum() < 20:
+            log(f'  part {n}: empty')
+            continue
+        mm = part_mesh(mask, xs, ys, zs, vox)
+        if mm is None:
+            continue
+        raw[n] = (mm, pivot_of(specs[n][0], mask, xs, ys, zs))
+    total = sum(len(mm[1]) for mm, _ in raw.values())
+    ratio = cfg['tris'] / max(total, 1)
+    objs = {}
+    for n, ((v, f), piv) in raw.items():
+        ob = new_object(n, v, f, mats['shell'], piv, axis_matrix(specs[n][1]))
+        decimate(ob, ratio * (1.6 if len(f) * ratio < 150 else 1.0))
+        objs[n] = ob
+    shell_objs = list(objs.values())
+    smooth_by_angle(shell_objs)
+    # 車輪（円柱、黒鉛色）と真鍮の軸の蓋
+    for n, par, c, rad, w in cfg.get('wheels', []):
+        v, f = cylinder(c, rad, w, 18)
+        ob = new_object(n, v, f, mats['dark'], np.array(c, float), np.eye(3), smooth=False)
+        for suffix, (vv, ff), mt in (('_cover', c_disc(c, rad * 0.8, w, 20), mats['shell_flat']),
+                                     ('_hub', cylinder((c[0] + np.sign(c[0]) * (w / 2 + 1.6), c[1], c[2]), rad * 0.22, 1.6, 10),
+                                      mats['brass'])):
+            cap = new_object(n + suffix, vv, ff, mt, np.array(c, float), np.eye(3), smooth=False)
+            mw = cap.matrix_world.copy()
+            cap.parent = ob
+            cap.matrix_world = mw
+        objs[n] = ob
+        parents[n] = par
+    for n, par, c, size in cfg.get('boxes', []):
+        c = np.array(c, float)
+        h = np.array(size, float) / 2
+        v = np.array([c + h * [sx, sy, sz] for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)])
+        f = [[0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1], [2, 3, 7, 6], [0, 2, 6, 4], [1, 5, 7, 3]]
+        objs[n] = new_object(n, v, f, mats['dark'], c, np.eye(3), smooth=False)
+        parents[n] = par
+    # 階層（親子）：世界の姿勢を保ったまま
+    root = bpy.data.objects.new(f'banki_{t}', None)
+    bpy.context.scene.collection.objects.link(root)
+    for n, ob in objs.items():
+        par = objs.get(parents.get(n)) if parents.get(n) else root
+        mw = ob.matrix_world.copy()
+        ob.parent = par if par is not None else root
+        ob.matrix_world = mw
+    # UV と焼き
+    smart_uv(shell_objs)
+    tris, uvs = mesh_world(shell_objs)
+    tex = bake(views, tris, uvs, 1024)
+    from PIL import Image
+    os.makedirs(os.path.join(WORK, 'tex'), exist_ok=True)
+    tex_path = os.path.join(WORK, 'tex', f'banki_{t}.png')
+    Image.fromarray((np.clip(tex, 0, 1) * 255).astype(np.uint8)).save(tex_path)
+    img = bpy.data.images.load(tex_path)
+    nt = mats['shell'].node_tree
+    tn = nt.nodes.new('ShaderNodeTexImage')
+    tn.image = img
+    nt.links.new(tn.outputs['Color'], nt.nodes['Principled BSDF'].inputs['Base Color'])
+    # 発光の板
+    s = scale_of(cfg)
+    for name, vname, box, par, *opt in cfg['decals']:
+        v = views.get(vname) or views.get('side')
+        ob = decal(v, box, shell_objs, max(vox * s * 0.5, 12.0),
+                   name, mats[name], objs.get(par, objs['body']), *opt)
+        if ob is not None:
+            objs[name] = ob
+    tri_count = sum(sum(len(p.vertices) - 2 for p in ob.data.polygons) for ob in bpy.data.objects if ob.type == 'MESH')
+    # 書き出し
+    os.makedirs(os.path.dirname(out_glb), exist_ok=True)
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.export_scene.gltf(filepath=out_glb, export_format='GLB', export_yup=True, export_apply=False,
+                              export_animations=False, use_selection=True)
+    info = {'type': t, 'triangles': tri_count, 'voxel_cm': round(vox, 2), 'parts': sorted(objs.keys()),
+            'seconds': round(time.time() - t0, 1), 'glb': os.path.relpath(out_glb, REPO)}
+    log(json.dumps(info, ensure_ascii=False))
+    return info
+
+
+# ---------------------------------------------------------------- 確認（絵と Cycles の画像を並べる）
+
+TILE = 400
+
+
+def review_views(t: str):
+    """比較する視点：(名前, 絵, カメラの向き, 上, 反転)"""
+    cfg = TYPES[t]
+    sname, cs, fl = cfg['side']
+    sx, fl3 = THREE_Q[t]
+    out = [('front', 'front', (0, -1, 0), Z, False), (sname, sname, (cs, 0, 0), Z, fl),
+           ('back', 'back', (0, 1, 0), Z, False), ('top', 'top', (0, 0, 1), (0, 1, 0), False),
+           ('front_right45', 'front_right45', (sx * 0.7071, -0.7071, 0), Z, fl3)]
+    for n2, cs2, fl2 in cfg.get('extra_sides', []):
+        out.insert(2, (n2, n2, (cs2, 0, 0), Z, fl2))
+    return out
+
+
+def render_review(t: str, out_dir: str, samples: int = 16) -> dict:
+    import bpy
+    from mathutils import Matrix, Vector
+    from PIL import Image, ImageDraw
+    cfg = TYPES[t]
+    s = scale_of(cfg)
+    sc = bpy.context.scene
+    sc.render.engine = 'CYCLES'
+    sc.cycles.samples = samples
+    sc.cycles.use_denoising = False
+    sc.render.resolution_x = sc.render.resolution_y = TILE
+    sc.render.film_transparent = True
+    sc.view_settings.view_transform = 'Standard'
+    world = bpy.data.worlds.new('w')
+    world.use_nodes = True
+    world.node_tree.nodes['Background'].inputs['Color'].default_value = (0.8, 0.8, 0.82, 1)
+    world.node_tree.nodes['Background'].inputs['Strength'].default_value = 0.8
+    sc.world = world
+    sun = bpy.data.objects.new('sun', bpy.data.lights.new('sun', 'SUN'))
+    sun.data.energy = 2.0
+    sc.collection.objects.link(sun)
+    cam = bpy.data.objects.new('cam', bpy.data.cameras.new('cam'))
+    cam.data.type = 'ORTHO'
+    cam.data.ortho_scale = IMG / s / 100.0
+    cam.data.clip_end = 50
+    sc.collection.objects.link(cam)
+    sc.camera = cam
+    os.makedirs(out_dir, exist_ok=True)
+    # 絵の中央の画素（1024, 1024）に写る世界の点を、カメラの中心にする
+    zc = (cfg['rows'][1] - IMG / 2) / s / 100.0
+    tiles, scores = [], {}
+    bg = (150, 150, 155)
+    for name, art, d, up, flip in review_views(t):
+        p = os.path.join(SRC, f'{t}_3d_{art}_r2.png')
+        if not os.path.exists(p):
+            continue
+        d = Vector(d).normalized()
+        if name == 'top':
+            center = Vector((0, 0, 0))
+        else:
+            center = Vector((0, 0, zc))
+        z = d
+        x = Vector(up).cross(z).normalized()
+        y = z.cross(x)
+        rot = Matrix((x, y, z)).transposed()
+        cam.matrix_world = Matrix.Translation(center + d * 10.0) @ rot.to_4x4()
+        sun.matrix_world = (rot @ Matrix.Rotation(math.radians(-25), 3, 'X')
+                            @ Matrix.Rotation(math.radians(-20), 3, 'Y')).to_4x4()
+        rp = os.path.join(out_dir, f'render_{t}_{name}.png')
+        sc.render.filepath = rp
+        bpy.ops.render.render(write_still=True)
+        ren = Image.open(rp).convert('RGBA')
+        if flip:
+            ren = ren.transpose(Image.FLIP_LEFT_RIGHT)
+        artim = Image.open(p).convert('RGBA')
+        if name == 'top':
+            # 真上の絵は縮尺が違うので、外接の箱どうしを合わせて比べる
+            artim = _fit_bbox(artim, ren)
+        else:
+            artim = artim.resize((TILE, TILE), Image.LANCZOS)
+            st = cfg.get('y_stretch', 1.0)
+            if st != 1.0 and abs(d.x) > 0.1:
+                k = st if abs(d.y) < 0.1 else math.hypot(0.7071 * st, 0.7071)
+                wn = int(round(TILE * k))
+                sq = artim.resize((wn, TILE), Image.LANCZOS)
+                artim = Image.new('RGBA', (TILE, TILE), (0, 0, 0, 0))
+                artim.paste(sq, ((TILE - wn) // 2, 0))
+        a1 = np.asarray(artim)[..., 3] > 64
+        a2 = np.asarray(ren)[..., 3] > 64
+        scores[name] = round(float((a1 & a2).sum() / max(1, (a1 | a2).sum())), 3)
+        diff = np.zeros((TILE, TILE, 3), np.uint8) + np.array(bg, np.uint8)
+        diff[a1 & ~a2] = (220, 60, 60)
+        diff[a2 & ~a1] = (60, 110, 230)
+        diff[a1 & a2] = (235, 235, 235)
+        row = []
+        for im in (artim, ren):
+            tt = Image.new('RGB', (TILE, TILE), bg)
+            tt.paste(im, (0, 0), im)
+            row.append(tt)
+        row.append(Image.fromarray(diff))
+        tiles.append((name, row))
+    cols = 2
+    W = Image.new('RGB', (cols * 3 * TILE, ((len(tiles) + 1) // cols) * (TILE + 24)), (40, 40, 44))
+    dr = ImageDraw.Draw(W)
+    for k, (name, row) in enumerate(tiles):
+        x0 = (k % cols) * 3 * TILE
+        y0 = (k // cols) * (TILE + 24)
+        dr.text((x0 + 6, y0 + 4), f'{t} {name}  art | render | silhouette (red=art only, blue=model only)  IoU {scores[name]}',
+                fill=(230, 230, 230))
+        for j, im in enumerate(row):
+            W.paste(im, (x0 + j * TILE, y0 + 24))
+    W.save(os.path.join(out_dir, f'{t}_compare.png'))
+    small = W.copy()
+    small.thumbnail((1600, 1600))
+    small.convert('RGB').save(os.path.join(out_dir, f'{t}_compare_small.jpg'), quality=88)
+    return scores
+
+
+def _fit_bbox(art, ren):
+    """絵の外形の箱を、描いた画像の外形の箱に合わせて置き直す（真上の比較用）"""
+    from PIL import Image
+    a = np.asarray(art)[..., 3] > 64
+    b = np.asarray(ren)[..., 3] > 64
+    if not b.any():
+        return art.resize((TILE, TILE), Image.LANCZOS)
+    ra, ca = np.nonzero(a.any(1))[0], np.nonzero(a.any(0))[0]
+    rb, cb = np.nonzero(b.any(1))[0], np.nonzero(b.any(0))[0]
+    crop = art.crop((ca[0], ra[0], ca[-1] + 1, ra[-1] + 1)).resize((cb[-1] + 1 - cb[0], rb[-1] + 1 - rb[0]), Image.LANCZOS)
+    out = Image.new('RGBA', (TILE, TILE), (0, 0, 0, 0))
+    out.paste(crop, (cb[0], rb[0]))
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('--type', choices=list(TYPES), action='append')
+    ap.add_argument('--all', action='store_true')
+    ap.add_argument('--review', action='store_true', help='絵との比較の画像を build/banki/review/ に作る')
+    args = ap.parse_args()
+    types = list(TYPES) if args.all or not args.type else args.type
+    fetch_art()
+    report = {}
+    rp = os.path.join(WORK, 'review', 'report.json')
+    if os.path.exists(rp):
+        with open(rp) as f:
+            report = json.load(f)
+    for t in types:
+        info = build(t, os.path.join(MODELS, f'banki_{t}.glb'))
+        if args.review:
+            info['iou'] = render_review(t, os.path.join(WORK, 'review'))
+            log(f'{t} IoU {info["iou"]}')
+        report[t] = info
+    os.makedirs(os.path.dirname(rp), exist_ok=True)
+    with open(rp, 'w') as f:
+        json.dump(report, f, ensure_ascii=False, indent=1)
+
+
+if __name__ == '__main__':
+    main()
