@@ -21,7 +21,7 @@ const POSE := {
 		"hip_swing": 26.0,      # 太ももの前後の振り
 		"knee_bend": 34.0,      # すねの曲げ（脚を前へ出すとき）
 		"bob": 0.025,           # 胴の上下（歩き・待機）
-		"tele_lean": -16.0,     # 予備動作：胴を後ろへ倒す（胴の原点 = 股の高さ）
+		"tele_lean": -22.0,     # 予備動作：胴を後ろへ倒す（胴の原点 = 股の高さ）
 		"cover_open": 40.0,     # 予備動作：砲口の蓋を開く
 		"recoil": 5.0,          # 射撃中の胴の小さな反動
 		"detach": ["spike", "muzzle_cover", "foot_l", "shin_r", "foot_r"],

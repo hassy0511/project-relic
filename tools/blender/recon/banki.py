@@ -95,7 +95,7 @@ def _lobe(k: int, ang_deg: float):
 TYPES = {
     'mini': dict(
         name='子番機', height=30.0, rows=(144, 1904), center=1024,
-        side=('side_right', -1, False), top=False, p=2.3, tris=3000,
+        side=('side_right', -1, False), top=True, p=2.3, tris=3000,
         body_pivot=(0, 0, 12.0),
         parts=[
             ('horn_l', 'body', lambda x, y, z: (x > 5.5) & (z > 21.5), 'top', X),
@@ -454,7 +454,7 @@ def make_materials(t: str, tex_path: str | None):
         shell.node_tree.links.new(tn.outputs['Color'], b.inputs['Base Color'])
     mats['shell'] = shell
     for key, hexc, rough, metal in (('dark', COLORS['dark'], 0.7, 0.3), ('brass', COLORS['brass'], 0.45, 0.6),
-                                    ('shell_flat', COLORS['shell'], 0.62, 0.0)):
+                                    ('shell_flat', '#DAD1BD', 0.62, 0.0)):   # 車輪の蓋（白磁 × SHELL_GAIN）
         m = bpy.data.materials.new(f'banki_{key}')
         m.use_nodes = True
         bb = m.node_tree.nodes['Principled BSDF']
@@ -587,6 +587,8 @@ def amber_mask(rgb: np.ndarray, bright: float = 0.6) -> np.ndarray:
 # 絵の色を材質の基準色へ寄せる：各テクセルを白磁・真鍮・黒鉛のどれかに分け、spec の hex × 絵の明暗（弱め）にする。
 # 視点の間のずれで混ざった中間の色（白磁と黒鉛の混ざった灰色のしみ）が消え、絵の平らな塗りに近くなる
 PALETTE = {'shell': ('#F3E9D2', 0.84), 'brass': ('#A98749', 0.52), 'dark': ('#444641', 0.26)}
+# 白磁の明るさの係数：spec の hex そのままだと日なたで真っ白に飛ぶ（絵の白磁は塗りの陰で平均がこれくらい暗い）
+SHELL_GAIN = 0.9
 SHADE_GAMMA = 0.45   # 絵の明暗をどれだけ残すか（0 = 平らな色）
 MIN_COS = 0.6
 MAJORITY_K = 24
@@ -610,7 +612,7 @@ def snap_palette(col: np.ndarray, pos: np.ndarray | None = None, radius: float =
     for k, (hexc, ref) in enumerate(PALETTE.values()):
         m = cls == k
         base = np.array([int(hexc[i:i + 2], 16) for i in (1, 3, 5)]) / 255.0
-        shade = np.clip(lum[m] / ref, 0.7, 1.12) ** SHADE_GAMMA
+        shade = np.clip(lum[m] / ref, 0.7, 1.08) ** SHADE_GAMMA * (SHELL_GAIN if k == 0 else 1.0)
         out[m] = base * shade[:, None]
     return np.clip(out, 0, 1)
 
