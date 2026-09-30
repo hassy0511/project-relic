@@ -235,40 +235,171 @@ def slab(pts_yz, x0, x1):
     return v, orient(v, f)
 
 
-def charger(rig: Rig):
-    """突撃型（全高 120 cm・全長 200 cm）。楔の車体（前が低い）・前の真鍮の衝角・後ろの真鍮のひれ・4 輪（懸架は黒鉛）"""
-    cfg = B.TYPES['charger']
-    # 車体：黒鉛の芯（全体）と、前・後ろの白磁の殻（間に黒鉛の帯と、本人の右に琥珀の核）
-    core_body = loft([(-86, 13, 11, 29, 10), (-58, 22, 12, 45, 18), (-30, 27, 14, 62, 22), (0, 29, 19, 79, 23), (40, 31, 23, 92, 24), (95, 25, 38, 90, 18)], 0.4)
-    nose = loft([(-88, 15, 10, 31, 11), (-60, 24, 11, 47, 20), (-30, 29, 13, 65, 24), (-6, 31, 17, 81, 25)], 0.4)
-    rear = loft([(6, 32, 18, 83, 25), (40, 34, 22, 95, 26), (75, 33, 28, 95, 24), (98, 28, 38, 90, 19)], 0.4)
-    # 上の重ね板（白磁、中央の背の両側）と横の肩の板
-    tops, sides, br = [], [], []
-    for sg in (1, -1):
-        tops.append(slab([(-2, 84), (58, 101), (62, 97), (0, 80)], sg * 3, sg * 20))
-        sides.append(slab([(-30, 38), (60, 46), (84, 60), (62, 72), (-30, 56)], sg * 32.5, sg * 36.0))
-        # 真鍮の縁：鼻の横の斜めの帯・肩の板の上の縁
-        br.append(slab([(-30, 55.5), (62, 71.5), (62, 74.0), (-30, 58.0)], sg * 34.0, sg * 37.0))
-    # 肩の大きな曲面の板（車輪の上へ張り出す。正面から見て幅 ±48 cm）と下の縁の真鍮
+def loft_rings(rings):
+    """同じ点数の輪 [(x, y, z), ...] の列をつなぐ（両端に蓋。閉じた形）"""
+    n = len(rings[0])
+    v = V3([p for r in rings for p in r], float)
+    f = []
+    for i in range(len(rings) - 1):
+        for k in range(n):
+            f.append([i * n + k, i * n + (k + 1) % n, (i + 1) * n + (k + 1) % n, (i + 1) * n + k])
+    f.append(list(range(n))[::-1])
+    f.append([(len(rings) - 1) * n + k for k in range(n)])
+    return v, orient(v, f)
+
+
+# 突撃型の車体の外形（y, 半幅 w, 下の z0, 上の z1, 上の半幅 wt）。鼻・胴・後ろを 1 つの式でつなぐ（板はこの面に沿わせる）
+CH_SECS = [(-88, 15, 10, 31, 11), (-60, 24, 11, 47, 20), (-30, 29, 13, 65, 24), (-6, 31, 17, 81, 25),
+           (6, 32, 18, 83, 25), (40, 34, 22, 95, 26), (75, 33, 28, 95, 24), (98, 28, 38, 90, 19)]
+CH_CHAM = 0.4
+POCKET_Y = (-7.0, 19.0)      # 核の窓（本人の右 = -X）の前後の幅
+POCKET_Z = (44.0, 69.0)
+POCKET_D = 8.0
+
+
+def ch_sec(y):
+    a = np.array(CH_SECS, float)
+    return tuple(float(np.interp(y, a[:, 0], a[:, k])) for k in range(1, 5))   # w, z0, z1, wt
+
+
+def ch_c(w, z0, z1, wt):
+    return CH_CHAM * min(w, wt, (z1 - z0) / 2)
+
+
+def ch_hw(y, z):
+    """車体の外の面の半幅（+X 側）。面取りも含む"""
+    w, z0, z1, wt = ch_sec(y)
+    c = ch_c(w, z0, z1, wt)
+    zz = min(max(z, z0), z1)
+    if zz < z0 + c:
+        return w - c + (zz - z0)
+    if zz > z1 - c:
+        return wt - (zz - (z1 - c))
+    return w + (wt - w) * (zz - (z0 + c)) / ((z1 - c) - (z0 + c))
+
+
+def ch_ring(y, inset=0.0, pocket=False):
+    w, z0, z1, wt = ch_sec(y)
+    c = ch_c(w, z0, z1, wt)
+    w, wt, z0, z1 = w - inset, wt - inset, z0 + inset * 0.5, z1 - inset * 0.5
+    poly = [(-w + c, z0), (w - c, z0), (w, z0 + c), (wt, z1 - c), (wt - c, z1), (-wt + c, z1), (-wt, z1 - c)]
+    if pocket:   # -X の横に、核の窓のへこみ（前後は鼻と後ろの板の面が壁になる）
+        z_hi, z_lo = POCKET_Z[1], POCKET_Z[0]
+        poly += [(-ch_hw(y, z_hi), z_hi), (-(ch_hw(y, z_hi) - POCKET_D), z_hi),
+                 (-(ch_hw(y, z_lo) - POCKET_D), z_lo), (-ch_hw(y, z_lo), z_lo)]
+    poly += [(-w, z0 + c)]
+    return [(x, y, z) for x, z in poly]
+
+
+def ch_zt(y):
+    return ch_sec(y)[2]
+
+
+def shell_grid(vo, vi):
+    """外の面の格子 vo[i][j]・内の面の格子 vi[i][j] から、厚みのある板（閉じた形）を作る"""
+    nv, nu = len(vo), len(vo[0])
+    verts = [p for g in (vo, vi) for row in g for p in row]
+    W = nu
+    n1 = nv * W
+    idx = lambda s, i, j: s * n1 + i * W + j
+    faces = []
+    for i in range(nv - 1):
+        for j in range(nu - 1):
+            faces.append([idx(0, i, j), idx(0, i, j + 1), idx(0, i + 1, j + 1), idx(0, i + 1, j)])
+            faces.append([idx(1, i, j), idx(1, i + 1, j), idx(1, i + 1, j + 1), idx(1, i, j + 1)])
+    for i in range(nv - 1):
+        for j in (0, nu - 1):
+            faces.append([idx(0, i, j), idx(0, i + 1, j), idx(1, i + 1, j), idx(1, i, j)])
+    for j in range(nu - 1):
+        for i in (0, nv - 1):
+            faces.append([idx(0, i, j), idx(1, i, j), idx(1, i, j + 1), idx(0, i, j + 1)])
+    return _clean(V3(verts, float), faces)
+
+
+def surf_plate(ys, zlo, zhi, lift=0.6, thick=3.0, nz=5):
+    """車体の +X 側の面に沿う板。y の列 ys・下の縁 zlo(y)・上の縁 zhi(y)。面から lift 出て、面の下へ thick まで埋まる"""
+    vo, vi = [], []
+    for y in ys:
+        a, b = zlo(y), zhi(y)
+        ro, ri = [], []
+        for k in range(nz):
+            z = a + (b - a) * k / (nz - 1)
+            h = ch_hw(y, z)
+            ro.append((h + lift, y, z))
+            ri.append((h + lift - thick, y, z))
+        vo.append(ro)
+        vi.append(ri)
+    return shell_grid(vo, vi)
+
+
+def top_plate(ys, x0, x1, lift, depth=3.0, bev=1.2):
+    """背の上の面に沿う板（x0 → x1）。lift(y) だけ面から出て、面の下 depth まで埋まる"""
+    rings = []
+    for y in ys:
+        zt = ch_zt(y)
+        zb, zu = zt - depth, zt + lift(y)
+        rings.append([(x0, y, zb), (x1, y, zb), (x1 - bev, y, zu), (x0 + bev, y, zu)])
+    return loft_rings(rings)
+
+
+def charger_half(sg=1):
+    """+X 側の板と縁の帯（本人の左）。-X 側は mirror_x で作る = 左右は 1 つの定義から"""
+    iv, br, dk = [], [], []
+    ivl = lambda pts: (lambda y: float(np.interp(y, [p[0] for p in pts], [p[1] for p in pts])))
+    # 上の重ね板（背の中央の両側）
+    tl = ivl([(-4, 1.0), (2, 2.6), (56, 3.4), (62, 1.0)])
+    iv.append(top_plate(np.linspace(-4, 62, 12), 3.2, 20.0, tl))
+    # 横の板：鼻の側（核の窓の前）と後ろの側（窓の後ろ）。窓の所は空ける
+    fore = (np.linspace(-32, -11, 6), ivl([(-32, 36), (-11, 40)]), ivl([(-32, 54), (-11, 60)]))
+    aft = (np.linspace(23, 84, 12), ivl([(23, 42), (60, 46), (84, 60)]), ivl([(23, 72), (62, 72), (84, 60)]))
+    for ys, lo, hi in (fore, aft):
+        iv.append(surf_plate(ys, lo, hi, 0.9, 3.0, 6))
+        # 板の上の縁の真鍮の帯
+        br.append(surf_plate(ys, (lambda y, hi=hi: hi(y) - 2.4), hi, 1.5, 2.6, 2))
+    # 鼻の斜めの真鍮の帯（ラムから胴の継ぎ目の高さまで）
+    fr = ivl([(-86, 0.34), (-10, 0.60)])
+    lo = lambda y: ch_sec(y)[1] + fr(y) * (ch_sec(y)[2] - ch_sec(y)[1])
+    br.append(surf_plate(np.linspace(-86, -10, 14), lo, lambda y: lo(y) + 2.8, 0.7, 2.4, 2))
+    # 肩の大きな曲面の板（車輪の上へ張り出す）と、その下の厚み（体との隙間をふさぐ）
     WC, WA = (0.0, 25.0, 50.0), (50.0, 75.0, 48.0, 48.0)
-    for a0, a1 in ((58.0, 122.0), (-122.0, -58.0)):
-        sides.append(ell_plate(WC, WA, 38.0, 74.0, a0, a1, thick=2.0, dth=6, dph=8))
-        br.append(ell_plate(WC, WA, 74.5, 78.0, a0 + 2, a1 - 2, thick=1.6, grow=-0.2, dth=4, dph=8))
-    # 鼻の横の真鍮の帯（斜め）
-    for sg in (1, -1):
-        v, f = loft([(-86, 1.2, 25, 28, 1.2), (-8, 1.2, 55, 58.5, 1.2)])
-        v = v + V3([sg * 23.0, 0, 0])
-        v[:, 0] += sg * (v[:, 1] + 86) / 78 * 7.0
-        br.append((v, orient(v, f)))
+    a0, a1 = 58.0, 122.0
+    iv.append(ell_plate(WC, WA, 36.0, 64.0, a0, a1, thick=2.0, dth=5, dph=8))
+    iv.append(ell_plate(WC, WA, 36.0, 64.0, a0, a1, thick=24.0, grow=-2.0, dth=5, dph=8))
+    br.append(ell_plate(WC, WA, 64.5, 68.0, a0 + 2, a1 - 2, thick=1.6, grow=-0.2, dth=4, dph=8))
+    return iv, br, dk
+
+
+def charger(rig: Rig):
+    """突撃型（全高 120 cm・全長 200 cm）。楔の車体（前が低い）・前の真鍮の衝角・後ろの真鍮のひれ・4 輪（懸架は黒鉛）。
+    左右は 1 つの定義（charger_half）から鏡写しに作る。左右で違うのは、本人の右（-X）の横の核の窓と、その蓋だけ"""
+    cfg = B.TYPES['charger']
+    nose_y, rear_y = [-88, -60, -30, POCKET_Y[0]], [POCKET_Y[1], 40, 75, 98]
+    mid_y = [POCKET_Y[0], 6, POCKET_Y[1]]
+    # 車体の殻：鼻・胴（-X の横だけ窓のへこみ）・後ろ
+    nose = loft_rings([ch_ring(y) for y in nose_y])
+    mid = loft_rings([ch_ring(y, pocket=True) for y in mid_y])
+    rear = loft_rings([ch_ring(y) for y in rear_y])
+    # 中の黒鉛の芯（殻の下。胴だけは窓のへこみの底より内へ）
+    core_body = merge(loft_rings([ch_ring(y, 2.0) for y in [-86] + nose_y[1:]]),
+                      loft_rings([ch_ring(y, 12.0) for y in mid_y]),
+                      loft_rings([ch_ring(y, 2.0) for y in rear_y[:-1] + [95]]))
+    iv, br, dk = charger_half()
+    ivm = [mirror_x(p) for p in iv]
+    brm = [mirror_x(p) for p in br]
+    dkm = [mirror_x(p) for p in dk]
+    # 背の中央の真鍮の筋（ひれの前）
+    spine = top_plate(np.linspace(-36, 60, 12), -1.9, 1.9, lambda y: 1.5, depth=2.0, bev=0.5)
     rig.add('body', None, cfg['body_pivot'], (1, 0, 0),
-            [('ivory', merge(nose, rear, *tops, *sides)), ('dark', core_body), ('brass', merge(*br))])
+            [('ivory', merge(nose, mid, rear, *iv, *ivm)), ('dark', merge(core_body, *dk, *dkm)), ('brass', merge(spine, *br, *brm))])
     # センサー（鼻の上の横長の窓）
     rig.add('sensor', 'body', (0, -47, 56), (1, 0, 0), [('sensor', box((0, -46.5, 55.5), (30, 5, 2.4)))])
-    # 核（本人の右 = -X の横、黒鉛の帯の所）と、その蓋
-    core = cyl((-33.5, 6, 64), (-20, 6, 64), 12.5, 16)
+    # 核（本人の右 = -X の横の窓の奥の円柱）と、その蓋（窓をふさぐ面に沿う板。上の縁が蝶番）
+    zc = 0.5 * (POCKET_Z[0] + POCKET_Z[1])
+    core = cyl((-25.0, 6, zc), (-18.6, 6, zc), 11.8, 16)
     rig.add('core', 'body', (-26, 6, 64), (1, 0, 0), [('core', core)])
-    cover = slab([(-16, 54), (-16, 84), (28, 88), (28, 56)], -34.5, -31.5)
-    trim = slab([(-16, 84), (28, 88), (28, 90.5), (-16, 86.5)], -35, -31)
+    cy = np.linspace(POCKET_Y[0] - 2.0, POCKET_Y[1] + 2.0, 8)
+    cover = mirror_x(surf_plate(cy, lambda y: POCKET_Z[0] - 2.0, lambda y: 78.0, 0.9, 2.6, 8))
+    trim = mirror_x(surf_plate(cy, lambda y: 75.6, lambda y: 78.4, 1.6, 2.6, 2))
     rig.add('core_cover', 'body', (-22, 6, 86.0), (0, -1, 0), [('ivory', cover), ('brass', trim)])
     # 衝角（真鍮の角ばった箱）とレール
     ram = merge(extrude_taper([(-11, -11), (11, -11), (11, 11), (-11, 11)], V3([0, -86, 21]), V3([0, -102, 21]), 0.8, (0, 0, 1)))
