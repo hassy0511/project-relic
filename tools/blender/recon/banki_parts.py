@@ -413,9 +413,10 @@ def shield(rig: Rig):
     rig.add('sensor', 'head', (0, -14, 148), (1, 0, 0), [('sensor', box((0, -15.6, 148.5), (13, 2.0, 2.2)))])
     # 本人の右の腕：上腕（黒鉛）・籠手（白磁の角ばった塊、真鍮の帯）・拳（黒鉛）
     rig.add('upperarm_r', 'body', (-42, 0, 130.0), (1, 0, 0), [('dark', cyl((-40, 0, 130), (-52, 0, 110), 6.0, 8))])
-    fore = facet((-64, 0, 100), (17.0, 17.0, 25.0, 22.0), 0.0, 180.0, n=8, m=5, thick=3.0)
+    fc, fa = (-64, 0, 100), (17.0, 17.0, 25.0, 22.0)
+    fore = merge(facet(fc, fa, 0.0, 176.0, -84.0, 84.0, n=4, m=5, thick=2.5), facet(fc, fa, 0.0, 176.0, 96.0, 264.0, n=4, m=5, thick=2.5))
+    fist = merge(facet((-61, -2, 70), (13.0, 13.0, 11.0, 11.0), n=8, m=4), facet(fc, (15.0, 15.0, 23.0, 20.0), n=8, m=5))
     ring = lathe((-64, 0, 82.0), (-64, 0, 86.0), [(0, 15.5), (1, 15.5)], 8)
-    fist = facet((-61, -2, 70), (13.0, 13.0, 11.0, 11.0), n=8, m=4)
     rig.add('forearm_r', 'upperarm_r', (-52, 0, 104.0), (1, 0, 0), [('ivory', fore), ('dark', fist), ('brass', ring)])
     # 大盾：六角の板（白磁）、真鍮の縁、黒鉛の握りと中心の円盤
     def xz_slab(poly, y0, y1):
@@ -437,10 +438,16 @@ def shield(rig: Rig):
     # 脚：腿・脛は角ばった楕円体、膝・足首は黒鉛の円盤、足は面取りの箱に真鍮の底
     for sg, side in ((1, 'l'), (-1, 'r')):
         hip, knee, ankle = V3([sg * 20, 0, 92.0]), V3([sg * 23, 0, 52.0]), V3([sg * 25, 0, 16.0])
-        thigh = facet((sg * 22, -2, 73), (16.0, 16.0, 22.0, 19.0), n=8, m=5, thick=3.0)
-        rig.add(f'thigh_{side}', 'body', hip, (1, 0, 0), [('ivory', thigh), ('dark', cyl((sg * 12, 0, 91), (sg * 28, 0, 91), 7.5, 10))])
-        shin = facet((sg * 25, -2, 34), (15.0, 16.0, 19.0, 17.0), n=8, m=5, thick=3.0)
-        rig.add(f'shin_{side}', f'thigh_{side}', knee, (1, 0, 0), [('ivory', shin), ('dark', cyl((sg * 13, 0, 52), (sg * 35, 0, 52), 8, 10))])
+        # 腿・脛：黒鉛の芯の上に、前と後ろの白磁の板（横に黒鉛の継ぎ目が見える）
+        tc, ta = (sg * 22, -2, 73), (15.0, 15.0, 21.0, 18.0)
+        thigh = merge(facet(tc, ta, 8.0, 172.0, -84.0, 84.0, n=4, m=5, thick=2.5), facet(tc, ta, 12.0, 168.0, 96.0, 264.0, n=4, m=5, thick=2.5))
+        rig.add(f'thigh_{side}', 'body', hip, (1, 0, 0), [('ivory', thigh), ('dark', merge(facet(tc, (13.0, 13.0, 19.5, 16.5), n=8, m=5),
+                                                                                           cyl((sg * 12, 0, 91), (sg * 28, 0, 91), 7.5, 10)))])
+        sc_, sa = (sg * 25, -2, 34), (14.5, 15.5, 18.0, 16.0)
+        shin = merge(facet(sc_, sa, 10.0, 170.0, -84.0, 84.0, n=4, m=5, thick=2.5), facet(sc_, sa, 14.0, 166.0, 96.0, 264.0, n=4, m=5, thick=2.5))
+        cap = facet((sg * 24, -9, 52), (8.0, 5.0, 8.0, 8.0), 0.0, 180.0, -90.0, 90.0, n=4, m=4, thick=2.0)   # 膝の板
+        rig.add(f'shin_{side}', f'thigh_{side}', knee, (1, 0, 0), [('ivory', merge(shin, cap)), ('dark', merge(facet(sc_, (12.5, 13.5, 16.5, 14.5), n=8, m=5),
+                                                                                                        cyl((sg * 13, 0, 52), (sg * 35, 0, 52), 8, 10)))])
         foot = bbox((sg * 27, -6, 7.5), (32, 44, 11), 0.4, 0.75)
         sole = bbox((sg * 27, -6, 1.2), (34, 46, 2.4), 0.3)
         rig.add(f'foot_{side}', f'shin_{side}', ankle, (1, 0, 0), [('ivory', foot), ('brass', sole), ('dark', cyl((sg * 17, 0, 16), (sg * 33, 0, 16), 6, 10))])
