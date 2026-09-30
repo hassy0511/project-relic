@@ -121,7 +121,7 @@ TYPES = {
     ),
     'charger': dict(
         name='突撃型', height=120.0, rows=(564, 1484), center=1024, y_stretch=200.0 / 230.0,
-        side=('side_right', -1, True), extra_sides=[('side_left', 1, True)], top=True, p=6.0, tris=6000,
+        side=('side_right', -1, True), extra_sides=[('side_left', 1, True)], top=True, p=3.0, tris=6000,
         body_pivot=(0, 0, 30.0),
         # 車輪（円柱）：(名前, 親, 中心 cm（世界）, 半径, 幅)
         wheels=[('wheel_fl', 'susp_fl', (47, -28, 16.5), 16.0, 12.0), ('wheel_fr', 'susp_fr', (-47, -28, 16.5), 16.0, 12.0),
@@ -143,6 +143,8 @@ TYPES = {
     'shield': dict(
         name='盾型', height=180.0, rows=(144, 1904), center=1024,
         side=('side_left', 1, False), extra_sides=[('side_right', -1, False)], top=True, p=2.6, tris=8000,
+        top_flip=True,
+        side_split=(33.0, (-60.0, 4.0), (-8.0, 60.0)),   # x < 33cm は体（y < 4cm）、それより外は盾
         body_pivot=(0, 0, 95.0),
         parts=[
             ('shield', 'body', lambda x, y, z: x > 33.0, (30, 5, 127.0), Z),
@@ -170,7 +172,7 @@ TYPES = {
 }
 
 # 斜めの確認用のカメラ：Codex の「右前 45 度」の絵は、+X（本人の左）前から見た向きに描かれている（突撃型は反転して使う）
-THREE_Q = {'mini': (1, False), 'sentry': (1, False), 'charger': (1, True), 'shield': (1, False), 'floater': (1, False)}
+THREE_Q = {'mini': (1, False), 'sentry': (1, False), 'charger': (-1, True), 'shield': (1, False), 'floater': (1, False)}
 
 
 def log(msg: str) -> None:
@@ -254,6 +256,10 @@ def fit_top(t: str, cfg, ext) -> View:
     sr = (cols[-1] + 1 - cols[0]) / (x1 - x0)
     su = (rows[-1] + 1 - rows[0]) / (y1 - y0)
     c0 = cols[0] - x0 * sr
+    if cfg.get('top_flip'):
+        # 盾型の真上の絵は、体が画像の上（盾の前の端）に描かれていて、真横の絵（体が前）と前後が逆
+        r0 = rows[0] - y0 * su
+        return View('top', rgba, (0, 0, 1), X, (0, -1, 0), c0, r0, sr, su, cfg.get('y_stretch', 1.0))
     r0 = rows[0] + y1 * su
     return View('top', rgba, (0, 0, 1), X, (0, 1, 0), c0, r0, sr, su, cfg.get('y_stretch', 1.0))
 
@@ -313,11 +319,22 @@ def build_hull(t: str, cfg, views: dict):
     YZ = np.stack(np.meshgrid(ys, zs, indexing='ij'), -1).reshape(-1, 2)
     S = sample(views['side'], np.c_[np.zeros(len(YZ)), YZ[:, 0], YZ[:, 1]]).reshape(len(ys), len(zs))
     fm, fh = runs_along(F, xs)
-    sm, sh = runs_along(S, ys)
     p = cfg['p']
     u = np.abs(xs[:, None, None] - fm[:, None, :]) / fh[:, None, :]
-    v = np.abs(ys[None, :, None] - sm[None, :, :]) / sh[None, :, :]
-    occ = F[:, None, :] & S[None, :, :] & (u ** p + v ** p <= 1.0)
+    split = cfg.get('side_split')
+    if split is None:
+        sm, sh = runs_along(S, ys)
+        v = np.abs(ys[None, :, None] - sm[None, :, :]) / sh[None, :, :]
+        occ = F[:, None, :] & S[None, :, :] & (u ** p + v ** p <= 1.0)
+    else:
+        # 真横の外形が 2 つの部品の重なり（盾型：体と、その横の盾）のとき、x で分けて、それぞれ奥行きの範囲を
+        # 限った真横の外形を使う（体の断面が盾の幅まで広がって箱になるのを防ぐ）
+        occ = np.zeros((len(xs), len(ys), len(zs)), bool)
+        for sel, (y0, y1) in ((xs < split[0], split[1]), (xs >= split[0], split[2])):
+            Sk = S & ((ys >= y0) & (ys <= y1))[:, None]
+            sm, sh = runs_along(Sk, ys)
+            v = np.abs(ys[None, :, None] - sm[None, :, :]) / sh[None, :, :]
+            occ[sel] = (F[:, None, :] & Sk[None, :, :] & (u ** p + v ** p <= 1.0))[sel]
     if cfg['top']:
         XY = np.stack(np.meshgrid(xs, ys, indexing='ij'), -1).reshape(-1, 2)
         T = sample(views['top'], np.c_[XY, np.zeros(len(XY))]).reshape(len(xs), len(ys))
@@ -572,14 +589,23 @@ def amber_mask(rgb: np.ndarray, bright: float = 0.6) -> np.ndarray:
 PALETTE = {'shell': ('#F3E9D2', 0.84), 'brass': ('#A98749', 0.52), 'dark': ('#444641', 0.26)}
 SHADE_GAMMA = 0.45   # 絵の明暗をどれだけ残すか（0 = 平らな色）
 MIN_COS = 0.6
+MAJORITY_K = 24
 VIEW_POWER = 8       # 視点の重み = (法線・視線)^これ（大きいほど一番よく見える視点だけになる）
 
 
-def snap_palette(col: np.ndarray) -> np.ndarray:
+def snap_palette(col: np.ndarray, pos: np.ndarray | None = None, radius: float = 2.0) -> np.ndarray:
     mx, mn = col.max(1), col.min(1)
     sat = (mx - mn) / np.maximum(mx, 1e-6)
     lum = col.mean(1)
     cls = np.where(lum < 0.30, 2, np.where(sat > 0.38, 1, 0))
+    if pos is not None:
+        # 3D で近いテクセルの多数決（半径 radius cm = 全高の 1/60）：視点のずれで出る小さなしみ・点を消す
+        from scipy.spatial import cKDTree
+        tree = cKDTree(pos)
+        _, j = tree.query(pos, k=MAJORITY_K, distance_upper_bound=radius)
+        valid = j < len(pos)
+        votes = np.stack([((cls[np.where(valid, j, 0)] == k) & valid).sum(1) for k in range(3)], 1)
+        cls = votes.argmax(1)
     out = np.zeros_like(col)
     for k, (hexc, ref) in enumerate(PALETTE.values()):
         m = cls == k
@@ -589,7 +615,7 @@ def snap_palette(col: np.ndarray) -> np.ndarray:
     return np.clip(out, 0, 1)
 
 
-def bake(views: dict, tris: np.ndarray, uvs: np.ndarray, size: int = 1024) -> np.ndarray:
+def bake(views: dict, tris: np.ndarray, uvs: np.ndarray, size: int = 1024, radius: float = 2.0) -> np.ndarray:
     """テクセルごとに、見えている視点の絵の色を重みで混ぜる。戻り値：(size,size,3) の sRGB 0..1"""
     from scipy.spatial import cKDTree
     p2 = np.stack([uvs[..., 0] * size, (1.0 - uvs[..., 1]) * size], -1)
@@ -641,7 +667,7 @@ def bake(views: dict, tris: np.ndarray, uvs: np.ndarray, size: int = 1024) -> np
         tree = cKDTree(pos[good])
         _, j = tree.query(pos[~good], k=6)
         col[~good] = col[good][j].mean(1)
-    col = snap_palette(col)
+    col = snap_palette(col, pos, radius)
     img = np.zeros((size * size, 3))
     have = np.zeros(size * size, bool)
     img[pix] = col
@@ -804,7 +830,7 @@ def build(t: str, out_glb: str) -> dict:
     # UV と焼き
     smart_uv(shell_objs)
     tris, uvs = mesh_world(shell_objs)
-    tex = bake(views, tris, uvs, 1024)
+    tex = bake(views, tris, uvs, 1024, cfg['height'] / 60.0)
     from PIL import Image
     os.makedirs(os.path.join(WORK, 'tex'), exist_ok=True)
     tex_path = os.path.join(WORK, 'tex', f'banki_{t}.png')
@@ -908,7 +934,9 @@ def render_review(t: str, out_dir: str, samples: int = 16) -> dict:
             ren = ren.transpose(Image.FLIP_LEFT_RIGHT)
         artim = Image.open(p).convert('RGBA')
         if name == 'top':
-            # 真上の絵は縮尺が違うので、外接の箱どうしを合わせて比べる
+            # 真上の絵は縮尺が違うので、外接の箱どうしを合わせて比べる（盾型は前後を反転した絵）
+            if cfg.get('top_flip'):
+                artim = artim.transpose(Image.FLIP_TOP_BOTTOM)
             artim = _fit_bbox(artim, ren)
         else:
             artim = artim.resize((TILE, TILE), Image.LANCZOS)
