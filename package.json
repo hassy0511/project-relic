@@ -18,7 +18,7 @@
     "haru:recon": ".venv-blender/bin/python tools/blender/recon/build_haru_r.py",
     "yana:recon": ".venv-blender/bin/python tools/blender/recon/build_char.py --char yana",
     "nagomi:build": ".venv-blender/bin/python tools/blender/recon/nagomi.py --review",
-    "banki:build": ".venv-blender/bin/python tools/blender/recon/banki.py --all --review"
+    "banki:build": ".venv-blender/bin/python tools/blender/recon/banki.py --all --review && .venv-blender/bin/python tools/blender/recon/kannuki.py --review"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",
