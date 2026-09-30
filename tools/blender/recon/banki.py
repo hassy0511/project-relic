@@ -111,7 +111,9 @@ TYPES = {
     'sentry': dict(
         name='歩哨型', height=110.0, rows=(144, 1904), center=1024,
         side=('side_right', 1, False), top=False, p=2.2, tris=5000,
-        body_pivot=(0, 0, 47.0), joint_r=0.04, joints=['thigh_l', 'thigh_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r'],
+        body_pivot=(0, 0, 47.0), joint_r=0.04,
+        dark_zone=lambda x, y, z: (y < -4) & (z > 46) & (z < 74) & (np.abs(x) < 12),   # 正面の V の開口（砲口の奥）
+        joints=['thigh_l', 'thigh_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r'],
         parts=[
             ('spike', 'body', lambda x, y, z: z > 97.0, 'top', X),
             ('muzzle_cover', 'body', lambda x, y, z: (z > 46) & (z < 60) & (y < -5) & (np.abs(x) < 13), (0, -4, 48.0), X),
@@ -377,6 +379,8 @@ def part_mesh(mask: np.ndarray, xs, ys, zs, vox):
         return None
     v, f, _n, _ = measure.marching_cubes(sm, 0.5)
     v = (v - 2) * vox + np.array([xs[0], ys[0], zs[0]])
+    if PAINT == 'region':
+        v = taubin(v, f)
     return v, f[:, ::-1]   # 外向き
 
 
@@ -786,6 +790,379 @@ def bake(views: dict, tris: np.ndarray, uvs: np.ndarray, size: int = 1024, radiu
     return img.reshape(size, size, 3)[iy, ix]
 
 
+# ---------------------------------------------------------------- 領域で塗る（絵は「どこが何色か」を決めるだけ。画素は写さない）
+
+# BANKI_PAINT=region（既定）：部品ごとの面を白磁・真鍮・黒鉛の 3 つの平らな材質に分ける（閂・ナゴミと同じ、テクスチャなし）。
+# BANKI_PAINT=bake：従来の投影で焼いたテクスチャ（比べる用）
+PAINT = os.environ.get('BANKI_PAINT', 'region')
+IVORY = '#E9DFC9'        # 閂と同じ白磁（spec #F3E9D2 × 0.95）
+TAUBIN_ITERS = int(os.environ.get('BANKI_TAUBIN', 30))       # 表面のでこぼこをならす回数（Taubin：縮まない平滑化。外形はほぼ保つ）
+R_DIFFUSE = int(os.environ.get('BANKI_R_DIFFUSE', 8))           # 票（色の割合）を面のつながりに沿ってならす回数
+R_DARK_ZONE = 0.3        # 型の暗い領域（dark_zone）の中で黒鉛にする票の割合（領域の中はむらなく埋める）
+R_DARK = 0.5             # 黒鉛にする票の割合
+R_BRASS = 0.42           # 真鍮にする票の割合
+R_CLOSE = 1              # 真鍮の帯の途切れを埋める（つながりで膨らませて縮める）輪の数
+R_IVORY_MIN = 0.05       # 白磁の島（真鍮・黒鉛に囲まれた小さな白）を消す大きさ（全高に対する比）
+R_BRASS_SAT = 0.38      # 絵の画素を真鍮とみなす彩度（白磁の陰は 0.3 くらい、真鍮は 0.43 以上）
+R_DARK_MIN = float(os.environ.get('BANKI_R_DARK_MIN', 0.06))   # 黒鉛の塊の最小の大きさ（全高に対する比）。関節・部品の境・暗い領域に触れる塊
+R_DARK_BIG = float(os.environ.get('BANKI_R_DARK_BIG', 99))      # 関節・部品の境・暗い領域の外でも、これより大きい黒鉛の塊は残す（歩哨型の正面の V の開口など。全高に対する比）
+R_TRIS = 2.5            # 三角形の数（TYPES の tris）の倍率。色の境を面で表すので、焼く方式より細かくする
+R_BLUR = 0.35           # 絵の色の割合の地図をぼかす幅（頂点の間隔に対する比）。頂点 1 つがまわりの平均の色を見る
+R_NORMAL_SMOOTH = 10    # 票に使う法線をならす回数
+R_JOINT = 1.2           # 関節の黒鉛の球の半径（joint_r に対する比）
+R_JOINT_CLEAR = 2.2     # 関節の球・継ぎ目のまわりのこの範囲（RJ・RS の倍）は、絵の暗い所を票から外す
+R_VIEW_POWER = float(os.environ.get('BANKI_R_POWER', 4))   # 視点の重み = (法線・視線)^これ（焼く方式の 8 より弱く：縁の帯を正面の絵からも拾う）
+R_MAJORITY = int(os.environ.get('BANKI_R_MAJ', 5))         # 多数決（自分 + 隣）の回数
+R_SEAM = float(os.environ.get('BANKI_R_SEAM', 0.0))   # 部品の継ぎ目の黒鉛の帯の幅（全高に対する比。ほかの部品までの距離）
+R_BAND = float(os.environ.get('BANKI_R_BAND', 0.10))   # 真鍮の帯の幅の上限（全高に対する比）。これより太い塊は部品まるごと（R_WHOLE 以上）でなければ白磁
+R_WHOLE = 0.3           # 部品のこの割合以上を占める真鍮の塊は、部品まるごと（角・棘）として残す
+WHOLE_PARTS = ('spike', 'horn', 'fin', 'crown')   # 部品まるごと 1 色にする飾りの部品（名前の頭）
+R_WHOLE_BRASS = 0.15    # 飾りの部品の票の真鍮の割合がこれ以上なら部品まるごと真鍮
+R_CUT_SMOOTH = int(os.environ.get('BANKI_R_CUT', 6))        # 境の線を引く前に、色の場をならす回数（境が階段にならず、なめらかな線になる）
+
+
+def taubin(v: np.ndarray, f: np.ndarray, iters: int = TAUBIN_ITERS, lam: float = 0.5, mu: float = -0.53) -> np.ndarray:
+    """縮まない平滑化（Taubin）。v (N,3), f (M,3)"""
+    if iters <= 0:
+        return v
+    from scipy.sparse import coo_matrix
+    e = np.concatenate([f[:, [0, 1]], f[:, [1, 2]], f[:, [2, 0]]])
+    e = np.concatenate([e, e[:, ::-1]])
+    A = coo_matrix((np.ones(len(e)), (e[:, 0], e[:, 1])), shape=(len(v), len(v))).tocsr()
+    A.data[:] = 1.0
+    deg = np.maximum(np.asarray(A.sum(1)).ravel(), 1)[:, None]
+    v = v.copy()
+    for _ in range(iters):
+        for k in (lam, mu):
+            v = v + k * (A @ v / deg - v)
+    return v
+
+
+def _adjacency(f: np.ndarray, n: int):
+    from scipy.sparse import coo_matrix
+    e = np.concatenate([f[:, [0, 1]], f[:, [1, 2]], f[:, [2, 0]]])
+    e = np.concatenate([e, e[:, ::-1]])
+    A = coo_matrix((np.ones(len(e)), (e[:, 0], e[:, 1])), shape=(n, n)).tocsr()
+    A.data[:] = 1.0
+    return A
+
+
+def _diffuse(A, x: np.ndarray, iters: int, keep=None) -> np.ndarray:
+    deg = np.maximum(np.asarray(A.sum(1)).ravel(), 1)[:, None]
+    x0 = x
+    for _ in range(iters):
+        x = 0.5 * x + 0.5 * (A @ x) / deg
+        if keep is not None:
+            x[keep] = x0[keep]
+    return x
+
+
+def _class_maps(v: View, sigma: float = 2.0) -> np.ndarray:
+    """絵の画素を 白磁 0・真鍮 1・黒鉛 2 に分けた割合の地図 (H,W,3)。筆の粗さは中央値でならしてから分ける"""
+    rgb = v.rgba[..., :3].astype(np.float32) / 255.0
+    rgb = ndi.median_filter(rgb, size=(7, 7, 1))
+    am = amber_mask(rgb, 0.5)
+    mx, mn = rgb.max(-1), rgb.min(-1)
+    sat = (mx - mn) / np.maximum(mx, 1e-6)
+    lum = rgb.mean(-1)
+    cls = np.where(am, 3, np.where(lum < 0.30, 2, np.where(sat > R_BRASS_SAT, 1, 0)))
+    # 琥珀色（センサー・核）は発光の板が覆うので票にしない（全部 0 → まわりの色で埋まる）
+    oh = np.stack([(cls == k).astype(np.float32) for k in range(3)], -1)
+    return ndi.gaussian_filter(oh, (sigma, sigma, 0))
+
+
+def _vertex_votes(views: dict, V: np.ndarray, N: np.ndarray, tris: np.ndarray, spacing: float = 2.0):
+    """頂点ごとの色の票 (N,3) と、一番よい視点の向き（法線・視線）"""
+    ZS = 512
+    acc = np.zeros((len(V), 3))
+    wsum = np.zeros(len(V))
+    cbest = np.zeros(len(V))
+    for name, v in views.items():
+        if name == 'side' or name.startswith('3q'):
+            continue
+        cm = _class_maps(v, max(2.0, R_BLUR * spacing * v.sr))
+        inside = ndi.binary_erosion(v.alpha, iterations=4)
+        c, r = v.project(tris.reshape(-1, 3))
+        q2 = np.stack([c, r], -1).reshape(-1, 3, 2) * (ZS / IMG)
+        dep = (tris.reshape(-1, 3) @ v.d).reshape(-1, 3)
+        zp, zt, zb = raster(q2, ZS, ZS)
+        zbuf = np.full(ZS * ZS, -np.inf)
+        np.maximum.at(zbuf, zp, (dep[zt] * zb).sum(1))
+        near = ndi.maximum_filter(zbuf.reshape(ZS, ZS), size=3).ravel()
+        tc, tr = v.project(V)
+        ic = np.clip((tc * ZS / IMG).astype(int), 0, ZS - 1)
+        ir = np.clip((tr * ZS / IMG).astype(int), 0, ZS - 1)
+        vis = V @ v.d >= np.minimum(zbuf[ir * ZS + ic], near[ir * ZS + ic]) - 1.5
+        ci = np.clip(tc.astype(int), 0, IMG - 1)
+        ri = np.clip(tr.astype(int), 0, IMG - 1)
+        ok = vis & inside[ri, ci]
+        cosv = np.clip(N @ v.d, 0, 1) * ok
+        w = cosv ** R_VIEW_POWER
+        if name.endswith('mirror') or name == 'top':
+            w *= 0.7
+        cv = cm[ri, ci]
+        acc += w[:, None] * cv
+        wsum += w * cv.sum(1)
+        cbest = np.maximum(cbest, cosv)
+    good = (wsum > 1e-3) & (cbest >= MIN_COS * 0.9)
+    S = np.zeros((len(V), 3))
+    S[good] = acc[good] / wsum[good, None]
+    return S, good
+
+
+def _components_graph(A, mask: np.ndarray):
+    from scipy.sparse.csgraph import connected_components
+    idx = np.nonzero(mask)[0]
+    sub = A[idx][:, idx]
+    n, lab = connected_components(sub, directed=False)
+    return idx, lab, n
+
+
+def _relabel_small(A, lab: np.ndarray, k: int, V: np.ndarray, min_ext: float, keep: np.ndarray, allow=None, big: float = 0.0) -> np.ndarray:
+    """ラベル k の塊で、外接の箱の最大の辺が min_ext 未満のものを、まわりで一番多いラベルにする"""
+    idx, cl, n = _components_graph(A, lab == k)
+    if n == 0:
+        return lab
+    out = lab.copy()
+    for c in range(n):
+        m = idx[cl == c]
+        if keep[m].any():
+            continue
+        p = V[m]
+        lim = min_ext if allow is None or allow[m].any() else max(big, min_ext)
+        if (p.max(0) - p.min(0)).max() >= lim:
+            continue
+        nb = A[m].indices
+        nb = nb[lab[nb] != k]
+        if len(nb) == 0:
+            continue
+        out[m] = np.bincount(lab[nb], minlength=3).argmax()
+    return out
+
+
+def _drop_blobs(A, lab: np.ndarray, V: np.ndarray, F: np.ndarray, part: np.ndarray, band: float) -> np.ndarray:
+    """真鍮は「帯」（縁の細い線）か「部品まるごと」（角・棘）だけ。太い塊（幅 = 面積 / 長さ が band より大きく、
+    部品の R_WHOLE に満たない）は視点のずれのしみなので白磁にする"""
+    fa = 0.5 * np.linalg.norm(np.cross(V[F[:, 1]] - V[F[:, 0]], V[F[:, 2]] - V[F[:, 0]]), axis=1)
+    va = np.zeros(len(V))
+    for j in range(3):
+        np.add.at(va, F[:, j], fa / 3.0)
+    idx, cl, n = _components_graph(A, lab == 1)
+    out = lab.copy()
+    for c in range(n):
+        m = idx[cl == c]
+        p = V[m]
+        ext = (p.max(0) - p.min(0)).max()
+        pk = np.bincount(part[m]).argmax()
+        whole = len(m) >= R_WHOLE * (part == pk).sum()
+        if not whole and va[m].sum() / max(ext, 1e-6) > band:
+            out[m] = 0
+    return out
+
+
+def paint_regions(t: str, cfg, views: dict, shell_objs, joints, mats) -> dict:
+    """殻の部品を、頂点の票 → つながりで掃除 → 境の線で三角形を切る → 面ごとの材質（白磁・真鍮・黒鉛）にする"""
+    import bpy
+    H = cfg['height']
+    radius = H / 60.0
+    joint_r = cfg.get('joint_r', 0.04) * H
+    zone = cfg.get('dark_zone')
+    brass_min = cfg.get('brass_min', BRASS_MIN)
+    # 全部品の頂点と三角形（世界 cm）をまとめる（つながりは部品の中だけ）
+    Vs, Fs, P, off = [], [], [], 0
+    for k, ob in enumerate(shell_objs):
+        me = ob.data
+        me.calc_loop_triangles()
+        mw = np.array(ob.matrix_world)
+        co = np.array([v.co for v in me.vertices]).reshape(-1, 3)
+        Vs.append((co @ mw[:3, :3].T + mw[:3, 3]) * 100.0)
+        Fs.append(np.array([tt.vertices for tt in me.loop_triangles]).reshape(-1, 3) + off)
+        P.append(np.full(len(co), k))
+        off += len(co)
+    V, F, part = np.concatenate(Vs), np.concatenate(Fs), np.concatenate(P)
+    A = _adjacency(F, len(V))
+    fn = np.cross(V[F[:, 1]] - V[F[:, 0]], V[F[:, 2]] - V[F[:, 0]])
+    Nv = np.zeros_like(V)
+    for j in range(3):
+        np.add.at(Nv, F[:, j], fn)
+    Nv /= np.maximum(np.linalg.norm(Nv, axis=1, keepdims=True), 1e-9)
+    # 票に使う向きは、ならした法線（面の細かなでこぼこで、正面の点が横の絵の色を拾わないように）
+    Nv = _diffuse(A, Nv, R_NORMAL_SMOOTH)
+    Nv /= np.maximum(np.linalg.norm(Nv, axis=1, keepdims=True), 1e-9)
+    # 1. 票
+    el = np.linalg.norm(V[F[:, 1]] - V[F[:, 0]], axis=1).mean()
+    S, good = _vertex_votes(views, V, Nv, V[F], el)
+    raw_dark = S[:, 2] >= R_DARK
+    # 見えていない頂点は、つながりに沿って見えている頂点の票を広げる
+    if (~good).any():
+        known = good.copy()
+        for _ in range(60):
+            if known.all():
+                break
+            s = A @ (S * known[:, None])
+            c = A @ known.astype(float)
+            new = ~known & (c > 0)
+            S[new] = s[new] / c[new, None]
+            known |= new
+        S[~known] = (1, 0, 0)
+    # 2. 部品の規則：黒鉛は関節のまわり・部品の境・型の暗い領域だけ。関節の部品と回転軸の球は必ず黒鉛
+    from scipy.spatial import cKDTree
+    pnames = [o.name.split('.')[0] for o in shell_objs]
+    allow = np.zeros(len(V), bool)
+    if zone is not None:
+        allow |= zone(V[:, 0], V[:, 1], V[:, 2])
+    forced = np.array([n.startswith(JOINT_PARTS) for n in pnames])[part]
+    # 関節は回転軸を中心の球（半径 RJ）で黒鉛にする。境は球の面（きれいな円）。まわりの絵の暗い所（関節の円盤の
+    # 投影のずれ）は票から外す（しみにしない）
+    # 部品の継ぎ目：ほかの部品の面に近い所（距離 < RS）を黒鉛の帯にする（板と板の間の暗い隙間。境は距離の等高線）
+    RJ = R_JOINT * joint_r
+    q = np.full(len(V), np.inf)      # 関節の球・継ぎ目までの距離（半径で割った値。1 未満が黒鉛）
+    if joints is not None and len(joints):
+        q = cKDTree(joints).query(V)[0] / RJ
+    if R_SEAM > 0:
+        for k in range(len(shell_objs)):
+            m = part == k
+            if m.all():
+                continue
+            ds = cKDTree(V[~m]).query(V[m], distance_upper_bound=4 * R_SEAM * H)[0]
+            q[m] = np.minimum(q[m], ds / (R_SEAM * H))
+    forced |= q < 1.0
+    near = (q < R_JOINT_CLEAR) & ~forced
+    S[near, 0] += S[near, 2]
+    S[near, 2] = 0
+    # 3. ならして分ける
+    S0 = S.copy()
+    S = _diffuse(A, S, R_DIFFUSE)
+    zin = zone(V[:, 0], V[:, 1], V[:, 2]) if zone is not None else np.zeros(len(V), bool)
+    lab = np.where(S[:, 2] >= np.where(zin, R_DARK_ZONE, R_DARK), 2, np.where(S[:, 1] >= R_BRASS, 1, 0))
+    # 飾りの小さな部品（角・棘・ひれ・冠）は部品まるごと 1 色（票の真鍮の割合で真鍮か白磁か。閂と同じ考え）
+    whole = np.zeros(len(V), bool)
+    for k, n in enumerate(pnames):
+        if n.startswith(WHOLE_PARTS):
+            m = part == k
+            whole |= m
+            lab[m] = 1 if S0[m, 1].mean() >= R_WHOLE_BRASS else 0
+            log(f'  paint {n}: brass vote {S0[m, 1].mean():.2f} -> {"brass" if lab[m][0] == 1 else "ivory"}')
+    lw = lab.copy()
+    lab[forced] = 2
+    # 4. つながりで掃除：真鍮の帯の途切れを埋め、小さな黒鉛・真鍮の塊と小さな白磁の島を消す
+    for _ in range(R_CLOSE):
+        grow = (lab == 0) & ((A @ (lab == 1).astype(float)) >= 2)
+        lab[grow] = 1
+    for _ in range(R_CLOSE):
+        shrink = (lab == 1) & ((A @ (lab == 0).astype(float)) >= 2) & ~(S[:, 1] >= R_BRASS)
+        lab[shrink] = 0
+    lab = _relabel_small(A, lab, 2, V, R_DARK_MIN * H, forced, allow, R_DARK_BIG * H)
+    lab = _relabel_small(A, lab, 1, V, brass_min * H, np.zeros(len(V), bool))
+    lab = _drop_blobs(A, lab, V, F, part, R_BAND * H)
+    lab = _relabel_small(A, lab, 0, V, R_IVORY_MIN * H, np.zeros(len(V), bool))
+    # 多数決（自分 + 隣）を R_MAJORITY 回：ぎざぎざの 1 点の出っ張りを消す
+    for _ in range(R_MAJORITY):
+        cnt = np.stack([(A @ (lab == k).astype(float)) + (lab == k) for k in range(3)], 1)
+        new = cnt.argmax(1)
+        lab = np.where(forced, 2, np.where(cnt.max(1) > cnt[np.arange(len(lab)), lab], new, lab))
+    fix = whole & ~forced
+    lab[fix] = lw[fix]
+    if os.environ.get('BANKI_DEBUG'):
+        np.savez(os.environ["BANKI_DEBUG"], F=F, V=V, N=Nv, S=S, lab=lab, part=part, allow=allow, forced=forced, good=good)
+    # 5. 境の線：ラベルの 1 つ有りの場をならし、辺の上で 2 つのラベルの場が等しくなる所で三角形を切る
+    Fld = _diffuse(A, np.eye(3)[lab], R_CUT_SMOOTH)
+    # 関節の球の近くは、球の距離で境を決める（円の境）
+    nj = q < 2.0
+    if nj.any():
+        g = np.clip(1.5 - q[nj], 0, 1)
+        rest = Fld[nj, :2] / np.maximum(Fld[nj, :2].sum(1, keepdims=True), 1e-6)
+        Fld[nj, :2] = rest * (1 - g)[:, None]
+        Fld[nj, 2] = g
+    counts = np.bincount(lab, minlength=3)
+    mlist = [mats['ivory'], mats['brass'], mats['dark']]
+    for k, ob in enumerate(shell_objs):
+        sel = part == k
+        base = np.nonzero(sel)[0][0]
+        fk = F[part[F[:, 0]] == k]
+        verts, faces, fmat = _cut(V, fk, lab, Fld)
+        # 重なった・つぶれた三角形を先に除く（validate が面を消すと材質の番号がずれる）
+        seen, keep = set(), []
+        for i, fc in enumerate(faces):
+            key = tuple(sorted(fc))
+            if len(set(fc)) == 3 and key not in seen:
+                seen.add(key)
+                keep.append(i)
+        faces = [faces[i] for i in keep]
+        fmat = [int(fmat[i]) for i in keep]
+        mw = np.array(ob.matrix_world)
+        loc = ((np.asarray(verts) * 0.01) - mw[:3, 3]) @ np.linalg.inv(mw[:3, :3]).T
+        me = bpy.data.meshes.new(ob.data.name + '_r')
+        me.from_pydata(loc.tolist(), [], faces)
+        me.validate()
+        if len(me.polygons) != len(faces):
+            log(f'  paint {ob.name}: validate changed faces {len(faces)} -> {len(me.polygons)}')
+        for m in mlist:
+            me.materials.append(m)
+        me.polygons.foreach_set('material_index', fmat)
+        me.polygons.foreach_set('use_smooth', [True] * len(faces))
+        old = ob.data
+        nm = old.name
+        ob.data = me
+        bpy.data.meshes.remove(old)
+        me.name = nm
+    smooth_by_angle(shell_objs)
+    res = {'ivory': int(counts[0]), 'brass': int(counts[1]), 'dark': int(counts[2])}
+    log(f'  paint {t}: vertices {res}')
+    return res
+
+
+def _cut(V: np.ndarray, F: np.ndarray, lab: np.ndarray, Fld: np.ndarray):
+    """三角形を頂点のラベルの境で切る。境の点は辺ごとに 1 つ（隣の三角形と共有）。戻り値：(頂点, 面, 面の材質の番号)"""
+    vid = {}
+    verts = []
+
+    def vert(i):
+        if i not in vid:
+            vid[i] = len(verts)
+            verts.append(V[i])
+        return vid[i]
+
+    emid = {}
+
+    def edge(i, j):
+        key = (i, j) if i < j else (j, i)
+        if key not in emid:
+            a, b = key
+            la, lb = lab[a], lab[b]
+            sa = Fld[a, la] - Fld[a, lb]
+            sb = Fld[b, la] - Fld[b, lb]
+            tt = sa / (sa - sb) if (sa > 0 and sb < 0) else 0.5
+            tt = min(max(tt, 0.2), 0.8)
+            emid[key] = len(verts)
+            verts.append(V[a] * (1 - tt) + V[b] * tt)
+        return emid[key]
+    faces, fmat = [], []
+    for tri in F:
+        a, b, c = int(tri[0]), int(tri[1]), int(tri[2])
+        la, lb, lc = lab[a], lab[b], lab[c]
+        if la == lb == lc:
+            faces.append([vert(a), vert(b), vert(c)])
+            fmat.append(la)
+            continue
+        if la != lb and lb != lc and la != lc:
+            cen = len(verts)
+            verts.append((V[a] + V[b] + V[c]) / 3.0)
+            pab, pbc, pca = edge(a, b), edge(b, c), edge(c, a)
+            for q, l in (([vert(a), pab, cen, pca], la), ([vert(b), pbc, cen, pab], lb), ([vert(c), pca, cen, pbc], lc)):
+                faces += [[q[0], q[1], q[2]], [q[0], q[2], q[3]]]
+                fmat += [l, l]
+            continue
+        # 2 つが同じ：回して (x, y) が同じ、z が違う形にする
+        for (x, y, z) in ((a, b, c), (b, c, a), (c, a, b)):
+            if lab[x] == lab[y]:
+                break
+        pxz, pyz = edge(x, z), edge(y, z)
+        faces += [[vert(x), vert(y), pyz], [vert(x), pyz, pxz], [pxz, pyz, vert(z)]]
+        fmat += [lab[x], lab[x], lab[z]]
+    return np.array(verts), faces, fmat
+
+
 # ---------------------------------------------------------------- 発光の板（絵の琥珀色を形の表面へ落とす）
 
 def decal(view: View, box, objs, cell_px: float, name: str, mat, parent_ob, bright: float = 0.6):
@@ -901,7 +1278,7 @@ def build(t: str, out_glb: str) -> dict:
             continue
         raw[n] = (mm, pivot_of(specs[n][0], mask, xs, ys, zs))
     total = sum(len(mm[1]) for mm, _ in raw.values())
-    ratio = cfg['tris'] / max(total, 1)
+    ratio = cfg['tris'] * (R_TRIS if PAINT == 'region' else 1.0) / max(total, 1)
     objs = {}
     for n, ((v, f), piv) in raw.items():
         ob = new_object(n, v, f, mats['shell'], piv, axis_matrix(specs[n][1]))
@@ -937,22 +1314,14 @@ def build(t: str, out_glb: str) -> dict:
         mw = ob.matrix_world.copy()
         ob.parent = par if par is not None else root
         ob.matrix_world = mw
-    # UV と焼き
-    smart_uv(shell_objs)
-    tris, uvs, tid = mesh_world(shell_objs, ids=True)
     jn = [n for n in cfg.get('joints', []) if n in raw]
     joints = np.array([raw[n][1] for n in jn]) if jn else None
-    tex = bake(views, tris, uvs, 1024, cfg['height'] / 60.0, tid, [o.name.split('.')[0] for o in shell_objs],
-               joints, cfg.get('joint_r', 0.04) * cfg['height'], cfg['height'], cfg.get('dark_zone'), cfg.get('brass_min', BRASS_MIN))
-    from PIL import Image
-    os.makedirs(os.path.join(WORK, 'tex'), exist_ok=True)
-    tex_path = os.path.join(WORK, 'tex', f'banki_{t}.png')
-    Image.fromarray((np.clip(tex, 0, 1) * 255).astype(np.uint8)).save(tex_path)
-    img = bpy.data.images.load(tex_path)
-    nt = mats['shell'].node_tree
-    tn = nt.nodes.new('ShaderNodeTexImage')
-    tn.image = img
-    nt.links.new(tn.outputs['Color'], nt.nodes['Principled BSDF'].inputs['Base Color'])
+    if PAINT == 'region':
+        # 面ごとの平らな材質（テクスチャなし）。白磁は名前を banki_<型>_shell のままにする（Godot の被弾の光が使う）
+        mats['shell'].node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (*srgb_to_linear(IVORY), 1)
+        paint_regions(t, cfg, views, shell_objs, joints, {'ivory': mats['shell'], 'brass': mats['brass'], 'dark': mats['dark']})
+    else:
+        bake_texture(t, cfg, views, shell_objs, raw, joints, mats)
     # 発光の板
     s = scale_of(cfg)
     for name, vname, box, par, *opt in cfg['decals']:
@@ -973,9 +1342,27 @@ def build(t: str, out_glb: str) -> dict:
     return info
 
 
+def bake_texture(t, cfg, views, shell_objs, raw, joints, mats) -> None:
+    """従来の色（BANKI_PAINT=bake）：UV を開いて絵を投影で焼いたテクスチャ 1 枚"""
+    import bpy
+    smart_uv(shell_objs)
+    tris, uvs, tid = mesh_world(shell_objs, ids=True)
+    tex = bake(views, tris, uvs, 1024, cfg['height'] / 60.0, tid, [o.name.split('.')[0] for o in shell_objs],
+               joints, cfg.get('joint_r', 0.04) * cfg['height'], cfg['height'], cfg.get('dark_zone'), cfg.get('brass_min', BRASS_MIN))
+    from PIL import Image
+    os.makedirs(os.path.join(WORK, 'tex'), exist_ok=True)
+    tex_path = os.path.join(WORK, 'tex', f'banki_{t}.png')
+    Image.fromarray((np.clip(tex, 0, 1) * 255).astype(np.uint8)).save(tex_path)
+    img = bpy.data.images.load(tex_path)
+    nt = mats['shell'].node_tree
+    tn = nt.nodes.new('ShaderNodeTexImage')
+    tn.image = img
+    nt.links.new(tn.outputs['Color'], nt.nodes['Principled BSDF'].inputs['Base Color'])
+
+
 # ---------------------------------------------------------------- 確認（絵と Cycles の画像を並べる）
 
-TILE = 400
+TILE = int(os.environ.get("BANKI_TILE", 400))   # 比較の画像の 1 枚の大きさ（px）
 
 
 def review_views(t: str):
