@@ -798,6 +798,7 @@ PAINT = os.environ.get('BANKI_PAINT', 'region')
 IVORY = '#E9DFC9'        # 閂と同じ白磁（spec #F3E9D2 × 0.95）
 TAUBIN_ITERS = int(os.environ.get('BANKI_TAUBIN', 30))       # 表面のでこぼこをならす回数（Taubin：縮まない平滑化。外形はほぼ保つ）
 R_DIFFUSE = int(os.environ.get('BANKI_R_DIFFUSE', 8))           # 票（色の割合）を面のつながりに沿ってならす回数
+R_DIFFUSE_BRASS = int(os.environ.get('BANKI_R_DIFFUSE_BRASS', 3))   # 真鍮を決める票をならす回数
 R_DARK_ZONE = 0.3        # 型の暗い領域（dark_zone）の中で黒鉛にする票の割合（領域の中はむらなく埋める）
 R_DARK = 0.5             # 黒鉛にする票の割合
 R_BRASS = 0.42           # 真鍮にする票の割合
@@ -967,7 +968,7 @@ def paint_regions(t: str, cfg, views: dict, shell_objs, joints, mats) -> dict:
     radius = H / 60.0
     joint_r = cfg.get('joint_r', 0.04) * H
     zone = cfg.get('dark_zone')
-    brass_min = cfg.get('brass_min', BRASS_MIN)
+    brass_min = float(os.environ.get('BANKI_R_BRASS_MIN', 0.08))   # 真鍮の塊の最小の長さ（全高に対する比。太い塊は _drop_blobs が消すので、型ごとの brass_min より短くてよい)
     # 全部品の頂点と三角形（世界 cm）をまとめる（つながりは部品の中だけ）
     Vs, Fs, P, off = [], [], [], 0
     for k, ob in enumerate(shell_objs):
@@ -1032,9 +1033,11 @@ def paint_regions(t: str, cfg, views: dict, shell_objs, joints, mats) -> dict:
     S[near, 2] = 0
     # 3. ならして分ける
     S0 = S.copy()
+    # 真鍮の縁は細いので、ならす回数を少なくした票で決める（黒鉛・白磁は強くならした票）
+    Sb = _diffuse(A, S, R_DIFFUSE_BRASS)
     S = _diffuse(A, S, R_DIFFUSE)
     zin = zone(V[:, 0], V[:, 1], V[:, 2]) if zone is not None else np.zeros(len(V), bool)
-    lab = np.where(S[:, 2] >= np.where(zin, R_DARK_ZONE, R_DARK), 2, np.where(S[:, 1] >= R_BRASS, 1, 0))
+    lab = np.where(S[:, 2] >= np.where(zin, R_DARK_ZONE, R_DARK), 2, np.where(Sb[:, 1] >= R_BRASS, 1, 0))
     # 飾りの小さな部品（角・棘・ひれ・冠）は部品まるごと 1 色（票の真鍮の割合で真鍮か白磁か。閂と同じ考え）
     whole = np.zeros(len(V), bool)
     for k, n in enumerate(pnames):
@@ -1050,7 +1053,7 @@ def paint_regions(t: str, cfg, views: dict, shell_objs, joints, mats) -> dict:
         grow = (lab == 0) & ((A @ (lab == 1).astype(float)) >= 2)
         lab[grow] = 1
     for _ in range(R_CLOSE):
-        shrink = (lab == 1) & ((A @ (lab == 0).astype(float)) >= 2) & ~(S[:, 1] >= R_BRASS)
+        shrink = (lab == 1) & ((A @ (lab == 0).astype(float)) >= 2) & ~(Sb[:, 1] >= R_BRASS)
         lab[shrink] = 0
     lab = _relabel_small(A, lab, 2, V, R_DARK_MIN * H, forced, allow, R_DARK_BIG * H)
     lab = _relabel_small(A, lab, 1, V, brass_min * H, np.zeros(len(V), bool))
