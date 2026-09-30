@@ -558,6 +558,7 @@
         0.2
       ]
     ],
+    "texture.PAINT": "proj",
     "texture.NECK_ZONE": {
       "z": [
         1.19,

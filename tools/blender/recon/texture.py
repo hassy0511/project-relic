@@ -182,6 +182,9 @@ BLOCK_Z = CH.p('texture.BLOCK_Z', 1.15)
 EAR_SKIN = CH.p('texture.EAR_SKIN', False)
 
 AMBER_HEX = CH.p('texture.AMBER_HEX', '#FFBC52')
+# 色の塗り方：'flat' ＝ 絵は「どこが何色か」を決めるのにだけ使い、部位ごとに spec の平らな色で塗る（flat.py）。
+# 'proj' ＝ 前のやり方（絵の色を投影したまま）。環境変数 TEX_PAINT で上書きできる
+PAINT = os.environ.get('TEX_PAINT') or CH.p('texture.PAINT', 'flat')
 
 
 def log(msg: str) -> None:
@@ -1526,6 +1529,15 @@ def main() -> None:
         apron_cleanup(res)
         sole_cleanup(res)
         hair_colour_match(res)
+        if os.environ.get('TEX_DUMP'):   # 平らに塗る段（flat.py）を試すための、焼いた色の保存（調べ物用）
+            np.savez(os.path.join(TEX_DIR, 'res_cache.npz'), pix=res['pix'], tri=res['tri'], bar=res['bar'],
+                     pos=res['pos'], nrm=res['nrm'], col=res['col'], reg=res['reg'], sl=res['sl'],
+                     verts=mesh['verts'], tris=mesh['tris'], uv=mesh['uv'], sel=sel)
+        atlas_p = os.path.join(WORK, atlas_meta['atlas_file'])
+        if PAINT == 'flat':   # 部位ごとに平らな色で塗る（本文の「平らに塗る」。PAINT=proj で前のやり方）
+            from recon import flat as FL
+            res['flat'] = FL.paint_body(res, mesh)
+            atlas_p = FL.paint_face_atlas(atlas_p, atlas_meta, os.path.join(TEX_DIR, f'{CH.ID}_face_atlas_flat.png'))
         cov = np.zeros(args.size * args.size, bool)
         cov[res['pix']] = True
         cov = cov.reshape(args.size, args.size)
@@ -1548,8 +1560,7 @@ def main() -> None:
                    for n in REAL_VIEWS]
             save_png(os.path.join(TEX_DIR, 'debug_winner.png'), np.concatenate(row, 1))
         fuv = face_uv(mesh['verts'], cams, atlas_meta)
-        build_materials_and_export(obj, mesh, sel, fuv, base_p, emit_p,
-                                   os.path.join(WORK, atlas_meta['atlas_file']), args.out)
+        build_materials_and_export(obj, mesh, sel, fuv, base_p, emit_p, atlas_p, args.out)
         log(f'書き出し {args.out}（{time.time() - t0:.0f}s）')
         report = {
             'mesh': os.path.relpath(args.mesh, V.REPO), 'size': args.size,
@@ -1562,7 +1573,7 @@ def main() -> None:
             'emissive_fraction': round(float((emit.max(-1) > 0.05).mean()), 5),
             'emit_strength': EMIT_STRENGTH, 'emit_base_darken': EMIT_BASE_DARKEN,
             'art_occlusion': res.get('art_occlusion'), 'body_cleanup_texels': res.get('body_cleanup'),
-            'hair_colour': res.get('hair_colour'),
+            'hair_colour': res.get('hair_colour'), 'paint': PAINT, 'flat': res.get('flat'),
         }
     else:
         report = {}

@@ -131,7 +131,7 @@ def stages(standin: bool) -> list[Stage]:
               outputs=[f'{R}/{ID}_textured_apose.glb', f'{R}/tex/{ID}_body_base.png', f'{R}/tex/{ID}_body_emit.png'],
               inputs=[f'{mesh}.glb', f'{R}/calib.json', f'{R}/face_atlas.png', f'{R}/face_atlas.json',
                       f'{R}/face_align.json'] + SRC_FULL,
-              deps=[f'{RECON_PY}/views.py', f'{RECON_PY}/hair.py', f'{RECON_PY}/uvparts.py'],
+              deps=[f'{RECON_PY}/views.py', f'{RECON_PY}/hair.py', f'{RECON_PY}/uvparts.py', f'{RECON_PY}/flat.py'],
               note='下地の色・発光を 2048 角に焼き、顔の材質と UV を付ける（A ポーズの GLB、確認画像込みで約 5 分）'),
         Stage('joints', f'{RECON_PY}/joints.py', ['--mesh', textured, '--out', joints],
               outputs=[joints], inputs=[textured],
