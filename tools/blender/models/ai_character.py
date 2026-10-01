@@ -665,6 +665,8 @@ GRIP_B = 0.0175
 GRIP_GAP = 0.0015     # 握りの面と指の面の間（めり込まない）
 GRIP_K_BACK = 0.012   # 指の付け根は、断面の前の縁からこれだけ後ろ
 GRIP_Z_TOP, GRIP_Z_BOT = 0.010, -0.074
+GRIP_THUMB_W = 0.04   # 指の付け根から親指の側へこれより外で、付け根の近くは親指（曲げない）
+GRIP_THUMB_SIDE = -0.0235   # 親指の内側の面を置く所（銃の左右の座標。受け筒の横の面 -0.022 のすぐ外）
 HAND_END_FRAC = 0.8   # 手の骨の先（hand_end）は、手首から指先までのこの割合の所（joints.py、estimate_joints と同じ）
 
 
@@ -722,29 +724,55 @@ def grip_right_hand(body: bpy.types.Object, arm: bpy.types.Object, palm: Vector,
     wv = rel @ tv
     rad = np.linalg.norm(rel - np.outer(sv, hv), axis=1)
     fing = (w > 0.3) & (sv > 0) & (rad < 0.08)
-    q_palm = float(np.percentile(qv[fing], 92)) if fing.any() else 0.0
+    # 絵の開いた手の指は少し掌の側へ曲がっている。指の中心線の傾き（qv を sv の 1 次式で）を引いて、
+    # 中心線からの厚みの向きの位置 q_rel と、中心線に沿った長さで巻く。親指（帯の外、付け根の近く）は曲げない
+    thumb = fing & (wv > GRIP_THUMB_W) & (sv < 0.03)
+    fing &= ~thumb
+    slope, c0 = np.polyfit(sv[fing], qv[fing], 1) if fing.sum() > 10 else (0.0, 0.0)
+    q_rel = qv - (c0 + slope * sv)
+    s_len = sv * math.sqrt(1 + slope * slope)
+    q_palm = float(np.percentile(q_rel[fing], 92)) if fing.any() else 0.0
     A, B = GRIP_A + GRIP_GAP, GRIP_B + GRIP_GAP
     x0 = A - GRIP_K_BACK
     phi0 = -math.acos(max(-1.0, min(1.0, x0 / A)))
     y0 = B * math.sin(phi0)
-    centre = K + pv * q_palm - (hv * x0 + pv * y0)
+    centre = K + pv * (c0 + q_palm) - (hv * x0 + pv * y0)
     phis = np.linspace(phi0, phi0 + 2 * math.pi, 2001)
     ex, ey = A * np.cos(phis), B * np.sin(phis)
     arc = np.concatenate([[0.0], np.cumsum(np.hypot(np.diff(ex), np.diff(ey)))])
-    ph = np.interp(sv[fing], arc, phis)
+    ph = np.interp(s_len[fing], arc, phis)
     nx, ny = np.cos(ph) / A, np.sin(ph) / B
     nl = np.hypot(nx, ny)
     nx, ny = nx / nl, ny / nl
-    out = q_palm - qv[fing]
+    out = q_palm - q_rel[fing]
+    # 指の帯（人さし指〜小指）が握りの使える高さより長ければ、帯の中ほどへ寄せて縮める（小指が握りの下端を
+    # 回り込んだり、人さし指が用心金に入ったりしないように）
+    wf0 = wv[fing & (sv > 0.02)]
+    lo, hi = (np.percentile(wf0, 3), np.percentile(wf0, 97)) if len(wf0) else (0.0, 0.0)
+    w_mid = float((lo + hi) / 2)
+    squeeze = min(1.0, (GRIP_Z_TOP - GRIP_Z_BOT) / max(hi - lo, 1e-6))
+    wv_new = w_mid + (wv[fing] - w_mid) * squeeze
     co[fing] = (centre + np.outer(A * np.cos(ph) + out * nx, hv) + np.outer(B * np.sin(ph) + out * ny, pv)
-                + np.outer(wv[fing], tv))
+                + np.outer(wv_new, tv))
     # 銃の置き場所：握りの断面の中心（銃の座標 (GRIP_X_FRONT - GRIP_A, 0, z)）を、指の帯の中ほどの所へ。
     # 指の帯の高さ（wv の範囲）の中ほどを、握りの使える高さ（GRIP_Z_TOP〜GRIP_Z_BOT）の中ほどに合わせる
-    wf = wv[fing]
-    w_mid = float((np.percentile(wf, 3) + np.percentile(wf, 97)) / 2) if fing.any() else 0.0
+    wf = wf0
     z_mid = (GRIP_Z_TOP + GRIP_Z_BOT) / 2
     origin = centre + tv * w_mid - hv * (GRIP_X_FRONT - GRIP_A) - tv * z_mid
     C = origin
+    # 親指を銃の横（掌の側の面、受け筒の高さ）へ寄せて触れさせる（寄せる量は親指の内側の面と銃の横の面の間）
+    thumb_zone = (w > 0.3) & (wv > GRIP_THUMB_W - 0.01) & (sv > -0.04) & ~fing
+    if thumb.any():
+        y_in = float(np.percentile((co[thumb] - np.array(origin)) @ pv, 95))
+        shift = max(0.0, GRIP_THUMB_SIDE - y_in)
+        f = np.clip((wv - (GRIP_THUMB_W - 0.01)) / 0.015, 0, 1) * np.clip((sv + 0.04) / 0.02, 0, 1)
+        co[thumb_zone] += np.outer(f[thumb_zone] * shift, pv)
+    if os.environ.get('GRIP_DEBUG'):
+        for nm, m in (('thumb', thumb), ('fingers', fing)):
+            if m.any():
+                L = co[m] - np.array(origin)
+                print('GRIPDBG', nm, int(m.sum()), 'x', np.percentile(L @ hv, [5, 50, 95]).round(3),
+                      'y', np.percentile(L @ pv, [5, 50, 95]).round(3), 'z', np.percentile(L @ tv, [5, 50, 95]).round(3))
     if shape_key:
         if body.data.shape_keys is None:
             body.shape_key_add(name='Basis', from_mix=False)
@@ -755,7 +783,7 @@ def grip_right_hand(body: bpy.types.Object, arm: bpy.types.Object, palm: Vector,
         me.vertices.foreach_set('co', co.ravel())
     me.update()
     return {'origin': Vector(C), 'x': h, 'z': Vector(tv), 'fingers': int(fing.sum()), 'twist_deg': math.degrees(ang),
-            'q_palm': round(q_palm, 4), 'finger_band': [round(float(np.percentile(wf, 3)), 4),
+            'q_palm': round(q_palm, 4), 'band_squeeze': round(squeeze, 3), 'finger_band': [round(float(np.percentile(wf, 3)), 4),
                                                        round(float(np.percentile(wf, 97)), 4)] if fing.any() else None}
 
 
@@ -1021,7 +1049,8 @@ def main() -> None:
         if grip:
             grip_info = {'fingers_bent': grip['fingers'], 'twist_deg': round(grip['twist_deg'], 1),
                          'grip_origin': [round(c, 4) for c in grip['origin']],
-                         'q_palm': grip.get('q_palm'), 'finger_band': grip.get('finger_band')}
+                         'q_palm': grip.get('q_palm'), 'finger_band': grip.get('finger_band'),
+                         'band_squeeze': grip.get('band_squeeze')}
         add_blade(arm, blade_mat, blade)
     else:
         parts_mat, face_mat, blade_mat = HA.make_materials(tex_dir)

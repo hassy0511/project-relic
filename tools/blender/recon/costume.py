@@ -39,7 +39,7 @@ J = {
     'hand_end': (0.4, 0.0045, 0.642), 'thigh': (0.095, 0.0038, 0.715), 'shin': (0.143, 0.0247, 0.395),
     'foot': (0.15, 0.0463, 0.09),
 }
-H = 0.0055         # 殻の点の間隔（m）
+H = 0.011         # 殻の点の間隔（m）
 
 
 def hex_rgb(h: str) -> np.ndarray:
@@ -98,10 +98,17 @@ def pieces() -> list[dict]:
                       rmax=0.11))
         for sb in (-1.0, 1.0):
             P.append(dict(name=f'knee_washer{sx}{int(sb)}', bone='shin' + sx, color='graphite', frame=fr,
-                          outline=circle(sb * 0.074, -0.004, 0.02), off=0.004, thick=0.008, bevel=0.002, rmax=0.11))
+                          outline=circle(sb * 0.058, -0.004, 0.02), off=0.004, thick=0.008, bevel=0.002, rmax=0.11))
             P.append(dict(name=f'knee_bolt{sx}{int(sb)}', bone='shin' + sx, color='amber', frame=fr,
-                          outline=circle(sb * 0.074, -0.004, 0.0125, 10), off=0.004, thick=0.012, bevel=0.003,
+                          outline=circle(sb * 0.058, -0.004, 0.0125, 10), off=0.004, thick=0.016, bevel=0.003,
                           rmax=0.11))
+        # 塗りに残る膝の横の琥珀の点（絵のボルト。部品のボルトと二重になる）を消す：琥珀だけ周りの色へ
+        P.append(dict(name='knee_paint_bolts' + sx, bone='shin' + sx, color='amber', frame=fr, clear_only=True,
+                      outline=octagon(0.02, 0.14, -0.05, 0.04, 0.01), clear=['amber', 'brass'], fill='graphite', margin=0.012,
+                      rmax=0.11))
+        P.append(dict(name='knee_paint_bolts2' + sx, bone='shin' + sx, color='amber', frame=fr, clear_only=True,
+                      outline=octagon(-0.14, -0.02, -0.05, 0.04, 0.01), clear=['amber', 'brass'], fill='graphite', margin=0.012,
+                      rmax=0.11))
         # 靴のカフ（赤の帯、z 0.155〜0.205）
         fb = frame(jp('shin', side), jp('foot', side), front)
         fb['RN'] = 0.05
@@ -118,9 +125,14 @@ def pieces() -> list[dict]:
     outv = unit(np.array([-1.0, 0.0, 0.25]))
     fr = frame(sh, el, outv)
     fr['RN'] = 0.055
-    P.append(dict(name='shoulder_pad.R', bone='upper_arm.R', color='ivory', frame=fr,
-                  outline=octagon(-0.098, 0.098, -0.035, 0.094, 0.03), off=0.006, thick=0.010, bevel=0.003,
-                  under='brick', clear=['ivory'], margin=0.015, rmax=0.085, rmin=0.035))
+    # 球の座標（肩の関節の少し下を中心に、外上の向きが極）：肩の上から上腕の外・前・後ろを 1 枚で覆う
+    fsp = {'kind': 'sphere', 'a': sh + 0.03 * d, 'e0': unit(np.array([-0.86, 0.0, 0.51])),
+           'e2': np.array([0.0, 1.0, 0.0]), 'RN': 0.06}
+    fsp['e1'] = np.cross(fsp['e2'], fsp['e0'])
+    fsp['d'] = fsp['e2']
+    P.append(dict(name='shoulder_pad.R', bone='upper_arm.R', color='ivory', frame=fsp,
+                  outline=octagon(-0.056, 0.058, -0.060, 0.060, 0.024), off=0.003, thick=0.008, bevel=0.004,
+                  under='brick', clear=['ivory'], fill='brick', margin=0.025, rmax=0.12, rmin=0.03))
     P.append(dict(name='shoulder_strap.R', bone='upper_arm.R', color='graphite', frame=fr, ring=True,
                   t0=0.094, t1=0.116, off=0.003, thick=0.006, bevel=0.002, under='graphite', rmax=0.085))
     # 袖口の暗い帯（両腕、肩から腕の軸に沿って 17.7〜20.5cm）
@@ -147,7 +159,7 @@ def pieces() -> list[dict]:
                   outline=octagon(-0.016, 0.016, 0.022, Lf - 0.012, 0.006), off=0.009, thick=0.010, bevel=0.002,
                   rmax=0.07))
     P.append(dict(name='gauntlet_cell.L', bone='forearm.L', color='amber', frame=fg,
-                  outline=octagon(-0.0075, 0.0075, 0.04, Lf - 0.03, 0.004), off=0.009, thick=0.013, bevel=0.002,
+                  outline=octagon(-0.0075, 0.0075, 0.04, Lf - 0.03, 0.004), off=0.009, thick=0.016, bevel=0.002,
                   rmax=0.07))
     # 手袋のカフ（両手首）：暗い帯
     for side, sx in ((1.0, '.L'), (-1.0, '.R')):
@@ -164,7 +176,7 @@ def pieces() -> list[dict]:
     fw['RN'] = 0.15
     P.append(dict(name='belt', bone='hips', color='graphite', frame=fw, ring=True,
                   t0=(0.812, 0.822), t1=(0.856, 0.872), off=0.003, thick=0.006, bevel=0.002, under=None,
-                  clear=['graphite', 'brass'], margin=0.010, rmax=0.22, n_ring=160))
+                  clear=['graphite', 'brass'], margin=0.010, rmax=0.22, n_ring=120))
     # バックル：真鍮の枠（外 7.0 × 5.8cm）、中に帯の暗い色（板を上に重ねる）
     P.append(dict(name='buckle', bone='hips', color='brass', frame=fw,
                   outline=octagon(-0.035, 0.035, 0.806, 0.864, 0.006), off=0.010, thick=0.005, bevel=0.0015,
@@ -179,7 +191,7 @@ def pieces() -> list[dict]:
     P.append(dict(name='back_plate', bone='chest', color='ivory',
                   frame=dict(frame((0.0, 0.02, 0.0), (0.0, 0.02, 1.0), (0.0, 1.0, 0.0)), RN=0.12),
                   outline=octagon(-0.056, 0.056, 1.037, 1.113, 0.008), off=0.004, thick=0.007, bevel=0.002,
-                  under='brick', clear=['ivory'], margin=0.010, rmax=0.2))
+                  under='brick', clear=['ivory'], fill='brick', margin=0.010, rmax=0.2))
     # 右の太ももの板：太ももの軸（股 → 膝）、前外の向き。z 0.755〜0.55（絵の正面・真横・背面）
     t, k = jp('thigh', -1.0), jp('shin', -1.0)
     ft = frame(t, k, unit(np.array([-0.8, -0.6, 0.0])))
@@ -187,7 +199,8 @@ def pieces() -> list[dict]:
     dz = -ft['d'][2]
     P.append(dict(name='thigh_panel.R', bone='thigh.R', color='ivory', frame=ft,
                   outline=octagon(-0.075, 0.070, (t[2] - 0.758) / dz, (t[2] - 0.548) / dz, 0.010), off=0.007,
-                  thick=0.009, bevel=0.003, under='brick', clear=['ivory'], margin=0.02, rmax=0.15))
+                  thick=0.009, bevel=0.003, under='brick', clear=['ivory'], fill='brick', margin=0.02,
+                  rmax=0.15))
     # ポーチ（帯の下、腰の横）：箱。縦の軸のまわりの角度（度、0 = 正面、+ = 本人の左）、高さ
     for name, ang, zc, size in (('pouch.R', -72.0, 0.79, (0.052, 0.030, 0.090)),
                                 ('pouch.L', 88.0, 0.795, (0.055, 0.030, 0.085))):
@@ -234,6 +247,11 @@ def t_range(spec: dict, s: np.ndarray, which: str) -> np.ndarray:
 def param_of(spec: dict, pos: np.ndarray):
     fr = spec['frame']
     rel = pos - fr['a']
+    if fr.get('kind') == 'sphere':
+        r = np.linalg.norm(rel, axis=1)
+        b = np.arcsin(np.clip((rel @ fr['e2']) / np.maximum(r, 1e-9), -1, 1))
+        a = np.arctan2(rel @ fr['e1'], rel @ fr['e0'])
+        return a * fr['RN'], b * fr['RN'], r
     t = rel @ fr['d']
     x, y = rel @ fr['e0'], rel @ fr['e1']
     th = np.arctan2(y, x)
@@ -241,6 +259,11 @@ def param_of(spec: dict, pos: np.ndarray):
 
 
 def ray_dirs(fr: dict, s: np.ndarray, t: np.ndarray):
+    if fr.get('kind') == 'sphere':   # 経度 a（e0 → e1）、緯度 b（e2 の向き）
+        a, b = s / fr['RN'], t / fr['RN']
+        dirs = (np.outer(np.cos(a) * np.cos(b), fr['e0']) + np.outer(np.sin(a) * np.cos(b), fr['e1'])
+                + np.outer(np.sin(b), fr['e2']))
+        return np.repeat(fr['a'][None], len(s), 0), dirs
     th = s / fr['RN']
     org = fr['a'] + np.outer(t, fr['d'])
     dirs = np.outer(np.cos(th), fr['e0']) + np.outer(np.sin(th), fr['e1'])
@@ -290,9 +313,11 @@ def tri_edges(F: np.ndarray) -> np.ndarray:
 
 
 def sample_patch(spec: dict):
-    """凸の輪郭の中の (s, t) の点と三角形。最初の nb 個が輪郭の上（反時計回り）"""
+    """凸の輪郭の中の (s, t) の点と三角形。最初の nb 個が輪郭の上（反時計回り）。
+    点の間隔は H か、小さい部品（ボルト・レールの芯）では短い辺の 1/4"""
     from scipy.spatial import Delaunay
     poly = np.array(spec['outline'], float)
+    H = min(globals()['H'], float((poly.max(0) - poly.min(0)).min()) / 4)
     bnd = []
     for i in range(len(poly)):
         a, b = poly[i], poly[(i + 1) % len(poly)]
@@ -323,7 +348,7 @@ def sample_ring(spec: dict):
     th = np.where(th > math.pi, th - 2 * math.pi, th)
     s = th * fr['RN']
     t0, t1 = t_range(spec, s, 't0'), t_range(spec, s, 't1')
-    m = max(2, int(math.ceil(float(np.max(t1 - t0)) / H)) + 1)
+    m = max(3, int(math.ceil(float(np.max(t1 - t0)) / H)) + 1)
     f = np.linspace(0, 1, m)
     S = np.repeat(s[None, :], m, 0)
     T = t0[None, :] + (t1 - t0)[None, :] * f[:, None]
@@ -343,8 +368,18 @@ def build_shell(spec: dict, bvh) -> tuple[np.ndarray, np.ndarray, dict]:
     pts, tri, loops = sample_ring(spec) if spec.get('ring') else sample_patch(spec)
     org, dirs = ray_dirs(fr, pts[:, 0], pts[:, 1])
     r = cast(bvh, org, dirs, spec.get('rmax', 0.2))
-    r = smooth_r(r, tri_edges(tri))
-    r = np.clip(r, spec.get('rmin', 0.0), spec.get('rmax', 1.0))
+    edges = tri_edges(tri)
+    r = smooth_r(r, edges, 0)
+    raw = np.clip(r, spec.get('rmin', 0.0), spec.get('rmax', 1.0))
+    # 包む面：近所の最大（2 輪）→ なめらかに → 元の半径より内へは入れない（体の凸凹が板を突き抜けない）
+    env = raw.copy()
+    for _ in range(2):
+        m = env.copy()
+        np.maximum.at(m, edges[:, 0], env[edges[:, 1]])
+        np.maximum.at(m, edges[:, 1], env[edges[:, 0]])
+        env = m
+    env = smooth_r(env, edges, 4)
+    r = np.maximum(env, raw)
     n = len(pts)
     bmask = np.zeros(n, bool)
     for lp in loops:
@@ -417,6 +452,8 @@ def build_all(verts: np.ndarray, tris: np.ndarray, out_npz: str | None = None) -
     report = {}
     off = 0
     for spec in pieces():
+        if spec.get('clear_only'):   # 塗りだけを直す範囲（形は作らない）
+            continue
         V, F, _ = build_box(spec, bvh) if spec.get('box') else build_shell(spec, bvh)
         if spec['bone'] not in bones:
             bones.append(spec['bone'])
@@ -487,11 +524,15 @@ def cover_body(pos: np.ndarray, col: np.ndarray, verts: np.ndarray, tris: np.nda
             band = ok & (dist < spec.get('margin', 0.0))
         if spec.get('under'):
             under[ins] = NAMES.index(spec['under'])
-        elif spec.get('clear'):
+        elif spec.get('clear') and not spec.get('clear_only'):
             under[ins & (under == -1)] = -2
         if spec.get('clear'):
             cl = np.isin(lab, [NAMES.index(c) for c in spec['clear']])
-            clear |= band & cl
+            if spec.get('fill'):      # 決まった色で埋める（近い色の写しだと放射状の筋になる所）
+                fm = band & cl & (under < 0)
+                under[fm] = NAMES.index(spec['fill'])
+            else:
+                clear |= band & cl
         stats[spec['name']] = int(ins.sum())
     fixed = under >= 0
     col[fixed] = pal[under[fixed]]

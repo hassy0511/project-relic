@@ -45,7 +45,7 @@ def aim(S) -> None:
     """撃つ姿勢：右の上腕を正面（-Y）へ水平に向け、肘を伸ばす（haru_pose.gd の照準の重み 1）"""
     import bpy
     from mathutils import Matrix, Vector
-    S.pose('idle', 1)
+    S.rest()   # 動作を外した基準の姿勢から（動作が付いていると、骨の行列の書き換えが上書きされる）
     arm = S.arm
     mw = arm.matrix_world
 

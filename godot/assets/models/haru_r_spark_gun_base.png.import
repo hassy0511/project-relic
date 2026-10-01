@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bgdardm8w65k3"
-path="res://.godot/imported/haru_r_spark_gun_base.jpg-846780e990817b8c3ffd7d472fa5d9ab.ctex"
+uid="uid://68hsrwb2c6an"
+path="res://.godot/imported/haru_r_spark_gun_base.png-ef357912638651975b92f5b0296c482e.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "51301f2763fd84822b375b77e27b1d0c"
+"md5": "96c733b97bbe5d4ce59aef1594277237"
 }
 
 [deps]
 
-source_file="res://assets/models/haru_r_spark_gun_base.jpg"
-dest_files=["res://.godot/imported/haru_r_spark_gun_base.jpg-846780e990817b8c3ffd7d472fa5d9ab.ctex"]
+source_file="res://assets/models/haru_r_spark_gun_base.png"
+dest_files=["res://.godot/imported/haru_r_spark_gun_base.png-ef357912638651975b92f5b0296c482e.ctex"]
 
 [params]
 
