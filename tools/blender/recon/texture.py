@@ -185,6 +185,8 @@ AMBER_HEX = CH.p('texture.AMBER_HEX', '#FFBC52')
 # 色の塗り方：'flat' ＝ 絵は「どこが何色か」を決めるのにだけ使い、部位ごとに spec の平らな色で塗る（flat.py）。
 # 'proj' ＝ 前のやり方（絵の色を投影したまま）。環境変数 TEX_PAINT で上書きできる
 PAINT = os.environ.get('TEX_PAINT') or CH.p('texture.PAINT', 'flat')
+# 平らに塗るとき、体の陰の凸凹を減らすために法線をなめらかにする回数（0 で元のまま。環境変数 TEX_NORMAL_SMOOTH で上書き）
+BODY_NORMAL_SMOOTH = int(os.environ.get('TEX_NORMAL_SMOOTH') or CH.p('texture.BODY_NORMAL_SMOOTH', 3))
 
 
 def log(msg: str) -> None:
@@ -1262,6 +1264,20 @@ def build_materials_and_export(obj, mesh: dict, sel: np.ndarray, fuv: np.ndarray
     me.polygons.foreach_set('material_index', mi)
     me.polygons.foreach_set('use_smooth', np.ones(len(me.polygons), bool))
     me.update()
+    if PAINT == 'flat' and BODY_NORMAL_SMOOTH > 0:
+        # 体（頭・手より下の服）の陰の凸凹を減らす：法線だけを近所となめらかにする（形・外形は動かさない）。
+        # 頭・顔・手（指）は元の法線のまま。境目は 1 頂点ずつ混ぜない（部位の境は服の継ぎ目で、法線はほぼ同じ）
+        from recon import uvparts
+        vn0 = smooth_normals(mesh['verts'], mesh['tris'])
+        vns = smooth_normals(mesh['verts'], mesh['tris'], BODY_NORMAL_SMOOTH)
+        rv = uvparts.region_of_point(mesh['verts'], HEAD_Z)
+        keep = np.isin(rv, (0, 4, 5))[:, None]
+        vn = np.where(keep, vn0, vns)
+        ln = np.zeros((len(me.loops), 3))
+        ln[mesh['loops'].ravel()] = vn[mesh['tris'].ravel()]
+        me.normals_split_custom_set(ln.tolist())
+        me.update()
+        log(f'体の法線をなめらかに（{BODY_NORMAL_SMOOTH} 回、頭・手は除く）')
     bpy.ops.object.select_all(action='DESELECT')
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj

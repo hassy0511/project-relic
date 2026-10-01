@@ -45,7 +45,7 @@ SS = 4                # 多角形を塗る細かさ（絵の画素の何分の 1
 MODE_SIGMA = 1.5      # 2D の多数決のぼかし（画素）
 PRE_SIGMA = 1.0       # 輪郭を取る前のなめらかさ（画素）
 POLY_TOL = 1.2        # 輪郭の間引きの許し（画素。これより小さいゆらぎは直線に）
-MIN_PX = CH.p('flat_views.MIN_PX', {'default': 90, 'brass': 12, 'amber': 12})   # これより小さな塊（画素）は周りへ
+MIN_PX = CH.p('flat_views.MIN_PX', {'default': 200, 'brass': 12, 'amber': 12})   # これより小さな塊（画素）は周りへ
 L_WEIGHT = 0.3
 # 部位の決まり
 SKIN_NECK = CH.p('flat_views.SKIN_NECK', {'z_min': 1.10, 'x': 0.07})      # 胴の肌は首の前・後ろのここだけ
@@ -60,11 +60,12 @@ BRASS_TORSO_X = CH.p('flat_views.BRASS_TORSO_X', 0.035)
 #   脚：ズボンの裾 hem より下に赤なし、上に茶・琥珀なし。靴のカフ cuff は赤の輪。靴底（前 sole_front・後ろ sole_back より下）は
 #       グラファイトの輪、靴の甲（靴底とカフの間）にグラファイトなし
 #   袖：肩から腕の軸に沿って cuff の間はグラファイトの輪（袖口）、手前に肌なし、先に赤なし
+#       袖口の先 forearm_skin は肌の輪。右腕は手袋の手前 forearm_skin_right まで肌（グラファイト・アイボリーなし）
 #   手：手首の関節から手の向きに fingers より先は肌（指。指の出る手袋）、palm より手前（手首から）は肌なし
 RINGS = CH.p('flat_views.RINGS', {
     'belt_front': (0.812, 0.856), 'belt_back': (0.822, 0.872), 'belt_margin': 0.02, 'pouch_x': 0.10,
     'hem': 0.474, 'boot_cuff': (0.155, 0.205), 'sole_front': 0.032, 'sole_back': 0.054,
-    'sleeve_cuff': (0.177, 0.205),
+    'sleeve_cuff': (0.177, 0.205), 'forearm_skin': (0.205, 0.24), 'forearm_skin_right': 0.37,
     'wrist': (0.335, 0.0302, 0.755), 'hand_end': (0.4, 0.0045, 0.642), 'fingers': 0.14, 'palm': (-0.02, 0.12),
     'aa': 0.003})
 
@@ -311,7 +312,8 @@ def paint(res: dict, mesh: dict, cams: dict, names: list[str], pal: np.ndarray, 
         stats[view]['texels'] = int(take.sum())
         log(f'{view}：見えて向いている {int(ok.sum()):,}（{time.time() - t0:.0f}s）')
     # 絵の切り替わりの所（2 枚の絵がほぼ同じだけ向いている）は、細い幅だけ 2 枚を混ぜる（切り替わりの線のアンチエイリアス）
-    wsw = np.clip((best - best2) / SEAM + 0.5, 0, 1)[:, None]
+    with np.errstate(invalid='ignore'):
+        wsw = np.clip((best - best2) / SEAM + 0.5, 0, 1)[:, None]
     wsw[~np.isfinite(best2)] = 1.0
     cov = wsw * cov + (1 - wsw) * cov2
     covw = wsw * covw + (1 - wsw) * covw2
@@ -370,6 +372,9 @@ def paint(res: dict, mesh: dict, cams: dict, names: list[str], pal: np.ndarray, 
     fb('brass', np.isin(rg, (1, 6, 7)) & ~((rg == 1) & (np.abs(p[:, 0]) < BRASS_TORSO_X)))
     fb('brick', arms * below(-sa, -SLEEVE_S))                     # 袖口より先の腕に赤なし（背面の絵の陰の肌）
     fb('skin', arms * below(sa, R['sleeve_cuff'][0] + aa / 2))     # 袖の中に肌なし
+    right_forearm = arms * (p[:, 0] < 0) * below(-sa, -R['forearm_skin'][1]) * below(sa, R['forearm_skin_right'])
+    for k in ('graphite', 'ivory', 'brass', 'amber'):
+        fb(k, right_forearm)
     fb('brick', legs * below(z, R['hem']))                         # 裾より下に赤なし
     fb('umber', legs * below(-z, -R['hem']))                       # 裾より上に茶・琥珀なし
     fb('amber', legs * below(-z, -R['hem']))
@@ -409,6 +414,7 @@ def paint(res: dict, mesh: dict, cams: dict, names: list[str], pal: np.ndarray, 
         'belt': force(belt_zone, band(z, blo, bhi), ix['graphite'], keep=ix['brass']),
         'boot_cuff': force(legs, band(z, *R['boot_cuff']), ix['brick']),
         'sleeve_cuff': force(arms, band(sa, *R['sleeve_cuff']), ix['graphite']),
+        'forearm_skin': force(arms, band(sa, *R['forearm_skin']), ix['skin']),
         'fingers': force(hands, band(uh, R['fingers'], 9.0), ix['skin']),
         'sole': force(legs, band(z, -1.0, sole), ix['graphite']),
     }
