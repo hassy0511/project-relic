@@ -1,8 +1,9 @@
 // 確認ページ（tools/model_viewer/index.html、model-viewer）でモデルを開き、決まった格子の方向から撮って並べる。
 // ユーザーが見るのと同じ画面（同じページ・同じ光・GLB をそのまま読む）で、仕上げの報告の前に全部の方向を見るためのもの。
 //
-//   node tools/blender/recon/audit_viewer.mjs [--glb godot/assets/models/haru_r.glb] [--out docs/art_orders/haru_r_trial]
+//   node tools/blender/recon/audit_viewer.mjs [--model haru_r] [--glb godot/assets/models/haru_r.glb] [--out docs/art_orders/haru_r_trial]
 //        [--work build/audit] [--zones full,head,torso,hips,legs] [--anim idle] [--time 0] [--prefix audit]
+//        [--height 1.55] [--head-y 1.36]   （バートン：--model burton --head-y 1.43）
 //
 // 格子（固定。比べられるように変えない）：
 //   full（全身）：方位 8 つ（0 = 正面から 45 度ずつ、+ = 本人の左へ回る）× 高さ 3 つ（下から・水平・上から）
@@ -20,9 +21,21 @@ const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, arr) =>
   if (a.startsWith('--')) acc.push([a.slice(2), arr[i + 1]]);
   return acc;
 }, []));
-const GLB = path.resolve(REPO, args.glb || 'godot/assets/models/haru_r.glb');
-const OUT = path.resolve(REPO, args.out || 'docs/art_orders/haru_r_trial');
-const WORK = path.resolve(REPO, args.work || 'build/audit');
+// --model <名前>：GLB（godot/assets/models/<名前>.glb）・出力（docs/art_orders/<名前>_trial）・作業（build/audit_<名前>）の既定と、
+// 身長（chars/*.json の out_glb がこの名前の設定の height_m）を決める。区域の高さ・距離は身長 1.55m で決めた値を身長の比で伸ばす
+const MODEL = args.model || 'haru_r';
+const GLB = path.resolve(REPO, args.glb || `godot/assets/models/${MODEL}.glb`);
+const OUT = path.resolve(REPO, args.out || `docs/art_orders/${MODEL}_trial`);
+const WORK = path.resolve(REPO, args.work || (MODEL === 'haru_r' ? 'build/audit' : `build/audit_${MODEL}`));
+let HEIGHT = parseFloat(args.height || '0');
+if (!HEIGHT) {
+  const cdir = path.join(REPO, 'tools/blender/recon/chars');
+  for (const f of fs.readdirSync(cdir).filter((x) => x.endsWith('.json'))) {
+    const c = JSON.parse(fs.readFileSync(path.join(cdir, f), 'utf8'));
+    if (path.basename(c.out_glb || '', '.glb') === path.basename(GLB, '.glb')) HEIGHT = c.height_m || 1.55;
+  }
+}
+const HS = (HEIGHT || 1.55) / 1.55;
 const ANIM = args.anim || 'idle';
 // 動作の始め（idle の 0〜0.05 秒）では別の動作（攻撃）の姿勢が写った（8 回目、確認ページの model-viewer）。既定は 0.5 秒
 const TIME = parseFloat(args.time || '0.5');
@@ -41,6 +54,9 @@ const ZONES = {
   hips: { y: 0.66, dist: 1.25, fov: 30, el: [['level', 88], ['above', 62]] },
   legs: { y: 0.27, dist: 1.35, fov: 30, el: [['level', 88], ['above', 62]] },
 };
+// 頭の高さはキャラクターごと（--head-y、身長 1.55m の座標の m。バートンは頭が小さく高い：1.43）
+if (args['head-y']) ZONES.head.y = parseFloat(args['head-y']);
+for (const z of Object.values(ZONES)) { z.y *= HS; z.dist *= HS; }
 const zones = (args.zones || 'full,head,torso,hips,legs').split(',');
 const AZ_NAME = { 0: 'front', 45: 'front-left', 90: 'left', 135: 'back-left', 180: 'back', 225: 'back-right',
   270: 'right', 315: 'front-right' };

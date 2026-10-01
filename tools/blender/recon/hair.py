@@ -343,6 +343,9 @@ def skin_stack(cams: dict[str, V.Cam], masks: dict[str, np.ndarray]) -> Stack:
     half = (hi_f - lo_f) / 2
     kz = list(SKIN['jaw_z'])
     ka = [float(np.interp(z, zs, np.where(np.isfinite(half), half, np.nan))) for z in kz]
+    if SKIN.get('jaw_ka'):
+        # 絵の肌の幅を使わず、節の値を使う（バートン：あごの横に立ち襟の陰の生成りが肌の色に入り、あごが襟の幅になった）
+        ka = list(SKIN['jaw_ka'])
     kz_all = [SKIN['zs'][0]] + kz + list(SKIN['ka_z'])
     ka_all = [0.0] + ka + list(SKIN['ka'])
     nj = len(kz) + 2

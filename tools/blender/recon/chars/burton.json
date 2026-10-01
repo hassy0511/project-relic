@@ -1,0 +1,786 @@
+{
+ "id": "burton",
+ "name": "バートン",
+ "art": {
+  "ref": "origin/art/w2-townsfolk",
+  "dir": "art/concepts/W2_townsfolk"
+ },
+ "work": "build/burton",
+ "height_m": 1.9,
+ "recon_height_m": 1.55,
+ "out_glb": "godot/assets/models/burton.glb",
+ "views": {
+  "front": {
+   "file": "burton_3d_front.png",
+   "azimuth": 0.0
+  },
+  "back": {
+   "file": "burton_3d_back.png",
+   "azimuth": 180.0
+  },
+  "side_right": {
+   "file": "burton_3d_side_right.png",
+   "azimuth": 90.0
+  },
+  "three_quarter": {
+   "file": "burton_3d_front_right45.png",
+   "azimuth": 45.0
+  },
+  "side_left": {
+   "file": "burton_3d_side_left_mirror.png",
+   "azimuth": -90.0
+  },
+  "front_right45": {
+   "file": "burton_3d_front_right45.png",
+   "azimuth": 45.0
+  },
+  "front_left45": {
+   "file": "burton_3d_front_left45_mirror.png",
+   "azimuth": -45.0
+  }
+ },
+ "_views_note": "左の真横・左前 45 度は無い（左右対称）。右の絵を左右反転して src に置く（burton_*_mirror.png、着手時に作る）",
+ "shape_views": [
+  "front",
+  "back",
+  "side_right",
+  "three_quarter",
+  "side_left",
+  "front_right45",
+  "front_left45"
+ ],
+ "texture_only_views": [],
+ "source_files": [
+  "burton_3d_front.png",
+  "burton_3d_back.png",
+  "burton_3d_side_right.png",
+  "burton_3d_front_right45.png",
+  "burton_3d_side_right_noarms.png",
+  "burton_face_front.png",
+  "burton_face_expressions.png",
+  "burton_head_side_right.png",
+  "burton_head_back.png",
+  "burton_head_top.png",
+  "burton_head_front_right45.png",
+  "burton_neck.png",
+  "burton_hands.png",
+  "burton_shoes.png",
+  "spec_townsfolk_3d.md",
+  "spec.md"
+ ],
+ "face": {
+  "file": "burton_face_front.png",
+  "expressions_file": "burton_face_expressions.png",
+  "expressions": [
+   "normal",
+   "smile",
+   "surprised",
+   "angry"
+  ]
+ },
+ "rig_args": [
+  "--rest-arm-deg",
+  "12",
+  "--fill-unweighted",
+  "0.2",
+  "--no-weapon",
+  "--hand-part",
+  "--costume"
+ ],
+ "costume": true,
+ "stages_skip": [
+  "gun"
+ ],
+ "params": {
+  "review.COMPARE_VIEWS": [
+   "front",
+   "back",
+   "side_right",
+   "front_right45"
+  ],
+  "texture.VIEW_GAIN": {
+   "front": 1.0,
+   "back": 1.0,
+   "side_right": 0.9,
+   "side_right_noarms": 1.0,
+   "side_left": 0.95,
+   "front_right45": 0.95,
+   "front_left45": 0.95,
+   "three_quarter": 0.9
+  },
+  "carve.HEAD_Z": 1.325,
+  "carve.HAND_REGION": [
+   0.36,
+   0.78
+  ],
+  "fair.HEAD_Z": [
+   1.31,
+   1.35
+  ],
+  "fair.BODY_TOP": 1.338,
+  "fair.HEAD_CLOSE_Z": 1.33,
+  "fair.THROAT_CUT": {
+   "z": [
+    1.24,
+    1.27,
+    1.29,
+    1.31,
+    1.37
+   ],
+   "y": [
+    -0.11,
+    -0.075,
+    -0.06,
+    -0.055,
+    -0.055
+   ]
+  },
+  "fair.LEG_Z": [
+   0.64,
+   0.69
+  ],
+  "fair.HAND_ROWS": [
+   0.57,
+   0.77
+  ],
+  "snap.FREEZE_Z": [
+   1.33,
+   1.36
+  ],
+  "snap.ARM_Z": [
+   0.58,
+   0.97
+  ],
+  "snap.ARM_BLEND_Z": [
+   0.95,
+   1.03
+  ],
+  "snap.LEFT_ARM_GAIN": 0.8,
+  "uvparts.HAND_X": 0.39,
+  "uvparts.CUT_Z": {
+   "legs": 0.7,
+   "torso": 0.8,
+   "arm": 0.975,
+   "leg": 0.4
+  },
+  "uvparts.ARM_GAP": [
+   [
+    0.5,
+    0.7,
+    0.8,
+    0.9,
+    1.0,
+    1.15,
+    1.3
+   ],
+   [
+    0.33,
+    0.31,
+    0.265,
+    0.235,
+    0.2,
+    0.215,
+    0.24
+   ]
+  ],
+  "joints.ART_XZ": {
+   "hips": [
+    [
+     0.0,
+     0.78
+    ],
+    "torso"
+   ],
+   "spine": [
+    [
+     0.0,
+     0.9
+    ],
+    "torso"
+   ],
+   "chest": [
+    [
+     0.0,
+     1.05
+    ],
+    "torso"
+   ],
+   "neck": [
+    [
+     0.0,
+     1.25
+    ],
+    "torso"
+   ],
+   "head": [
+    [
+     0.0,
+     1.315
+    ],
+    "torso"
+   ],
+   "shoulder": [
+    [
+     0.05,
+     1.21
+    ],
+    "torso"
+   ],
+   "upper_arm": [
+    [
+     0.215,
+     1.19
+    ],
+    "mid"
+   ],
+   "forearm": [
+    [
+     0.33,
+     0.975
+    ],
+    "mid"
+   ],
+   "hand": [
+    [
+     0.4,
+     0.765
+    ],
+    "mid"
+   ],
+   "hand_end": [
+    [
+     0.42,
+     0.635
+    ],
+    "mid"
+   ],
+   "thigh": [
+    [
+     0.11,
+     0.73
+    ],
+    "mid"
+   ],
+   "shin": [
+    [
+     0.16,
+     0.4
+    ],
+    "mid"
+   ],
+   "foot": [
+    [
+     0.18,
+     0.1
+    ],
+    "shaft"
+   ]
+  },
+  "joints.SHAFT_Z": 0.16,
+  "joints.BLADE_XZ": null,
+  "hair.HEAD_C": [
+   0.0,
+   0.0,
+   1.43
+  ],
+  "hair.Z_FIT": 1.345,
+  "hair.HAIRLINE": {
+   "y_face": 0.02,
+   "x": [
+    0.0,
+    0.04,
+    0.06,
+    0.075,
+    0.085,
+    0.095,
+    0.2
+   ],
+   "z": [
+    1.47,
+    1.465,
+    1.455,
+    1.44,
+    1.41,
+    1.385,
+    1.385
+   ]
+  },
+  "hair.PARTS": {
+   "goggles": false,
+   "strap": false,
+   "bangs": false,
+   "ears": true
+  },
+  "hair.EAR": {
+   "c": [
+    0.097,
+    0.04,
+    1.395
+   ],
+   "r": [
+    0.008,
+    0.02,
+    0.032
+   ],
+   "yaw_deg": 15.0,
+   "root_c": [
+    0.085,
+    0.035,
+    1.395
+   ],
+   "root_r": [
+    0.012,
+    0.015,
+    0.022
+   ]
+  },
+  "hair.SKIN": {
+   "zs": [
+    1.32,
+    1.51
+   ],
+   "jaw_z": [
+    1.326,
+    1.332,
+    1.338,
+    1.344,
+    1.35,
+    1.356,
+    1.362
+   ],
+   "ka_z": [
+    1.37,
+    1.38,
+    1.4,
+    1.42,
+    1.44,
+    1.46,
+    1.48,
+    1.495,
+    1.505,
+    1.51
+   ],
+   "ka": [
+    0.086,
+    0.088,
+    0.09,
+    0.09,
+    0.088,
+    0.083,
+    0.072,
+    0.055,
+    0.035,
+    0.0
+   ],
+   "front_z": [
+    1.322,
+    1.328,
+    1.335,
+    1.345,
+    1.36,
+    1.38,
+    1.4,
+    1.42,
+    1.44,
+    1.46,
+    1.48,
+    1.495,
+    1.505,
+    1.51
+   ],
+   "front_y": [
+    -0.05,
+    -0.075,
+    -0.095,
+    -0.104,
+    -0.108,
+    -0.11,
+    -0.112,
+    -0.114,
+    -0.11,
+    -0.1,
+    -0.085,
+    -0.065,
+    -0.04,
+    -0.01
+   ],
+   "back_z": [
+    1.32,
+    1.34,
+    1.36,
+    1.38,
+    1.4,
+    1.43,
+    1.46,
+    1.48,
+    1.495,
+    1.505,
+    1.51
+   ],
+   "back_y": [
+    0.03,
+    0.05,
+    0.07,
+    0.085,
+    0.095,
+    0.1,
+    0.095,
+    0.08,
+    0.06,
+    0.035,
+    0.0
+   ],
+   "nf_z": [
+    1.32,
+    1.35,
+    1.38,
+    1.42
+   ],
+   "nf": [
+    2.0,
+    2.1,
+    2.3,
+    2.6
+   ],
+   "side_rows": [
+    1.33,
+    1.44
+   ],
+   "cx_z": [
+    1.34,
+    1.38
+   ],
+   "nose": [
+    [
+     -0.118,
+     1.385
+    ],
+    [
+     0.008,
+     0.012,
+     0.018
+    ]
+   ],
+   "jaw_ka": [
+    0.032,
+    0.046,
+    0.056,
+    0.063,
+    0.069,
+    0.074,
+    0.079
+   ]
+  },
+  "hair.CAP": {
+   "zs": [
+    1.33,
+    1.565
+   ],
+   "nape": [
+    1.345,
+    1.37
+   ],
+   "cx_z": [
+    1.42,
+    1.52
+   ],
+   "n_zmin": 1.36,
+   "fringe_ramp": [
+    1.44,
+    1.47
+   ],
+   "fringe_ztop": 1.5,
+   "undercut": {
+    "z": [
+     1.4,
+     1.45
+    ],
+    "margin": 0.006
+   }
+  },
+  "hair.NECK": {
+   "r": [
+    0.052,
+    0.052
+   ],
+   "cy": 0.01,
+   "z": [
+    1.2,
+    1.36
+   ]
+  },
+  "hair.LOCK_WHORL": [
+   0.0,
+   0.42,
+   0.9
+  ],
+  "hair.LOCK_RINGS": [
+   [
+    36,
+    7,
+    48,
+    0.022,
+    0.05,
+    0.5
+   ],
+   [
+    66,
+    9,
+    44,
+    0.02,
+    0.05,
+    0.0
+   ],
+   [
+    96,
+    10,
+    36,
+    0.016,
+    0.045,
+    0.5
+   ]
+  ],
+  "hair.LOCK_TABLE": [
+   [
+    [
+     0.01,
+     -0.03,
+     1.5
+    ],
+    [
+     0.03,
+     -0.06,
+     1.555
+    ],
+    0.03,
+    0.05
+   ],
+   [
+    [
+     -0.03,
+     -0.02,
+     1.5
+    ],
+    [
+     -0.07,
+     -0.07,
+     1.52
+    ],
+    0.025,
+    0.045
+   ],
+   [
+    [
+     0.04,
+     -0.01,
+     1.5
+    ],
+    [
+     0.08,
+     -0.06,
+     1.52
+    ],
+    0.025,
+    0.045
+   ],
+   [
+    [
+     0.0,
+     0.06,
+     1.49
+    ],
+    [
+     0.0,
+     0.14,
+     1.47
+    ],
+    0.025,
+    0.05
+   ]
+  ],
+  "hair.LOCK_LIFT_MAX": 0.06,
+  "hair.LOCK_WIDTH_MAX": 0.06,
+  "face.FACE_FEATURES_RECT": [
+   600,
+   430,
+   1440,
+   1400
+  ],
+  "face.FACE_HEAD_RECT": [
+   580,
+   400,
+   1460,
+   1420
+  ],
+  "face.FACE_EXPR_RECT": [
+   740,
+   830,
+   1310,
+   1290
+  ],
+  "face.FACE_NECK_Y": 1440,
+  "face.FACE_WINDOW": [
+   700,
+   760,
+   1350,
+   1440
+  ],
+  "face.FRONT_SCALE": [
+   0.22,
+   0.42
+  ],
+  "face.EXPR_SCALE": [
+   0.4,
+   0.65
+  ],
+  "face.ZONE_RECT": [
+   770,
+   820,
+   1280,
+   1300
+  ],
+  "face.FRONT_LANDMARKS": {
+   "eye_img_left": [
+    888,
+    970
+   ],
+   "eye_img_right": [
+    1150,
+    970
+   ],
+   "nose": [
+    1025,
+    1112
+   ],
+   "mouth": [
+    1025,
+    1225
+   ],
+   "chin": [
+    1025,
+    1388
+   ],
+   "cheek_left": [
+    762,
+    1150
+   ],
+   "cheek_right": [
+    1300,
+    1150
+   ]
+  },
+  "face.EXPR_LANDMARKS": {
+   "hair_top": [
+    1010,
+    530
+   ],
+   "ear_img_left": [
+    665,
+    1010
+   ],
+   "ear_img_right": [
+    1385,
+    1010
+   ],
+   "cheek_left": [
+    762,
+    1150
+   ],
+   "cheek_right": [
+    1300,
+    1150
+   ],
+   "chin": [
+    1025,
+    1340
+   ]
+  },
+  "texture.FACE_CHIN_PX": 398,
+  "texture.HEAD_CLEAN_Z": [
+   1.335,
+   1.52
+  ],
+  "texture.SKIN_CLEAN_ZMIN": 1.33,
+  "texture.SKIN_CLEAN_ZMAX": 1.4,
+  "texture.NECK_ZONE": {
+   "z": [
+    1.27,
+    1.335
+   ],
+   "x": 0.05,
+   "y": 0.0
+  },
+  "texture.NECK_V_HALF": 0.05,
+  "texture.BODY_CLEAN": {
+   "torso_skin_z": 1.25,
+   "hood_z": [
+    1.25,
+    1.335
+   ],
+   "collar_up_z": 1.3,
+   "sleeve_z": 1.1
+  },
+  "texture.BLOCK_Z": 1.25,
+  "texture.EAR_SKIN": true,
+  "texture.ASYMMETRIC": {},
+  "texture.REAL_VIEWS": [
+   "front",
+   "back",
+   "side_right",
+   "side_left",
+   "front_right45",
+   "front_left45"
+  ],
+  "texture.MIRROR_VIEWS": [],
+  "texture.NOARM_VIEWS": [],
+  "texture.ALIGN_ORDER": [
+   "front_right45",
+   "front_left45",
+   "side_right",
+   "side_left",
+   "back"
+  ],
+  "flat.GOGGLE_PAINT": false,
+  "flat.STRAP_PART": false,
+  "flat.NECK_NO_DARK": {
+   "z_min": 9.0,
+   "x": 0.075
+  },
+  "flat.UMBER_Z": {
+   "torso_min": 9.0,
+   "leg_max": 0.8
+  },
+  "flat_views.VIEWS": {
+   "front": "all",
+   "back": "all",
+   "side_left": "all",
+   "side_right": "all"
+  },
+  "flat_views.LEG_UMBER_Z": 0.8,
+  "flat_views.ARM_AXIS": {
+   "shoulder": [
+    0.215,
+    0.02,
+    1.19
+   ],
+   "elbow": [
+    0.33,
+    0.03,
+    0.975
+   ]
+  },
+  "flat_views.SKIN_NECK": {
+   "z_min": 1.3,
+   "x": 0.05
+  },
+  "flat.PALETTE": {
+   "brick": "#B75B43",
+   "ivory": "#F3E9D2",
+   "graphite": "#444641",
+   "brass": "#A98749",
+   "umber": "#453630",
+   "amber": "#FFBC52",
+   "skin": "#E7B58D"
+  }
+ }
+}
