@@ -468,6 +468,7 @@ def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple
         for k in range(1, len(vs) - 1):
             tris.append((vs[0], vs[k], vs[k + 1]))
     P = CO.build_all(co, np.array(tris), skip=skip)
+    removed_feet = 0
     pm = bpy.data.meshes.new('costume')
     pm.from_pydata(P['V'].tolist(), [], P['F'].tolist())
     pm.update()
@@ -500,6 +501,18 @@ def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple
     for bi, bone in enumerate(P['bones']):
         vg = obj.vertex_groups.new(name=str(bone))
         vg.add(np.nonzero((P['vbone'] == bi) & ~follow)[0].tolist(), 1.0, 'REPLACE')
+    # 靴：高さで foot から shin へなめらかに移す（カフの中の胴の上は shin に 1 = カフ・脚と一緒に動く）
+    sw = P['shin_w']
+    for vi in np.nonzero(sw >= 0)[0]:
+        foot = str(P['bones'][P['vbone'][vi]])
+        shin = foot.replace('foot', 'shin')
+        w = float(sw[vi])
+        if w > 1e-4:
+            obj.vertex_groups[shin].add([int(vi)], w, 'REPLACE')
+        if w < 1 - 1e-4:
+            obj.vertex_groups[foot].add([int(vi)], 1.0 - w, 'REPLACE')
+        else:
+            obj.vertex_groups[foot].remove([int(vi)])
     if follow.any():
         from scipy.spatial import cKDTree
         groups = list(body.vertex_groups)
@@ -524,7 +537,21 @@ def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.shade_smooth_by_angle(angle=math.radians(35))
-    return obj, {'tris': int(len(P['F'])), 'pieces': [str(n) for n in P['names']]}
+    # 靴は部品（重みを写したあとに消す：上の写しは消す前の頂点の番号）（7 回目）：体の足・靴（脚の BOOT_CUT より下。カフの中で切る）を消す
+    if any(str(n).startswith('boot_upper') for n in P['names']):
+        gone = CO.boot_cut_mask(co)
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        bm.verts.ensure_lookup_table()
+        kill = [f for f in bm.faces if any(gone[v.index] for v in f.verts)]
+        bmesh.ops.delete(bm, geom=kill, context='FACES')
+        loose = [v for v in bm.verts if not v.link_faces]
+        bmesh.ops.delete(bm, geom=loose, context='VERTS')
+        bm.to_mesh(me)
+        bm.free()
+        me.update()
+        removed_feet = int(gone.sum())
+    return obj, {'tris': int(len(P['F'])), 'pieces': [str(n) for n in P['names']], 'body_feet_removed': removed_feet}
 
 
 def lower_arms(body: bpy.types.Object, arm: bpy.types.Object,

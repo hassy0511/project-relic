@@ -41,7 +41,7 @@ J = {
 }
 H = 0.011         # 殻の点の間隔（m）
 # 体の重みを写す部品（ai_character.add_costume）：載る骨 1 本の剛体にすると、肩の上で体が突き抜ける
-FOLLOW_BODY = ('shoulder_pad.R', 'shoulder_strap.R')
+FOLLOW_BODY = ('shoulder_pad.R', 'shoulder_strap.R', 'strap.L', 'strap.R', 'hood_collar')
 # 塗りだけの決まり（cover_body）：箱（x, y, z の範囲）の中の、clear の色を、同じ箱の中のほかの色で塗り直す
 #   首の後ろ：絵では髪とえりで素肌は見えない。肌色の横の筋が残っていた（6 回目）
 #   keep：この色（色見本からの距離 tol 以内）のほかは塗り直す（布と肌の混ざった色の筋も消える）。fill：決まった色で埋める
@@ -56,6 +56,10 @@ BOX_RULES = [dict(name='neck_back_noskin', box=((-0.11, 0.11), (0.02, 0.2), (1.0
                   keep=['brick', 'umber', 'graphite'], tol=0.03),
              dict(name='back_plate_edges', box=((-0.10, 0.10), (0.03, 0.25), (1.0, 1.15)),
                   keep=['brick', 'umber', 'graphite'], tol=0.03)]
+TORSO_Z = (0.835, 1.10)   # 胴の決まりの高さ（帯の下に隠れる高さ〜えりの下）
+TORSO_SHIRT_X = 0.10      # 正面のシャツの白を残す幅（|x|）
+LEG_TOP = 0.835          # 脚の決まりの上の端（帯の下に隠れる高さ。帯の下の縁は前 0.812・後ろ 0.822）
+LEG_BANDS = (-0.050, 0.040)   # 膝の帯（暗い灰）の上・下の端（すねの軸に沿った膝からの長さ、m）
 RIGHT_HAND_PART = True   # 右手を部品にする（6 回目、ai_character.py --hand-part）：右の手袋のカフは形を作らず、手首の前を肌に塗る
 
 
@@ -132,15 +136,24 @@ def pieces() -> list[dict]:
                       outline=octagon(0.03, 0.175, -0.05, 0.04, 0.012), under='graphite', rmax=0.11))
         P.append(dict(name='knee_hinge_dark2' + sx, bone='shin' + sx, color='graphite', frame=fr, clear_only=True,
                       outline=octagon(-0.175, -0.03, -0.05, 0.04, 0.012), under='graphite', rmax=0.11))
-        # 靴のカフ（赤の帯、z 0.155〜0.205）
+        # 靴のカフ（赤の厚い帯、z 0.152〜0.212。絵 haru_shoes.png の太い輪）。7 回目：靴は部品（下の boot_*）
         fb = frame(jp('shin', side), jp('foot', side), front)
         fb['RN'] = 0.05
-        L = np.linalg.norm(jp('foot', side) - jp('shin', side))
         dz = -fb['d'][2]
         P.append(dict(name='boot_cuff' + sx, bone='shin' + sx, color='brick', frame=fb, ring=True,
-                      t0=(k[2] - 0.205) / dz, t1=(k[2] - 0.152) / dz, off=0.002, thick=0.007, bevel=0.002,
-                      under='brick', rmax=0.09))
-        del L
+                      t0=(k[2] - 0.212) / dz, t1=(k[2] - 0.150) / dz, off=0.002, thick=0.010, bevel=0.003,
+                      rmax=0.09, n_ring=48))
+        # すねの白い側面の板（7 回目、絵：すねの中央は茶、白は内・外の細い側面の板。正面から約 70 度、上が尖る）。
+        # 膝当ての下の縁（t 0.07）からカフの上（t 0.172）まで
+        for sb in (-1.0, 1.0):
+            sc = sb * 1.15 * fb['RN']
+            t0, t1 = (k[2] - 0.322) / dz, (k[2] - 0.222) / dz
+            P.append(dict(name=f'shin_plate{sx}{int(sb)}', bone='shin' + sx, color='ivory', frame=fb,
+                          outline=[(sc - 0.011, t0), (sc + 0.011, t0), (sc + 0.029, t0 + 0.024), (sc + 0.024, t1 - 0.005),
+                                   (sc + 0.019, t1), (sc - 0.019, t1), (sc - 0.024, t1 - 0.005), (sc - 0.029, t0 + 0.024)],
+                          off=0.003, thick=0.007, bevel=0.0025, rmax=0.09))
+        # 靴（7 回目：体の足を消して部品に。絵 haru_shoes.png と全身の絵）
+        P += boot_pieces(side, sx)
 
     # 右肩の板（本人の右だけ）：上腕の軸（肩 → 肘）、外上の向きが中心。白い板＋下の縁の暗い帯
     sh, el = jp('upper_arm', -1.0), jp('forearm', -1.0)
@@ -154,7 +167,7 @@ def pieces() -> list[dict]:
     fsp['e1'] = np.cross(fsp['e2'], fsp['e0'])
     fsp['d'] = fsp['e2']
     P.append(dict(name='shoulder_pad.R', bone='upper_arm.R', color='ivory', frame=fsp,
-                  outline=octagon(-0.056, 0.058, -0.060, 0.060, 0.024), off=0.003, thick=0.008, bevel=0.004,
+                  outline=octagon(-0.056, 0.058, -0.060, 0.060, 0.024), off=0.008, thick=0.008, bevel=0.004,
                   under='brick', clear=['ivory'], fill='brick', margin=0.04, rmax=0.12, rmin=0.03))
     P.append(dict(name='shoulder_strap.R', bone='upper_arm.R', color='graphite', frame=fr, ring=True,
                   t0=0.094, t1=0.116, off=0.003, thick=0.006, bevel=0.002, under='graphite', rmax=0.085))
@@ -216,6 +229,27 @@ def pieces() -> list[dict]:
     P.append(dict(name='buckle_bar', bone='hips', color='brass', frame=fw,
                   outline=octagon(-0.004, 0.004, 0.818, 0.852, 0.001), off=0.010, thick=0.0085, bevel=0.001,
                   rmax=0.22))
+    # 肩ひも（7 回目、両側）：背中（|x| 0.06〜0.105、z 0.965 から）→ 肩の上 → 胸の前（|x| 0.075〜0.12 → 下で 0.10〜0.13、
+    # z 0.965 まで）。左右の軸（x）のまわりの円柱の座標：s = 角度（上 = 0、前 = +）× RN、t = |x|。絵の正面・背面で測った
+    for side, sx in ((1.0, '.L'), (-1.0, '.R')):
+        fst = frame((0.0, 0.015, 1.03), (side, 0.015, 1.03), up)
+        fst['RN'] = 0.1
+        if side < 0:      # 右：軸が −x 向きなので前後の角度の符号が逆になる
+            sb, sf = 0.2085, -0.232
+        else:
+            sb, sf = -0.2085, 0.232
+        out = [(sb, 0.060), (sf, 0.100), (sf, 0.128), (sb, 0.105)]
+        if side < 0:
+            out = out[::-1]
+        P.append(dict(name='strap' + sx, bone='chest', color='graphite', frame=fst, outline=out, off=0.002,
+                      thick=0.005, bevel=0.0015, under='graphite', clear=['graphite'], margin=0.02, rmax=0.2))
+    # 首の後ろのフードのえり（7 回目、絵 haru_neck.png の背面：れんがのえりが髪の先まで立つ）：首の軸のまわりの後ろ半分、
+    # z 1.12〜1.215。首の後ろの塗りのまだら（UV の重なり、z 約 1.20）を形で覆う
+    fh = frame((0.0, 0.02, 1.10), (0.0, 0.04, 1.30), (0.0, 1.0, 0.0))
+    fh['RN'] = 0.06
+    P.append(dict(name='hood_collar', bone='neck', color='brick', frame=fh,
+                  outline=octagon(-0.095, 0.095, 0.022, 0.117, 0.012), off=0.003, thick=0.007, bevel=0.003,
+                  rmax=0.10))
     # 背中の板（肩ひもの間、x ±0.057、z 1.037〜1.114）
     P.append(dict(name='back_plate', bone='chest', color='ivory',
                   frame=dict(frame((0.0, 0.02, 0.0), (0.0, 0.02, 1.0), (0.0, 1.0, 0.0)), RN=0.12),
@@ -236,6 +270,118 @@ def pieces() -> list[dict]:
         P.append(dict(name=name, bone='hips', color='graphite', box=True, frame=fw, ang=ang, zc=zc, size=size,
                       clear=['graphite'], margin=0.012, rmax=0.25))
     return P
+
+
+
+# ---------------------------------------------------------------- 靴（7 回目）
+
+BOOT_CUT = 0.176        # この高さより下の脚の体（足・靴）は消して、靴の部品に置き換える（カフの中で切る）
+BOOT_RAMP = (0.095, 0.155)   # 靴の重み：この高さより下は foot に 1、上は shin に 1、間はなめらかに移す
+
+
+def rrect(x0, x1, y0, y1, rf, rb, k=3) -> list:
+    """角を丸めた長方形（上から見て反時計回り、x 右・y 後ろ）。rf：前（y0）の角、rb：後ろ（y1）の角の半径。
+    角は k+1 点（k=3 → 30 度ずつの面：絵の面のある靴）"""
+    pts = []
+    for (cx, cy, r, a0) in ((x0 + rf, y0 + rf, rf, 180), (x1 - rf, y0 + rf, rf, 270),
+                            (x1 - rb, y1 - rb, rb, 0), (x0 + rb, y1 - rb, rb, 90)):
+        for i in range(k + 1):
+            a = math.radians(a0 + 90 * i / k)
+            pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return pts
+
+
+def boot_pieces(side: float, sx: str) -> list[dict]:
+    """片足の靴（左の値で書き、右は x を反転）。部品は高さ z の断面（角の丸い長方形）を積んだ形（loft）。
+    寸法：足の大きさ・軸は体の足の断面（全身の絵の外形から作った形）で測り、部品の割り付けは haru_shoes.png の真横・正面
+    （靴底 前 3.3cm・後ろ 5.9cm、かかとと前の底の間に浅い切り欠き、白い爪先は甲の高さ 10.5cm まで、甲の暗い帯、茶の胴）"""
+    X0, X1 = 0.088, 0.267          # 靴底の内・外（左足、m）
+    YF, YB = -0.152, 0.131         # 爪先・かかと
+    P = []
+
+    def sec(z, x0, x1, y0, y1, rf, rb, k=3):
+        return (z, rrect(x0, x1, y0, y1, rf, rb, k))
+
+    # 靴底（暗い灰）：前の底・かかと（下に切り欠き）・全体の板・かかとの上がり
+    sole = [sec(0.000, X0 + 0.004, X1 - 0.004, YF + 0.005, 0.004, 0.034, 0.004),
+            sec(0.004, X0 + 0.001, X1 - 0.001, YF + 0.001, 0.010, 0.036, 0.004),
+            sec(0.021, X0 + 0.001, X1 - 0.001, YF + 0.001, 0.046, 0.036, 0.004)]
+    heel = [sec(0.000, X0 + 0.010, X1 - 0.010, 0.050, YB - 0.004, 0.004, 0.022),
+            sec(0.004, X0 + 0.008, X1 - 0.008, 0.048, YB - 0.001, 0.004, 0.024),
+            sec(0.021, X0 + 0.008, X1 - 0.008, 0.046, YB - 0.001, 0.004, 0.024)]
+    plate = [sec(0.020, X0, X1, YF, YB, 0.037, 0.025),
+             sec(0.030, X0, X1, YF, YB, 0.037, 0.025),
+             sec(0.034, X0 + 0.003, X1 - 0.003, YF + 0.003, YB - 0.003, 0.034, 0.022)]
+    riser = [sec(0.030, X0, X1, -0.030, YB, 0.006, 0.025),
+             sec(0.055, X0, X1, 0.030, YB, 0.006, 0.025),
+             sec(0.059, X0 + 0.003, X1 - 0.003, 0.036, YB - 0.003, 0.005, 0.022)]
+    # 白い爪先：前は甲より低く、後ろの縁は斜め（下 y −0.018、上 y −0.048）
+    toe = [sec(0.028, X0 + 0.004, X1 - 0.004, YF + 0.005, -0.018, 0.034, 0.004),
+           sec(0.086, X0 + 0.004, X1 - 0.004, YF + 0.005, -0.036, 0.034, 0.004),
+           sec(0.097, X0 + 0.009, X1 - 0.009, YF + 0.015, -0.042, 0.030, 0.004),
+           sec(0.106, X0 + 0.016, X1 - 0.016, YF + 0.030, -0.048, 0.024, 0.003)]
+    # 茶の胴：低い所は爪先の中に隠れ、甲で前へ傾き、カフの中で脚の太さになる
+    upper = [sec(0.028, X0 + 0.007, X1 - 0.009, -0.100, 0.124, 0.02, 0.030, 4),
+             sec(0.090, X0 + 0.008, X1 - 0.016, -0.064, 0.124, 0.02, 0.030, 4),
+             sec(0.110, 0.100, 0.232, -0.050, 0.121, 0.022, 0.030, 4),
+             sec(0.130, 0.103, 0.221, -0.036, 0.117, 0.026, 0.032, 4),
+             sec(0.150, 0.106, 0.213, -0.024, 0.114, 0.034, 0.036, 4),
+             sec(0.188, 0.107, 0.209, -0.020, 0.111, 0.036, 0.040, 4)]
+    # 甲の暗い帯（絵：カフの下から爪先の上まで、正面の幅の約 55%）
+    def yf_up(z):
+        zs = [u[0] for u in upper]
+        ys = [min(p[1] for p in u[1]) for u in upper]
+        return float(np.interp(z, zs, ys))
+    xc = 0.159
+    strap = []
+    for z in (0.100, 0.112, 0.130, 0.150, 0.166):
+        y0 = yf_up(z)
+        strap.append(sec(z, xc - 0.031, xc + 0.031, y0 - 0.0055, y0 + 0.016, 0.008, 0.002))
+    for name, color, secs in (('sole', 'graphite', sole), ('heel', 'graphite', heel), ('sole_plate', 'graphite', plate),
+                              ('sole_riser', 'graphite', riser), ('toe_cap', 'ivory', toe), ('upper', 'umber', upper),
+                              ('tongue', 'graphite', strap)):
+        if side < 0:   # 右足：x を反転（並びも逆にして反時計回りを保つ）
+            secs = [(z, [(-x, y) for (x, y) in pts][::-1]) for z, pts in secs]
+        P.append(dict(name=f'boot_{name}{sx}', bone='foot' + sx, color=color, loft=secs,
+                      ramp=('shin' + sx, 'foot' + sx)))
+    return P
+
+
+def build_loft(spec: dict) -> tuple[np.ndarray, np.ndarray, dict]:
+    """断面（高さ z ごとの凸の多角形、同じ点の数）を積んだ閉じた形。上下はふた。外向きにそろえる"""
+    secs = spec['loft']
+    n = len(secs[0][1])
+    V = np.array([(x, y, z) for z, pts in secs for (x, y) in pts], float)
+    F = []
+    for j in range(len(secs) - 1):
+        for i in range(n):
+            a, b = j * n + i, j * n + (i + 1) % n
+            c, d = (j + 1) * n + (i + 1) % n, (j + 1) * n + i
+            F += [(a, b, c), (a, c, d)]
+    # ふた：中心の点からの扇
+    for j, flip in ((0, True), (len(secs) - 1, False)):
+        ci = len(V)
+        V = np.vstack([V, V[j * n:(j + 1) * n].mean(0)])
+        for i in range(n):
+            a, b = j * n + i, j * n + (i + 1) % n
+            F.append((ci, b, a) if flip else (ci, a, b))
+    F = np.array(F)
+    p = V[F]
+    vol = np.einsum('ij,ij->i', p[:, 0], np.cross(p[:, 1], p[:, 2])).sum() / 6
+    if vol < 0:
+        F = F[:, [0, 2, 1]]
+    return V, F, {}
+
+
+def boot_cut_mask(co: np.ndarray) -> np.ndarray:
+    """消す体の頂点（脚の BOOT_CUT より下）"""
+    return (co[:, 2] < BOOT_CUT) & (np.abs(co[:, 0]) > 0.03) & (np.abs(co[:, 0]) < 0.32)
+
+
+def ramp_w(z: np.ndarray) -> np.ndarray:
+    """靴の頂点の shin の重み（0 = foot）"""
+    f = np.clip((z - BOOT_RAMP[0]) / (BOOT_RAMP[1] - BOOT_RAMP[0]), 0, 1)
+    return f * f * (3 - 2 * f)
 
 
 # ---------------------------------------------------------------- 幾何
@@ -477,25 +623,35 @@ def build_all(verts: np.ndarray, tris: np.ndarray, out_npz: str | None = None, s
     返り値：{V, F, color（面ごとの色の番号）, bone（頂点ごとの骨の名前の番号）, bones, names}"""
     from mathutils.bvhtree import BVHTree
     bvh = BVHTree.FromPolygons([tuple(v) for v in verts], [tuple(int(i) for i in t) for t in tris])
-    Vs, Fs, cols, vb, pn = [], [], [], [], []
+    Vs, Fs, cols, vb, pn, sw = [], [], [], [], [], []
     bones = []
     report = {}
     off = 0
     for spec in pieces():
         if spec.get('clear_only') or spec['name'] in skip:   # 塗りだけを直す範囲（形は作らない）
             continue
-        V, F, _ = build_box(spec, bvh) if spec.get('box') else build_shell(spec, bvh)
+        if spec.get('loft'):
+            V, F, _ = build_loft(spec)
+        else:
+            V, F, _ = build_box(spec, bvh) if spec.get('box') else build_shell(spec, bvh)
         if spec['bone'] not in bones:
             bones.append(spec['bone'])
         Vs.append(V)
         Fs.append(F + off)
         cols.append(np.full(len(F), NAMES.index(spec['color'])))
         vb.append(np.full(len(V), bones.index(spec['bone'])))
+        if spec.get('ramp'):      # 靴：shin の重み（高さで foot からなめらかに）
+            if spec['ramp'][0] not in bones:
+                bones.append(spec['ramp'][0])
+            sw.append(ramp_w(V[:, 2]))
+        else:
+            sw.append(np.full(len(V), -1.0))
         pn.append(np.full(len(F), len(report)))
         report[spec['name']] = len(F)
         off += len(V)
     res = {'V': np.concatenate(Vs), 'F': np.concatenate(Fs), 'color': np.concatenate(cols),
            'vbone': np.concatenate(vb), 'bones': np.array(bones), 'piece': np.concatenate(pn),
+           'shin_w': np.concatenate(sw),
            'names': np.array(list(report))}
     if out_npz:
         np.savez(out_npz, **res)
@@ -583,6 +739,36 @@ def cover_body(pos: np.ndarray, col: np.ndarray, verts: np.ndarray, tris: np.nda
             col[cl] = col[np.nonzero(src)[0][nn]]
             lab[cl] = lab[np.nonzero(src)[0][nn]]
         stats[rule['name']] = int(cl.sum())
+    # 脚の決まり（7 回目）：帯より下の脚は、絵の色を使わず高さの決まりだけで塗る（絵どうしの食い違いの白・赤・暗い色の
+    # 切れ端が残らない）。すねの軸に沿った膝からの長さ t で：t < LEG_BANDS[0] はズボンのれんが、膝の帯は暗い灰、
+    # その下（すね）は茶。太ももの板・膝当て・すねの板・カフ・靴は形の部品
+    # 腕・手（A ポーズで x 0.237 より外、z 0.55 より上）を含めない
+    leg = (pos[:, 2] < LEG_TOP) & (np.abs(pos[:, 0]) < np.where(pos[:, 2] > 0.54, 0.20, 0.30))
+    for side in (1.0, -1.0):
+        m = leg & (pos[:, 0] * side > 0)
+        k, f = jp('shin', side), jp('foot', side)
+        t = (pos[m] - k) @ unit(f - k)
+        lab_leg = np.where(t < LEG_BANDS[0], NAMES.index('brick'),
+                           np.where(t < LEG_BANDS[1], NAMES.index('graphite'), NAMES.index('umber')))
+        under[np.nonzero(m)[0]] = lab_leg
+    stats['leg_rule_texels'] = int(leg.sum())
+    # 胴・上腕の決まり（7 回目）：上着の胴（帯の上〜えりの下）と上腕（肩〜袖口）は、肩ひも・背中の板・肩の板・袖口が
+    # 形の部品になったので、絵の色の暗い灰・茶・肌・真鍮・琥珀（横の絵の肩ひも・板の切れ端）はれんがに決める。白は
+    # 正面の中央のシャツ（|x| < TORSO_SHIRT_X、前の面）のほかはれんが
+    tor = (pos[:, 2] > TORSO_Z[0]) & (pos[:, 2] < TORSO_Z[1]) & (np.abs(pos[:, 0]) < 0.15)
+    for side in (1.0, -1.0):
+        a, b = jp('upper_arm', side), jp('forearm', side)
+        d = unit(b - a)
+        rel = pos - a
+        t = rel @ d
+        rad = np.linalg.norm(rel - np.outer(t, d), axis=1)
+        tor |= (t > -0.02) & (t < 0.176) & (rad < 0.085) & (pos[:, 0] * side > 0.10)
+    bad = np.isin(lab, [NAMES.index(c) for c in ('graphite', 'umber', 'skin', 'brass', 'amber')])
+    shirt = (np.abs(pos[:, 0]) < TORSO_SHIRT_X) & (pos[:, 1] < -0.02)
+    bad |= (lab == NAMES.index('ivory')) & ~shirt
+    tb = tor & bad & (under < 0)
+    under[tb] = NAMES.index('brick')
+    stats['torso_rule_texels'] = int(tb.sum())
     fixed = under >= 0
     col[fixed] = pal[under[fixed]]
     lab[fixed] = under[fixed]
