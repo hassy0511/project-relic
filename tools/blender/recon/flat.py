@@ -85,6 +85,9 @@ GOGGLE_PAINT = CH.p('flat.GOGGLE_PAINT', True)
 #   頭（部位 0。と、胴の側の neck_z より上で肌か茶に塗られた首）はまず全部肌（顔・首・あごの下。あごの下や首の後ろはどの絵もよく見ていないので決まりで）。
 #   髪の場（帽子・前髪・形の段が当てはめた房）の面の上（髪の場 > hair_tol）で頭の面より外（髪の場 − 頭の場 > hair_out）＝髪の茶、
 #   耳（場 > ear）＝肌、ベルト（場 > strap）＝グラファイト。ゴーグルはこのあと GOGGLE_PAINT。ramp は境目を混ぜる幅（m）
+# 体（頭より下）の塗り方：'views' ＝ 1 枚の絵のきれいな形（flat_views.py。4 回目）、'vote' ＝ 視点の多数決（前のやり方）。
+# 環境変数 FLAT_BODY で上書きできる
+BODY_PAINT = os.environ.get('FLAT_BODY') or CH.p('flat.BODY_PAINT', 'views')
 HEAD_PARTS = CH.p('flat.HEAD_PARTS', {'strap': -0.0012, 'ear': -0.002, 'hair_tol': -0.004, 'hair_out': 0.001, 'ramp': 0.001,
                                       'neck_z': 1.15})
 
@@ -385,8 +388,14 @@ def paint_body(res: dict, mesh: dict, cams: dict | None = None) -> dict:
         out[qi] = aa[:, None] * pal[ia] + (1 - aa[:, None]) * pal[other]
         i1[qi] = np.where(fa > 0.5, ia, other)
     stats = {}
+    use_views = BODY_PAINT == 'views' and cams is not None
+    if use_views:   # 体は 1 枚の絵のきれいな形で（flat_views.py）。正面の地図（FRONT_ZONE）はこれに含まれる
+        from recon import flat_views as FV
+        bi, bc, bl, stats['body_views'] = FV.paint(res, mesh, cams, names, pal, classify)
+        out[bi] = bc
+        i1[bi] = bl
     # 胸・襟・首・帯の前：正面の絵の色の地図
-    for view in (FRONT_ZONE or {}).get('views', []) if cams is not None else []:
+    for view in (FRONT_ZONE or {}).get('views', []) if (cams is not None and not use_views) else []:
         fz = FRONT_ZONE
         cam = cams[view]
         soft, stats[f'{view}_zone'] = front_label_maps(names, cam, view)
@@ -533,6 +542,7 @@ if __name__ == '__main__':   # 調べ物用：保存した焼いた色（TEX_DUM
     res = {k: c[k] for k in ('pix', 'tri', 'bar', 'pos', 'nrm', 'col', 'reg')}
     res['size'] = 2048
     mesh = {'verts': c['verts'], 'tris': c['tris']}
-    print(paint_body(res, mesh))
+    from recon import views as V
+    print(paint_body(res, mesh, V.load_calib()))
     from recon import texture as T
     T.save_png(os.path.join(out_dir, 'flat_test.png'), T.to_image(res, res['col']))
