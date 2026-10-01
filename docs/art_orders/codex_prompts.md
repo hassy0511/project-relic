@@ -850,3 +850,38 @@ W2-01 の納品のうち、トルーデ・バートン・店主・ジャンク�
 - git worktree remove で ../relic-docs、../relic-w0、../relic-haru3d を片付ける。
 - 納品したファイルの一覧と、ハルと変えた点を 5 行以内で報告する。
 ```
+
+## 10. W1-00c：ハルの銃を握る手（2026-10-01）
+
+3D のハルの右手が銃を握る形を正確に作るための、参考の拡大の絵。
+
+### 10.1 W1-00c：ハルの銃を握る手
+
+```text
+あなたはゲーム開発プロジェクト『アークウォーカー』の作画担当です。主人公ハルの右手が銃を握っている拡大の絵（3D 用の参考）を描いてください。
+
+【リポジトリ】
+- URL：https://github.com/hassy0511/project-relic
+- 作業ブランチ：art/w1-haru3d（W1-00・W1-00b を納品したブランチ。そこに追加する）
+- 発注書を読むブランチ：claude/busy-bell-oagnck（最新にすること）
+
+【最初に行うこと】
+1. git fetch --all、git checkout art/w1-haru3d && git pull
+2. git worktree add ../relic-docs origin/claude/busy-bell-oagnck
+3. 必ず読む：../relic-docs/docs/art_orders/W1_00c_ハル_銃を握る手.md、00_共通ルール.md、01_3D変換用の絵の条件.md
+4. 手本として見る（このブランチにある）：art/concepts/W1_haru3d/ の haru_hands.png、haru_gun_*.png（銃の絵）、haru_3d_front.png
+
+【作業】
+- 発注書 2 章の表の 6 枚（haru_grip_side_right / side_left / back / front / 3q / bottom）を、画像生成機能で描く。手首から先と銃だけ。撃つときのしっかりした握り方で、指 1 本ずつの位置が読み取れるように。
+- 銃と手袋のデザイン・色は既存の絵と同じにする。
+- spec_haru_grip.md を書く（発注書 2 章の項目）。
+
+【守ること】
+- 絵は必ず画像生成機能で描く。Blender などの 3D ソフトで作った画像、プログラムで描いた図形は不可。描けないときは代わりの方法を取らず、spec の冒頭に「未納品」と書く。
+- art/concepts/W1_haru3d/ 以外を変更しない。既存の絵を消さない。
+
+【完了したら】
+- 1 コミットにまとめ（メッセージ："art: W1-00c haru grip reference"）、git push origin art/w1-haru3d で送る。
+- git worktree remove ../relic-docs で片付ける。
+- 納品したファイルの一覧を報告する。
+```
