@@ -24,7 +24,8 @@ const GLB = path.resolve(REPO, args.glb || 'godot/assets/models/haru_r.glb');
 const OUT = path.resolve(REPO, args.out || 'docs/art_orders/haru_r_trial');
 const WORK = path.resolve(REPO, args.work || 'build/audit');
 const ANIM = args.anim || 'idle';
-const TIME = parseFloat(args.time || '0');
+// 動作の始め（idle の 0〜0.05 秒）では別の動作（攻撃）の姿勢が写った（8 回目、確認ページの model-viewer）。既定は 0.5 秒
+const TIME = parseFloat(args.time || '0.5');
 const PREFIX = args.prefix || 'audit';
 // --track foot.L,foot.R：見る所を、その骨（複数なら中点）の今の位置にする（動作の確認：走り・跳躍・倒れなど）
 // three.js は骨の名前の '.' を消す（foot.L → footL）ので、'.'・'_' を除いて比べる
@@ -79,8 +80,11 @@ await page.evaluate(() => {
 // 動作は一度だけ選び、少し流してから止めて時刻を合わせる（こまごとに選び直すと前の動作との混ぜ合わせが残る）
 await page.evaluate(async ({ ANIM, TIME }) => {
   const mv = document.getElementById('mv');
+  // 描画が遅いと（別の重い処理と同時に撮ると）1.5 秒では動作が進まない。動作が実際に進んだのを確かめてから止める
   mv.animationName = ANIM; mv.play();
-  await new Promise((r) => setTimeout(r, 1500));
+  const t0 = Date.now();
+  await new Promise((r) => setTimeout(r, 800));
+  while (mv.currentTime < 0.05 && Date.now() - t0 < 10000) await new Promise((r) => setTimeout(r, 200));
   mv.pause(); mv.currentTime = TIME;
   await new Promise((r) => setTimeout(r, 300));
 }, { ANIM, TIME });

@@ -254,7 +254,7 @@ def pieces() -> list[dict]:
         out = [(sb, 0.060), (sf, 0.085), (sf, 0.115), (sb, 0.105)]
         if side < 0:
             out = out[::-1]
-        P.append(dict(name='strap' + sx, bone='chest', color='graphite', frame=fst, outline=out, off=0.0035,
+        P.append(dict(name='strap' + sx, bone='chest', color='graphite', frame=fst, outline=out, off=0.005,
                       thick=0.005, bevel=0.0015, under='graphite', clear=['graphite'], margin=0.02, rmax=0.2,
                       env_rings=0, h=0.0045, smooth_iters=16, raw_tol=0.0))
         # 8 回目：点の間隔 11mm と体の面の凸凹で、前の縁・下の端が段になった → 間隔 4.5mm、面をよくならす   # 細い帯：近所の最大を取ると、首の横のフードのふくらみから肩の上へ橋のように浮いた
@@ -980,12 +980,13 @@ def cover_body(pos: np.ndarray, col: np.ndarray, verts: np.ndarray, tris: np.nda
     # 絵 haru_neck.png のとおり、フードのえりの縁は後ろ（フードのえりの部品の上の端）から前の V へ斜めに下がる線にし、
     # その上は肌（髪の茶・暗い色はそのまま）
     y = pos[:, 1]
-    sn = (z > 1.13) & (z < 1.26) & (np.abs(x) > 0.028) & (np.abs(x) < 0.10) & (y > -0.07) & (y < 0.035)
+    sn = (z > 1.13) & (z < 1.26) & (np.abs(x) > 0.028) & (np.abs(x) < 0.10) & (y > -0.13) & (y < 0.035)
     zline = np.clip(NECK_SIDE_LINE[0] + NECK_SIDE_LINE[1] * (y - NECK_SIDE_LINE[2]), 1.14, NECK_SIDE_LINE[3])
     skin_ok = np.isin(lab, [NAMES.index('skin'), NAMES.index('brick'), NAMES.index('ivory')]) | (under >= 0)
-    # 首の横：フードのえりの部品の下はれんが（部品の under）、その上（z 1.15 より上）は肌。境は部品の縁の下に隠れる
-    up = sn & (z > 1.15) & ~collar_ins & skin_ok & ~(nk & (under == NAMES.index('ivory')))
-    lo_ = sn & (z < zline) & (z <= 1.15) & ~(nk & in_v) & ~collar_ins
+    # 首の横・前：フードのえりの部品の下はれんが（部品の under）、シャツの上の縁（z 1.123）より上で部品の外は肌（絵の正面：
+    # えりの前の端の間は肌）。境は部品の縁の下に隠れる
+    up = sn & (z > NECK_V_Z[0] + 0.010) & ~collar_ins & skin_ok & ~(nk & (under == NAMES.index('ivory')))
+    lo_ = sn & (z < zline) & (z <= NECK_V_Z[0] + 0.010) & (y > -0.07) & ~(nk & in_v) & ~collar_ins
     under[up] = NAMES.index('skin')
     under[lo_] = NAMES.index('brick')
     stats['neck_side_texels'] = int((up | lo_).sum())
