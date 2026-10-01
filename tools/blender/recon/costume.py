@@ -67,8 +67,11 @@ NECK_V_X = (-0.036, 0.052)      # 首の前の肌の V の範囲（シャツの�
 NECK_V_SLOPE = 0.31             # V が上へ広がる割合（z 1.113 → 1.165 で x −0.052〜0.068）
 NECK_V_TOP = 1.20               # 首の前の決まりの上の端（あごの下。顔は別の材質）
 NECK_V_Z = (1.113, 1.165)       # シャツの上の縁・V の広がりの基準の高さ
+NECK_SIDE_LINE = (1.165, 1.2, -0.04, 1.225)   # 首の横のえりの縁：z = a + b·(y − c)、上限 d（前 1.165 → 後ろ 1.225）
 LEG_TOP = 0.835          # 脚の決まりの上の端（帯の下に隠れる高さ。帯の下の縁は前 0.812・後ろ 0.822）
 LEG_BANDS = (-0.050, 0.040)   # 膝の帯（暗い灰）の上・下の端（すねの軸に沿った膝からの長さ、m）
+HOOD_FRONT_S = 0.135     # フードのえりの前の端（首の軸のまわりの角度 × 0.06。後ろから約 130 度）
+KNEE_FRONT_S = 0.085     # 膝当ての下でれんがにする前の範囲（膝当ての枠の s ±0.066 より少し広く）
 RIGHT_HAND_PART = True   # 右手を部品にする（6 回目、ai_character.py --hand-part）：右の手袋のカフは形を作らず、手首の前を肌に塗る
 
 
@@ -251,16 +254,25 @@ def pieces() -> list[dict]:
         out = [(sb, 0.060), (sf, 0.085), (sf, 0.115), (sb, 0.105)]
         if side < 0:
             out = out[::-1]
-        P.append(dict(name='strap' + sx, bone='chest', color='graphite', frame=fst, outline=out, off=0.002,
+        P.append(dict(name='strap' + sx, bone='chest', color='graphite', frame=fst, outline=out, off=0.0035,
                       thick=0.005, bevel=0.0015, under='graphite', clear=['graphite'], margin=0.02, rmax=0.2,
-                      env_rings=0))   # 細い帯：近所の最大を取ると、首の横のフードのふくらみから肩の上へ橋のように浮いた
+                      env_rings=0, h=0.0045, smooth_iters=16, raw_tol=0.0))
+        # 8 回目：点の間隔 11mm と体の面の凸凹で、前の縁・下の端が段になった → 間隔 4.5mm、面をよくならす   # 細い帯：近所の最大を取ると、首の横のフードのふくらみから肩の上へ橋のように浮いた
     # 首の後ろのフードのえり（7 回目、絵 haru_neck.png の背面：れんがのえりが髪の先まで立つ）：首の軸のまわりの後ろ半分、
     # z 1.12〜1.215。首の後ろの塗りのまだら（UV の重なり、z 約 1.20）を形で覆う
     fh = frame((0.0, 0.02, 1.10), (0.0, 0.04, 1.30), (0.0, 1.0, 0.0))
     fh['RN'] = 0.06
+    # 8 回目：前の横まで延ばす（首の横の肌とれんがの境が塗りの段になっていた。絵の正面のえりは V の横まで回る）。
+    # 前の端は低く（V の縁へ下がる）。部品の下はれんが、その上の首の横は肌（cover_body の首の横の決まり）
     P.append(dict(name='hood_collar', bone='neck', color='brick', frame=fh,
-                  outline=octagon(-0.095, 0.095, 0.022, 0.137, 0.012), off=0.003, thick=0.007, bevel=0.003,
-                  rmax=0.10))
+                  outline=[(-0.090, 0.022), (0.090, 0.022), (HOOD_FRONT_S, 0.030), (HOOD_FRONT_S, 0.068),
+                           (0.095, 0.130), (0.083, 0.137), (-0.083, 0.137), (-0.095, 0.130), (-HOOD_FRONT_S, 0.068),
+                           (-HOOD_FRONT_S, 0.030)],
+                  off=0.003, thick=0.007, bevel=0.003, under='brick', rmax=0.10))
+    # ゴーグルのヒモ（8 回目）：前は髪の形（hair.strap_field）の帯を塗っていたので、房に割られた波打つ帯に見えた。
+    # 今は髪の上を一周する一定の幅・厚みの帯の部品（build_goggle_strap）。中心の高さは絵（右真横・背面）のとおり、
+    # こめかみ（ゴーグルの枠の横、y −0.035・z 1.418）から後ろ（y 0.145・z 1.35）へ下がり、後ろは水平
+    P.append(dict(name='goggle_strap', bone='head', color='graphite', goggle_strap=True, **GOGGLE_STRAP))
     # 背中の板（肩ひもの間、x ±0.057、z 1.037〜1.114）
     P.append(dict(name='back_plate', bone='chest', color='ivory',
                   frame=dict(frame((0.0, 0.02, 0.0), (0.0, 0.02, 1.0), (0.0, 1.0, 0.0)), RN=0.12),
@@ -503,7 +515,7 @@ def sample_patch(spec: dict):
     点の間隔は H か、小さい部品（ボルト・レールの芯）では短い辺の 1/4"""
     from scipy.spatial import Delaunay
     poly = np.array(spec['outline'], float)
-    H = min(globals()['H'], float((poly.max(0) - poly.min(0)).min()) / 4)
+    H = min(spec.get('h', globals()['H']), float((poly.max(0) - poly.min(0)).min()) / 4)
     bnd = []
     for i in range(len(poly)):
         a, b = poly[i], poly[(i + 1) % len(poly)]
@@ -564,8 +576,8 @@ def build_shell(spec: dict, bvh) -> tuple[np.ndarray, np.ndarray, dict]:
         np.maximum.at(m, edges[:, 0], env[edges[:, 1]])
         np.maximum.at(m, edges[:, 1], env[edges[:, 0]])
         env = m
-    env = smooth_r(env, edges, 4)
-    r = np.maximum(env, raw)
+    env = smooth_r(env, edges, spec.get('smooth_iters', 4))
+    r = np.maximum(env, raw - spec.get('raw_tol', 0.0))
     n = len(pts)
     bmask = np.zeros(n, bool)
     for lp in loops:
@@ -629,6 +641,166 @@ def build_box(spec: dict, bvh) -> tuple[np.ndarray, np.ndarray, dict]:
     return V, F, {'r': np.array([r0]), 'pts': np.stack([s, t], 1)}
 
 
+# ---------------------------------------------------------------- ゴーグルのヒモ（8 回目）
+
+FIT = {}   # 当てはめの数値の記録（build_all の json に書く）
+
+# axis：頭の縦の軸 (x, y)。y/z：中心の高さの決まり（y0 → y1 で z0 → z1、その外は一定）。half：幅の半分、thick：厚み、
+# off：髪の外の面からのすき間。ends：両端の y（ゴーグルの枠の横に差し込む）。smooth_deg：外の面の当てはめのなめらかさ
+GOGGLE_STRAP = dict(axis=(0.0, 0.03), y=(-0.035, 0.145), z=(1.418, 1.35), half=0.0125, thick=0.0045, off=0.0015,
+                    ends_y=-0.065, end_x=(0.1095, 0.1185), end_deg=30.0, smooth_deg=14.0, n=160, rmax=0.25, bevel=0.0012, win_deg=25.0, pct=40.0,
+                    push_fall=0.008, push_gap=0.001, push_y_min=-0.085)
+
+
+def build_goggle_strap(spec: dict, bvh) -> tuple[np.ndarray, np.ndarray, dict]:
+    """髪の上を回る帯：断面は一定（幅 2·half・厚み thick、角は bevel で面取り）。縦の軸のまわりの角度 θ ごとに、
+    帯の高さの範囲の髪の外の面（外から軸へ向けた光線の最初の当たり）の最大の半径を測り、角度で「近所の最大 → ぼかし」
+    でなめらかにして（房ごとに波打たない）、その外に置く。帯の上下の縁の半径は別に当てはめる（頭の丸みに沿って傾く）"""
+    from mathutils import Vector
+    ax = np.array(spec['axis'], float)
+    (y0, y1), (z0, z1) = spec['y'], spec['z']
+
+    def zc_of(y):
+        # 折れ線（下がる → 後ろは水平）の角を丸める（角のままだと斜め後ろから帯が折れて見えた）
+        u = np.clip((np.asarray(y, float) - y0) / (y1 - y0), 0, None)
+        a, b = 0.7, 1.3
+        g = np.where(u < a, u, np.where(u > b, 1.0, u - (u - a) ** 2 / (2 * (b - a))))
+        return z0 + (z1 - z0) * g
+
+    def surf_r(th, z):
+        """外から軸へ水平に撃って、最初に当たる面の軸からの距離（無ければ nan）"""
+        d = np.array([math.sin(th), math.cos(th), 0.0])     # θ = 0 は後ろ（+Y）、+ は本人の左（+X）
+        org = np.array([ax[0], ax[1], z]) + d * spec['rmax']
+        hit = bvh.ray_cast(Vector(org), Vector(-d), spec['rmax'])
+        return spec['rmax'] - hit[3] if hit[0] is not None else np.nan
+
+    # 端の角度：中心の線が y = ends_y になる所（半径は 1 回目の測りで決める）
+    th_all = np.linspace(-math.pi, math.pi, 721)[:-1]
+    r0 = np.array([surf_r(t, 1.40) for t in th_all])
+    r0 = np.where(np.isfinite(r0), r0, np.nanmedian(r0))
+    yy = ax[1] + r0 * np.cos(th_all)
+    side = np.abs(th_all)
+    ok = yy > spec['ends_y']
+    th_end = float(side[ok].max())
+    n = spec['n']
+    th = np.linspace(-th_end, th_end, n)
+    half = spec['half']
+    rows = np.linspace(-half, half, 7)
+    # 2 回：中心の高さは帯の y（半径で決まる）に依る
+    R = np.interp(np.abs(th), side[np.argsort(side)], r0[np.argsort(side)])
+    for _ in range(2):
+        yc = ax[1] + R * np.cos(th)
+        zc = zc_of(yc)
+        req = np.array([[surf_r(t, z + dz) for dz in rows] for t, z in zip(th, zc)])    # (n, rows)
+        req = np.where(np.isfinite(req), req, np.nanmin(req))
+        R = np.nanmax(req, 1)
+    # 上・下の縁の半径：各列の面を「下の縁 rb・上の縁 rt の直線」より外に収める
+    w = (rows + half) / (2 * half)
+
+    def env(v, deg):
+        k = max(1, int(round(deg / math.degrees(th[1] - th[0]))))
+        out = v.copy()
+        for s_ in range(1, k + 1):            # 近所の最大（端は端の値で延ばす）
+            out = np.maximum(out, np.concatenate([v[s_:], np.repeat(v[-1], s_)]))
+            out = np.maximum(out, np.concatenate([np.repeat(v[0], s_), v[:-s_]]))
+        from scipy.ndimage import gaussian_filter1d
+        return gaussian_filter1d(out, k * 0.6, mode='nearest')
+
+    # 髪の「全体の丸み」：房の先は 5cm も外へ出る（とげの髪）ので、外の面の最大に合わせると帯が輪のように浮いた。
+    # 角度の窓（±win_deg）の中の半径の分位（pct）をなめらかにした面を帯の内の面にし、そこより外へ出る房の先は
+    # 帯の下へ押し込む（strap_push：帯が髪を押さえる。帯の上下の房はそのまま）
+    def overall(v):
+        from scipy.ndimage import gaussian_filter1d
+        k = max(1, int(round(spec['win_deg'] / math.degrees(th[1] - th[0]))))
+        pad = np.concatenate([np.repeat(v[0], k), v, np.repeat(v[-1], k)])
+        o = np.array([np.percentile(pad[i:i + 2 * k + 1], spec['pct']) for i in range(len(v))])
+        return gaussian_filter1d(o, k * 0.5, mode='nearest')
+    rb = overall(np.median(req[:, :3], 1))
+    rt = overall(np.median(req[:, -3:], 1))
+    # 両端：ゴーグルの枠の横（|x| = end_x：右・左。枠の外の縁より 2mm 内。枠は左右で 9mm ずれている）へ入るように、最後の end_deg で半径を寄せる
+    # （寄せないと髪のふくらみの外で、正面から枠の横に帯の端が耳のように出た）
+    r_end = np.where(th > 0, spec['end_x'][1], spec['end_x'][0]) / np.maximum(np.abs(np.sin(th)), 0.3)
+    fe = np.clip((np.abs(th) - (th_end - math.radians(spec['end_deg']))) / math.radians(spec['end_deg']), 0, 1)
+    fe = fe * fe * (3 - 2 * fe)
+    rb = np.where(fe > 0, rb * (1 - fe) + np.minimum(rb, r_end) * fe, rb)
+    rt = np.where(fe > 0, rt * (1 - fe) + np.minimum(rt, r_end) * fe, rt)
+    off, T, bv = spec['off'], spec['thick'], spec['bevel']
+    yc = ax[1] + 0.5 * (rb + rt) * np.cos(th)
+    zc = zc_of(yc)
+    # 断面（帯の外向き u = 水平の外、縦 v = +z を、帯の傾きに合わせて回す）：内下 → 外下 → 外上 → 内上（面取り 8 点）
+    sec = [(0.0, -half + bv), (bv, -half), (T - bv, -half), (T, -half + bv), (T, half - bv), (T - bv, half), (bv, half),
+           (0.0, half - bv)]
+    V = []
+    for i, t in enumerate(th):
+        d = np.array([math.sin(t), math.cos(t), 0.0])
+        tilt = math.atan2(rt[i] - rb[i], 2 * half)     # 上が外へ出る角度
+        u = d * math.cos(tilt) - np.array([0, 0, 1.0]) * math.sin(tilt)
+        v = d * math.sin(tilt) + np.array([0, 0, 1.0]) * math.cos(tilt)
+        rm = 0.5 * (rb[i] + rt[i]) + off
+        c = np.array([ax[0], ax[1], zc[i]]) + d * rm
+        for (a, b) in sec:
+            V.append(c + u * a + v * b)
+    V = np.array(V)
+    m = len(sec)
+    F = []
+    for i in range(n - 1):
+        for k in range(m):
+            k2 = (k + 1) % m
+            a, b, c, d_ = i * m + k, i * m + k2, (i + 1) * m + k2, (i + 1) * m + k
+            F += [(a, b, c), (a, c, d_)]
+    for i, flip in ((0, False), (n - 1, True)):       # 両端のふた
+        ci = len(V)
+        V = np.vstack([V, V[i * m:(i + 1) * m].mean(0)])
+        for k in range(m):
+            k2 = (k + 1) % m
+            F.append((ci, i * m + k2, i * m + k) if not flip else (ci, i * m + k, i * m + k2))
+    F = np.array(F)
+    # 外向きにそろえる（閉じた形の符号つきの体積）
+    vol = np.einsum('ij,ij->i', V[F[:, 0]], np.cross(V[F[:, 1]], V[F[:, 2]])).sum()
+    if vol < 0:
+        F = F[:, [0, 2, 1]]
+    PUSH.clear()
+    PUSH.update(th=th, rb=rb + off, rt=rt + off, half=half, axis=ax, zc=zc_of, fall=spec['push_fall'],
+                gap=spec['push_gap'], y_min=spec['push_y_min'])
+    info = {'th_end_deg': round(math.degrees(th_end), 1), 'r_min': round(float(min(rb.min(), rt.min())), 4),
+            'r_max': round(float(max(rb.max(), rt.max())), 4), 'z_range': [round(float(zc.min()), 3), round(float(zc.max()), 3)],
+            'over_mm_p90': round(float(np.percentile(np.clip(req - (rb[:, None] * (1 - w[None]) + rt[:, None] * w[None]), 0, None), 90)) * 1000, 1)}
+    return V, F, info
+
+
+PUSH = {}
+
+
+def strap_push(co: np.ndarray, hair: np.ndarray | None = None) -> tuple[np.ndarray, int]:
+    """帯の高さで、帯の内の面（−gap）より外へ出ている髪の頂点を、軸へ向けて内の面まで押し込む（帯の縁の外 fall で
+    なめらかに 0 へ）。返り値：(新しい座標, 動かした頂点の数)"""
+    if not PUSH:
+        return co, 0
+    P = PUSH
+    ax = P['axis']
+    rel = co[:, :2] - ax
+    r = np.linalg.norm(rel, axis=1)
+    th = np.arctan2(rel[:, 0], rel[:, 1])        # 0 = 後ろ（+Y）、+ = 本人の左
+    fy = np.clip((co[:, 1] - P['y_min']) / 0.015, 0, 1)        # ゴーグルの側へなめらかに 0（枠は押さない）
+    inside = fy * fy * (3 - 2 * fy) * ((co[:, 2] > 1.25) & (co[:, 2] < 1.5) & (r > 0.05))
+    if hair is not None:          # 髪の色の頂点だけ（ゴーグルの枠は押さない）
+        inside = inside * hair
+    rb = np.interp(th, P['th'], P['rb'])
+    rt = np.interp(th, P['th'], P['rt'])
+    zc = P['zc'](co[:, 1])
+    dz = co[:, 2] - zc
+    f = np.clip((dz + P['half']) / (2 * P['half']), 0, 1)
+    line = rb * (1 - f) + rt * f - P['gap']
+    a = np.clip((P['half'] + P['fall'] - np.abs(dz)) / P['fall'], 0, 1)
+    a = a * a * (3 - 2 * a)
+    over = np.clip(r - line, 0, None) * a * inside
+    out = co.copy()
+    scale = (r - over) / np.maximum(r, 1e-9)
+    out[:, 0] = ax[0] + rel[:, 0] * scale
+    out[:, 1] = ax[1] + rel[:, 1] * scale
+    return out, int((over > 1e-4).sum())
+
+
 def build_all(verts: np.ndarray, tris: np.ndarray, out_npz: str | None = None, skip: tuple = ()) -> dict:
     """部品の形をすべて作る（skip の名前の部品は作らない：右手を部品にしたときの右の手袋のカフ）。
     返り値：{V, F, color（面ごとの色の番号）, bone（頂点ごとの骨の名前の番号）, bones, names}"""
@@ -643,6 +815,9 @@ def build_all(verts: np.ndarray, tris: np.ndarray, out_npz: str | None = None, s
             continue
         if spec.get('loft'):
             V, F, _ = build_loft(spec)
+        elif spec.get('goggle_strap'):
+            V, F, ginfo = build_goggle_strap(spec, bvh)
+            FIT['goggle_strap'] = ginfo
         else:
             V, F, _ = build_box(spec, bvh) if spec.get('box') else build_shell(spec, bvh)
         if spec['bone'] not in bones:
@@ -667,7 +842,7 @@ def build_all(verts: np.ndarray, tris: np.ndarray, out_npz: str | None = None, s
     if out_npz:
         np.savez(out_npz, **res)
         with open(os.path.splitext(out_npz)[0] + '.json', 'w') as fp:
-            json.dump({'tris': int(len(res['F'])), 'pieces': report}, fp, indent=1)
+            json.dump({'tris': int(len(res['F'])), 'pieces': report, 'fit': FIT}, fp, indent=1)
     return res
 
 
@@ -683,6 +858,7 @@ def cover_body(pos: np.ndarray, col: np.ndarray, verts: np.ndarray, tris: np.nda
     under = np.full(len(pos), -1)        # 部品の真下：決まった色（-2 = 周りの色）
     clear = np.zeros(len(pos), bool)     # まわりの帯：部品の色だけ周りの色へ
     stats = {}
+    collar_ins = np.zeros(len(pos), bool)
     for spec in pieces():
         if not spec.get('under') and not spec.get('clear'):
             continue
@@ -719,6 +895,8 @@ def cover_body(pos: np.ndarray, col: np.ndarray, verts: np.ndarray, tris: np.nda
                 ok[cand] = np.isfinite(rr) & (np.abs(rr - r[cand]) < 0.006)
             ins = ok & ins0
             band = ok & (dist < spec.get('margin', 0.0))
+        if spec['name'] == 'hood_collar':
+            collar_ins = ins.copy()
         if spec.get('under'):
             under[ins] = NAMES.index(spec['under'])
         elif spec.get('clear') and not spec.get('clear_only'):
@@ -761,6 +939,12 @@ def cover_body(pos: np.ndarray, col: np.ndarray, verts: np.ndarray, tris: np.nda
         t = (pos[m] - k) @ unit(f - k)
         lab_leg = np.where(t < LEG_BANDS[0], NAMES.index('brick'),
                            np.where(t < LEG_BANDS[1], NAMES.index('graphite'), NAMES.index('umber')))
+        # 8 回目：膝当ての下の太ももの側（関節より上の前）はズボンのれんが。膝を深く曲げる（倒れ 125 度）と、すねに付いた
+        # 膝当ての上の半分が太ももから離れ、その下の暗い帯がぎざぎざの暗い形で見えた（暗い帯は横・後ろだけ）
+        kspec = next(q for q in pieces() if q['name'] == 'knee_frame' + ('.L' if side > 0 else '.R'))
+        ks, kt, kr = param_of(kspec, pos[m])
+        under_pad = (np.abs(ks) < KNEE_FRONT_S) & (kt < 0.0) & (kr < 0.13)
+        lab_leg = np.where(under_pad & (t < LEG_BANDS[1]), NAMES.index('brick'), lab_leg)
         under[np.nonzero(m)[0]] = lab_leg
     stats['leg_rule_texels'] = int(leg.sum())
     # 胴・上腕の決まり（7 回目）：上着の胴（帯の下に隠れる高さ〜えりの下）・肩のまわり・上腕（肩〜袖口）は、肩ひも・
@@ -792,6 +976,20 @@ def cover_body(pos: np.ndarray, col: np.ndarray, verts: np.ndarray, tris: np.nda
                       np.where((x > SHIRT_X[0]) & (x < SHIRT_X[1]), NAMES.index('ivory'), NAMES.index('brick')))
     under[nk] = nk_col[nk]
     tb = tb | nk
+    # 首の横（8 回目）：上の決まりは z 1.20 の水平の線で切っていたので、あごの下の寝た面で肌とれんがの境が段になった。
+    # 絵 haru_neck.png のとおり、フードのえりの縁は後ろ（フードのえりの部品の上の端）から前の V へ斜めに下がる線にし、
+    # その上は肌（髪の茶・暗い色はそのまま）
+    y = pos[:, 1]
+    sn = (z > 1.13) & (z < 1.26) & (np.abs(x) > 0.028) & (np.abs(x) < 0.10) & (y > -0.07) & (y < 0.035)
+    zline = np.clip(NECK_SIDE_LINE[0] + NECK_SIDE_LINE[1] * (y - NECK_SIDE_LINE[2]), 1.14, NECK_SIDE_LINE[3])
+    skin_ok = np.isin(lab, [NAMES.index('skin'), NAMES.index('brick'), NAMES.index('ivory')]) | (under >= 0)
+    # 首の横：フードのえりの部品の下はれんが（部品の under）、その上（z 1.15 より上）は肌。境は部品の縁の下に隠れる
+    up = sn & (z > 1.15) & ~collar_ins & skin_ok & ~(nk & (under == NAMES.index('ivory')))
+    lo_ = sn & (z < zline) & (z <= 1.15) & ~(nk & in_v) & ~collar_ins
+    under[up] = NAMES.index('skin')
+    under[lo_] = NAMES.index('brick')
+    stats['neck_side_texels'] = int((up | lo_).sum())
+    tb = tb | up | lo_
     stats['torso_rule_texels'] = int(tb.sum())
     fixed = under >= 0
     col[fixed] = pal[under[fixed]]

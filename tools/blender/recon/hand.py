@@ -362,3 +362,110 @@ def build(gun_pts: np.ndarray, wrist: np.ndarray, wrist_section: np.ndarray | No
 
     V, F, C = M.arrays()
     return {'V': V, 'F': F, 'color': C, 'report': rep, 'y_side': y_side}
+
+
+# ---------------------------------------------------------------- 左の開いた手（8 回目）
+
+# 手の座標（手首の関節が原点）：+X = 手の骨の向き（指の先へ）、+Y = 掌の向き（体の内側）、+Z = 親指の側（正面）。
+# 寸法は右手の部品と同じ指の太さ・節の長さ（絵 haru_hands.png：力を抜いて開いた手。手袋は掌と指の付け根の節、
+# 中節・末節と親指の先は肌）。指は節ごとに少しずつ掌へ曲げ、少し扇に開く
+OPEN_FINGERS = [   # 名前, 付け根の z, 付け根の x, 半径, 節の長さ, 扇の角度（度、+ = 親指の側）
+    ('index', 0.0255, 0.070, 0.0080, (0.036, 0.023, 0.019), 6.0),
+    ('middle', 0.0085, 0.073, 0.0083, (0.038, 0.025, 0.020), 1.0),
+    ('ring', -0.0085, 0.070, 0.0078, (0.035, 0.023, 0.019), -4.0),
+    ('pinky', -0.0240, 0.063, 0.0068, (0.028, 0.019, 0.016), -9.0),
+]
+OPEN_CURL = (12.0, 16.0, 12.0)    # 節ごとの掌への曲げ（度、付け根の節から）
+CUFF_LID = (-0.004, 0.016)        # カフのふたの x の範囲（手首からの距離。カフの部品の先の口 = 手首 +1.6cm）
+OPEN_THUMB = dict(base=(0.024, 0.007, 0.020), r=0.0088, lens=(0.032, 0.027, 0.023), out_deg=22.0, palm_deg=34.0,
+                  curl=(8.0, 12.0, 10.0))
+PALM_HALF_T = 0.0115              # 掌の厚みの半分（指の付け根）
+
+
+def build_open(wrist_section: np.ndarray | None = None) -> dict:
+    """力を抜いて開いた手（手の座標）。wrist_section：体の手首の断面の点（手の座標の (y, z)）。
+    返り値：{V, F, color, report}"""
+    M = Mesh()
+    rep = {}
+    knuckles = []
+
+    def chain(p0, d, n_palm, lens, curl):
+        J = [np.asarray(p0, float)]
+        d = np.asarray(d, float) / np.linalg.norm(d)
+        for L, c in zip(lens, curl):
+            a = math.radians(c)       # 掌の向き（n_palm）へ曲げる
+            d = d * math.cos(a) + n_palm * math.sin(a)
+            d /= np.linalg.norm(d)
+            n_palm = n_palm - d * (n_palm @ d)
+            n_palm /= np.linalg.norm(n_palm)
+            J.append(J[-1] + L * d)
+        return J
+
+    for name, z, x, r, lens, fan in OPEN_FINGERS:
+        f = math.radians(fan)
+        d0 = np.array([math.cos(f), 0.0, math.sin(f)])
+        J = chain((x, 0.001, z), d0, np.array([0.0, 1.0, 0.0]), lens, OPEN_CURL)
+        rr = [r, r * 0.96, r * 0.92, r * 0.85]
+        for k in range(3):
+            V, F = capsule(J[k], J[k + 1], rr[k], rr[k + 1])
+            M.add(V, F, SKIN)
+        dv = (J[1] - J[0]) / np.linalg.norm(J[1] - J[0])
+        V, F = sleeve(J[0] - dv * r * 0.9, J[0] + (J[1] - J[0]) * GLOVE_FRAC, rr[0] + GLOVE_THICK)
+        M.add(V, F, GRAPHITE)
+        knuckles.append((J[0], r))
+        rep[name] = [p.round(4).tolist() for p in J]
+    # 親指：掌の付け根から、親指の側（+Z）へ out_deg・掌（+Y）へ palm_deg 傾けて伸ばす
+    th = OPEN_THUMB
+    a, b = math.radians(th['out_deg']), math.radians(th['palm_deg'])
+    d0 = np.array([math.cos(a) * math.cos(b), math.sin(b), math.sin(a) * math.cos(b)])
+    T = chain(th['base'], d0, np.array([0.0, 1.0, -0.4]) / np.linalg.norm([0.0, 1.0, -0.4]), th['lens'], th['curl'])
+    rt = th['r']
+    rr = [rt * 1.15, rt, rt * 0.95, rt * 0.85]
+    for k in range(3):     # 中手骨は手袋（掌の凸包にも入る）、基節は手袋の筒、末節は肌
+        V, F = capsule(T[k], T[k + 1], rr[k], rr[k + 1])
+        M.add(V, F, GRAPHITE if k == 0 else SKIN)
+    d2 = (T[2] - T[1]) / np.linalg.norm(T[2] - T[1])
+    V, F = sleeve(T[1] - d2 * rt * 0.5, T[1] + (T[2] - T[1]) * GLOVE_FRAC, rr[1] + GLOVE_THICK)
+    M.add(V, F, GRAPHITE)
+    rep['thumb'] = [p.round(4).tolist() for p in T]
+    # 掌：指の付け根の玉・掌の甲と内の面・手首の輪・母指球・小指球の凸包
+    pts = []
+    for c, r in knuckles:
+        pts.append(sphere_pts(c, r * 1.05))
+        pts.append(sphere_pts(c + np.array([-0.014, 0.0, 0.0]), r * 1.1))
+    zt = OPEN_FINGERS[0][1] + OPEN_FINGERS[0][3]
+    zb = OPEN_FINGERS[-1][1] - OPEN_FINGERS[-1][3]
+    for x in (0.012, 0.040):
+        for z in (zt, zb + 0.002):
+            for y in (-PALM_HALF_T + 0.002, PALM_HALF_T - 0.001):
+                pts.append(np.array([[x, y, z]]))
+    # 掌の手首の側は掌の太さ（体の手首の断面は手袋のカフのふくらみで直径 9cm もあり、掌が円すいになった）
+    cy, cz, wy, wz = 0.002, 0.0, 0.0125, 0.024
+    ang = np.linspace(0, 2 * math.pi, 20, endpoint=False)
+    for x in (0.004, 0.014):
+        pts.append(np.stack([np.full(20, x), cy + wy * np.cos(ang), cz + wz * np.sin(ang)], 1))
+    pts.append(sphere_pts([0.026, 0.006, 0.020], 0.012))      # 母指球
+    pts.append(sphere_pts([0.032, 0.004, -0.018], 0.011))     # 小指球
+    V, F = convex_hull3(np.concatenate(pts))
+    M.add(V, F, GRAPHITE)
+    # カフのふた：手袋のカフ（costume の glove_cuff.L）の先の口をふさぐ暗い栓（体の手首の断面＋2mm、先の縁は面取り）
+    if wrist_section is not None and len(wrist_section) > 8:
+        sec = np.asarray(wrist_section, float)
+        c0 = np.median(sec, 0)
+        rel = sec - c0
+        a = np.arctan2(rel[:, 1], rel[:, 0])
+        rr = np.linalg.norm(rel, axis=1)
+        n = 24
+        an = np.linspace(-math.pi, math.pi, n, endpoint=False)
+        rad = np.array([np.percentile(rr[np.abs((a - t + math.pi) % (2 * math.pi) - math.pi) < math.radians(30)], 90)
+                        if (np.abs((a - t + math.pi) % (2 * math.pi) - math.pi) < math.radians(30)).sum() >= 2
+                        else np.median(rr) for t in an]) + 0.002
+        lid = []
+        for x, k in ((CUFF_LID[0], 1.0), (CUFF_LID[1] - 0.002, 1.0), (CUFF_LID[1], 0.88)):
+            lid.append(np.stack([np.full(n, x), c0[0] + k * rad * np.cos(an), c0[1] + k * rad * np.sin(an)], 1))
+        V, F = convex_hull3(np.concatenate(lid))
+        M.add(V, F, GRAPHITE)
+        rep['cuff_lid_radius'] = [round(float(rad.min()), 4), round(float(rad.max()), 4)]
+    rep['wrist_ellipse'] = [round(float(v), 4) for v in (cy, cz, wy, wz)]
+    V, F, C = M.arrays()
+    return {'V': V, 'F': F, 'color': C, 'report': rep}

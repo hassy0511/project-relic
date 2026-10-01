@@ -372,6 +372,7 @@ def rigid_parts(body: bpy.types.Object, J: dict) -> dict:
     返り値：部品ごとの、重みを変えた頂点の数
     """
     KNEE_R1, KNEE_R2, KNEE_BACK = 0.085, 0.115, 0.03   # 膝当ての暗い縁・琥珀の継ぎ目まで硬く
+    KNEE_SMOOTH = (0.16, 0.045, 0.04)   # 膝の重みをなめらかにする範囲（関節からの距離）・移す高さの幅の半分・外の縁の戻しの幅
     SHOULDER_R, RING = 0.10, 2
     me = body.data
     n = len(me.vertices)
@@ -402,6 +403,37 @@ def rigid_parts(body: bpy.types.Object, J: dict) -> dict:
     f_all = np.zeros(n)
     target = np.zeros((n, len(groups)))
     counts = {}
+    # 膝のまわりの重み（8 回目）：熱の重みは膝の裏で頂点ごとにばらつき、深く曲げる（倒れ 125 度）と膝の裏の暗い帯と
+    # ズボンがぎざぎざの暗い形に折れ込んだ。膝の関節から KNEE_SMOOTH 以内の脚の頂点は、脚の軸に沿った高さだけの
+    # なめらかな関数で太もも → すねへ移す（同じ高さの輪は同じ重み＝折れ目がまっすぐ）
+    knee_set = np.zeros(n, bool)
+    for sx, side in (('.L', 1.0), ('.R', -1.0)):
+        tb_, sb_ = 'thigh' + sx, 'shin' + sx
+        if tb_ not in gidx or sb_ not in gidx:
+            continue
+        kj = np.array(J['shin']) * np.array([side, 1.0, 1.0])
+        hj = np.array(J['thigh']) * np.array([side, 1.0, 1.0])
+        fj = np.array(J['foot']) * np.array([side, 1.0, 1.0])
+        up = (hj - kj) / np.linalg.norm(hj - kj)
+        dn = (fj - kj) / np.linalg.norm(fj - kj)
+        legw = W[:, gidx[tb_]] + W[:, gidx[sb_]]
+        d = np.linalg.norm(co - kj, axis=1)
+        m = (d < KNEE_SMOOTH[0]) & (legw > 0.6 * np.maximum(W.sum(1), 1e-9))
+        # 高さ：関節より上は太ももの軸、下はすねの軸に沿った長さ（+ = 上）
+        rel = co[m] - kj
+        h = np.where(rel @ up > 0, rel @ up, -(rel @ dn))
+        g = np.clip((KNEE_SMOOTH[1] - h) / (2 * KNEE_SMOOTH[1]), 0.0, 1.0)
+        g = g * g * (3 - 2 * g)            # すねの重み
+        # 外側の輪（d が KNEE_SMOOTH[0] に近い）は元の重みへなめらかに戻す
+        e = np.clip((KNEE_SMOOTH[0] - d[m]) / KNEE_SMOOTH[2], 0.0, 1.0)
+        idx = np.nonzero(m)[0]
+        tot = W[idx].sum(1)
+        new = np.zeros((len(idx), len(groups)))
+        new[:, gidx[sb_]] = g * tot
+        new[:, gidx[tb_]] = (1 - g) * tot
+        W[idx] = e[:, None] * new + (1 - e[:, None]) * W[idx]
+        knee_set[idx] = True
+        counts['knee_smooth' + sx] = int(len(idx))
     # 膝当て（形で決める）
     for sx, side in (('.L', 1.0), ('.R', -1.0)):
         bone = 'shin' + sx
@@ -440,6 +472,7 @@ def rigid_parts(body: bpy.types.Object, J: dict) -> dict:
         counts['upper_arm.R'] = int(sel.sum())
     changed = f_all > 1e-3
     W[changed] = (1 - f_all[changed, None]) * W[changed] + f_all[changed, None] * target[changed]
+    changed |= knee_set
     W /= np.maximum(W.sum(1, keepdims=True), 1e-9)
     for vi in np.nonzero(changed)[0]:
         for gi, vg in enumerate(groups):
@@ -469,6 +502,15 @@ def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple
             tris.append((vs[0], vs[k], vs[k + 1]))
     P = CO.build_all(co, np.array(tris), skip=skip)
     removed_feet = 0
+    # ゴーグルのヒモの下の髪を押し込む（8 回目、costume.strap_push）
+    if hasattr(CO, 'strap_push'):
+        vc = vertex_colors_from_texture(body)
+        hair = None if vc is None else ((vc[:, 0] - vc[:, 2] > 0.06) & (vc[:, 0] < 0.55)).astype(float)
+        co2, pushed = CO.strap_push(co, hair)
+        if pushed:
+            me.vertices.foreach_set('co', co2.ravel())
+            me.update()
+        CO.FIT['goggle_strap_pushed_verts'] = pushed
     pm = bpy.data.meshes.new('costume')
     pm.from_pydata(P['V'].tolist(), [], P['F'].tolist())
     pm.update()
@@ -564,7 +606,8 @@ def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple
         bm.free()
         me.update()
         removed_feet = int(gone.sum())
-    return obj, {'tris': int(len(P['F'])), 'pieces': [str(n) for n in P['names']], 'body_feet_removed': removed_feet}
+    return obj, {'tris': int(len(P['F'])), 'pieces': [str(n) for n in P['names']], 'body_feet_removed': removed_feet,
+                 'fit': dict(getattr(CO, 'FIT', {}))}
 
 
 def lower_arms(body: bpy.types.Object, arm: bpy.types.Object,
@@ -1096,6 +1139,137 @@ def add_hand_part(body: bpy.types.Object, arm: bpy.types.Object, gun: bpy.types.
     return {'obj': obj, 'report': rep}
 
 
+LEFT_HAND_CUT = 0.006          # 体の左手を消す所（手首から手の向きへの距離。手袋のカフの部品 glove_cuff.L の中）
+LEFT_HAND_RAMP = (-0.006, 0.014)   # 掌の手首の側と残した手首の体の重みを、前腕から hand.L へなめらかに移す範囲
+
+
+def add_left_hand_part(body: bpy.types.Object, arm: bpy.types.Object) -> dict:
+    """体の左手（手首から先、絵から起こした開いた手）を消し、開いた手の部品（recon/hand.build_open）に置き換える（8 回目）。
+
+    手の座標：+X = hand.L の骨の向き、+Y = 掌（体の内側 = −X の世界）、+Z = 親指の側（正面 = −Y の世界）。
+    手袋のカフ（costume の glove_cuff.L、前腕に 1）は残し、その中で体を切る（切り口はカフの中）。重みは掌・指が hand.L に 1、
+    手首の側（LEFT_HAND_RAMP）は前腕からなめらかに移す。"""
+    sys.path.insert(0, os.path.join(C.REPO, 'tools', 'blender', 'recon'))
+    import costume as CO
+    import hand as HD
+    from scipy.spatial import cKDTree
+    hb = arm.data.bones['hand.L']
+    W = np.array(hb.head_local)
+    ex = np.array((hb.tail_local - hb.head_local).normalized())
+    ey = np.array([-1.0, 0.0, 0.0]) - ex * (-ex[0])
+    ey /= np.linalg.norm(ey)
+    ez = np.cross(ex, ey)
+    if ez[1] > 0:          # 親指は正面（−Y）へ
+        ez = -ez
+    Rm = np.stack([ex, ey, ez], 1)        # 手の座標 → 世界
+    me = body.data
+    n = len(me.vertices)
+    co = np.empty(n * 3)
+    me.vertices.foreach_get('co', co)
+    co = co.reshape(-1, 3)
+    groups = list(body.vertex_groups)
+    gidx = {vg.name: i for i, vg in enumerate(groups)}
+    Wt = np.zeros((n, len(groups)))
+    for v in me.vertices:
+        for ge in v.groups:
+            Wt[v.index, ge.group] = ge.weight
+    Wt /= np.maximum(Wt.sum(1, keepdims=True), 1e-9)
+    arm_w = sum(Wt[:, gidx[b]] for b in ('forearm.L', 'hand.L') if b in gidx)
+    # 部品（材質 haru_parts）の頂点は除く（手袋のカフ・籠手）
+    parts_mi = [i for i, m in enumerate(me.materials) if m and m.name.startswith('haru_parts')]
+    is_part = np.zeros(n, bool)
+    for p in me.polygons:
+        if p.material_index in parts_mi:
+            is_part[list(p.vertices)] = True
+    loc = (co - W) @ Rm                  # 手の座標
+    near = (np.linalg.norm(co - W, axis=1) < 0.25) & (arm_w > 0.5) & ~is_part
+    band = near & (loc[:, 0] > -0.002) & (loc[:, 0] < 0.012)
+    sec = loc[band][:, 1:]
+    H = HD.build_open(sec)
+    gone = near & (loc[:, 0] > LEFT_HAND_CUT)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.verts.ensure_lookup_table()
+    kill = [f for f in bm.faces if any(gone[v.index] for v in f.verts)]
+    bmesh.ops.delete(bm, geom=kill, context='FACES')
+    loose = [v for v in bm.verts if not v.link_faces]
+    bmesh.ops.delete(bm, geom=loose, context='VERTS')
+    bm.to_mesh(me)
+    bm.free()
+    me.update()
+    n2 = len(me.vertices)
+    co = np.empty(n2 * 3)
+    me.vertices.foreach_get('co', co)
+    co = co.reshape(-1, 3)
+    Wt2 = np.zeros((n2, len(groups)))
+    for v in me.vertices:
+        for ge in v.groups:
+            Wt2[v.index, ge.group] = ge.weight
+    Wt2 /= np.maximum(Wt2.sum(1, keepdims=True), 1e-9)
+    armw2 = sum(Wt2[:, gidx[b]] for b in ('forearm.L', 'hand.L') if b in gidx)
+    x2 = (co - W) @ ex
+    near2 = (np.linalg.norm(co - W, axis=1) < 0.25) & (armw2 > 0.5)
+
+    def ramp(sv):
+        f = np.clip((sv - LEFT_HAND_RAMP[0]) / (LEFT_HAND_RAMP[1] - LEFT_HAND_RAMP[0]), 0, 1)
+        return f * f * (3 - 2 * f)
+    hot = np.zeros(len(groups))
+    hot[gidx['hand.L']] = 1.0
+    # 残した手首の体（カフの中）：前腕から hand.L へ
+    is_part2 = np.zeros(n2, bool)
+    for p in me.polygons:
+        if p.material_index in parts_mi:
+            is_part2[list(p.vertices)] = True
+    rv = np.nonzero(near2 & ~is_part2 & (x2 > LEFT_HAND_RAMP[0]))[0]
+    f = ramp(x2[rv])
+    Wt2[rv] = (1 - f[:, None]) * Wt2[rv] + f[:, None] * hot
+    for vi in rv:
+        for gi, vg in enumerate(groups):
+            if Wt2[vi, gi] > 1e-4:
+                vg.add([int(vi)], float(Wt2[vi, gi]), 'REPLACE')
+            else:
+                vg.remove([int(vi)])
+    V = H['V'] @ Rm.T + W
+    F = H['F']
+    if np.linalg.det(Rm) < 0:            # 左手系なら面を裏返す（外向きのまま）
+        F = F[:, ::-1]
+    pm = bpy.data.meshes.new('hand_L')
+    pm.from_pydata(V.tolist(), [], F.tolist())
+    pm.update()
+    obj = bpy.data.objects.new('hand_L', pm)
+    bpy.context.scene.collection.objects.link(obj)
+    pm.materials.append(bpy.data.materials.get('haru_parts'))
+    uvname = me.uv_layers.active.name if me.uv_layers.active else 'UVMap'
+    uv = pm.uv_layers.new(name=uvname)
+    cidx = np.array([CO.NAMES.index(c) for c in H['color']])
+    uv.data.foreach_set('uv', np.repeat(CO.palette_uv(cidx), 3, 0).ravel())
+    hx = H['V'][:, 0]
+    vg_h = obj.vertex_groups.new(name='hand.L')
+    wr = hx < LEFT_HAND_RAMP[1]
+    vg_h.add(np.nonzero(~wr)[0].tolist(), 1.0, 'REPLACE')
+    if wr.any():
+        src_ok = np.nonzero(near2)[0]
+        _, nn = cKDTree(co[src_ok]).query(V[wr])
+        wc = Wt2[src_ok[nn]].copy()
+        fc = ramp(hx[wr])
+        wc = (1 - fc[:, None]) * wc + fc[:, None] * hot
+        wi = np.nonzero(wr)[0]
+        for gi, g in enumerate(groups):
+            m = wc[:, gi] > 1e-4
+            if m.any():
+                vg = obj.vertex_groups.get(g.name) or obj.vertex_groups.new(name=g.name)
+                for vi, w in zip(wi[m], wc[m, gi]):
+                    vg.add([int(vi)], float(w), 'REPLACE')
+    bpy.ops.object.select_all(action='DESELECT')
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(40))
+    rep = dict(H['report'])
+    rep.update({'tris': int(len(F)), 'body_verts_removed': int(gone.sum()), 'ramp_verts': int(len(rv)),
+                'wrist_section_pts': int(len(sec))})
+    return {'obj': obj, 'report': rep}
+
+
 def find_rail_anchor(pts: np.ndarray, J: dict) -> tuple[list[float], list[float]]:
     """左前腕の外側（体から離れる側）のレールの、手首側の端を形から探す（A ポーズの座標）。
 
@@ -1310,6 +1484,10 @@ def main() -> None:
             hp = add_hand_part(body, arm, gun_obj, place)
             body = C.join([body, hp['obj']], body.name)
             hand_info = hp['report']
+            # 左手も部品（8 回目：絵から起こした開いた手の手袋の縁がぎざぎざだった）
+            lp = add_left_hand_part(body, arm)
+            body = C.join([body, lp['obj']], body.name)
+            hand_info['left_hand'] = lp['report']
             parts = [gun_obj]
         elif args.grip_fist:
             grip = grip_right_hand(body, arm, Vector([float(c) for c in args.grip_fist.split(',')]),

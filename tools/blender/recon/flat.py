@@ -88,6 +88,8 @@ GOGGLE_PAINT = CH.p('flat.GOGGLE_PAINT', True)
 # 体（頭より下）の塗り方：'views' ＝ 1 枚の絵のきれいな形（flat_views.py。4 回目）、'vote' ＝ 視点の多数決（前のやり方）。
 # 環境変数 FLAT_BODY で上書きできる
 BODY_PAINT = os.environ.get('FLAT_BODY') or CH.p('flat.BODY_PAINT', 'views')
+# ヒモを部品にしたか（8 回目、ハル）：形の段の帯は髪の色に塗る
+STRAP_PART = CH.p('flat.STRAP_PART', True)
 HEAD_PARTS = CH.p('flat.HEAD_PARTS', {'strap': -0.0012, 'ear': -0.002, 'hair_tol': -0.004, 'hair_out': 0.001, 'ramp': 0.001,
                                       'neck_z': 1.15})
 
@@ -245,7 +247,9 @@ def head_parts(pos: np.ndarray, nrm: np.ndarray, reg: np.ndarray, names: list[st
     st['hair'] = put(ramp_(h, 0.0), ium)
     st['ear'] = put(ramp_(f['ear'], hp['ear']), isk)
     if 'strap' in f:
-        st['strap'] = put(ramp_(f['strap'], hp['strap']), igr, (f['ear'] < hp['ear']).astype(np.float32))
+        # 8 回目：ヒモは髪の上の帯の部品（costume.build_goggle_strap）。形の段の古い帯のふくらみは髪の茶に塗る（部品の下に隠れる）
+        st['strap'] = put(ramp_(f['strap'], hp['strap']), ium if STRAP_PART else igr,
+                          (f['ear'] < hp['ear']).astype(np.float32))
     return st
 
 
