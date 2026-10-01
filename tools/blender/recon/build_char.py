@@ -132,7 +132,7 @@ def stages(standin: bool) -> list[Stage]:
               inputs=[f'{mesh}.glb', f'{R}/calib.json', f'{R}/face_atlas.png', f'{R}/face_atlas.json',
                       f'{R}/face_align.json'] + SRC_FULL,
               deps=[f'{RECON_PY}/views.py', f'{RECON_PY}/hair.py', f'{RECON_PY}/uvparts.py', f'{RECON_PY}/flat.py',
-                    f'{RECON_PY}/flat_views.py'],
+                    f'{RECON_PY}/flat_views.py', f'{RECON_PY}/costume.py'],
               note='下地の色・発光を 2048 角に焼き、顔の材質と UV を付ける（A ポーズの GLB、確認画像込みで約 5 分）'),
         Stage('joints', f'{RECON_PY}/joints.py', ['--mesh', textured, '--out', joints],
               outputs=[joints], inputs=[textured],
@@ -142,7 +142,7 @@ def stages(standin: bool) -> list[Stage]:
               + ['--stats', stats],
               outputs=[OUT_GLB, stats],
               inputs=rig_inputs,
-              deps=['tools/blender/lib/humanoid.py', 'tools/blender/lib/mesh.py', 'tools/blender/lib/common.py',
+              deps=[f'{RECON_PY}/costume.py', 'tools/blender/lib/humanoid.py', 'tools/blender/lib/mesh.py', 'tools/blender/lib/common.py',
                     'tools/blender/models/humanoid_anims.py', 'tools/blender/models/haru_a.py'],
               note='骨・重み・腕を下ろした基準の姿勢・14 動作・持ち物・目印を付けて、ゲームの GLB に'),
     ]

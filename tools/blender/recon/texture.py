@@ -1553,6 +1553,10 @@ def main() -> None:
         if PAINT == 'flat':   # 部位ごとに平らな色で塗る（本文の「平らに塗る」。PAINT=proj で前のやり方）
             from recon import flat as FL
             res['flat'] = FL.paint_body(res, mesh, cams)
+            if CH.get('costume'):   # 服の硬い部品は別の形（costume.py）：その下・まわりの塗りの板を布の色へ
+                from recon import costume as CO
+                res['flat']['costume'] = CO.cover_body(res['pos'], res['col'], mesh['verts'], mesh['tris'])
+                log(f'部品の下の塗り {res["flat"]["costume"]}')
             atlas_p = FL.paint_face_atlas(atlas_p, atlas_meta, os.path.join(TEX_DIR, f'{CH.ID}_face_atlas_flat.png'))
         cov = np.zeros(args.size * args.size, bool)
         cov[res['pix']] = True

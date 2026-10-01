@@ -33,7 +33,8 @@
   },
   "gun": {"sources": ["spark_gun_side.png", "spark_gun_3d.png"]},
   "rig_args": ["--gun", "{work}/spark_gun.glb", "--blade-anchor", "auto", "--rest-arm-deg", "12",
-               "--fill-unweighted", "0.2", "--grip-fist", "0,1,0", "--fist-shapekey", "--rigid-parts"],
+               "--fill-unweighted", "0.2", "--grip-fist", "0,1,0", "--fist-shapekey", "--rigid-parts", "--costume"],
+  "costume": true,
   "stages_skip": [],
   "params": {}
 }

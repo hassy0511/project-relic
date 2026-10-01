@@ -449,6 +449,55 @@ def rigid_parts(body: bpy.types.Object, J: dict) -> dict:
     return counts
 
 
+def add_costume(body: bpy.types.Object, tex_dir: str) -> tuple[bpy.types.Object, dict]:
+    """服の硬い部品（recon/costume.py）を体の形から作り、1 本の骨に重み 1 で付ける（A ポーズ、自動の重みのあと）。
+
+    材質 haru_parts：色見本の画像（8 区画）を UV で指す。部品の面は角度 35 度より鋭い所で折る（板の縁はくっきり、
+    板の面はなめらか）。返り値：(部品の物体, 数値の記録)
+    """
+    sys.path.insert(0, os.path.join(C.REPO, 'tools', 'blender', 'recon'))
+    import costume as CO
+    me = body.data
+    co = np.empty(len(me.vertices) * 3)
+    me.vertices.foreach_get('co', co)
+    co = co.reshape(-1, 3)
+    tris = []
+    for p in me.polygons:
+        vs = p.vertices[:]
+        for k in range(1, len(vs) - 1):
+            tris.append((vs[0], vs[k], vs[k + 1]))
+    P = CO.build_all(co, np.array(tris))
+    pm = bpy.data.meshes.new('costume')
+    pm.from_pydata(P['V'].tolist(), [], P['F'].tolist())
+    pm.update()
+    obj = bpy.data.objects.new('costume', pm)
+    bpy.context.scene.collection.objects.link(obj)
+    mat = bpy.data.materials.new('haru_parts')
+    mat.use_nodes = True
+    mat.use_backface_culling = True
+    nt = mat.node_tree
+    bsdf = nt.nodes['Principled BSDF']
+    bsdf.inputs['Roughness'].default_value = 0.85
+    bsdf.inputs['Metallic'].default_value = 0.0
+    tex = nt.nodes.new('ShaderNodeTexImage')
+    tex.image = bpy.data.images.load(CO.palette_image(os.path.join(tex_dir, 'haru_parts_base.png')))
+    tex.image.name = 'haru_parts_base'
+    tex.interpolation = 'Closest'
+    nt.links.new(tex.outputs['Color'], bsdf.inputs['Base Color'])
+    pm.materials.append(mat)
+    uvname = me.uv_layers.active.name if me.uv_layers.active else 'UVMap'
+    uv = pm.uv_layers.new(name=uvname)
+    uv.data.foreach_set('uv', np.repeat(CO.palette_uv(P['color']), 3, 0).ravel())
+    for bi, bone in enumerate(P['bones']):
+        vg = obj.vertex_groups.new(name=str(bone))
+        vg.add(np.nonzero(P['vbone'] == bi)[0].tolist(), 1.0, 'REPLACE')
+    bpy.ops.object.select_all(action='DESELECT')
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(35))
+    return obj, {'tris': int(len(P['F'])), 'pieces': [str(n) for n in P['names']]}
+
+
 def lower_arms(body: bpy.types.Object, arm: bpy.types.Object,
                frontal_deg: float | None = None) -> tuple[dict, Quaternion]:
     """腕を下ろした姿勢を、メッシュの新しい基準の形にする。下ろしたあとの関節の位置と、左腕の回転を返す。
@@ -606,7 +655,16 @@ GRIP_FRONT = 0.0
 # 拳の形（--grip-fist）：指の付け根は手首から指先までの GRIP_KNUCKLE の所。指は半径 GRIP_RADIUS の
 # 円柱（銃の握り）に沿って掌の側へ曲げる
 GRIP_KNUCKLE = 0.5
-GRIP_RADIUS = 0.026
+GRIP_RADIUS = 0.026   # （前のやり方の円柱の半径。今は使わない）
+# 銃の握りの断面（spark_gun.glb を高さごとに切って測った。銃の座標：銃身 +X、上 +Z、原点は握りの中ほど）：
+# 前の縁 x ≈ +0.03、前後の半径 約 2.4cm（前の縁から）、左右の半径 1.75cm（全幅 3.5cm）。
+# 用心金の下の縁は z ≈ -0.025、握りの下端 -0.08、上は枠の下 z ≈ +0.012
+GRIP_X_FRONT = 0.030
+GRIP_A = 0.024
+GRIP_B = 0.0175
+GRIP_GAP = 0.0015     # 握りの面と指の面の間（めり込まない）
+GRIP_K_BACK = 0.012   # 指の付け根は、断面の前の縁からこれだけ後ろ
+GRIP_Z_TOP, GRIP_Z_BOT = 0.010, -0.074
 HAND_END_FRAC = 0.8   # 手の骨の先（hand_end）は、手首から指先までのこの割合の所（joints.py、estimate_joints と同じ）
 
 
@@ -652,9 +710,11 @@ def grip_right_hand(body: bpy.types.Object, arm: bpy.types.Object, palm: Vector,
         q = Quaternion(h, ang * w[i])
         co[i] = Wv + np.array(q @ Vector(co[i] - Wv))
 
-    # 2. 曲げる（付け根より先を、掌の側の円柱に沿って）
-    pv = np.array(p1)                       # 掌の向き（体の内側）
-    tv = np.array(h.cross(p1))              # 親指の側（正面）
+    # 2. 曲げる：指（付け根 K より先）を、銃の握りの断面（楕円：前後の半径 GRIP_A、左右の半径 GRIP_B）の
+    #    まわりに巻く。指の掌の側の面（qv = q_palm）が断面の縁に沿い、指の長さ（K からの距離）だけ前の縁を回って
+    #    向こうの側面へ届く。K は断面の前の縁から GRIP_K_BACK 後ろの、掌の側の面の上。
+    pv = np.array(p1)                       # 掌の向き（体の内側）＝銃の左右（gy）
+    tv = np.array(h.cross(p1))              # 親指の側（正面）＝銃の上（gz）
     K = Wv + hv * reach * GRIP_KNUCKLE
     rel = co - K
     sv = rel @ hv
@@ -662,10 +722,29 @@ def grip_right_hand(body: bpy.types.Object, arm: bpy.types.Object, palm: Vector,
     wv = rel @ tv
     rad = np.linalg.norm(rel - np.outer(sv, hv), axis=1)
     fing = (w > 0.3) & (sv > 0) & (rad < 0.08)
-    th = sv[fing] / GRIP_RADIUS
-    r = GRIP_RADIUS - qv[fing]
-    C = K + pv * GRIP_RADIUS
-    co[fing] = (C + np.outer(wv[fing], tv) + np.outer(-np.cos(th) * r, pv) + np.outer(np.sin(th) * r, hv))
+    q_palm = float(np.percentile(qv[fing], 92)) if fing.any() else 0.0
+    A, B = GRIP_A + GRIP_GAP, GRIP_B + GRIP_GAP
+    x0 = A - GRIP_K_BACK
+    phi0 = -math.acos(max(-1.0, min(1.0, x0 / A)))
+    y0 = B * math.sin(phi0)
+    centre = K + pv * q_palm - (hv * x0 + pv * y0)
+    phis = np.linspace(phi0, phi0 + 2 * math.pi, 2001)
+    ex, ey = A * np.cos(phis), B * np.sin(phis)
+    arc = np.concatenate([[0.0], np.cumsum(np.hypot(np.diff(ex), np.diff(ey)))])
+    ph = np.interp(sv[fing], arc, phis)
+    nx, ny = np.cos(ph) / A, np.sin(ph) / B
+    nl = np.hypot(nx, ny)
+    nx, ny = nx / nl, ny / nl
+    out = q_palm - qv[fing]
+    co[fing] = (centre + np.outer(A * np.cos(ph) + out * nx, hv) + np.outer(B * np.sin(ph) + out * ny, pv)
+                + np.outer(wv[fing], tv))
+    # 銃の置き場所：握りの断面の中心（銃の座標 (GRIP_X_FRONT - GRIP_A, 0, z)）を、指の帯の中ほどの所へ。
+    # 指の帯の高さ（wv の範囲）の中ほどを、握りの使える高さ（GRIP_Z_TOP〜GRIP_Z_BOT）の中ほどに合わせる
+    wf = wv[fing]
+    w_mid = float((np.percentile(wf, 3) + np.percentile(wf, 97)) / 2) if fing.any() else 0.0
+    z_mid = (GRIP_Z_TOP + GRIP_Z_BOT) / 2
+    origin = centre + tv * w_mid - hv * (GRIP_X_FRONT - GRIP_A) - tv * z_mid
+    C = origin
     if shape_key:
         if body.data.shape_keys is None:
             body.shape_key_add(name='Basis', from_mix=False)
@@ -675,7 +754,9 @@ def grip_right_hand(body: bpy.types.Object, arm: bpy.types.Object, palm: Vector,
     else:
         me.vertices.foreach_set('co', co.ravel())
     me.update()
-    return {'origin': Vector(C), 'x': h, 'z': Vector(tv), 'fingers': int(fing.sum()), 'twist_deg': math.degrees(ang)}
+    return {'origin': Vector(C), 'x': h, 'z': Vector(tv), 'fingers': int(fing.sum()), 'twist_deg': math.degrees(ang),
+            'q_palm': round(q_palm, 4), 'finger_band': [round(float(np.percentile(wf, 3)), 4),
+                                                       round(float(np.percentile(wf, 97)), 4)] if fing.any() else None}
 
 
 def add_recon_gun(arm: bpy.types.Object, path: str, grip: dict | None = None) -> bpy.types.Object:
@@ -868,6 +949,8 @@ def main() -> None:
                     help='自動の重みが付かない頂点がこの割合までなら、近い頂点の重みで埋める（既定 0 = 従来どおり）')
     ap.add_argument('--rigid-parts', action='store_true',
                     help='膝当て・右肩の板（下地の色で探す）を 1 本の骨にだけ付ける（テクスチャのある入力）')
+    ap.add_argument('--costume', action='store_true',
+                    help='服の硬い部品（recon/costume.py）を別の形にして、載る骨 1 本に付ける（ハル）')
     ap.add_argument('--no-weapon', action='store_true', help='銃・光刃・目印を付けない（NPC）')
     ap.add_argument('--final-height', type=float, default=None, help='最後に一様に拡大する身長（m）')
     ap.add_argument('--name', default='Haru', help='物体の名前（骨は <名前>Rig）')
@@ -905,6 +988,10 @@ def main() -> None:
     tmp = H.build_armature(HEIGHT, 'TmpRig', joints_table(J))
     method = skin(body, tmp, args.fill_unweighted)
     rigid = rigid_parts(body, J) if args.rigid_parts else None
+    costume = None
+    if args.costume:
+        cobj, costume = add_costume(body, tempfile.mkdtemp(prefix='ai_costume_'))
+        body = C.join([body, cobj], 'Body')
     lowered, q_left = lower_arms(body, tmp, args.rest_arm_deg)
     bpy.data.objects.remove(tmp, do_unlink=True)
     body.parent = None
@@ -933,7 +1020,8 @@ def main() -> None:
         parts = [add_recon_gun(arm, args.gun, grip)]
         if grip:
             grip_info = {'fingers_bent': grip['fingers'], 'twist_deg': round(grip['twist_deg'], 1),
-                         'grip_origin': [round(c, 4) for c in grip['origin']]}
+                         'grip_origin': [round(c, 4) for c in grip['origin']],
+                         'q_palm': grip.get('q_palm'), 'finger_band': grip.get('finger_band')}
         add_blade(arm, blade_mat, blade)
     else:
         parts_mat, face_mat, blade_mat = HA.make_materials(tex_dir)
@@ -967,6 +1055,7 @@ def main() -> None:
         'blade': {k: [round(x, 4) for x in v] for k, v in blade.items()} if blade else None,
         'grip': grip_info,
         'rigid_parts': rigid,
+        'costume': costume,
     }
     with open(args.stats or (os.path.splitext(args.out)[0] + '.stats.json'), 'w') as f:
         json.dump(stats, f, indent=2, ensure_ascii=False)

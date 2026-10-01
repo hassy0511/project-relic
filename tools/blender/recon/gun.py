@@ -769,13 +769,36 @@ def amber_mask(rgba: np.ndarray) -> np.ndarray:
     return ndi.binary_fill_holes(m)
 
 
-def make_textures(rgba: np.ndarray, amber: np.ndarray) -> tuple[str, str]:
-    """下地の色：真横の絵の透明な所を一番近い不透明の色で埋めたもの（縁で黒や白が混じらないように）。
+# 部品ごとの平らな色（W0 の基準色。体の部品 costume.py と同じ表）。書かない部品は絵の部品の中央値の色
+FLAT_COLOURS = {
+    'ivory': (243, 233, 210), 'rail': (169, 135, 73), 'bore': (60, 61, 58),
+}
+
+
+def make_textures(rgba: np.ndarray, amber: np.ndarray, lab: np.ndarray | None = None) -> tuple[str, str]:
+    """下地の色：部品ごとに平らな 1 色（lab：部品のラベル。FLAT_COLOURS か、絵のその部品の色の中央値）。
+    lab が無ければ前のやり方（真横の絵の色そのまま）。部品の外（透明な所）は一番近い部品の色。
     発光：琥珀の窓だけ（縁は 1 画素ぼかす）"""
     a = rgba[..., 3]
     opaque = a >= 0.95 * a.max()
-    _, idx = ndi.distance_transform_edt(~opaque, return_indices=True)
-    albedo = rgba[..., :3][idx[0], idx[1]].copy()
+    if lab is not None:
+        flat = np.zeros(rgba.shape[:2] + (3,), np.uint8)
+        has = lab > 0
+        for part in PARTS:
+            m = lab == PART_INDEX[part.name]
+            if not m.any():
+                continue
+            col = FLAT_COLOURS.get(part.name)
+            if col is None:
+                col = np.median(rgba[..., :3][m & ~amber & opaque], 0) if (m & ~amber & opaque).any() else (68, 70, 65)
+            flat[m] = np.asarray(col, np.uint8)
+        _, idx = ndi.distance_transform_edt(~has, return_indices=True)
+        albedo = flat[idx[0], idx[1]].copy()
+        amb = np.median(rgba[..., :3][amber], 0) if amber.any() else (255, 188, 82)
+        albedo[amber] = np.asarray(amb, np.uint8)
+    else:
+        _, idx = ndi.distance_transform_edt(~opaque, return_indices=True)
+        albedo = rgba[..., :3][idx[0], idx[1]].copy()
     d0, d1 = DARK_SWATCH
     albedo[d0:d1, d0:d1] = (14, 14, 15)
     emit_w = filters.gaussian(amber.astype(np.float64), 1.0)[..., None]
@@ -784,9 +807,9 @@ def make_textures(rgba: np.ndarray, amber: np.ndarray) -> tuple[str, str]:
     emissive = (albedo.astype(np.float64) * emit_w).astype(np.uint8)
     # 窓の下地は暗くする（明るさは発光で出す。下地も明るいと光が足されて黄色く飛ぶ）
     albedo = (albedo.astype(np.float64) * (1.0 - 0.75 * emit_w)).astype(np.uint8)
-    p_alb = os.path.join(WORK, 'spark_gun_albedo.jpg')
+    p_alb = os.path.join(WORK, 'spark_gun_albedo.png')
     p_emi = os.path.join(WORK, 'spark_gun_emissive.png')
-    Image.fromarray(albedo).save(p_alb, quality=92)
+    Image.fromarray(albedo).save(p_alb, optimize=True)
     Image.fromarray(emissive).save(p_emi, optimize=True)
     return p_alb, p_emi
 
@@ -1105,7 +1128,7 @@ def main() -> dict:
         if part.name == 'receiver':
             build_window(b, part, mouth, pane, frame)
     bore = build_bore(b, lab, frame)
-    p_alb, p_emi = make_textures(side, amber)
+    p_alb, p_emi = make_textures(side, amber, lab)
     verts, tris = b.triangles()
     obj, mz = blender_object(b, p_alb, p_emi, bore['muzzle'])
     export(OUT_GLB)
