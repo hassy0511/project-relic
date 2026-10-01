@@ -57,7 +57,8 @@ func load_model(path: String, shade: String = "soft") -> void:
 					body_mats.append(m)
 		if mi != blade:
 			meshes.append(mi)
-			# 右手の拳（haru_r：基準の姿勢は絵の開いた手、拳はシェイプキー fist）。銃は常に持つので握る
+			# 右手の拳のシェイプキー fist（5 回目までの haru_r）。6 回目からは右手が部品で、基準の姿勢のまま握っている
+			# （シェイプキーなし、ここは何もしない）。古い GLB のために残す
 			var fi := mi.find_blend_shape_by_name("fist")
 			if fi >= 0:
 				mi.set_blend_shape_value(fi, 1.0)

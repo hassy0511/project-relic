@@ -40,6 +40,17 @@ J = {
     'foot': (0.15, 0.0463, 0.09),
 }
 H = 0.011         # 殻の点の間隔（m）
+# 体の重みを写す部品（ai_character.add_costume）：載る骨 1 本の剛体にすると、肩の上で体が突き抜ける
+FOLLOW_BODY = ('shoulder_pad.R', 'shoulder_strap.R')
+# 塗りだけの決まり（cover_body）：箱（x, y, z の範囲）の中の、clear の色を、同じ箱の中のほかの色で塗り直す
+#   首の後ろ：絵では髪とえりで素肌は見えない。肌色の横の筋が残っていた（6 回目）
+#   keep：この色（色見本からの距離 tol 以内）のほかは塗り直す（布と肌の混ざった色の筋も消える）。fill：決まった色で埋める
+#   右肩のまわり：板の部品より外に残る絵の板の白（正面の絵の板は形の板より広い）を、れんが色に
+BOX_RULES = [dict(name='neck_back_noskin', box=((-0.11, 0.11), (0.02, 0.2), (1.08, 1.188)),
+                  keep=['brick', 'umber', 'graphite'], tol=0.03),
+             dict(name='right_shoulder_noivory', box=((-0.34, -0.095), (-0.2, 0.2), (0.98, 1.25)), clear=['ivory'],
+                  fill='brick')]
+RIGHT_HAND_PART = True   # 右手を部品にする（6 回目、ai_character.py --hand-part）：右の手袋のカフは形を作らず、手首の前を肌に塗る
 
 
 def hex_rgb(h: str) -> np.ndarray:
@@ -109,6 +120,12 @@ def pieces() -> list[dict]:
         P.append(dict(name='knee_paint_bolts2' + sx, bone='shin' + sx, color='amber', frame=fr, clear_only=True,
                       outline=octagon(-0.14, -0.02, -0.05, 0.04, 0.01), clear=['amber', 'brass'], fill='graphite', margin=0.012,
                       rmax=0.11))
+        # 絵のボルトの円の縁（細い茶・黄土の輪）が膝の横（形のボルトより後ろ、真横の近く）に残る：膝の横は暗い裏地の色に
+        # 決める（6 回目）
+        P.append(dict(name='knee_hinge_dark' + sx, bone='shin' + sx, color='graphite', frame=fr, clear_only=True,
+                      outline=octagon(0.03, 0.135, -0.045, 0.035, 0.012), under='graphite', rmax=0.11))
+        P.append(dict(name='knee_hinge_dark2' + sx, bone='shin' + sx, color='graphite', frame=fr, clear_only=True,
+                      outline=octagon(-0.135, -0.03, -0.045, 0.035, 0.012), under='graphite', rmax=0.11))
         # 靴のカフ（赤の帯、z 0.155〜0.205）
         fb = frame(jp('shin', side), jp('foot', side), front)
         fb['RN'] = 0.05
@@ -132,7 +149,7 @@ def pieces() -> list[dict]:
     fsp['d'] = fsp['e2']
     P.append(dict(name='shoulder_pad.R', bone='upper_arm.R', color='ivory', frame=fsp,
                   outline=octagon(-0.056, 0.058, -0.060, 0.060, 0.024), off=0.003, thick=0.008, bevel=0.004,
-                  under='brick', clear=['ivory'], fill='brick', margin=0.025, rmax=0.12, rmin=0.03))
+                  under='brick', clear=['ivory'], fill='brick', margin=0.04, rmax=0.12, rmin=0.03))
     P.append(dict(name='shoulder_strap.R', bone='upper_arm.R', color='graphite', frame=fr, ring=True,
                   t0=0.094, t1=0.116, off=0.003, thick=0.006, bevel=0.002, under='graphite', rmax=0.085))
     # 袖口の暗い帯（両腕、肩から腕の軸に沿って 17.7〜20.5cm）
@@ -167,6 +184,12 @@ def pieces() -> list[dict]:
         L2 = float(np.linalg.norm(w2 - e2))
         fc = frame(e2, w2, front)
         fc['RN'] = 0.035
+        if side < 0 and RIGHT_HAND_PART:
+            # 右手は部品（recon/hand.py：手・指・カフ）。ここは塗りだけ：肘から手首までの前腕は肌（絵の右の前腕は
+            # 手首のカフのほかは素肌。体の塗りに残る手袋の暗い色のぎざぎざの縁を消す。カフの部品の下も肌）
+            P.append(dict(name='glove_cuff' + sx, bone='forearm' + sx, color='graphite', frame=fc, ring=True,
+                          clear_only=True, t0=0.01, t1=L2 + 0.03, under='skin', rmax=0.07))
+            continue
         t0 = L2 - 0.004 if side > 0 else L2 - 0.022
         P.append(dict(name='glove_cuff' + sx, bone='forearm' + sx, color='graphite', frame=fc, ring=True,
                       t0=t0, t1=L2 + 0.016, off=0.003, thick=0.006, bevel=0.002, under='graphite', rmax=0.06))
@@ -191,7 +214,7 @@ def pieces() -> list[dict]:
     P.append(dict(name='back_plate', bone='chest', color='ivory',
                   frame=dict(frame((0.0, 0.02, 0.0), (0.0, 0.02, 1.0), (0.0, 1.0, 0.0)), RN=0.12),
                   outline=octagon(-0.056, 0.056, 1.037, 1.113, 0.008), off=0.004, thick=0.007, bevel=0.002,
-                  under='brick', clear=['ivory'], fill='brick', margin=0.010, rmax=0.2))
+                  under='brick', clear=['ivory'], fill='brick', margin=0.03, rmax=0.2))
     # 右の太ももの板：太ももの軸（股 → 膝）、前外の向き。z 0.755〜0.55（絵の正面・真横・背面）
     t, k = jp('thigh', -1.0), jp('shin', -1.0)
     ft = frame(t, k, unit(np.array([-0.8, -0.6, 0.0])))
@@ -443,8 +466,9 @@ def build_box(spec: dict, bvh) -> tuple[np.ndarray, np.ndarray, dict]:
     return V, F, {'r': np.array([r0]), 'pts': np.stack([s, t], 1)}
 
 
-def build_all(verts: np.ndarray, tris: np.ndarray, out_npz: str | None = None) -> dict:
-    """部品の形をすべて作る。返り値：{V, F, color（面ごとの色の番号）, bone（頂点ごとの骨の名前の番号）, bones, names}"""
+def build_all(verts: np.ndarray, tris: np.ndarray, out_npz: str | None = None, skip: tuple = ()) -> dict:
+    """部品の形をすべて作る（skip の名前の部品は作らない：右手を部品にしたときの右の手袋のカフ）。
+    返り値：{V, F, color（面ごとの色の番号）, bone（頂点ごとの骨の名前の番号）, bones, names}"""
     from mathutils.bvhtree import BVHTree
     bvh = BVHTree.FromPolygons([tuple(v) for v in verts], [tuple(int(i) for i in t) for t in tris])
     Vs, Fs, cols, vb, pn = [], [], [], [], []
@@ -452,7 +476,7 @@ def build_all(verts: np.ndarray, tris: np.ndarray, out_npz: str | None = None) -
     report = {}
     off = 0
     for spec in pieces():
-        if spec.get('clear_only'):   # 塗りだけを直す範囲（形は作らない）
+        if spec.get('clear_only') or spec['name'] in skip:   # 塗りだけを直す範囲（形は作らない）
             continue
         V, F, _ = build_box(spec, bvh) if spec.get('box') else build_shell(spec, bvh)
         if spec['bone'] not in bones:
@@ -534,6 +558,25 @@ def cover_body(pos: np.ndarray, col: np.ndarray, verts: np.ndarray, tris: np.nda
             else:
                 clear |= band & cl
         stats[spec['name']] = int(ins.sum())
+    for rule in BOX_RULES:
+        (x0, x1), (y0, y1), (z0, z1) = rule['box']
+        inb = ((pos[:, 0] > x0) & (pos[:, 0] < x1) & (pos[:, 1] > y0) & (pos[:, 1] < y1)
+               & (pos[:, 2] > z0) & (pos[:, 2] < z1))
+        if 'keep' in rule:
+            kp = np.isin(lab, [NAMES.index(c) for c in rule['keep']])
+            dpal = np.linalg.norm(col - pal[lab], axis=1)
+            cl = inb & ~(kp & (dpal < rule['tol'])) & (under < 0)
+        else:
+            cl = inb & np.isin(lab, [NAMES.index(c) for c in rule['clear']]) & (under < 0)
+        src = inb & ~cl
+        if rule.get('fill'):
+            under[cl] = NAMES.index(rule['fill'])
+        elif cl.any() and src.any():
+            tree = cKDTree(pos[src])
+            _, nn = tree.query(pos[cl], k=1)
+            col[cl] = col[np.nonzero(src)[0][nn]]
+            lab[cl] = lab[np.nonzero(src)[0][nn]]
+        stats[rule['name']] = int(cl.sum())
     fixed = under >= 0
     col[fixed] = pal[under[fixed]]
     lab[fixed] = under[fixed]

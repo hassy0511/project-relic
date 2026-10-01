@@ -60,6 +60,7 @@ import tempfile
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import bpy  # noqa: E402
+import bmesh  # noqa: E402
 import numpy as np  # noqa: E402
 from mathutils import Matrix, Quaternion, Vector  # noqa: E402
 
@@ -449,7 +450,7 @@ def rigid_parts(body: bpy.types.Object, J: dict) -> dict:
     return counts
 
 
-def add_costume(body: bpy.types.Object, tex_dir: str) -> tuple[bpy.types.Object, dict]:
+def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple[bpy.types.Object, dict]:
     """服の硬い部品（recon/costume.py）を体の形から作り、1 本の骨に重み 1 で付ける（A ポーズ、自動の重みのあと）。
 
     材質 haru_parts：色見本の画像（8 区画）を UV で指す。部品の面は角度 35 度より鋭い所で折る（板の縁はくっきり、
@@ -466,7 +467,7 @@ def add_costume(body: bpy.types.Object, tex_dir: str) -> tuple[bpy.types.Object,
         vs = p.vertices[:]
         for k in range(1, len(vs) - 1):
             tris.append((vs[0], vs[k], vs[k + 1]))
-    P = CO.build_all(co, np.array(tris))
+    P = CO.build_all(co, np.array(tris), skip=skip)
     pm = bpy.data.meshes.new('costume')
     pm.from_pydata(P['V'].tolist(), [], P['F'].tolist())
     pm.update()
@@ -488,9 +489,37 @@ def add_costume(body: bpy.types.Object, tex_dir: str) -> tuple[bpy.types.Object,
     uvname = me.uv_layers.active.name if me.uv_layers.active else 'UVMap'
     uv = pm.uv_layers.new(name=uvname)
     uv.data.foreach_set('uv', np.repeat(CO.palette_uv(P['color']), 3, 0).ravel())
+    # 体の重みを写す部品（右肩の板と下の帯）：載る骨 1 本の剛体だと、腕を下ろした基準の姿勢（と動作）で肩の上の体
+    # （胸・肩の骨の重みが混ざる）が板の内の縁から突き抜け、板が 2 つに割れて見えた（6 回目）。近くの体の頂点の重みを
+    # なめらかにして写し、板と下の体が同じに動くようにする
+    follow = np.zeros(len(P['V']), bool)
+    names = [str(n) for n in P['names']]
+    for pi, nm in enumerate(names):
+        if nm in CO.FOLLOW_BODY:
+            follow[np.unique(P['F'][P['piece'] == pi])] = True
     for bi, bone in enumerate(P['bones']):
         vg = obj.vertex_groups.new(name=str(bone))
-        vg.add(np.nonzero(P['vbone'] == bi)[0].tolist(), 1.0, 'REPLACE')
+        vg.add(np.nonzero((P['vbone'] == bi) & ~follow)[0].tolist(), 1.0, 'REPLACE')
+    if follow.any():
+        from scipy.spatial import cKDTree
+        groups = list(body.vertex_groups)
+        Wb = np.zeros((len(me.vertices), len(groups)))
+        for v in me.vertices:
+            for ge in v.groups:
+                Wb[v.index, ge.group] = ge.weight
+        Wb /= np.maximum(Wb.sum(1, keepdims=True), 1e-9)
+        fi = np.nonzero(follow)[0]
+        d, nn = cKDTree(co).query(P['V'][fi], k=8)
+        wk = 1.0 / np.maximum(d, 1e-4)
+        Wf = (Wb[nn] * wk[..., None]).sum(1) / wk.sum(1, keepdims=True)
+        Wf[Wf < 0.02] = 0.0
+        Wf /= np.maximum(Wf.sum(1, keepdims=True), 1e-9)
+        for gi, g in enumerate(groups):
+            m = Wf[:, gi] > 0
+            if m.any():
+                vg = obj.vertex_groups.get(g.name) or obj.vertex_groups.new(name=g.name)
+                for vi, w in zip(fi[m], Wf[m, gi]):
+                    vg.add([int(vi)], float(w), 'REPLACE')
     bpy.ops.object.select_all(action='DESELECT')
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
@@ -787,7 +816,8 @@ def grip_right_hand(body: bpy.types.Object, arm: bpy.types.Object, palm: Vector,
                                                        round(float(np.percentile(wf, 97)), 4)] if fing.any() else None}
 
 
-def add_recon_gun(arm: bpy.types.Object, path: str, grip: dict | None = None) -> bpy.types.Object:
+def add_recon_gun(arm: bpy.types.Object, path: str, grip: dict | None = None,
+                  place_override: Matrix | None = None) -> bpy.types.Object:
     """絵から起こした銃（spark_gun.glb）を右手に持たせる。
 
     GLB の銃：原点 = 握りの中心、銃身 +X（銃口が +X）、上 +Z、空の目印 'muzzle' が銃口の先。
@@ -830,12 +860,200 @@ def add_recon_gun(arm: bpy.types.Object, path: str, grip: dict | None = None) ->
     else:
         origin = hr.head_local.lerp(hr.tail_local, GRIP_ALONG) + inward * GRIP_IN + front * GRIP_FRONT
     place = Matrix.Translation(origin) @ rot
+    if place_override is not None:
+        place = place_override
     gun.data.transform(place)
     gun.data.update()
     M.weight_rigid(gun, 'hand.R')
     muzzle = C.empty('muzzle', place @ tip_world)
     M.parent_to_bone(muzzle, arm, 'hand.R')
     return gun
+
+
+# 右手の部品（--hand-part、recon/hand.py）：手首（hand.R の元）を銃の座標のこの位置に置く。
+# 銃の向きは前と同じ（銃身 = 手の骨の向き、銃の上 = 親指の側 = 腕を下ろした姿勢の正面、+Y = 掌 = 体の内側）
+HAND_WRIST_IN_GUN = (-0.062, -0.040, -0.010)
+HAND_CUT = -0.006       # 体の右手を消す所（手首から手の向きへの距離。これより先の面を消す。カフの下）
+HAND_RAMP = (-0.042, -0.014)   # 手首の体とカフの重みを、前腕の重みから hand.R の 1 へなめらかに移す範囲
+
+
+def hand_frame(arm: bpy.types.Object) -> tuple[Matrix, Vector, Vector]:
+    """銃の座標 → 骨の物体の座標の行列（右手の部品と銃の置き場所）。返り値：(行列, 手首, 手の向き)"""
+    hr = arm.data.bones['hand.R']
+    W = hr.head_local.copy()
+    gx = (hr.tail_local - W).normalized()
+    gy = (Vector((1.0, 0.0, 0.0)) - gx * gx.x).normalized()     # 掌 = 体の内側
+    gz = gx.cross(gy)                                            # 親指の側 = 正面
+    rot = Matrix((gx, gy, gz)).transposed()
+    origin = W - rot @ Vector(HAND_WRIST_IN_GUN)
+    return Matrix.Translation(origin) @ rot.to_4x4(), W, gx
+
+
+def sample_surface(obj: bpy.types.Object, step_area: float = 4e-7) -> np.ndarray:
+    """物体の面の上の点（物体の座標）"""
+    me = obj.data
+    V = np.array([v.co[:] for v in me.vertices])
+    out = []
+    rng = np.random.default_rng(0)
+    for p in me.polygons:
+        vs = p.vertices[:]
+        for k in range(1, len(vs) - 1):
+            a, b, c = V[vs[0]], V[vs[k]], V[vs[k + 1]]
+            ar = np.linalg.norm(np.cross(b - a, c - a)) / 2
+            n = max(1, int(ar / step_area))
+            u = rng.random((n, 2))
+            m = u.sum(1) > 1
+            u[m] = 1 - u[m]
+            out.append(a + np.outer(u[:, 0], b - a) + np.outer(u[:, 1], c - a))
+    return np.concatenate(out + [V])
+
+
+def add_hand_part(body: bpy.types.Object, arm: bpy.types.Object, gun: bpy.types.Object, place: Matrix) -> dict:
+    """体の右手（手首から先）を消し、銃を握った手の部品（recon/hand.py）に置き換える。
+
+    掌・指は hand.R に 1（剛体）。カフと、残した手首の体は、HAND_RAMP の範囲で前腕の重みから hand.R へ
+    なめらかに移す（同じ位置の体とカフは同じ重み＝曲げてもカフが手首から離れない）。返り値：数値の記録
+    """
+    sys.path.insert(0, os.path.join(C.REPO, 'tools', 'blender', 'recon'))
+    import costume as CO
+    import hand as HD
+    inv = place.inverted()
+    gun_pts = sample_surface(gun)
+    Rinv = np.array(inv.to_3x3())
+    tinv = np.array(inv.translation)
+    gun_pts = gun_pts @ Rinv.T + tinv
+    hr = arm.data.bones['hand.R']
+    W = np.array(hr.head_local)
+    h = np.array((hr.tail_local - hr.head_local).normalized())
+
+    me = body.data
+    n = len(me.vertices)
+    co = np.empty(n * 3)
+    me.vertices.foreach_get('co', co)
+    co = co.reshape(-1, 3)
+    groups = list(body.vertex_groups)
+    gidx = {vg.name: i for i, vg in enumerate(groups)}
+    Wt = np.zeros((n, len(groups)))
+    for v in me.vertices:
+        for ge in v.groups:
+            Wt[v.index, ge.group] = ge.weight
+    Wt /= np.maximum(Wt.sum(1, keepdims=True), 1e-9)
+    arm_w = sum(Wt[:, gidx[b]] for b in ('forearm.R', 'hand.R') if b in gidx)
+    s = (co - W) @ h
+    near = (np.linalg.norm(co - W, axis=1) < 0.25) & (arm_w > 0.5)
+    # 前腕の手首の断面（カフの大きさ）：銃の座標の (y, z) − 手首
+    band = near & (s > -0.034) & (s < -0.008)
+    sec = (co[band] @ Rinv.T + tinv)[:, 1:]          # 銃の座標の (y, z)
+    if os.environ.get('HAND_DEBUG'):
+        for s0 in np.arange(-0.08, 0.02, 0.01):
+            b2 = near & (s > s0) & (s < s0 + 0.01)
+            q = (co[b2] @ Rinv.T + tinv)[:, 1:]
+            if len(q) > 5:
+                print('HANDDBG s', round(s0, 3), len(q), 'y', np.percentile(q[:, 0], [2, 98]).round(3), 'z', np.percentile(q[:, 1], [2, 98]).round(3))
+        rr = np.linalg.norm(sec, axis=1)
+        print('HANDDBG section', len(sec), np.percentile(rr, [5, 50, 90, 100]).round(4), sec.mean(0).round(4), np.percentile(sec[:, 0], [0, 50, 100]).round(4), np.percentile(sec[:, 1], [0, 50, 100]).round(4))
+    H = HD.build(gun_pts, np.array(HAND_WRIST_IN_GUN), sec)
+
+    # 体の右手を消す
+    gone = near & (s > HAND_CUT)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.verts.ensure_lookup_table()
+    kill = [f for f in bm.faces if any(gone[v.index] for v in f.verts)]
+    bmesh.ops.delete(bm, geom=kill, context='FACES')
+    loose = [v for v in bm.verts if not v.link_faces]
+    bmesh.ops.delete(bm, geom=loose, context='VERTS')
+    bm.to_mesh(me)
+    bm.free()
+    me.update()
+    n2 = len(me.vertices)
+    co = np.empty(n2 * 3)
+    me.vertices.foreach_get('co', co)
+    co = co.reshape(-1, 3)
+    from scipy.spatial import cKDTree
+    s2 = (co - W) @ h
+    Wt2 = np.zeros((n2, len(groups)))
+    for v in me.vertices:
+        for ge in v.groups:
+            Wt2[v.index, ge.group] = ge.weight
+    Wt2 /= np.maximum(Wt2.sum(1, keepdims=True), 1e-9)
+    armw2 = sum(Wt2[:, gidx[b]] for b in ('forearm.R', 'hand.R') if b in gidx)
+    near2 = (np.linalg.norm(co - W, axis=1) < 0.25) & (armw2 > 0.5)
+
+    def ramp(sv: np.ndarray) -> np.ndarray:
+        f = np.clip((sv - HAND_RAMP[0]) / (HAND_RAMP[1] - HAND_RAMP[0]), 0, 1)
+        return f * f * (3 - 2 * f)
+    hot = np.zeros(len(groups))
+    hot[gidx['hand.R']] = 1.0
+    rv = np.nonzero(near2 & (s2 > HAND_RAMP[0]))[0]
+    f = ramp(s2[rv])
+    Wt2[rv] = (1 - f[:, None]) * Wt2[rv] + f[:, None] * hot
+    for vi in rv:
+        for gi, vg in enumerate(groups):
+            if Wt2[vi, gi] > 1e-4:
+                vg.add([int(vi)], float(Wt2[vi, gi]), 'REPLACE')
+            else:
+                vg.remove([int(vi)])
+
+    # 部品の物体（骨の物体の座標へ）
+    R = np.array(place.to_3x3())
+    t = np.array(place.translation)
+    V = H['V'] @ R.T + t
+    F = H['F']
+    pm = bpy.data.meshes.new('hand_R')
+    pm.from_pydata(V.tolist(), [], F.tolist())
+    pm.update()
+    obj = bpy.data.objects.new('hand_R', pm)
+    bpy.context.scene.collection.objects.link(obj)
+    mat = bpy.data.materials.get('haru_parts')
+    if mat is None:
+        raise SystemExit('--hand-part は --costume（材質 haru_parts）と一緒に使う')
+    pm.materials.append(mat)
+    uvname = me.uv_layers.active.name if me.uv_layers.active else 'UVMap'
+    uv = pm.uv_layers.new(name=uvname)
+    cidx = np.array([CO.NAMES.index(c) for c in H['color']])
+    uv.data.foreach_set('uv', np.repeat(CO.palette_uv(cidx), 3, 0).ravel())
+    # 重み：掌・指は hand.R に 1。カフ（手首の前後）は、近い体の頂点の重みに同じなめらかな移し方
+    sh = (V - W) @ h
+    vg_h = obj.vertex_groups.new(name='hand.R')
+    cuff = sh < HAND_RAMP[1] + 0.002
+    vg_h.add(np.nonzero(~cuff)[0].tolist(), 1.0, 'REPLACE')
+    if cuff.any():
+        tree = cKDTree(co[near2])
+        _, nn = tree.query(V[cuff])
+        src = np.nonzero(near2)[0][nn]
+        wc = Wt2[src].copy()
+        fc = ramp(sh[cuff])
+        wc = (1 - fc[:, None]) * wc + fc[:, None] * hot
+        cidx_v = np.nonzero(cuff)[0]
+        for gi, g in enumerate(groups):
+            m = wc[:, gi] > 1e-4
+            if m.any():
+                vg = obj.vertex_groups.get(g.name) or obj.vertex_groups.new(name=g.name)
+                for vi, w in zip(cidx_v[m], wc[m, gi]):
+                    vg.add([int(vi)], float(w), 'REPLACE')
+    bpy.ops.object.select_all(action='DESELECT')
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(40))
+    # めり込みの確かめ：手の面の点のうち銃の中に入っている数（最近点の法線の向きで判定）
+    from mathutils.bvhtree import BVHTree
+    gm = gun.data
+    gv = [tuple((inv @ v.co)) for v in gm.vertices]
+    gbvh = BVHTree.FromPolygons(gv, [tuple(p.vertices) for p in gm.polygons])
+    depth = []
+    for p in H['V']:
+        loc, nrm, _, dist = gbvh.find_nearest(Vector(p))
+        if loc is not None:
+            depth.append(float((Vector(p) - loc).dot(nrm)))
+    depth = np.array(depth)
+    rep_pen = {'inside_verts': int((depth < -0.0005).sum()), 'deepest_mm': round(float(-depth.min()) * 1000, 2),
+               'touch_verts_2mm': int((np.abs(depth) < 0.002).sum())}
+    rep = dict(H['report'])
+    rep['penetration'] = rep_pen
+    rep.update({'tris': int(len(F)), 'body_verts_removed': int(gone.sum()), 'ramp_verts': int(len(rv)),
+                'wrist_in_gun': list(HAND_WRIST_IN_GUN)})
+    return {'obj': obj, 'report': rep}
 
 
 def find_rail_anchor(pts: np.ndarray, J: dict) -> tuple[list[float], list[float]]:
@@ -979,6 +1197,8 @@ def main() -> None:
                     help='膝当て・右肩の板（下地の色で探す）を 1 本の骨にだけ付ける（テクスチャのある入力）')
     ap.add_argument('--costume', action='store_true',
                     help='服の硬い部品（recon/costume.py）を別の形にして、載る骨 1 本に付ける（ハル）')
+    ap.add_argument('--hand-part', action='store_true',
+                    help='体の右手を消し、銃を握った手の部品（recon/hand.py）にする。基準の姿勢で握っている（ハル 6 回目）')
     ap.add_argument('--no-weapon', action='store_true', help='銃・光刃・目印を付けない（NPC）')
     ap.add_argument('--final-height', type=float, default=None, help='最後に一様に拡大する身長（m）')
     ap.add_argument('--name', default='Haru', help='物体の名前（骨は <名前>Rig）')
@@ -1018,7 +1238,8 @@ def main() -> None:
     rigid = rigid_parts(body, J) if args.rigid_parts else None
     costume = None
     if args.costume:
-        cobj, costume = add_costume(body, tempfile.mkdtemp(prefix='ai_costume_'))
+        cobj, costume = add_costume(body, tempfile.mkdtemp(prefix='ai_costume_'),
+                                    skip=('glove_cuff.R',) if args.hand_part else ())
         body = C.join([body, cobj], 'Body')
     lowered, q_left = lower_arms(body, tmp, args.rest_arm_deg)
     bpy.data.objects.remove(tmp, do_unlink=True)
@@ -1042,10 +1263,19 @@ def main() -> None:
         # 絵から起こした銃。材質は入力（'haru_body'、'haru_face'）と銃（'spark_gun'）のまま
         blade_mat = blade_material()
         grip = None
-        if args.grip_fist:
+        hand_info = None
+        if args.hand_part:
+            place, _, _ = hand_frame(arm)
+            gun_obj = add_recon_gun(arm, args.gun, None, place_override=place)
+            hp = add_hand_part(body, arm, gun_obj, place)
+            body = C.join([body, hp['obj']], body.name)
+            hand_info = hp['report']
+            parts = [gun_obj]
+        elif args.grip_fist:
             grip = grip_right_hand(body, arm, Vector([float(c) for c in args.grip_fist.split(',')]),
                                    shape_key=args.fist_shapekey)
-        parts = [add_recon_gun(arm, args.gun, grip)]
+        if not args.hand_part:
+            parts = [add_recon_gun(arm, args.gun, grip)]
         if grip:
             grip_info = {'fingers_bent': grip['fingers'], 'twist_deg': round(grip['twist_deg'], 1),
                          'grip_origin': [round(c, 4) for c in grip['origin']],
@@ -1083,6 +1313,7 @@ def main() -> None:
         'joints_apose': {k: [round(x, 4) for x in v] for k, v in J.items()},
         'blade': {k: [round(x, 4) for x in v] for k, v in blade.items()} if blade else None,
         'grip': grip_info,
+        'hand_part': hand_info if args.gun and not args.no_weapon else None,
         'rigid_parts': rigid,
         'costume': costume,
     }

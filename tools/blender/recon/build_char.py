@@ -31,8 +31,8 @@
     材質 '<id>_body'（下地の色＋発光のテクスチャ）と '<id>_face'（face_atlas.png、UV は区画 0：
     Blender の u∈[0,0.5]、v∈[0.5,1]）
   spark_gun.glb（ハルだけ）：原点 = 握りの中心、銃身 +X、上 +Z、材質 'spark_gun'、空の目印 'muzzle'
-  haru_r.glb：標準の 20 本の骨・14 動作・銃（右手の拳で握る。拳はシェイプキー 'fist'、基準は開いた手）・光刃 'LightBlade'（左の籠手のレール）・目印 'muzzle'、
-    'blade_socket'。材質 'haru_body'、'haru_face'、'spark_gun'、'haru_blade'
+  haru_r.glb：標準の 20 本の骨・14 動作・銃（右手は部品 hand.py で、基準の姿勢のまま握っている。シェイプキーなし）・光刃 'LightBlade'（左の籠手のレール）・目印 'muzzle'、
+    'blade_socket'。材質 'haru_body'、'haru_face'、'spark_gun'、'haru_blade'、'haru_parts'（服の部品と右手）
   yana.glb：標準の 20 本の骨・14 動作（持ち物なし）。材質 'yana_body'、'yana_face'。骨の物体を 172/155 倍に拡大（身長 1.72m）
 """
 from __future__ import annotations
