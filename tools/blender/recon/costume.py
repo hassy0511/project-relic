@@ -49,7 +49,13 @@ FOLLOW_BODY = ('shoulder_pad.R', 'shoulder_strap.R')
 BOX_RULES = [dict(name='neck_back_noskin', box=((-0.11, 0.11), (0.02, 0.2), (1.08, 1.188)),
                   keep=['brick', 'umber', 'graphite'], tol=0.03),
              dict(name='right_shoulder_noivory', box=((-0.34, -0.095), (-0.2, 0.2), (0.98, 1.25)), clear=['ivory'],
-                  fill='brick')]
+                  fill='brick'),
+             # 右肩・背中の板のまわりに残る、白とれんがの混ざった色の細い縁（色見本では「れんが」になり上の決まりを
+             # すり抜ける）：れんが・暗い灰・こげ茶のほかを近くのその色で塗り直す
+             dict(name='right_shoulder_edges', box=((-0.34, -0.095), (-0.2, 0.2), (0.98, 1.25)),
+                  keep=['brick', 'umber', 'graphite'], tol=0.03),
+             dict(name='back_plate_edges', box=((-0.10, 0.10), (0.03, 0.25), (1.0, 1.15)),
+                  keep=['brick', 'umber', 'graphite'], tol=0.03)]
 RIGHT_HAND_PART = True   # 右手を部品にする（6 回目、ai_character.py --hand-part）：右の手袋のカフは形を作らず、手首の前を肌に塗る
 
 
@@ -123,9 +129,9 @@ def pieces() -> list[dict]:
         # 絵のボルトの円の縁（細い茶・黄土の輪）が膝の横（形のボルトより後ろ、真横の近く）に残る：膝の横は暗い裏地の色に
         # 決める（6 回目）
         P.append(dict(name='knee_hinge_dark' + sx, bone='shin' + sx, color='graphite', frame=fr, clear_only=True,
-                      outline=octagon(0.03, 0.135, -0.045, 0.035, 0.012), under='graphite', rmax=0.11))
+                      outline=octagon(0.03, 0.175, -0.05, 0.04, 0.012), under='graphite', rmax=0.11))
         P.append(dict(name='knee_hinge_dark2' + sx, bone='shin' + sx, color='graphite', frame=fr, clear_only=True,
-                      outline=octagon(-0.135, -0.03, -0.045, 0.035, 0.012), under='graphite', rmax=0.11))
+                      outline=octagon(-0.175, -0.03, -0.05, 0.04, 0.012), under='graphite', rmax=0.11))
         # 靴のカフ（赤の帯、z 0.155〜0.205）
         fb = frame(jp('shin', side), jp('foot', side), front)
         fb['RN'] = 0.05

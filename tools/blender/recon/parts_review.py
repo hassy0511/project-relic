@@ -261,7 +261,6 @@ def compose_hand(before: str, after: str, mv_before: str, mv_after: str, dest: s
     for i, (name, _, _) in enumerate(HAND_POSES):
         row = [RV.label(load(os.path.join(before, f'handaz_{i}_{j}.png')), f'before {name} az {az}')
                for j, (az, _) in enumerate(GRIP_AZ)]
-        row.append(RV.label(load(os.path.join(before, f'hand_{i}_1.png')), f'before {name} thumb side'))
         row += [RV.label(load(os.path.join(after, f'handaz_{i}_{j}.png')), f'AFTER {name} az {az}')
                 for j, (az, _) in enumerate(GRIP_AZ)]
         row += [RV.label(load(os.path.join(after, f'hand_{i}_{j}.png')), f'AFTER {name} {v[0]}')
@@ -272,7 +271,7 @@ def compose_hand(before: str, after: str, mv_before: str, mv_after: str, dest: s
     for tag, d, view in (('viewer before', mv_before, 'right'), ('viewer AFTER', mv_after, 'front-right'),
                          ('viewer AFTER', mv_after, 'right'), ('viewer AFTER', mv_after, 'back-right')):
         row = [RV.label(load(os.path.join(d, f'{p}_{view}.png')), f'{tag} {p} {view}') for p in mv_poses]
-        rows.append(row + [blank, blank])
+        rows.append(row + [blank])
     Image.fromarray(RV.grid(rows)).convert('RGB').save(os.path.join(dest, 'hand_grip.jpg'), quality=85)
 
 
