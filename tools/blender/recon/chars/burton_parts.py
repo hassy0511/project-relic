@@ -39,7 +39,9 @@ V_TOP = (1.262, 0.036)          # 前の開き（内着の石墨）：上の高�
 V_BOT = (0.985, 0.008)          # 下の高さと半幅（前立ての帯がこの外を覆う）
 SLIT_X = (0.006, 0.022)         # 裾の前の割れ目の半幅（V の下 → 裾の下の縁。絵は下へ逆 V に開く）
 JACKET_Z = 0.80                 # これより上の胴・腕は上着の赤錆（裾の部品の下で切り替わる）
-NAPE = (1.338, 1.405)          # 耳より後ろの髪の下の縁：後ろの真ん中・横（耳の後ろ）
+# 髪の下の縁：正面からの角度（度）→ 高さ。絵の右真横・背面：もみあげは耳の中ほど（1.372）まで、耳の後ろは耳の下の端、
+# 後ろの真ん中は襟の中まで（えり足の V）
+HAIR_LOW = ([45, 75, 95, 110, 130, 145, 160, 180], [1.372, 1.372, 1.375, 1.345, 1.31, 1.29, 1.26, 1.25])
 NECK_TOP = 1.345                # 内着の首（石墨）の上の端（あごの下）
 CUFF_T = (0.112, 0.207)         # カフ：前腕の軸に沿った肘からの長さ（生成りの上の端・黒線の上）。黒線は手首 +4mm まで
 # 側頭の白髪（灰）：頭の縦の軸のまわりの (s, z) の多角形（s = 角度 × 0.10、横（±X）が 0、+ は後ろ）。髪の色の所だけ灰に塗る
@@ -216,13 +218,13 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
         lab_h[zh < ctop + 0.004] = NAMES.index('graphite')
         lab_h[on_skin & (zh > 1.318)] = NAMES.index('skin')
         lab_h[(yh < -0.045) & (zh > 1.316)] = NAMES.index('skin')      # あごの下（顔の材質の下の縁から上）
-        # 耳より後ろの髪の下の縁：後ろの真ん中は襟まで（えり足の V）、横（耳の後ろ）で NAPE[1] へなめらかに上がる
-        phi = np.degrees(np.arctan2(np.abs(xh), yh - 0.01))         # 0 = 後ろ、90 = 横
-        zb = NAPE[0] + (NAPE[1] - NAPE[0]) * np.clip(phi / 90.0, 0, 1) ** 1.6
-        back = (yh > 0.012) & (zh > zb) & (zh > ctop)
-        # 耳の前のもみあげ（絵の右真横：耳の前 3cm まで、耳の下の端の高さ 1.372 より上は髪）
-        burn = (yh > -0.032) & (yh <= 0.025) & (zh > 1.372) & (np.abs(xh) > 0.075) & ~ear
-        lab_h[hair | back | burn] = NAMES.index('hair')
+        # 髪の下の縁（顔の材質の外）：正面からの角度 |θ| の表の高さより上は髪。刈り上げの帽子は頭の面から 6mm 以内なので、
+        # 髪の場（hair - skin）では側頭が肌になり四角い窓が残った（バートン 1 周目）。後ろの真ん中は襟の下まで髪（えり足の V、
+        # 境目を UV のつぶれた首の後ろに置かない）
+        th_f = np.degrees(np.arctan2(np.abs(xh), -(yh - 0.01)))      # 0 = 正面、90 = 横、180 = 後ろ
+        zb = np.interp(th_f, HAIR_LOW[0], HAIR_LOW[1])
+        low = (th_f > 45.0) & (zh > zb) & ~ear
+        lab_h[hair | low] = NAMES.index('hair')
         for sd in (1.0, -1.0):
             th = np.arctan2(yh * sd, xh * sd)
             ins_ = (xh * sd > 0.03) & inside_poly(np.stack([th * 0.10, zh], 1), np.array(GREY_STREAK, float))
@@ -231,6 +233,9 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
             stats['grey_streak' + ('.L' if sd > 0 else '.R')] = int(ins_.sum())
         lab_h[ear] = NAMES.index('skin')
         keep = under[hi] >= 0          # 部品の下（襟）はそのまま
+        # ただし後ろ（耳より後ろ）の髪の下の縁より上は、襟の下の内着より髪を優先する（襟の上の縁から見える首の後ろが
+        # 石墨と肌の斑点になった：UV のつぶれた三角形が隣の島の色を拾う。首の後ろの島ごと髪の色にする）
+        keep &= ~(low & (th_f > 95.0))
         under[hi[~keep]] = lab_h[~keep]
     stats['head_band_texels'] = int(len(hi))
     stats['burton_rule_texels'] = int((jacket | neck | vv | slit | legs).sum())
