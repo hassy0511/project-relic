@@ -42,6 +42,9 @@ J = {
 H = 0.011         # 殻の点の間隔（m）
 # 体の重みを写す部品（ai_character.add_costume）：載る骨 1 本の剛体にすると、肩の上で体が突き抜ける
 FOLLOW_BODY = ('shoulder_pad.R', 'shoulder_strap.R', 'strap.L', 'strap.R', 'hood_collar')
+# 体の重みを写すとき腕の骨の重みを除く部品（肩ひも：わきの下の体の重みを写すと、腕を下ろしたとき胸の前の端が腕に
+# 引かれて体から浮いた輪になった）
+FOLLOW_TORSO_ONLY = ('strap.L', 'strap.R')
 # 塗りだけの決まり（cover_body）：箱（x, y, z の範囲）の中の、clear の色を、同じ箱の中のほかの色で塗り直す
 #   首の後ろ：絵では髪とえりで素肌は見えない。肌色の横の筋が残っていた（6 回目）
 #   keep：この色（色見本からの距離 tol 以内）のほかは塗り直す（布と肌の混ざった色の筋も消える）。fill：決まった色で埋める
@@ -57,7 +60,13 @@ BOX_RULES = [dict(name='neck_back_noskin', box=((-0.11, 0.11), (0.02, 0.2), (1.0
              dict(name='back_plate_edges', box=((-0.10, 0.10), (0.03, 0.25), (1.0, 1.15)),
                   keep=['brick', 'umber', 'graphite'], tol=0.03)]
 TORSO_Z = (0.835, 1.10)   # 胴の決まりの高さ（帯の下に隠れる高さ〜えりの下）
-TORSO_SHIRT_X = 0.10      # 正面のシャツの白を残す幅（|x|）
+SHIRT_X = (-0.040, 0.055)       # 正面のシャツの白を残す x の範囲（絵の正面で測った。上着の前の開き）
+SHIRT_X_LOW = (-0.073, 0.089)   # 上着の裾より下（z < SHIRT_HEM_Z）のシャツの範囲
+SHIRT_HEM_Z = 0.885
+NECK_V_X = (-0.036, 0.052)      # 首の前の肌の V の範囲（シャツの上の縁の高さ。絵の正面）
+NECK_V_SLOPE = 0.31             # V が上へ広がる割合（z 1.113 → 1.165 で x −0.052〜0.068）
+NECK_V_TOP = 1.20               # 首の前の決まりの上の端（あごの下。顔は別の材質）
+NECK_V_Z = (1.113, 1.165)       # シャツの上の縁・V の広がりの基準の高さ
 LEG_TOP = 0.835          # 脚の決まりの上の端（帯の下に隠れる高さ。帯の下の縁は前 0.812・後ろ 0.822）
 LEG_BANDS = (-0.050, 0.040)   # 膝の帯（暗い灰）の上・下の端（すねの軸に沿った膝からの長さ、m）
 RIGHT_HAND_PART = True   # 右手を部品にする（6 回目、ai_character.py --hand-part）：右の手袋のカフは形を作らず、手首の前を肌に塗る
@@ -142,7 +151,7 @@ def pieces() -> list[dict]:
         dz = -fb['d'][2]
         P.append(dict(name='boot_cuff' + sx, bone='shin' + sx, color='brick', frame=fb, ring=True,
                       t0=(k[2] - 0.212) / dz, t1=(k[2] - 0.150) / dz, off=0.002, thick=0.010, bevel=0.003,
-                      rmax=0.09, n_ring=48))
+                      rmax=0.09, n_ring=48, sink=0.015))   # 壁を深く：アキレス腱のくぼみで上の縁から脚との間のすき間が見えた
         # すねの白い側面の板（7 回目、絵：すねの中央は茶、白は内・外の細い側面の板。正面から約 70 度、上が尖る）。
         # 膝当ての下の縁（t 0.07）からカフの上（t 0.172）まで
         for sb in (-1.0, 1.0):
@@ -167,7 +176,7 @@ def pieces() -> list[dict]:
     fsp['e1'] = np.cross(fsp['e2'], fsp['e0'])
     fsp['d'] = fsp['e2']
     P.append(dict(name='shoulder_pad.R', bone='upper_arm.R', color='ivory', frame=fsp,
-                  outline=octagon(-0.056, 0.058, -0.060, 0.060, 0.024), off=0.008, thick=0.008, bevel=0.004,
+                  outline=octagon(-0.056, 0.058, -0.060, 0.060, 0.024), off=0.012, thick=0.008, bevel=0.004,
                   under='brick', clear=['ivory'], fill='brick', margin=0.04, rmax=0.12, rmin=0.03))
     P.append(dict(name='shoulder_strap.R', bone='upper_arm.R', color='graphite', frame=fr, ring=True,
                   t0=0.094, t1=0.116, off=0.003, thick=0.006, bevel=0.002, under='graphite', rmax=0.085))
@@ -229,8 +238,8 @@ def pieces() -> list[dict]:
     P.append(dict(name='buckle_bar', bone='hips', color='brass', frame=fw,
                   outline=octagon(-0.004, 0.004, 0.818, 0.852, 0.001), off=0.010, thick=0.0085, bevel=0.001,
                   rmax=0.22))
-    # 肩ひも（7 回目、両側）：背中（|x| 0.06〜0.105、z 0.965 から）→ 肩の上 → 胸の前（|x| 0.075〜0.12 → 下で 0.10〜0.13、
-    # z 0.965 まで）。左右の軸（x）のまわりの円柱の座標：s = 角度（上 = 0、前 = +）× RN、t = |x|。絵の正面・背面で測った
+    # 肩ひも（7 回目、両側）：背中（|x| 0.06〜0.105、z 0.965 から）→ 肩の上 → 胸の前（|x| 0.075〜0.12 → 下で 0.085〜0.115、z 約 1.0 まで）。
+    # 左右の軸（x）のまわりの円柱の座標：s = 角度（上 = 0、前 = +）× RN、t = |x|。絵の正面・背面で測った
     for side, sx in ((1.0, '.L'), (-1.0, '.R')):
         fst = frame((0.0, 0.015, 1.03), (side, 0.015, 1.03), up)
         fst['RN'] = 0.1
@@ -238,17 +247,19 @@ def pieces() -> list[dict]:
             sb, sf = 0.2085, -0.232
         else:
             sb, sf = -0.2085, 0.232
-        out = [(sb, 0.060), (sf, 0.100), (sf, 0.128), (sb, 0.105)]
+        sf = sf * 0.19 / 0.232      # 胸の前の端（わきの下に近づくと腕を下ろした姿勢で体から浮く）
+        out = [(sb, 0.060), (sf, 0.085), (sf, 0.115), (sb, 0.105)]
         if side < 0:
             out = out[::-1]
         P.append(dict(name='strap' + sx, bone='chest', color='graphite', frame=fst, outline=out, off=0.002,
-                      thick=0.005, bevel=0.0015, under='graphite', clear=['graphite'], margin=0.02, rmax=0.2))
+                      thick=0.005, bevel=0.0015, under='graphite', clear=['graphite'], margin=0.02, rmax=0.2,
+                      env_rings=0))   # 細い帯：近所の最大を取ると、首の横のフードのふくらみから肩の上へ橋のように浮いた
     # 首の後ろのフードのえり（7 回目、絵 haru_neck.png の背面：れんがのえりが髪の先まで立つ）：首の軸のまわりの後ろ半分、
     # z 1.12〜1.215。首の後ろの塗りのまだら（UV の重なり、z 約 1.20）を形で覆う
     fh = frame((0.0, 0.02, 1.10), (0.0, 0.04, 1.30), (0.0, 1.0, 0.0))
     fh['RN'] = 0.06
     P.append(dict(name='hood_collar', bone='neck', color='brick', frame=fh,
-                  outline=octagon(-0.095, 0.095, 0.022, 0.117, 0.012), off=0.003, thick=0.007, bevel=0.003,
+                  outline=octagon(-0.095, 0.095, 0.022, 0.137, 0.012), off=0.003, thick=0.007, bevel=0.003,
                   rmax=0.10))
     # 背中の板（肩ひもの間、x ±0.057、z 1.037〜1.114）
     P.append(dict(name='back_plate', bone='chest', color='ivory',
@@ -548,7 +559,7 @@ def build_shell(spec: dict, bvh) -> tuple[np.ndarray, np.ndarray, dict]:
     raw = np.clip(r, spec.get('rmin', 0.0), spec.get('rmax', 1.0))
     # 包む面：近所の最大（2 輪）→ なめらかに → 元の半径より内へは入れない（体の凸凹が板を突き抜けない）
     env = raw.copy()
-    for _ in range(2):
+    for _ in range(spec.get('env_rings', 2)):
         m = env.copy()
         np.maximum.at(m, edges[:, 0], env[edges[:, 1]])
         np.maximum.at(m, edges[:, 1], env[edges[:, 0]])
@@ -562,7 +573,7 @@ def build_shell(spec: dict, bvh) -> tuple[np.ndarray, np.ndarray, dict]:
     top = r + spec['off'] + spec['thick'] - np.where(bmask, spec.get('bevel', 0.0), 0.0)
     V = [org + dirs * top[:, None]]
     F = [tri]
-    sink = 0.004
+    sink = spec.get('sink', 0.004)
     for lp in loops:
         base = sum(len(v) for v in V)
         bot = org[lp] + dirs[lp] * (r[lp] - sink)[:, None]
@@ -752,22 +763,35 @@ def cover_body(pos: np.ndarray, col: np.ndarray, verts: np.ndarray, tris: np.nda
                            np.where(t < LEG_BANDS[1], NAMES.index('graphite'), NAMES.index('umber')))
         under[np.nonzero(m)[0]] = lab_leg
     stats['leg_rule_texels'] = int(leg.sum())
-    # 胴・上腕の決まり（7 回目）：上着の胴（帯の上〜えりの下）と上腕（肩〜袖口）は、肩ひも・背中の板・肩の板・袖口が
-    # 形の部品になったので、絵の色の暗い灰・茶・肌・真鍮・琥珀（横の絵の肩ひも・板の切れ端）はれんがに決める。白は
-    # 正面の中央のシャツ（|x| < TORSO_SHIRT_X、前の面）のほかはれんが
-    tor = (pos[:, 2] > TORSO_Z[0]) & (pos[:, 2] < TORSO_Z[1]) & (np.abs(pos[:, 0]) < 0.15)
+    # 胴・上腕の決まり（7 回目）：上着の胴（帯の下に隠れる高さ〜えりの下）・肩のまわり・上腕（肩〜袖口）は、肩ひも・
+    # 背中の板・肩の板・袖口・フードのえりを形の部品にしたので、絵の色を使わず決まりだけで塗る：正面のシャツの範囲
+    # （絵の正面で測った SHIRT_X・裾より下は SHIRT_X_LOW、前の面）は白、ほかはれんが（横の絵の肩ひもの切れ端・
+    # 板の白の縁・境目の混ぜ色の細い線が残らない）
+    x, z = pos[:, 0], pos[:, 2]
+    tor = (z > TORSO_Z[0]) & (z < TORSO_Z[1]) & (np.abs(x) < 0.15)
+    tor |= (z > TORSO_Z[0]) & (z < 1.15) & (np.abs(x) < 0.15) & (pos[:, 1] > 0.03)      # 背中はえりの下まで
+    tor |= (z > 0.95) & (z < 1.20) & (np.abs(x) > 0.075) & (np.abs(x) < 0.30)           # 肩のまわり（顔・髪より下）
+    tor |= (z > 1.10) & (z < 1.20) & (np.abs(x) > 0.045) & (pos[:, 1] > -0.02)           # 首の横〜肩の上（フード）
     for side in (1.0, -1.0):
         a, b = jp('upper_arm', side), jp('forearm', side)
         d = unit(b - a)
         rel = pos - a
         t = rel @ d
         rad = np.linalg.norm(rel - np.outer(t, d), axis=1)
-        tor |= (t > -0.02) & (t < 0.176) & (rad < 0.085) & (pos[:, 0] * side > 0.10)
-    bad = np.isin(lab, [NAMES.index(c) for c in ('graphite', 'umber', 'skin', 'brass', 'amber')])
-    shirt = (np.abs(pos[:, 0]) < TORSO_SHIRT_X) & (pos[:, 1] < -0.02)
-    bad |= (lab == NAMES.index('ivory')) & ~shirt
-    tb = tor & bad & (under < 0)
-    under[tb] = NAMES.index('brick')
+        tor |= (t > -0.02) & (t < 0.176) & (rad < 0.085) & (x * side > 0.10)
+    shirt = (pos[:, 1] < -0.02) & (z < TORSO_Z[1]) & np.where(
+        z > SHIRT_HEM_Z, (x > SHIRT_X[0]) & (x < SHIRT_X[1]), (x > SHIRT_X_LOW[0]) & (x < SHIRT_X_LOW[1]))
+    tb = tor & (under < 0)
+    under[tb] = np.where(shirt[tb], NAMES.index('ivory'), NAMES.index('brick'))
+    # 首の前の開き（シャツの上の縁〜えりの下、前の面）：肌の V（絵の正面で測った NECK_V_X）、その下の縁までシャツ、横はれんが
+    # V は上へ行くほど広がる（えりの縁が斜め）。あごの下（NECK_V_TOP）まで、V の中は肌・外はれんが
+    nk = (z >= TORSO_Z[1]) & (z < NECK_V_TOP) & (pos[:, 1] < -0.02) & (np.abs(x) < 0.15) & (under < 0)
+    dz = np.clip(z - NECK_V_Z[0], 0.0, None)
+    in_v = (x > NECK_V_X[0] - NECK_V_SLOPE * dz) & (x < NECK_V_X[1] + NECK_V_SLOPE * dz)
+    nk_col = np.where(in_v & (z > NECK_V_Z[0]), NAMES.index('skin'),
+                      np.where((x > SHIRT_X[0]) & (x < SHIRT_X[1]), NAMES.index('ivory'), NAMES.index('brick')))
+    under[nk] = nk_col[nk]
+    tb = tb | nk
     stats['torso_rule_texels'] = int(tb.sum())
     fixed = under >= 0
     col[fixed] = pal[under[fixed]]

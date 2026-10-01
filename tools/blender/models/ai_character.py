@@ -525,6 +525,19 @@ def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple
         d, nn = cKDTree(co).query(P['V'][fi], k=8)
         wk = 1.0 / np.maximum(d, 1e-4)
         Wf = (Wb[nn] * wk[..., None]).sum(1) / wk.sum(1, keepdims=True)
+        # 肩ひもなど（CO.FOLLOW_TORSO_ONLY）は腕の骨の重みを除く（残りが無ければ chest）
+        torso_only = np.zeros(len(P['V']), bool)
+        for pi, nm in enumerate(names):
+            if nm in getattr(CO, 'FOLLOW_TORSO_ONLY', ()):
+                torso_only[np.unique(P['F'][P['piece'] == pi])] = True
+        to = torso_only[fi]
+        if to.any():
+            armg = [gi for gi, g in enumerate(groups) if g.name.split('.')[0] in ('upper_arm', 'forearm', 'hand')]
+            Wf[np.ix_(to, armg)] = 0.0
+            empty = to & (Wf.sum(1) < 1e-6)
+            chest = [gi for gi, g in enumerate(groups) if g.name == 'chest']
+            if empty.any() and chest:
+                Wf[empty, chest[0]] = 1.0
         Wf[Wf < 0.02] = 0.0
         Wf /= np.maximum(Wf.sum(1, keepdims=True), 1e-9)
         for gi, g in enumerate(groups):
