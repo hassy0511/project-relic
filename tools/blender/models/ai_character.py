@@ -516,7 +516,7 @@ def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple
     pm.update()
     obj = bpy.data.objects.new('costume', pm)
     bpy.context.scene.collection.objects.link(obj)
-    mat = bpy.data.materials.new('haru_parts')
+    mat = bpy.data.materials.new(CO.PARTS_MAT)
     mat.use_nodes = True
     mat.use_backface_culling = True
     nt = mat.node_tree
@@ -524,8 +524,8 @@ def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple
     bsdf.inputs['Roughness'].default_value = 0.85
     bsdf.inputs['Metallic'].default_value = 0.0
     tex = nt.nodes.new('ShaderNodeTexImage')
-    tex.image = bpy.data.images.load(CO.palette_image(os.path.join(tex_dir, 'haru_parts_base.png')))
-    tex.image.name = 'haru_parts_base'
+    tex.image = bpy.data.images.load(CO.palette_image(os.path.join(tex_dir, f'{CO.PARTS_MAT}_base.png')))
+    tex.image.name = f'{CO.PARTS_MAT}_base'
     tex.interpolation = 'Closest'
     nt.links.new(tex.outputs['Color'], bsdf.inputs['Base Color'])
     pm.materials.append(mat)
@@ -1088,9 +1088,9 @@ def add_hand_part(body: bpy.types.Object, arm: bpy.types.Object, gun: bpy.types.
     pm.update()
     obj = bpy.data.objects.new('hand_R', pm)
     bpy.context.scene.collection.objects.link(obj)
-    mat = bpy.data.materials.get('haru_parts')
+    mat = bpy.data.materials.get(CO.PARTS_MAT)
     if mat is None:
-        raise SystemExit('--hand-part は --costume（材質 haru_parts）と一緒に使う')
+        raise SystemExit(f'--hand-part は --costume（材質 {CO.PARTS_MAT}）と一緒に使う')
     pm.materials.append(mat)
     uvname = me.uv_layers.active.name if me.uv_layers.active else 'UVMap'
     uv = pm.uv_layers.new(name=uvname)
@@ -1143,7 +1143,7 @@ LEFT_HAND_CUT = 0.006          # 体の左手を消す所（手首から手の�
 LEFT_HAND_RAMP = (-0.006, 0.014)   # 掌の手首の側と残した手首の体の重みを、前腕から hand.L へなめらかに移す範囲
 
 
-def add_left_hand_part(body: bpy.types.Object, arm: bpy.types.Object) -> dict:
+def add_left_hand_part(body: bpy.types.Object, arm: bpy.types.Object, sx: str = '.L') -> dict:
     """体の左手（手首から先、絵から起こした開いた手）を消し、開いた手の部品（recon/hand.build_open）に置き換える（8 回目）。
 
     手の座標：+X = hand.L の骨の向き、+Y = 掌（体の内側 = −X の世界）、+Z = 親指の側（正面 = −Y の世界）。
@@ -1153,10 +1153,14 @@ def add_left_hand_part(body: bpy.types.Object, arm: bpy.types.Object) -> dict:
     import costume as CO
     import hand as HD
     from scipy.spatial import cKDTree
-    hb = arm.data.bones['hand.L']
+    # sx：'.L'（ハルの左手）か '.R'（NPC の右手：左右を反転。掌 = 体の内側 = +X の世界）
+    sgn = 1.0 if sx == '.L' else -1.0
+    cut = CO.HAND.get('LEFT_HAND_CUT', LEFT_HAND_CUT)
+    hramp = CO.HAND.get('LEFT_HAND_RAMP', LEFT_HAND_RAMP)
+    hb = arm.data.bones['hand' + sx]
     W = np.array(hb.head_local)
     ex = np.array((hb.tail_local - hb.head_local).normalized())
-    ey = np.array([-1.0, 0.0, 0.0]) - ex * (-ex[0])
+    ey = np.array([-sgn, 0.0, 0.0]) - ex * (-sgn * ex[0])
     ey /= np.linalg.norm(ey)
     ez = np.cross(ex, ey)
     if ez[1] > 0:          # 親指は正面（−Y）へ
@@ -1174,9 +1178,9 @@ def add_left_hand_part(body: bpy.types.Object, arm: bpy.types.Object) -> dict:
         for ge in v.groups:
             Wt[v.index, ge.group] = ge.weight
     Wt /= np.maximum(Wt.sum(1, keepdims=True), 1e-9)
-    arm_w = sum(Wt[:, gidx[b]] for b in ('forearm.L', 'hand.L') if b in gidx)
+    arm_w = sum(Wt[:, gidx[b]] for b in ('forearm' + sx, 'hand' + sx) if b in gidx)
     # 部品（材質 haru_parts）の頂点は除く（手袋のカフ・籠手）
-    parts_mi = [i for i, m in enumerate(me.materials) if m and m.name.startswith('haru_parts')]
+    parts_mi = [i for i, m in enumerate(me.materials) if m and m.name.startswith(CO.PARTS_MAT)]
     is_part = np.zeros(n, bool)
     for p in me.polygons:
         if p.material_index in parts_mi:
@@ -1186,7 +1190,7 @@ def add_left_hand_part(body: bpy.types.Object, arm: bpy.types.Object) -> dict:
     band = near & (loc[:, 0] > -0.002) & (loc[:, 0] < 0.012)
     sec = loc[band][:, 1:]
     H = HD.build_open(sec)
-    gone = near & (loc[:, 0] > LEFT_HAND_CUT)
+    gone = near & (loc[:, 0] > cut)
     bm = bmesh.new()
     bm.from_mesh(me)
     bm.verts.ensure_lookup_table()
@@ -1206,21 +1210,21 @@ def add_left_hand_part(body: bpy.types.Object, arm: bpy.types.Object) -> dict:
         for ge in v.groups:
             Wt2[v.index, ge.group] = ge.weight
     Wt2 /= np.maximum(Wt2.sum(1, keepdims=True), 1e-9)
-    armw2 = sum(Wt2[:, gidx[b]] for b in ('forearm.L', 'hand.L') if b in gidx)
+    armw2 = sum(Wt2[:, gidx[b]] for b in ('forearm' + sx, 'hand' + sx) if b in gidx)
     x2 = (co - W) @ ex
     near2 = (np.linalg.norm(co - W, axis=1) < 0.25) & (armw2 > 0.5)
 
     def ramp(sv):
-        f = np.clip((sv - LEFT_HAND_RAMP[0]) / (LEFT_HAND_RAMP[1] - LEFT_HAND_RAMP[0]), 0, 1)
+        f = np.clip((sv - hramp[0]) / (hramp[1] - hramp[0]), 0, 1)
         return f * f * (3 - 2 * f)
     hot = np.zeros(len(groups))
-    hot[gidx['hand.L']] = 1.0
+    hot[gidx['hand' + sx]] = 1.0
     # 残した手首の体（カフの中）：前腕から hand.L へ
     is_part2 = np.zeros(n2, bool)
     for p in me.polygons:
         if p.material_index in parts_mi:
             is_part2[list(p.vertices)] = True
-    rv = np.nonzero(near2 & ~is_part2 & (x2 > LEFT_HAND_RAMP[0]))[0]
+    rv = np.nonzero(near2 & ~is_part2 & (x2 > hramp[0]))[0]
     f = ramp(x2[rv])
     Wt2[rv] = (1 - f[:, None]) * Wt2[rv] + f[:, None] * hot
     for vi in rv:
@@ -1233,19 +1237,19 @@ def add_left_hand_part(body: bpy.types.Object, arm: bpy.types.Object) -> dict:
     F = H['F']
     if np.linalg.det(Rm) < 0:            # 左手系なら面を裏返す（外向きのまま）
         F = F[:, ::-1]
-    pm = bpy.data.meshes.new('hand_L')
+    pm = bpy.data.meshes.new('hand' + sx.replace('.', '_'))
     pm.from_pydata(V.tolist(), [], F.tolist())
     pm.update()
-    obj = bpy.data.objects.new('hand_L', pm)
+    obj = bpy.data.objects.new('hand' + sx.replace('.', '_'), pm)
     bpy.context.scene.collection.objects.link(obj)
-    pm.materials.append(bpy.data.materials.get('haru_parts'))
+    pm.materials.append(bpy.data.materials.get(CO.PARTS_MAT))
     uvname = me.uv_layers.active.name if me.uv_layers.active else 'UVMap'
     uv = pm.uv_layers.new(name=uvname)
     cidx = np.array([CO.NAMES.index(c) for c in H['color']])
     uv.data.foreach_set('uv', np.repeat(CO.palette_uv(cidx), 3, 0).ravel())
     hx = H['V'][:, 0]
-    vg_h = obj.vertex_groups.new(name='hand.L')
-    wr = hx < LEFT_HAND_RAMP[1]
+    vg_h = obj.vertex_groups.new(name='hand' + sx)
+    wr = hx < hramp[1]
     vg_h.add(np.nonzero(~wr)[0].tolist(), 1.0, 'REPLACE')
     if wr.any():
         src_ok = np.nonzero(near2)[0]
@@ -1471,8 +1475,16 @@ def main() -> None:
     tex_dir = tempfile.mkdtemp(prefix='ai_char_')
     fix_materials(body, tex_dir)
     grip_info = None
+    hand_info = None
     if args.no_weapon:
         parts = []
+        if args.hand_part:
+            # NPC（バートン）：両手とも力を抜いて開いた手の部品（recon/hand.build_open。右は左右を反転）
+            hand_info = {}
+            for sx in ('.L', '.R'):
+                lp = add_left_hand_part(body, arm, sx)
+                body = C.join([body, lp['obj']], body.name)
+                hand_info['hand' + sx] = lp['report']
     elif args.gun:
         # 絵から起こした銃。材質は入力（'haru_body'、'haru_face'）と銃（'spark_gun'）のまま
         blade_mat = blade_material()
@@ -1531,7 +1543,7 @@ def main() -> None:
         'joints_apose': {k: [round(x, 4) for x in v] for k, v in J.items()},
         'blade': {k: [round(x, 4) for x in v] for k, v in blade.items()} if blade else None,
         'grip': grip_info,
-        'hand_part': hand_info if args.gun and not args.no_weapon else None,
+        'hand_part': hand_info if (args.gun or args.no_weapon) else None,
         'rigid_parts': rigid,
         'costume': costume,
     }

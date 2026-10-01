@@ -57,6 +57,7 @@ SRC_FACE: list[str] = []
 SRC_GUN: list[str] = []
 MASKS: list[str] = []
 CHAR_FILES: list[str] = []
+PARTS_FILES: list[str] = []
 
 
 def setup(char_id: str) -> None:
@@ -77,6 +78,9 @@ def setup(char_id: str) -> None:
     MASKS = [f'{R}/mask_{v}.png' for v in views]
     # 設定と読み込み口は全段の補助（変われば作り直す。ハルの設定を変えるとハルの全段）
     CHAR_FILES = [f'{RECON_PY}/char.py', f'{RECON_PY}/chars/{char_id}.json']
+    # 服の部品の表（costume.py が読む chars/<id>_parts.py）は、塗り（cover_body）と骨付け（部品・手）の段の補助
+    PARTS_FILES[:] = [f'{RECON_PY}/chars/{char_id}_parts.py'] if os.path.exists(
+        os.path.join(REPO, RECON_PY, 'chars', f'{char_id}_parts.py')) else []
 
 
 @dataclass
@@ -132,7 +136,7 @@ def stages(standin: bool) -> list[Stage]:
               inputs=[f'{mesh}.glb', f'{R}/calib.json', f'{R}/face_atlas.png', f'{R}/face_atlas.json',
                       f'{R}/face_align.json'] + SRC_FULL,
               deps=[f'{RECON_PY}/views.py', f'{RECON_PY}/hair.py', f'{RECON_PY}/uvparts.py', f'{RECON_PY}/flat.py',
-                    f'{RECON_PY}/flat_views.py', f'{RECON_PY}/costume.py'],
+                    f'{RECON_PY}/flat_views.py', f'{RECON_PY}/costume.py'] + PARTS_FILES,
               note='下地の色・発光を 2048 角に焼き、顔の材質と UV を付ける（A ポーズの GLB、確認画像込みで約 5 分）'),
         Stage('joints', f'{RECON_PY}/joints.py', ['--mesh', textured, '--out', joints],
               outputs=[joints], inputs=[textured],
@@ -142,7 +146,7 @@ def stages(standin: bool) -> list[Stage]:
               + ['--stats', stats],
               outputs=[OUT_GLB, stats],
               inputs=rig_inputs,
-              deps=[f'{RECON_PY}/costume.py', 'tools/blender/lib/humanoid.py', 'tools/blender/lib/mesh.py', 'tools/blender/lib/common.py',
+              deps=[f'{RECON_PY}/costume.py', f'{RECON_PY}/hand.py'] + PARTS_FILES + ['tools/blender/lib/humanoid.py', 'tools/blender/lib/mesh.py', 'tools/blender/lib/common.py',
                     'tools/blender/models/humanoid_anims.py', 'tools/blender/models/haru_a.py'],
               note='骨・重み・腕を下ろした基準の姿勢・14 動作・持ち物・目印を付けて、ゲームの GLB に'),
     ]

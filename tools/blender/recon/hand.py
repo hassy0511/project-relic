@@ -23,20 +23,24 @@ import math
 
 import numpy as np
 
-GAP = 0.0012          # 握りの面と指・掌の面の間（めり込まない・浮かない）
-# 指：（名前, 高さ z, 半径, 節の長さ（基節・中節・末節））。中指・薬指・小指は握りに巻く。
-FINGERS = [
-    ('index', -0.006, 0.0082, (0.036, 0.024, 0.020)),
-    ('middle', -0.0315, 0.0085, (0.038, 0.025, 0.021)),
-    ('ring', -0.0490, 0.0080, (0.035, 0.023, 0.019)),
-    ('pinky', -0.0645, 0.0070, (0.028, 0.019, 0.017)),
-]
-THUMB = dict(z=0.005, r=0.0090, lens=(0.042, 0.030, 0.027))
-GLOVE_FRAC = 0.80     # 基節の手袋の筒は、付け根からこの割合まで（その先は肌）
-GLOVE_THICK = 0.0009  # 手袋の筒の厚み（肌の棒より太い分）
+try:
+    from recon import costume as _CO
+except ImportError:          # ai_character.py は recon のフォルダを sys.path に入れて import する
+    import costume as _CO
+
+# 寸法はキャラクターの部品の設定（chars/<id>_parts.py の HAND。ハルの値は haru_parts.py）
+_H = _CO.HAND
+GAP = _H.get('GAP', 0.0012)                 # 握りの面と指・掌の面の間（めり込まない・浮かない）
+FINGERS = _H.get('FINGERS', [])             # 握る手の指：（名前, 高さ z, 半径, 節の長さ（基節・中節・末節））
+THUMB = _H.get('THUMB', {})
+GLOVE_FRAC = _H.get('GLOVE_FRAC', 0.80)     # 基節の手袋の筒は、付け根からこの割合まで（その先は肌）
+GLOVE_THICK = _H.get('GLOVE_THICK', 0.0009)  # 手袋の筒の厚み（肌の棒より太い分）
 MAX_BEND = math.radians(100)
 SEG = 14              # 棒の周りの分割
-GRAPHITE, SKIN = 'graphite', 'skin'
+SKIN = 'skin'
+GRAPHITE = _H.get('GLOVE') or SKIN          # 手袋の色（手袋なしは肌）
+HAS_GLOVE = bool(_H.get('GLOVE'))
+LID = _H.get('LID', GRAPHITE)               # 開いた手のカフのふたの色
 
 
 # ---------------------------------------------------------------- 2D の道具
@@ -369,17 +373,15 @@ def build(gun_pts: np.ndarray, wrist: np.ndarray, wrist_section: np.ndarray | No
 # 手の座標（手首の関節が原点）：+X = 手の骨の向き（指の先へ）、+Y = 掌の向き（体の内側）、+Z = 親指の側（正面）。
 # 寸法は右手の部品と同じ指の太さ・節の長さ（絵 haru_hands.png：力を抜いて開いた手。手袋は掌と指の付け根の節、
 # 中節・末節と親指の先は肌）。指は節ごとに少しずつ掌へ曲げ、少し扇に開く
-OPEN_FINGERS = [   # 名前, 付け根の z, 付け根の x, 半径, 節の長さ, 扇の角度（度、+ = 親指の側）
-    ('index', 0.0255, 0.070, 0.0080, (0.036, 0.023, 0.019), 6.0),
-    ('middle', 0.0085, 0.073, 0.0083, (0.038, 0.025, 0.020), 1.0),
-    ('ring', -0.0085, 0.070, 0.0078, (0.035, 0.023, 0.019), -4.0),
-    ('pinky', -0.0240, 0.063, 0.0068, (0.028, 0.019, 0.016), -9.0),
-]
-OPEN_CURL = (12.0, 16.0, 12.0)    # 節ごとの掌への曲げ（度、付け根の節から）
-CUFF_LID = (-0.004, 0.016)        # カフのふたの x の範囲（手首からの距離。カフの部品の先の口 = 手首 +1.6cm）
-OPEN_THUMB = dict(base=(0.024, 0.007, 0.020), r=0.0088, lens=(0.032, 0.027, 0.023), out_deg=22.0, palm_deg=34.0,
-                  curl=(8.0, 12.0, 10.0))
-PALM_HALF_T = 0.0115              # 掌の厚みの半分（指の付け根）
+OPEN_FINGERS = _H.get('OPEN_FINGERS', [])   # 名前, 付け根の z, 付け根の x, 半径, 節の長さ, 扇の角度（度、+ = 親指の側）
+OPEN_CURL = _H.get('OPEN_CURL', (12.0, 16.0, 12.0))    # 節ごとの掌への曲げ（度、付け根の節から）
+CUFF_LID = _H.get('CUFF_LID', (-0.004, 0.016))        # カフのふたの x の範囲（手首からの距離）
+OPEN_THUMB = _H.get('OPEN_THUMB', {})
+PALM_HALF_T = _H.get('PALM_HALF_T', 0.0115)            # 掌の厚みの半分（指の付け根）
+PALM_WRIST = _H.get('PALM_WRIST', (0.002, 0.0, 0.0125, 0.024))
+THENAR = _H.get('THENAR', ((0.026, 0.006, 0.020), 0.012))
+HYPOTHENAR = _H.get('HYPOTHENAR', ((0.032, 0.004, -0.018), 0.011))
+PALM_X = _H.get('PALM_X', (0.012, 0.040))            # 掌の甲・内の面の点の x（手首からの距離）
 
 
 def build_open(wrist_section: np.ndarray | None = None) -> dict:
@@ -410,8 +412,9 @@ def build_open(wrist_section: np.ndarray | None = None) -> dict:
             V, F = capsule(J[k], J[k + 1], rr[k], rr[k + 1])
             M.add(V, F, SKIN)
         dv = (J[1] - J[0]) / np.linalg.norm(J[1] - J[0])
-        V, F = sleeve(J[0] - dv * r * 0.9, J[0] + (J[1] - J[0]) * GLOVE_FRAC, rr[0] + GLOVE_THICK)
-        M.add(V, F, GRAPHITE)
+        if HAS_GLOVE:
+            V, F = sleeve(J[0] - dv * r * 0.9, J[0] + (J[1] - J[0]) * GLOVE_FRAC, rr[0] + GLOVE_THICK)
+            M.add(V, F, GRAPHITE)
         knuckles.append((J[0], r))
         rep[name] = [p.round(4).tolist() for p in J]
     # 親指：掌の付け根から、親指の側（+Z）へ out_deg・掌（+Y）へ palm_deg 傾けて伸ばす
@@ -425,8 +428,9 @@ def build_open(wrist_section: np.ndarray | None = None) -> dict:
         V, F = capsule(T[k], T[k + 1], rr[k], rr[k + 1])
         M.add(V, F, GRAPHITE if k == 0 else SKIN)
     d2 = (T[2] - T[1]) / np.linalg.norm(T[2] - T[1])
-    V, F = sleeve(T[1] - d2 * rt * 0.5, T[1] + (T[2] - T[1]) * GLOVE_FRAC, rr[1] + GLOVE_THICK)
-    M.add(V, F, GRAPHITE)
+    if HAS_GLOVE:
+        V, F = sleeve(T[1] - d2 * rt * 0.5, T[1] + (T[2] - T[1]) * GLOVE_FRAC, rr[1] + GLOVE_THICK)
+        M.add(V, F, GRAPHITE)
     rep['thumb'] = [p.round(4).tolist() for p in T]
     # 掌：指の付け根の玉・掌の甲と内の面・手首の輪・母指球・小指球の凸包
     pts = []
@@ -435,17 +439,17 @@ def build_open(wrist_section: np.ndarray | None = None) -> dict:
         pts.append(sphere_pts(c + np.array([-0.014, 0.0, 0.0]), r * 1.1))
     zt = OPEN_FINGERS[0][1] + OPEN_FINGERS[0][3]
     zb = OPEN_FINGERS[-1][1] - OPEN_FINGERS[-1][3]
-    for x in (0.012, 0.040):
+    for x in PALM_X:
         for z in (zt, zb + 0.002):
             for y in (-PALM_HALF_T + 0.002, PALM_HALF_T - 0.001):
                 pts.append(np.array([[x, y, z]]))
     # 掌の手首の側は掌の太さ（体の手首の断面は手袋のカフのふくらみで直径 9cm もあり、掌が円すいになった）
-    cy, cz, wy, wz = 0.002, 0.0, 0.0125, 0.024
+    cy, cz, wy, wz = PALM_WRIST
     ang = np.linspace(0, 2 * math.pi, 20, endpoint=False)
     for x in (0.004, 0.014):
         pts.append(np.stack([np.full(20, x), cy + wy * np.cos(ang), cz + wz * np.sin(ang)], 1))
-    pts.append(sphere_pts([0.026, 0.006, 0.020], 0.012))      # 母指球
-    pts.append(sphere_pts([0.032, 0.004, -0.018], 0.011))     # 小指球
+    pts.append(sphere_pts(THENAR[0], THENAR[1]))      # 母指球
+    pts.append(sphere_pts(HYPOTHENAR[0], HYPOTHENAR[1]))     # 小指球
     V, F = convex_hull3(np.concatenate(pts))
     M.add(V, F, GRAPHITE)
     # カフのふた：手袋のカフ（costume の glove_cuff.L）の先の口をふさぐ暗い栓（体の手首の断面＋2mm、先の縁は面取り）
@@ -464,7 +468,7 @@ def build_open(wrist_section: np.ndarray | None = None) -> dict:
         for x, k in ((CUFF_LID[0], 1.0), (CUFF_LID[1] - 0.002, 1.0), (CUFF_LID[1], 0.88)):
             lid.append(np.stack([np.full(n, x), c0[0] + k * rad * np.cos(an), c0[1] + k * rad * np.sin(an)], 1))
         V, F = convex_hull3(np.concatenate(lid))
-        M.add(V, F, GRAPHITE)
+        M.add(V, F, LID)
         rep['cuff_lid_radius'] = [round(float(rad.min()), 4), round(float(rad.max()), 4)]
     rep['wrist_ellipse'] = [round(float(v), 4) for v in (cy, cz, wy, wz)]
     V, F, C = M.arrays()
