@@ -3,6 +3,7 @@
 > 開発全体の「いまどこか」を 1 枚で見るための表。**進捗があったら Claude が更新する**（ルールは `CLAUDE.md`）。
 > 詳しい経過は `progress.md`、発注書の一覧は `art_orders/README.md`。Codex に出す依頼文は 7 章。
 > ブラウザで見る：https://hassy0511.github.io/project-relic/dashboard/ （push のたびに自動で更新）
+> **テストプレイ**：https://hassy0511.github.io/project-relic/ （ブラウザで遊べる最新版。スマホでは画面の操作が自動で出る。push のたびに更新）
 > 3D モデルを回して見る：https://hassy0511.github.io/project-relic/models/ （4 章の「見る」から各モデルへ）
 > 最終更新：2026-10-01
 
