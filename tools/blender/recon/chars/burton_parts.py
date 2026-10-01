@@ -37,7 +37,7 @@ COLLAR_Z = (1.262, 1.335)       # 立ち襟の下・上（前の端）。後ろ�
 HEM_Z = (0.792, 0.872)          # 上着の裾の部品の下・上（裾の下の縁は正面で 0.79〜0.80）
 V_TOP = (1.262, 0.036)          # 前の開き（内着の石墨）：上の高さと半幅
 V_BOT = (0.985, 0.008)          # 下の高さと半幅（前立ての帯がこの外を覆う）
-SLIT_X = 0.006                  # 裾の前の割れ目の半幅（V の下から裾まで）
+SLIT_X = (0.006, 0.022)         # 裾の前の割れ目の半幅（V の下 → 裾の下の縁。絵は下へ逆 V に開く）
 JACKET_Z = 0.80                 # これより上の胴・腕は上着の赤錆（裾の部品の下で切り替わる）
 NAPE = (1.338, 1.405)          # 耳より後ろの髪の下の縁：後ろの真ん中・横（耳の後ろ）
 NECK_TOP = 1.345                # 内着の首（石墨）の上の端（あごの下）
@@ -84,9 +84,9 @@ def pieces() -> list[dict]:
     # 上着の裾：腰のまわり、後ろが s = 0、前の真ん中は割れ目（|x| < SLIT_X）
     fh = frame((0.0, 0.0, 0.0), (0.0, 0.0, 1.0), back)
     fh['RN'] = 0.17
-    sh = 0.17 * (math.pi - 0.05)
+    sh0, sh1 = 0.17 * math.pi - SLIT_X[1], 0.17 * math.pi - (SLIT_X[1] - 0.004)   # 前の割れ目（下ほど広い）
     P.append(dict(name='hem', bone='hips', color='brick', frame=fh,
-                  outline=[(-sh, HEM_Z[0]), (sh, HEM_Z[0]), (sh, HEM_Z[1]), (-sh, HEM_Z[1])],
+                  outline=[(-sh0, HEM_Z[0]), (sh0, HEM_Z[0]), (sh1, HEM_Z[1]), (-sh1, HEM_Z[1])],
                   off=0.002, thick=0.007, bevel=0.002, under='brick', rmax=0.3, h=0.008, n_ring=96))
     # 脇のポケットの蓋（石墨）と留め具（真鍮）：正面から約 70 度、z 0.855〜0.905
     for sg, sx in ((1.0, '.L'), (-1.0, '.R')):
@@ -117,6 +117,13 @@ def pieces() -> list[dict]:
         P.append(dict(name='boot_cuff' + sx, bone='shin' + sx, color='graphite', frame=fb, ring=True,
                       t0=(k[2] - 0.222) / dz, t1=(k[2] - 0.160) / dz, off=0.003, thick=0.008, bevel=0.003,
                       under='umber', rmax=0.14, n_ring=48, sink=0.02))
+        # 靴の筒の上の帯の留め具（絵 burton_shoes.png：外側のやや後ろの小さな板）
+        ft = frame((side * 0.175, 0.02, 0.0), (side * 0.175, 0.02, 1.0), front)
+        ft['RN'] = 0.07
+        st = side * math.radians(110) * 0.07
+        P.append(dict(name='boot_tab' + sx, bone='shin' + sx, color='graphite', frame=ft,
+                      outline=octagon(st - 0.014, st + 0.014, 0.170, 0.214, 0.003), off=0.012, thick=0.007,
+                      bevel=0.002, rmax=0.14, h=0.004))
         P += boot_pieces(side, sx)
     return P
 
@@ -185,7 +192,8 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
     under[vtop] = NAMES.index('graphite')
     vv |= vtop
     # 裾の前の割れ目（V の下から裾まで、細い暗い線）
-    slit = free & (y < -0.02) & (z > JACKET_Z) & (z < V_BOT[0] - 0.01) & (np.abs(x) < SLIT_X) & (np.abs(x) < 0.05)
+    fs = np.clip((V_BOT[0] - 0.01 - z) / (V_BOT[0] - 0.01 - HEM_Z[0]), 0, 1)
+    slit = free & (y < -0.02) & (z > JACKET_Z) & (z < V_BOT[0] - 0.01) & (np.abs(x) < SLIT_X[0] + (SLIT_X[1] - SLIT_X[0]) * fs)
     under[slit] = NAMES.index('graphite')
     # ズボン：裾より下
     legs = free & (z < JACKET_Z)
