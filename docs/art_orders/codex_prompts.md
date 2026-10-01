@@ -885,3 +885,36 @@ W2-01 の納品のうち、トルーデ・バートン・店主・ジャンク�
 - git worktree remove ../relic-docs で片付ける。
 - 納品したファイルの一覧を報告する。
 ```
+
+## 11. W2-01b：住人とヤーナの追加の絵（2026-10-01）
+
+### 11.1 W2-01b：住人とヤーナの追加の絵
+
+```text
+あなたはゲーム開発プロジェクト『アークウォーカー』の作画担当です。W2-01（第1章の住人）とヤーナの 3D 化のための、追加の拡大の絵を描いてください。
+
+【リポジトリ】
+- URL：https://github.com/hassy0511/project-relic
+- 作業ブランチ：住人は art/w2-townsfolk、ヤーナは art/w1-yana（どちらも前回納品したブランチ。そこに追加する）
+- 発注書を読むブランチ：claude/busy-bell-oagnck（最新にすること）
+
+【最初に行うこと】
+1. git fetch --all
+2. git worktree add ../relic-docs origin/claude/busy-bell-oagnck
+3. 必ず読む：../relic-docs/docs/art_orders/W2_01b_住人の追加の絵.md、00_共通ルール.md、01_3D変換用の絵の条件.md（2 章「描き方」と 4 章）
+4. 手本：art/w2-townsfolk の art/concepts/W2_townsfolk/（店主・ジャンク屋・トルーデの既存の絵と spec）、art/w1-yana の art/concepts/W1_yana/（ヤーナの絵と spec）
+
+【作業】
+- 発注書 2 章の表の絵を、画像生成機能で描く。既存の絵と同じデザイン・色・縮尺。
+- 住人の分は art/w2-townsfolk に、ヤーナの分は art/w1-yana に、それぞれ 1 コミットで追加する。spec も書く（発注書 2 章）。
+- トルーデの左前 45 度は、足の間隔が正面の約 0.7 倍になるよう角度を確かめる（0.8 倍より広ければ描き直す）。
+
+【守ること】
+- 絵は必ず画像生成機能で描く。Blender などの 3D ソフトで作った画像、プログラムで描いた図形は不可。描けないときは代わりの方法を取らず、spec の冒頭に「未納品」と書く。
+- 既存の絵を消さない・変えない。指定のフォルダ以外を変更しない。
+
+【完了したら】
+- コミットのメッセージ："art: W2-01b townsfolk extra views"（art/w2-townsfolk）、"art: W2-01b yana grip and hip"（art/w1-yana）。それぞれ push する。
+- git worktree remove ../relic-docs で片付ける。
+- 納品したファイルの一覧を報告する。
+```
