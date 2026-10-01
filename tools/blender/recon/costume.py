@@ -44,6 +44,7 @@ FOLLOW_TORSO_ONLY: tuple = ()
 BOX_RULES: list = []
 BOOT_CUT = None
 BOOT_RAMP = (0.095, 0.155)
+BOOT_CUT_X = (0.03, 0.32)     # 体の足を消す |x| の範囲（手は含めない）
 GOGGLE_STRAP = None
 HAND: dict = {}
 body_rules = None
@@ -129,7 +130,7 @@ def build_loft(spec: dict) -> tuple[np.ndarray, np.ndarray, dict]:
 
 def boot_cut_mask(co: np.ndarray) -> np.ndarray:
     """消す体の頂点（脚の BOOT_CUT より下）"""
-    return (co[:, 2] < BOOT_CUT) & (np.abs(co[:, 0]) > 0.03) & (np.abs(co[:, 0]) < 0.32)
+    return (co[:, 2] < BOOT_CUT) & (np.abs(co[:, 0]) > BOOT_CUT_X[0]) & (np.abs(co[:, 0]) < BOOT_CUT_X[1])
 
 
 def ramp_w(z: np.ndarray) -> np.ndarray:

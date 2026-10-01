@@ -313,7 +313,7 @@
   },
   "hair.EAR": {
    "c": [
-    0.097,
+    0.092,
     0.04,
     1.395
    ],
@@ -322,9 +322,9 @@
     0.02,
     0.032
    ],
-   "yaw_deg": 15.0,
+   "yaw_deg": 6.0,
    "root_c": [
-    0.085,
+    0.082,
     0.035,
     1.395
    ],
@@ -620,10 +620,10 @@
   ],
   "face.FACE_NECK_Y": 1440,
   "face.FACE_WINDOW": [
-   700,
-   760,
-   1350,
-   1440
+   725,
+   780,
+   1325,
+   1420
   ],
   "face.FRONT_SCALE": [
    0.22,
@@ -634,9 +634,9 @@
    0.65
   ],
   "face.ZONE_RECT": [
-   770,
+   775,
    820,
-   1280,
+   1275,
    1300
   ],
   "face.FRONT_LANDMARKS": {
@@ -695,7 +695,7 @@
     1340
    ]
   },
-  "texture.FACE_CHIN_PX": 398,
+  "texture.FACE_CHIN_PX": 390,
   "texture.HEAD_CLEAN_Z": [
    1.335,
    1.52
@@ -781,6 +781,10 @@
    "umber": "#453630",
    "amber": "#FFBC52",
    "skin": "#E7B58D"
-  }
+  },
+  "snap.REAL": [
+   "front",
+   "side_right"
+  ]
  }
 }
