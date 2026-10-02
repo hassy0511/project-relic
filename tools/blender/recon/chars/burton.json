@@ -785,6 +785,19 @@
   "snap.REAL": [
    "front",
    "side_right"
-  ]
+  ],
+  "flat.FACE_SIDEBURN": {
+   "x_frac": 0.25,
+   "y_frac": 0.5,
+   "grow": 0.045
+  },
+  "flat.FACE_WARM_SOFT": {
+   "a": [
+    28.0,
+    38.0
+   ],
+   "l_min": 48.0,
+   "k": 0.7
+  }
  }
 }

@@ -482,6 +482,11 @@ L_WEIGHT_FACE = 0.6
 FACE_FEATURE_MAX = 0.06      # 区画の面積のこれより小さく、区画の縁に届かない肌でない塊は、目・眉・口（絵の色のまま）
 FACE_SPECK = 24              # これより小さな塊（画素）は肌へ
 FACE_REGION = ['umber', 'skin']   # 顔の材質の所（顔の窓の中）にあるのは髪と肌だけ（ゴーグル・襟は窓の外）
+# もみあげ：区画の上の y_frac の行で、左右の端から x_frac の幅の中にある髪から外側を髪にする（顔の絵のもみあげが細い黒い縦線だけ
+# 残り、外の耳の前の肌と並んだ。バートン）。grow：内側へ広げる幅（区画の幅の比。顔の材質の縁の三角形の階段を髪で覆う）。None なら何もしない
+FACE_SIDEBURN = CH.p('flat.FACE_SIDEBURN', None)
+# 目・眉・口の中の、明るく赤みの強い所（鼻の古傷の線）を肌へ寄せる強さ：a* が (lo, hi) で 0 → 1、明るさ L* > l_min。None なら何もしない
+FACE_WARM_SOFT = CH.p('flat.FACE_WARM_SOFT', None)
 
 
 def paint_face_atlas(atlas_p: str, meta: dict, out_p: str) -> str:
@@ -523,12 +528,39 @@ def paint_face_atlas(atlas_p: str, meta: dict, out_p: str) -> str:
     pal = np.stack([hex_rgb(PALETTE[k]) for k in FACE_REGION])
     onehot = np.stack([ndi.gaussian_filter((rl == i).astype(np.float32), 3.0) for i in range(len(FACE_REGION))], -1)
     rl = np.argmax(onehot, -1)
+    if FACE_SIDEBURN:
+        # 行ごとに「端から最も内側の髪」の列を取り、縦にならして（中央値）から外側を埋める（行ごとのままだと内側の縁が階段になった）
+        hi_ = FACE_REGION.index('umber')
+        for x0, y0, x1, y1 in meta['quadrants_atlas_px'].values():
+            wq = int((x1 - x0) * FACE_SIDEBURN['x_frac'])
+            ys = np.arange(y0, y0 + int((y1 - y0) * FACE_SIDEBURN['y_frac']))
+            for side in (0, 1):
+                seg = rl[ys, x0:x0 + wq] == hi_ if side == 0 else (rl[ys, x1 - wq:x1] == hi_)[:, ::-1]
+                has = seg.any(1)
+                col = np.where(has, wq - 1 - np.argmax(seg[:, ::-1], 1), -1).astype(float)
+                col = np.where(has, ndi.median_filter(col, size=41, mode='nearest'), -1)
+                # 下の端は外へ斜めに細らせる（水平に切ると、顔の材質の縁の三角形で階段になった）
+                taper = np.clip((ys[-1] - ys) / max(1.0, 0.25 * len(ys)), 0.25, 1.0)
+                for yy, c, tp in zip(ys, col, taper):
+                    if c < 0:
+                        continue
+                    c = int(round((c + (x1 - x0) * FACE_SIDEBURN.get('grow', 0.0)) * tp))
+                    if side == 0:
+                        rl[yy, x0:x0 + c + 1] = hi_
+                    else:
+                        rl[yy, x1 - c - 1:x1] = hi_
     soft = np.stack([ndi.gaussian_filter((rl == i).astype(np.float32), 0.9) for i in range(len(FACE_REGION))], -1)
     flat = (soft[..., :, None] * pal[None, None]).sum(-2) / np.maximum(soft.sum(-1, keepdims=True), 1e-6)
     # 目・眉・口：絵の色のまま。縁の画素（肌との混ざり）だけ、肌の度合い s で平らな肌色と混ぜる
     near_f = ndi.binary_dilation(feature, iterations=2)
     sf = np.where(near_f, s, 1.0)[..., None]
     out = np.where(near_f[..., None], sf * skin_hex + (1 - sf) * rgb, flat)
+    if FACE_WARM_SOFT:
+        lo_, hi2, lmin, k = FACE_WARM_SOFT['a'][0], FACE_WARM_SOFT['a'][1], FACE_WARM_SOFT['l_min'], FACE_WARM_SOFT['k']
+        lo_b = lab(np.clip(out, 0, 1))
+        w = np.clip((lo_b[..., 1] - lo_) / (hi2 - lo_), 0, 1) * np.clip((lo_b[..., 0] - lmin) / 6.0, 0, 1) * k
+        w = np.where(near_f, w, 0.0)[..., None]
+        out = w * skin_hex + (1 - w) * out
     Image.fromarray((np.clip(out, 0, 1) * 255 + 0.5).astype(np.uint8)).save(out_p)
     log(f'顔の画像 {out_p}：目・眉・口 {feature.mean():.2%}、髪など {(rl != FACE_REGION.index("skin")).mean():.1%}'
         f'（{time.time() - t0:.0f}s）')
