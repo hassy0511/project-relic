@@ -15,9 +15,13 @@ import math
 
 import numpy as np
 
+# 色は絵（burton_3d_front・burton_shoes）の平らに照らされた所の中央値で測った（2026-10-02。spec の hex より絵に合わせる）：
+# 上着 #AA472C（胸・腕・裾）、カフ・襟 #FBE1BF、留め具 #C98C3D、ズボン #5A3C30、靴の胴・筒の帯 #413834（暗い茶）、
+# 靴の底・かかと・爪先 #6E4E3C（茶）、白髪 #B5ABA3（burton_head_side_right の明るい所と陰の間）
 PALETTE = {
-    'brick': '#B75B43', 'ivory': '#F3E9D2', 'graphite': '#444641', 'brass': '#A98749',
-    'umber': '#594333', 'skin': '#E7B58D', 'grey': '#A39C97', 'leather': '#6D4E3C', 'hair': '#453630',
+    'brick': '#AA472C', 'ivory': '#FBE1BF', 'graphite': '#444641', 'brass': '#C98C3D',
+    'umber': '#5A3C30', 'skin': '#E7B58D', 'grey': '#B5ABA3', 'leather': '#6E4E3C', 'hair': '#453630',
+    'boot': '#413834',
 }
 NAMES = list(PALETTE)
 CELLS = 16
@@ -44,9 +48,7 @@ JACKET_Z = 0.80                 # これより上の胴・腕は上着の赤錆�
 HAIR_LOW = ([33, 45, 60, 75, 95, 110, 130, 145, 160, 180], [1.405, 1.39, 1.372, 1.372, 1.375, 1.345, 1.31, 1.29, 1.26, 1.25])
 NECK_TOP = 1.345                # 内着の首（石墨）の上の端（あごの下）
 CUFF_T = (0.112, 0.207)         # カフ：前腕の軸に沿った肘からの長さ（生成りの上の端・黒線の上）。黒線は手首 +4mm まで
-# 側頭の白髪（灰）：頭の縦の軸のまわりの (s, z) の多角形（s = 角度 × 0.10、横（±X）が 0、+ は後ろ）。髪の色の所だけ灰に塗る
-# （部品の殻にすると、とがった房の上に浮いた鉢巻きに見えた）。絵：こめかみ（y −0.02、z 1.44〜1.47）→ 耳の上の後ろ（y 0.10、z 1.415〜1.44）
-GREY_STREAK = [(-0.030, 1.428), (0.050, 1.424), (0.105, 1.428), (0.050, 1.450), (-0.030, 1.472)]   # 後ろへ細くなるくさび
+# 側頭の白髪（灰）は白髪の房（chars/burton.json の hair.LOCK_TABLE の grey_*）の形で塗る（多角形で塗ると平らなシールに見えた）
 BOOT_CUT = 0.165        # この高さより下の脚の体は消して、靴の部品に置き換える（足首の帯の中で切る）
 BOOT_RAMP = (0.07, 0.14)
 BOOT_CUT_X = (0.03, 0.40)   # 靴底が |x| 0.334 まで広い（0.32 では体の爪先の端が残った）
@@ -116,14 +118,14 @@ def pieces() -> list[dict]:
         fb = frame(k, jp('foot', side), front)
         fb['RN'] = 0.06
         dz = -fb['d'][2]
-        P.append(dict(name='boot_cuff' + sx, bone='shin' + sx, color='graphite', frame=fb, ring=True,
+        P.append(dict(name='boot_cuff' + sx, bone='shin' + sx, color='boot', frame=fb, ring=True,
                       t0=(k[2] - 0.222) / dz, t1=(k[2] - 0.160) / dz, off=0.003, thick=0.008, bevel=0.003,
                       under='umber', rmax=0.14, n_ring=48, sink=0.02))
         # 靴の筒の上の帯の留め具（絵 burton_shoes.png：外側のやや後ろの小さな板）
         ft = frame((side * 0.175, 0.02, 0.0), (side * 0.175, 0.02, 1.0), front)
         ft['RN'] = 0.07
         st = side * math.radians(110) * 0.07
-        P.append(dict(name='boot_tab' + sx, bone='shin' + sx, color='graphite', frame=ft,
+        P.append(dict(name='boot_tab' + sx, bone='shin' + sx, color='boot', frame=ft,
                       outline=octagon(st - 0.014, st + 0.014, 0.170, 0.214, 0.003), off=0.012, thick=0.007,
                       bevel=0.002, rmax=0.14, h=0.004))
         P += boot_pieces(side, sx)
@@ -159,8 +161,8 @@ def boot_pieces(side: float, sx: str) -> list[dict]:
              sec(0.120, 0.112, 0.282, -0.080, 0.140, 0.03, 0.04, 4),
              sec(0.150, 0.108, 0.272, -0.060, 0.128, 0.04, 0.045, 4),
              sec(0.185, 0.106, 0.268, -0.055, 0.122, 0.045, 0.045, 4)]
-    for name, color, secs in (('sole', 'leather', sole), ('heel', 'leather', heel), ('sole_plate', 'graphite', plate),
-                              ('toe_cap', 'leather', toe), ('upper', 'graphite', upper)):
+    for name, color, secs in (('sole', 'leather', sole), ('heel', 'leather', heel), ('sole_plate', 'boot', plate),
+                              ('toe_cap', 'leather', toe), ('upper', 'boot', upper)):
         if side < 0:
             secs = [(z, [(-x, y) for (x, y) in pts][::-1]) for z, pts in secs]
         P.append(dict(name=f'boot_{name}{sx}', bone='foot' + sx, color=color, loft=secs,
@@ -211,31 +213,30 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
         f = HR.part_fields_at(pos[hi])
         xh, yh, zh = x[hi], y[hi], z[hi]
         ear = f['ear'] > -0.002
-        hair = np.minimum(f['hair'] + 0.004, f['hair'] - f['skin'] - 0.001) > 0
-        on_skin = f['skin'] > -0.004
+        # 髪は髪の形（帽子・房）の上だけ：面が髪の場から 4mm 以内（刈り上げの帽子は頭の面から 6mm 以内なので、
+        # hair − skin の差では側頭が肌になった）。肌の面に髪の色を塗らない（生え際は形の縁）
+        hair = (f['hair'] > -0.004) & ~ear
         ctop = np.interp(yh, [-0.10, 0.10], [COLLAR_Z[1], COLLAR_Z[1] + 0.010])
         lab_h[:] = NAMES.index('skin')
         lab_h[zh < ctop + 0.004] = NAMES.index('graphite')
-        lab_h[on_skin & (zh > 1.318)] = NAMES.index('skin')
+        lab_h[(f['skin'] > -0.004) & (zh > 1.318)] = NAMES.index('skin')
         lab_h[(yh < -0.045) & (zh > 1.316)] = NAMES.index('skin')      # あごの下（顔の材質の下の縁から上）
-        # 髪の下の縁（顔の材質の縁から外、|θ| > 33 度）：正面からの角度 |θ| の表の高さより上は髪。刈り上げの帽子は頭の面から 6mm 以内なので、
-        # 髪の場（hair - skin）では側頭が肌になり四角い窓が残った（バートン 1 周目）。後ろの真ん中は襟の下まで髪（えり足の V、
-        # 境目を UV のつぶれた首の後ろに置かない）
+        # 耳より後ろ（|θ| > 95 度）だけは角度の表の高さより上を髪にし、襟の下の内着より優先する（首の後ろの UV のつぶれた
+        # 島が石墨・肌の斑点になった。えり足は髪の形の下の縁より少し下まで髪）
         th_f = np.degrees(np.arctan2(np.abs(xh), -(yh - 0.01)))      # 0 = 正面、90 = 横、180 = 後ろ
         zb = np.interp(th_f, HAIR_LOW[0], HAIR_LOW[1])
-        low = (th_f > 33.0) & (zh > zb) & ~ear
+        low = (th_f > 95.0) & (zh > zb) & ~ear
         lab_h[hair | low] = NAMES.index('hair')
-        for sd in (1.0, -1.0):
-            th = np.arctan2(yh * sd, xh * sd)
-            ins_ = (xh * sd > 0.03) & inside_poly(np.stack([th * 0.10, zh], 1), np.array(GREY_STREAK, float))
-            ins_ &= lab_h == NAMES.index('hair')
-            lab_h[ins_] = NAMES.index('grey')
-            stats['grey_streak' + ('.L' if sd > 0 else '.R')] = int(ins_.sum())
+        # 白髪：白髪の房（hair.LOCK_TABLE の名前 grey_*）の形の上だけ。縁は房の縁
+        if 'grey' in f:
+            gm = (f['grey'] > -0.002) & (lab_h == NAMES.index('hair'))
+            lab_h[gm] = NAMES.index('grey')
+            stats['grey_locks'] = int(gm.sum())
         lab_h[ear] = NAMES.index('skin')
         keep = under[hi] >= 0          # 部品の下（襟）はそのまま
         # ただし後ろ（耳より後ろ）の髪の下の縁より上は、襟の下の内着より髪を優先する（襟の上の縁から見える首の後ろが
         # 石墨と肌の斑点になった：UV のつぶれた三角形が隣の島の色を拾う。首の後ろの島ごと髪の色にする）
-        keep &= ~(low & (th_f > 95.0))
+        keep &= ~low
         under[hi[~keep]] = lab_h[~keep]
     stats['head_band_texels'] = int(len(hi))
     stats['burton_rule_texels'] = int((jacket | neck | vv | slit | legs).sum())

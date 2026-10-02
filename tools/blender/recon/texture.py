@@ -140,6 +140,7 @@ INPAINT_K = 16             # 塗り足しで引く近いテクセルの数
 FACE_FEATHER = 0.030       # 顔の材質の縁から、体のテクスチャを正面の色へ寄せる距離（m）
 FACE_NDV_MIN = 0.45        # 顔の材質にする面の、正面への向きの下限（n・(-Y)）。横を向いたほお・あごは
                            # 正面の投影が引き伸ばされるので体の材質（複数の視点の色）にする
+FACE_SKIN_ONLY = CH.p('texture.FACE_SKIN_ONLY', False)   # 顔の材質を肌の形の上の三角形だけにする
 FACE_CHIN_PX = CH.p('texture.FACE_CHIN_PX', 540)        # 顔の材質にする三角形の重心の下限（正面の絵の画素の y。あごの先は約 535）
 HEAD_CLEAN_Z = CH.p('texture.HEAD_CLEAN_Z', (1.215, 1.47))  # 頭の肌と髪の塗り分けをする高さ（あごの下の首・えりより上）
 SKIN_CLEAN_ZMIN = CH.p('texture.SKIN_CLEAN_ZMIN', 1.20)    # 肌の側の下端（あごの下の首の横まで。フードの襟は約 1.19 より下）
@@ -1088,6 +1089,13 @@ def face_polys(mesh: dict, cams: dict[str, V.Cam], atlas_meta: dict) -> np.ndarr
     # あごの下（首・フードの襟）は顔の材質にしない：横から見ると正面の投影が引き伸ばされるので
     cy = fv[tris].mean(1)
     sel &= cy <= FACE_CHIN_PX
+    if FACE_SKIN_ONLY and sel.any():
+        # 髪の形（帽子・房）の上の三角形は顔の材質にしない（顔の絵の髪の色が肌の面にしみ・切れ端で残った。バートン）。
+        # 髪の色は体の塗りの決まり（形の場）で決める
+        from recon import hair as HR
+        idx = np.nonzero(sel)[0]
+        fh = HR.part_fields_at(verts[tris[idx]].mean(1))['hair']
+        sel[idx[fh > -0.004]] = False
     # 表情で変わる画素（アトラスの 4 区画が違う所）の上で正面から一番手前に見える三角形は、向きに
     # かかわらず顔の材質にする（前髪のすき間の横向きの面などで、眉の一部が表情で変わらなくなるのを防ぐ）
     expr = expression_mask_front(atlas_meta)

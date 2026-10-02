@@ -122,6 +122,14 @@ VIEW_WEIGHT = CH.p('hair.VIEW_WEIGHT', {'front': 1.0, 'side_right': 1.5, 'three_
 # 後ろ・上へ張り出す（以前の 7.5cm・9cm では、横から見た外形の後ろの房の先まで届かなかった）
 LOCK_LIFT_MAX = CH.p('hair.LOCK_LIFT_MAX', 0.095)
 LOCK_WIDTH_MAX = CH.p('hair.LOCK_WIDTH_MAX', 0.10)
+# 房の浮きの下限（名前の頭 → m）。当てはめが浮きを 0 へ寄せると房が帽子に沈み、丸い帽子に見えた（バートン）。既定は無し
+LOCK_LIFT_MIN = CH.p('hair.LOCK_LIFT_MIN', {})
+# 当てはめで動かさない房（名前の頭）。白髪の房は絵で読んだ位置・浮きのまま（当てはめると 3cm 浮いた）
+LOCK_FIXED = tuple(CH.p('hair.LOCK_FIXED', ()))
+
+
+def lift_min(name: str) -> float:
+    return max([v for k, v in LOCK_LIFT_MIN.items() if name.startswith(k)] + [0.0])
 PARAMS = {
     'cap_open_m': 0.03,        # 髪の帽子に使う外形を開く円の半径（房の先を落とす）
     'cap_close_m': 0.02,       # その後で閉じる円の半径
@@ -696,14 +704,15 @@ def initial_locks() -> list[Lock]:
                     d1 = _unit(math.cos(b) * W + math.sin(b) * axis_dir)
                 else:
                     continue
-            locks.append(Lock(tuple(d0), tuple(d1), lift, w, f'r{ri}_{j}'))
+            locks.append(Lock(tuple(d0), tuple(d1), max(lift, lift_min(f'r{ri}_{j}')), w, f'r{ri}_{j}'))
     # ゴーグルの上（後ろ）から立ち上がる大きな房（正面・右前斜めの絵：ゴーグルの上に頭の高さの約 2 割の髪。
     # 真ん中の高い房は前へかぶさり、本人の右へ流れる）。根・先は絵を読んだ表（つむじからの放射ではない）
-    top = LOCK_TABLE   # (根, 先, 浮き, 幅)
-    for j, (r0, r1, lift, w) in enumerate(top):
+    top = LOCK_TABLE   # (根, 先, 浮き, 幅[, 名前])。名前が 'grey' で始まる房は白髪（part_fields_at の 'grey'）
+    for j, e in enumerate(top):
+        r0, r1, lift, w = e[:4]
         d0 = _unit(np.array(r0) - HEAD_C)
         d1 = _unit(np.array(r1) - HEAD_C)
-        locks.append(Lock(tuple(d0), tuple(d1), lift, w, f'top_front_{j}'))
+        locks.append(Lock(tuple(d0), tuple(d1), lift, w, e[4] if len(e) > 4 else f'top_front_{j}'))
     return locks
 
 
@@ -714,9 +723,11 @@ def rotate_toward(d: np.ndarray, axis: np.ndarray, ang: float) -> np.ndarray:
 
 
 def perturb(L: Lock, what: str, step: float) -> Lock:
+    if LOCK_FIXED and L.name.startswith(LOCK_FIXED):
+        return L
     d0, d1 = _unit(L.root), _unit(L.tip)
     if what == 'lift':
-        return Lock(L.root, L.tip, float(np.clip(L.lift + step, 0.0, LOCK_LIFT_MAX)), L.width, L.name)
+        return Lock(L.root, L.tip, float(np.clip(L.lift + step, lift_min(L.name), LOCK_LIFT_MAX)), L.width, L.name)
     if what == 'width':
         return Lock(L.root, L.tip, L.lift, float(np.clip(L.width + step, 0.03, LOCK_WIDTH_MAX)), L.name)
     flow = _unit(np.cross(d0, d1))          # 大きな円の軸
@@ -1060,6 +1071,9 @@ def build_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.ndar
     # 縮めきれない房は落とす
     locks, dropped, shortened = [], 0, 0
     for L in fit.locks:
+        if LOCK_FIXED and L.name.startswith(LOCK_FIXED):
+            locks.append(L)          # 動かさない房（白髪）は顔の範囲の判定で落とさない（縮められないので落ちた）
+            continue
         for _ in range(12):
             s_ = lock_samples(L, rtab, p['lock_thick'])
             if face_zone_penalty(s_[0], s_[2]) == 0:
@@ -1160,16 +1174,23 @@ def part_fields_at(P: np.ndarray, x_half: float = 0.26, z0: float = 1.12) -> dic
         locks = []
     if locks:
         rtab = RadialTable(base, lo_b, vox)
-        Lf = np.full(S.shape, -0.02, np.float32)
-        for L in locks:
-            r_ = lock_field(lock_samples(L, rtab, p['lock_thick']), lo_b, vox, S.shape)
-            if r_ is None:
-                continue
-            (a, b, c), f = r_
-            sl = (slice(a, a + f.shape[0]), slice(b, b + f.shape[1]), slice(c, c + f.shape[2]))
-            np.maximum(Lf[sl], f, out=Lf[sl])
-        Lf = smooth_min(Lf, -np.maximum(np.maximum(cut, gz), ears + 0.004) - 0.004, 0.004)
-        hair = np.maximum(hair, Lf)
+
+        def lock_union(sel):
+            Lf = np.full(S.shape, -0.02, np.float32)
+            for L in sel:
+                r_ = lock_field(lock_samples(L, rtab, p['lock_thick']), lo_b, vox, S.shape)
+                if r_ is None:
+                    continue
+                (a, b, c), f = r_
+                sl = (slice(a, a + f.shape[0]), slice(b, b + f.shape[1]), slice(c, c + f.shape[2]))
+                np.maximum(Lf[sl], f, out=Lf[sl])
+            return smooth_min(Lf, -np.maximum(np.maximum(cut, gz), ears + 0.004) - 0.004, 0.004)
+
+        hair = np.maximum(hair, lock_union(locks))
+        grey = [L for L in locks if L.name.startswith('grey')]
+        if grey:
+            # 白髪の房だけの場（色を房の形から決める。房の外の帽子には塗らない）
+            out['grey'] = lock_union(grey)
     out['hair'] = hair
     if PARTS['strap']:
         env = ndi.gaussian_filter(d['phi'][k0:, i0:i1].astype(np.float32), 5.0)

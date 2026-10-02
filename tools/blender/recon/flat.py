@@ -487,6 +487,8 @@ FACE_REGION = ['umber', 'skin']   # 顔の材質の所（顔の窓の中）に�
 FACE_SIDEBURN = CH.p('flat.FACE_SIDEBURN', None)
 # 目・眉・口の中の、明るく赤みの強い所（鼻の古傷の線）を肌へ寄せる強さ：a* が (lo, hi) で 0 → 1、明るさ L* > l_min。None なら何もしない
 FACE_WARM_SOFT = CH.p('flat.FACE_WARM_SOFT', None)
+# 顔の画像に髪の色を置かない（顔の材質が肌の形の上だけのとき：texture.FACE_SKIN_ONLY）。目・眉・口のほかは全部肌
+FACE_NO_HAIR = CH.p('flat.FACE_NO_HAIR', False)
 
 
 def paint_face_atlas(atlas_p: str, meta: dict, out_p: str) -> str:
@@ -525,6 +527,8 @@ def paint_face_atlas(atlas_p: str, meta: dict, out_p: str) -> str:
     rl, _ = classify(rgb.reshape(-1, 3), FACE_REGION)
     rl = rl.reshape(H, W)
     rl[~region] = FACE_REGION.index('skin')
+    if FACE_NO_HAIR:
+        rl[:] = FACE_REGION.index('skin')
     pal = np.stack([hex_rgb(PALETTE[k]) for k in FACE_REGION])
     onehot = np.stack([ndi.gaussian_filter((rl == i).astype(np.float32), 3.0) for i in range(len(FACE_REGION))], -1)
     rl = np.argmax(onehot, -1)
