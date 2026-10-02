@@ -45,7 +45,7 @@ SLIT_X = (0.006, 0.022)         # 裾の前の割れ目の半幅（V の下 → 
 JACKET_Z = 0.80                 # これより上の胴・腕は上着の赤錆（裾の部品の下で切り替わる）
 # 髪の下の縁：正面からの角度（度）→ 高さ。絵の右真横・背面：もみあげは耳の中ほど（1.372）まで、耳の後ろは耳の下の端、
 # 後ろの真ん中は襟の中まで（えり足の V）
-HAIR_LOW = ([33, 45, 60, 75, 95, 110, 130, 145, 160, 180], [1.405, 1.39, 1.372, 1.372, 1.375, 1.345, 1.31, 1.29, 1.26, 1.25])
+HAIR_LOW = ([50, 60, 72, 95, 100, 180], [1.44, 1.41, 1.378, 1.375, 1.25, 1.25])
 NECK_TOP = 1.345                # 内着の首（石墨）の上の端（あごの下）
 CUFF_T = (0.112, 0.207)         # カフ：前腕の軸に沿った肘からの長さ（生成りの上の端・黒線の上）。黒線は手首 +4mm まで
 # 側頭の白髪（灰）は白髪の房（chars/burton.json の hair.LOCK_TABLE の grey_*）の形で塗る（多角形で塗ると平らなシールに見えた）
@@ -221,22 +221,23 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
         lab_h[zh < ctop + 0.004] = NAMES.index('graphite')
         lab_h[(f['skin'] > -0.004) & (zh > 1.318)] = NAMES.index('skin')
         lab_h[(yh < -0.045) & (zh > 1.316)] = NAMES.index('skin')      # あごの下（顔の材質の下の縁から上）
-        # 耳より後ろ（|θ| > 95 度）だけは角度の表の高さより上を髪にし、襟の下の内着より優先する（首の後ろの UV のつぶれた
-        # 島が石墨・肌の斑点になった。えり足は髪の形の下の縁より少し下まで髪）
+        # 横・後ろ（|θ| > 55 度）は角度の表の高さより上を髪にする（刈り上げの帽子は頭の面とほぼ同じ所にあり、形の場では
+        # 側頭が肌と髪のまだらになった）。耳より後ろ（|θ| > 95 度）は首の後ろを襟の中まで髪にし、襟の下の内着より優先する
+        # （首の後ろの UV のつぶれた島が石墨・肌の斑点になった）
         th_f = np.degrees(np.arctan2(np.abs(xh), -(yh - 0.01)))      # 0 = 正面、90 = 横、180 = 後ろ
         zb = np.interp(th_f, HAIR_LOW[0], HAIR_LOW[1])
-        low = (th_f > 95.0) & (zh > zb) & ~ear
+        low = (th_f > 50.0) & (zh > zb) & ~ear
         lab_h[hair | low] = NAMES.index('hair')
         # 白髪：白髪の房（hair.LOCK_TABLE の名前 grey_*）の形の上だけ。縁は房の縁
         if 'grey' in f:
-            gm = (f['grey'] > -0.002) & (lab_h == NAMES.index('hair'))
+            gm = (f['grey'] > -0.005) & (lab_h == NAMES.index('hair'))
             lab_h[gm] = NAMES.index('grey')
             stats['grey_locks'] = int(gm.sum())
         lab_h[ear] = NAMES.index('skin')
         keep = under[hi] >= 0          # 部品の下（襟）はそのまま
         # ただし後ろ（耳より後ろ）の髪の下の縁より上は、襟の下の内着より髪を優先する（襟の上の縁から見える首の後ろが
         # 石墨と肌の斑点になった：UV のつぶれた三角形が隣の島の色を拾う。首の後ろの島ごと髪の色にする）
-        keep &= ~low
+        keep &= ~(low & (th_f > 95.0))
         under[hi[~keep]] = lab_h[~keep]
     stats['head_band_texels'] = int(len(hi))
     stats['burton_rule_texels'] = int((jacket | neck | vv | slit | legs).sum())
