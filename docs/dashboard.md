@@ -5,7 +5,7 @@
 > ブラウザで見る：https://hassy0511.github.io/project-relic/dashboard/ （push のたびに自動で更新）
 > **テストプレイ**：https://hassy0511.github.io/project-relic/ （ブラウザで遊べる最新版。スマホでは画面の操作が自動で出る。push のたびに更新）
 > 3D モデルを回して見る：https://hassy0511.github.io/project-relic/models/ （4 章の「見る」から各モデルへ）
-> 最終更新：2026-10-01
+> 最終更新：2026-10-02
 
 ---
 
@@ -26,7 +26,7 @@
 | 待ち（ユーザー） | Codex への発注：住人とヤーナの追加の絵、オルド、小物（町・遺構はオルドの後）。**依頼文は 7 章にそのまま貼れる形で置いてある** |
 | 待ち（ユーザー） | CP2（第1章の仮組み）に進むかの判断 |
 | 待ち（ユーザー） | ハルの 8 回目（ゴーグルのヒモと左手を部品に・倒れの膝・首の横のえり）の確認。確認ページと同じ画面の格子：`art_orders/haru_r_trial/audit_<区域>.jpg`（6 回目は `audit_before_<区域>.jpg`）、動作 `audit_pose_*.jpg`（走り・跳躍・ダッシュ・倒れ・ため撃ち） |
-| 待ち（ユーザー） | バートン（部品で作った最初の住人）の確認：確認ページ [見る](https://hassy0511.github.io/project-relic/models/?m=burton)、格子 `art_orders/burton_trial/audit_<区域>.jpg`、絵との比べ `compare_art.jpg` |
+| 待ち（ユーザー） | バートン（部品で作った最初の住人）の確認：確認ページ [見る](https://hassy0511.github.io/project-relic/models/?m=burton)、格子 `art_orders/burton_trial/audit_<区域>.jpg`・動作 `audit_pose_*.jpg`、絵との比べ `compare_art.jpg`、Godot `showcase.jpg` |
 | 次（Claude） | 絵が届いたものから 3D 化（バートン済。次はヤーナ → ニコ → 店主 → トルーデ → ジャンク屋を同じやり方で）。遺構の 1 部屋を本番の見た目まで仕上げて基準にする |
 
 ## 3. 絵の発注と納品
@@ -56,7 +56,7 @@
 |--------|----------------|------|-----------|------|
 | ハル（`haru_r`） | 主人公（既定。F2 で以前の試作と切り替え） | 使える。2026-09-30 に部位ごとの平らな色に塗り直し（顔・胸元もきれい）、10-01 に体の境目を 1 枚の絵の形と輪の決まりで塗り直し、続けて肩の板・膝当て・籠手・帯・ポーチ・カフなどの硬い部品を別の形にした。6 回目で銃を握る右手を部品にし（指 3 節・親指・手袋。確認ページでも握っている）、肩・首の後ろ・膝・前腕の汚れを直した。7 回目で靴・すねの板・肩ひも・フードのえりを部品にし、脚・胴・上腕を決まりの色にした（確認ページで全方向の格子を点検）。8 回目でゴーグルのヒモ（髪の上の一定の帯）と左手（開いた手）を部品にし、倒れの膝・首の横を直した。残課題あり（5 章） | `art_orders/W1_ハル再構築の結果.md` | [見る](https://hassy0511.github.io/project-relic/models/?m=haru_r) |
 | ヤーナ（`yana`） | 会話の相手（NPC） | 使える。残課題あり | `art_orders/W1_ヤーナ3D化の結果.md` | [見る](https://hassy0511.github.io/project-relic/models/?m=yana) |
-| バートン（`burton`） | 回収屋ギルドの支部長（NPC、190cm）。ゲームの流れにはまだ入れていない（Godot の確認画像まで） | 使える。部品の表から最初に作った人物（襟・前立て・留め具・裾・ポケット・カフ・靴・両手が部品、上着・ズボン・頭と首は決まりの塗り）。残課題あり（背中の凸凹、顔の丸み、髪の房の形） | `art_orders/W2_バートン3D化の結果.md` | [見る](https://hassy0511.github.io/project-relic/models/?m=burton) |
+| バートン（`burton`） | 回収屋ギルドの支部長（NPC、190cm）。ゲームの流れにはまだ入れていない（Godot の確認画像まで） | 使える。部品の表から最初に作った人物（襟・前立て・留め具・裾・ポケット・カフ・靴と留め具・両手が部品、上着・ズボン・頭と首は決まりの塗り）。確認の格子は全部見た。残課題（髪の形が丸い帽子のよう、耳の下の襟の際の小さな斑点、背中の陰の凸凹） | `art_orders/W2_バートン3D化の結果.md` | [見る](https://hassy0511.github.io/project-relic/models/?m=burton) |
 | ナゴミ（`nagomi`） | ハルの肩のそばに浮く相棒 | 使える。残課題あり | `art_orders/W1_ナゴミ3D化の結果.md` | [見る](https://hassy0511.github.io/project-relic/models/?m=nagomi) |
 | 番機 5 種（`banki_*`） | 敵。歩哨型・突撃型はゲームに入った（歩く・予備動作・センサーの色・壊れ方） | 使える。2026-09-30 に部品を寸法から組む作り方に作り直し（まだら無し、部品ごとに 1 色）。形は絵より素朴（特に盾型）。子番機・盾型・浮遊型は動きなし | `art_orders/W2_番機3D化の結果.md` | [歩哨](https://hassy0511.github.io/project-relic/models/?m=banki_sentry) [突撃](https://hassy0511.github.io/project-relic/models/?m=banki_charger) [子](https://hassy0511.github.io/project-relic/models/?m=banki_mini) [盾](https://hassy0511.github.io/project-relic/models/?m=banki_shield) [浮遊](https://hassy0511.github.io/project-relic/models/?m=banki_floater) |
 | 閂（`kannuki`） | ボス（まだ戦いは無い。ゲームには未組み込み） | 仮の出来：部品は全部動かせる（腕 4 本・ドリル・核のふた）が、形が箱っぽく絵より太い | `art_orders/W2_番機3D化の結果.md` | [見る](https://hassy0511.github.io/project-relic/models/?m=kannuki) |
