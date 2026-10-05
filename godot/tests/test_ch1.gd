@@ -200,3 +200,42 @@ func test_chapter1_part1_playthrough() -> void:
 	h.expect(_in_order(["ch1.chores_started", "ch1.nico_rescued", "ch1.scolded", "ch1.debt_scene", "ch1.ordo_stopped", "ch1.got_spark"]),
 		"フラグが決まった順に立つ（%s）" % str(order.filter(func(n): return n.begins_with("ch1.") and not n.begins_with("ch1.t_"))))
 	h.free_game(g)
+
+
+## 実際に歩く：階段で段を登り降りして段へ移れること、訓練場の溝をダッシュジャンプで越えられること
+func test_town_walking() -> void:
+	var g := _new_game()
+	await h.settle()
+	# 下段の階段を登って中段へ
+	g.load_room("ch1.lower", "start")
+	await _pump(g, 6)
+	_warp(g, Vector3(0, 0, 8), 0.0)
+	var moved := await h.run_until(g, TestHelpers.seconds(20), {"move_y": 1.0}, func(): return g.room_id == "ch1.mid")
+	h.expect(moved, "下段の階段を歩いて登ると中段へ移る（%s、y=%.1f）" % [g.room_id, g.player.pos.y])
+	await _pump(g, 6)
+	h.near(g.player.pos.y, -5.0, 0.3, "中段の階段の下に着く")
+	# 中段の階段を登って床へ（踊り場から北へ）
+	await h.run_until(g, TestHelpers.seconds(15), {"move_y": 1.0}, func(): return g.player.pos.y > -0.3)
+	h.expect(g.room_id == "ch1.mid" and g.player.pos.y > -0.3 and g.player.pos.z > -16.0, "階段を登りきると中段の広場に出る（z=%.1f, y=%.1f）" % [g.player.pos.z, g.player.pos.y])
+	# 南へ降りて下段へ
+	_warp(g, Vector3(0, 0, -8), PI)
+	await h.run_until(g, TestHelpers.seconds(20), {"move_y": 1.0}, func(): return g.room_id == "ch1.lower")
+	h.expect(g.room_id == "ch1.lower", "中段の階段を降りると下段へ戻る（%s）" % g.room_id)
+	# 訓練場の溝：ダッシュジャンプで越える
+	g.set_flag("trigger.ch1.training.start")
+	g.load_room("ch1.training", "start")
+	await _pump(g, 6)
+	_warp(g, Vector3(3, 0, 14), 0.0)
+	var dashed := [false]
+	await h.run(g, TestHelpers.seconds(4.0), func(i):
+		var z: float = g.player.pos.z
+		var d: bool = not dashed[0] and z > 22.4
+		if d:
+			dashed[0] = true
+		return {"move_y": 1.0, "dash": d, "jump": z > 25.4})
+	h.expect(g.player.pos.z > 32.0 and g.player.pos.y > -0.3, "溝（幅 6 m）をダッシュジャンプで越えられる（z=%.1f, y=%.1f）" % [g.player.pos.z, g.player.pos.y])
+	# 溝に落ちても、南のスロープから戻れる
+	_warp(g, Vector3(0, -1.5, 29), PI)
+	await h.run(g, TestHelpers.seconds(5.0), {"move_y": 1.0})
+	h.expect(g.player.pos.y > -0.3 and g.player.pos.z < 26.0, "溝に落ちても南のスロープから戻れる（z=%.1f, y=%.1f）" % [g.player.pos.z, g.player.pos.y])
+	h.free_game(g)
