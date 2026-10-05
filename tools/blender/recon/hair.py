@@ -1224,10 +1224,16 @@ def ear_clear(L: Lock, rtab: RadialTable, thick: float = 0.34) -> Lock | None:
 def lock_parts(phi: np.ndarray, lo: np.ndarray, vox: float, thick: float | None = None) -> list[tuple[str, np.ndarray, np.ndarray]]:
     """LOCKS_AS_PARTS：形の段が当てはめた房（recon_report.json）と前髪の表 FRINGE を、面の部品にする。
     phi は形の段の場（hull.npz。房を含まない帽子＋頭）。返り値：[(名前, V, F)]"""
-    with open(os.path.join(V.WORK, 'recon_report.json')) as fp:
-        rep = json.load(fp)['hull']['head']['locks']
-    locks = [Lock(tuple(L['root']), tuple(L['tip']), L['lift'], L['width'], L.get('name', '')) for L in rep]
-    for e in FRINGE:
+    if LOCK_PART.get('table'):
+        # 房の表を絵から直接書く（当てはめを使わない）：(根, 先, 浮き, 幅, 名前)。根・先は世界の点
+        locks = []
+        src = list(LOCK_PART['table'])
+    else:
+        with open(os.path.join(V.WORK, 'recon_report.json')) as fp:
+            rep = json.load(fp)['hull']['head']['locks']
+        locks = [Lock(tuple(L['root']), tuple(L['tip']), L['lift'], L['width'], L.get('name', '')) for L in rep]
+        src = []
+    for e in src + list(FRINGE):
         r0, r1, lift, w = e[:4]
         locks.append(Lock(tuple(_unit(np.array(r0) - HEAD_C)), tuple(_unit(np.array(r1) - HEAD_C)), lift, w,
                           e[4] if len(e) > 4 else 'fringe'))
@@ -1328,10 +1334,17 @@ def neck_field(lo, vox, shape, k0) -> np.ndarray:
     ys = lo[1] + (np.arange(ny) + 0.5) * vox
     zs = lo[2] + (np.arange(k0, nz) + 0.5) * vox
     (rx, ry), cy, (z0, z1) = NECK['r'], NECK['cy'], NECK['z']
-    e = np.sqrt(((xs[:, None] - NECK['cx']) / rx) ** 2 + ((ys[None, :] - cy) / ry) ** 2)
-    f = ((1 - e) * rx).astype(np.float32)
     top = (z1 - zs)[:, None, None]
     bot = (zs - z0)[:, None, None]
+    if NECK.get('flare'):
+        # 首の下を広げて、えりの中で体の面へなめらかにつなぐ（ヤーナ：体の上の端の切り口が首の段・しわに見えた）。
+        # flare = [高さの節, 半径の倍率の節]
+        sc = np.interp(zs, NECK['flare'][0], NECK['flare'][1]).astype(np.float32)[:, None, None]
+        e = np.sqrt(((xs[None, :, None] - NECK['cx']) / (rx * sc)) ** 2 + ((ys[None, None, :] - cy) / (ry * sc)) ** 2)
+        f = ((1 - e) * rx * sc).astype(np.float32)
+        return smooth_min(smooth_min(f, np.broadcast_to(top, f.shape), 0.01), np.broadcast_to(bot, f.shape), 0.01)
+    e = np.sqrt(((xs[:, None] - NECK['cx']) / rx) ** 2 + ((ys[None, :] - cy) / ry) ** 2)
+    f = ((1 - e) * rx).astype(np.float32)
     return smooth_min(smooth_min(np.broadcast_to(f[None], (len(zs), nx, ny)), np.broadcast_to(top, (len(zs), nx, ny)),
                                  0.01), np.broadcast_to(bot, (len(zs), nx, ny)), 0.01)
 

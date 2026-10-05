@@ -536,7 +536,7 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
         # 2 周目：あごの横・目の横に、頭の面に貼り付いた帽子の髪の色が平らな茶の板として残った
         # 横（75 度より後ろ）は刈り上げの帽子が頭から 8mm（hair.CAP.undercut）なので、その厚みまで「貼り付いた帽子」に数える
         # （3 周目：あごの横・耳の下に茶の横縞が残った）
-        flush = (f['hair'] - f['skin']) < np.where(th_f < 75.0, 0.004, 0.011)
+        flush = (f['hair'] - f['skin']) < np.where(th_f < 75.0, 0.009, 0.011)   # 4 周目：前は 4mm だと境が判定で揺れ、こめかみにのこぎりの歯
         line = np.where(th_f < 75.0, np.interp(np.abs(xh + 0.012), HAIRLINE_PAINT[0], HAIRLINE_PAINT[1]),
                         np.where(th_f < 100.0, 1.318, 1.25))
         hair &= ~(flush & (zh < line))
