@@ -189,7 +189,10 @@ r.shell(24, 9, 24)
 r.start("from_r03", 0, 0, -9.5, 0)
 r.marker("from_r05", 0, 0, 7.5, 180)
 r.exit("to_r03", "r03", "from_r04", 0, 0, -11)
-r.exit("to_r05", "r05", "from_r04", 0, 0, 11)
+V2 = {"all": ["switch.ch1.r04.v1", "switch.ch1.r04.v2"]}
+r.exit("to_r05", "r05", "from_r04", 0, 0, 11, lock=V2, text="換気の弁が詰まっていて、扉が動かない。")
+r.box(-7.5, 0, 9.5, 9, 8, 0.6, "#3a3d44")
+r.box(7.5, 0, 9.5, 9, 8, 0.6, "#3a3d44")
 r.prop(type="door", id="ch1.r04.door", pos=[0, 0, 9.5], yaw=0, size=[6, 4, 0.6], opens="auto",
        lock={"all": ["switch.ch1.r04.v1", "switch.ch1.r04.v2"]}, text="換気の弁が詰まっていて、扉が動かない。")
 # 止まった大型ファン（東の壁）と弁
@@ -257,12 +260,12 @@ for z, side in ((-8, 1), (-1, -1), (6, 1), (12, -1)):
     x0 = -3 if side == 1 else -0.8
     x1 = 0.8 if side == 1 else 3
     r.box((x0 + x1) / 2, 0, z, x1 - x0, 5, 1.2, "#7a4a3a")
-r.prop(type="door", id="ch1.r07.seal", pos=[0, 0, 17.4], yaw=0, size=[4, 4.2, 0.6], opens="auto",
+r.prop(type="door", id="ch1.r07.seal", pos=[0, 0, 17.4], yaw=0, size=[6, 4.2, 0.6], opens="auto",
        lock="ch1.r07.seal_open", text="行き止まりだ。")
 r.sign("封", 0, 4.3, 16.9, "#6fe3d6", 36)
 for z in (-12, -4, 4, 12):
     r.light(0, 3.8, z, "#ff4a3a", 7, 0.9)
-r.trigger("chase", 0, 0, -12, 6, 3, 2, "ch1.chase")
+r.trigger("chase", 0, 0, -12, 6, 3, 2, "ch1.chase", persist=False, cond={"not": "ch1.r07.seal_open"})
 r.trigger("dead", 0, 0, 14, 6, 3, 2, "ch1.r07.dead")
 
 r = new("r08", "B2", "封印室", 2, 1)
@@ -282,14 +285,16 @@ for i in range(8):
     r.box(8.5 * math.sin(a), 0, 8.5 * math.cos(a), 1.2, 4.5, 1.2, "#2f4a50")
 r.light(0, 3, 0, "#6fe3d6", 14, 1.8)
 r.light(0, 7, 0, "#7fb0ff", 18, 0.8)
-r.trigger("fit", 0, 0, -4, 10, 3, 3, "ch1.frame_fit")
+r.trigger("fit", 0, 0, -4, 10, 3, 3, "ch1.frame_fit", persist=False, cond={"not": "ch1.r08.trained"})
 
 r = new("r09", "B2", "配管広間", 3, 1)
 r.shell(20, 8, 24)
 r.start("from_r08", 0, 0, -9.5, 0)
 r.marker("from_r10", 0, 0, 7.5, 180)
 r.exit("to_r08", "r08", "from_r09", 0, 0, -11)
-r.exit("to_r10", "r10", "from_r09", 0, 0, 11)
+r.exit("to_r10", "r10", "from_r09", 0, 0, 11, lock="ch1.r09.cleared", text="扉が閉じている。敵を片づけないと開かない。")
+r.box(-6.5, 0, 9.5, 7, 8, 0.6, "#3a3d44")
+r.box(6.5, 0, 9.5, 7, 8, 0.6, "#3a3d44")
 r.prop(type="door", id="ch1.r09.door", pos=[0, 0, 9.5], yaw=0, size=[6, 4, 0.6], opens="auto",
        lock="ch1.r09.cleared", text="扉が閉じている。敵を片づけないと開かない。")
 for x, z in ((-5, -2), (5, -2), (-5, 5), (5, 5), (0, 1.5)):
@@ -310,7 +315,9 @@ r.shell(20, 8, 24)
 r.start("from_r09", 0, 0, -9.5, 0)
 r.marker("from_r11", 0, 0, 7.5, 180)
 r.exit("to_r09", "r09", "from_r10", 0, 0, -11)
-r.exit("to_r11", "r11", "from_r10", 0, 0, 11)
+r.exit("to_r11", "r11", "from_r10", 0, 0, 11, lock={"all": [{"cleared": "r10_w1"}, "switch.ch1.r10.valve"]}, text="扉が閉じている。弁の輪を回して、敵を片づけよう。")
+r.box(-6.5, 0, 9.5, 7, 8, 0.6, "#3a3d44")
+r.box(6.5, 0, 9.5, 7, 8, 0.6, "#3a3d44")
 r.prop(type="door", id="ch1.r10.door", pos=[0, 0, 9.5], yaw=0, size=[6, 4, 0.6], opens="auto",
        lock={"all": [{"cleared": "r10_w1"}, "switch.ch1.r10.valve"]}, text="扉が閉じている。弁の輪を回して、敵を片づけよう。")
 r.box(0, 6.2, 11.2, 4, 0.5, 0.5, "#7a4a3a")
@@ -373,7 +380,7 @@ r.prop(type="switch", id="ch1.r12.s2", pos=[5, 1.6, -17], mode="shoot", radius=0
 r.sign("動力の球（撃つ）", -5, 2.9, -17.5, "#ffb050", 26)
 r.sign("動力の球（撃つ）", 5, 2.9, -17.5, "#ffb050", 26)
 # ピストン（動力が通ると往復する）
-for i, (z, spd, wait, mv) in enumerate(((-5.5, 2.2, 1.0, 3.6), (0.5, 2.8, 1.6, 3.6), (6.5, 2.0, 0.8, 3.6))):
+for i, (z, spd, wait, mv) in enumerate(((-5.5, 2.2, 1.0, 3.6), (2.5, 2.8, 1.6, 3.6), (10.5, 2.0, 0.8, 3.6))):
     r.prop(type="mover", id="ch1.r12.p%d" % (i + 1), pos=[0, -2.6, z], size=[5, 0.5, 5], move=[0, mv, 0],
            speed=spd, mode="pingpong", wait=wait, cond="ch1.drive_powered")
 for z in (-6, 0, 6, 12):
@@ -393,7 +400,7 @@ r.exit("to_r12", "r12", "from_r13", 0, 0, -14, size=(6, 4, 2))
 r.exit("to_r15", "r15", "from_r13", 0, 0, 14, size=(6, 4, 2))
 # 歯車のリフト（動力が通っていると往復）で、奥の張り出し（y=4）へ
 r.box(0, 0, 11, 8, 4.0, 5, "#8c6a3a")        # 張り出し（上面 y=4、z 8.5〜13.5）
-r.prop(type="mover", id="ch1.r13.lift1", pos=[-5.5, 0.1, 5.0], size=[3.5, 0.4, 3.5], move=[0, 3.9, 0],
+r.prop(type="mover", id="ch1.r13.lift1", pos=[-5.5, 0.1, 5.0], size=[3.5, 0.4, 3.5], move=[0, 3.5, 0],
        speed=2.0, mode="pingpong", wait=1.2, cond="ch1.drive_powered")
 r.prop(type="mover", id="ch1.r13.lift2", pos=[5.5, 2.0, 3.0], size=[3.5, 0.4, 3.5], move=[0, 2.0, 0],
        speed=1.6, mode="pingpong", wait=0.8, cond="ch1.drive_powered")
@@ -449,7 +456,7 @@ r.start("from_r15", 0, 20.0, -3.0, 0)
 r.marker("from_r18", 0, 0, -3.5, 0)
 r.exit("to_r15", "r15", "from_r16", 0, 20.0, -5.0, size=(5, 4, 1.4))
 r.exit("to_r18", "r18", "from_r16", 0, 0, 5, size=(6, 4, 2))
-r.prop(type="mover", id="ch1.r16.lift", pos=[0, 19.6, 0.4], size=[5, 0.4, 4], move=[0, -19.6, 0], speed=4.5, mode="ride")
+r.prop(type="mover", id="ch1.r16.lift", pos=[0, 19.6, 0.4], size=[5, 0.4, 4], move=[0, -20.0, 0], speed=4.5, mode="ride")
 r.sign("リフト（乗ると降りる）", 0, 22.2, -2.4, "#ffb050", 30)
 r.enemy("charger", -4, 0, 3, 180, group="r16_w1", unless="ch1.r16.cleared")
 r.enemy("charger", 4, 0, 3.5, 180, group="r16_w1", unless="ch1.r16.cleared")
@@ -476,6 +483,8 @@ r.shell(20, 8, 24)
 r.start("from_r16", 0, 0, -10, 0)
 r.marker("from_r19", 0, 0, 8, 180)
 r.exit("to_r19", "r19", "from_r18", 0, 0, 11, lock="ch1.diagnosis", text="大きな扉は閉ざされている。……ナゴミが何か言いたそうだ。")
+r.box(-6.5, 0, 9.6, 7, 8, 0.6, "#3a3d44")
+r.box(6.5, 0, 9.6, 7, 8, 0.6, "#3a3d44")
 r.prop(type="door", id="ch1.r18.door", pos=[0, 0, 9.6], yaw=0, size=[6, 5, 0.6], opens="auto", lock="ch1.diagnosis")
 r.prop(type="beacon", id="ch1.r18.bc", pos=[-5, 0, 3], flag="ch1.r18_beacon", event="ch1.beacon")
 r.prop(type="chest", id="ch1.r18.chest1", pos=[7, 0, -6], yaw=-60, contents={"heals": 2})

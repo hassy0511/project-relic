@@ -85,6 +85,16 @@ func build(game: GameSim) -> void:
 			lb.position = m.pos
 			lb.no_depth_test = false
 			add_child(lb)
+	# 遠景の飾り（当たり判定なし）：{ "type": "decor", "pos": [x,y,z] 底の中心, "size": [幅,高さ,奥行き], "color": "#46506a", "yaw": 度 }
+	for p in game.room.get("props", []):
+		if p.type == "decor" and (not p.has("when") or Cond.eval(p.when, game)) and (not p.has("unless") or not Cond.eval(p.unless, game)):
+			var sz := RoomGeo.v3(p.size)
+			var dm := MeshKit.mat(Color(p.get("color", "#46506a")), 0.9, 0.0)
+			var node := Node3D.new()
+			node.position = RoomGeo.v3(p.pos)
+			node.rotation.y = float(p.get("yaw", 0.0)) * U.DEG
+			add_child(node)
+			MeshKit.add(node, MeshKit.box(sz), dm, Vector3(0, sz.y * 0.5, 0))
 	_build_world_objects(game)
 
 

@@ -108,7 +108,17 @@
  "ch1.chase": {
   "steps": [
    {
-    "say": "ch1.chase"
+    "if": {
+     "not": "ch1.chase_seen"
+    },
+    "then": [
+     {
+      "say": "ch1.chase"
+     },
+     {
+      "flag": "ch1.chase_seen"
+     }
+    ]
    },
    {
     "spawn": [
@@ -188,56 +198,66 @@
     "hint": ""
    },
    {
-    "camera": {
-     "pos": [
-      0,
-      0,
-      0
-     ],
-     "height": 1.6,
-     "time": 2.0
-    }
-   },
-   {
-    "say": "ch1.fit.a"
-   },
-   {
-    "sfx": "item"
-   },
-   {
-    "shake": 0.3
-   },
-   {
-    "wait": 0.8
-   },
-   {
-    "say": "ch1.fit.b"
-   },
-   {
-    "shake": 0.7
-   },
-   {
-    "sfx": "alert"
-   },
-   {
-    "wait": 1.2
-   },
-   {
-    "give": {
-     "item": "frame.vestige"
-    }
-   },
-   {
-    "flag": "ch1.frame_fitted"
-   },
-   {
-    "camera": {}
-   },
-   {
-    "say": "ch1.fit.c"
-   },
-   {
-    "message": "仮登録：フレーム〈ヴェスティージ〉・ナゴミと同行"
+    "if": "ch1.frame_fitted",
+    "then": [
+     {
+      "message": "ナゴミの訓練をやり直す"
+     }
+    ],
+    "else": [
+     {
+      "camera": {
+       "pos": [
+        0,
+        0,
+        0
+       ],
+       "height": 1.6,
+       "time": 2.0
+      }
+     },
+     {
+      "say": "ch1.fit.a"
+     },
+     {
+      "sfx": "item"
+     },
+     {
+      "shake": 0.3
+     },
+     {
+      "wait": 0.8
+     },
+     {
+      "say": "ch1.fit.b"
+     },
+     {
+      "shake": 0.7
+     },
+     {
+      "sfx": "alert"
+     },
+     {
+      "wait": 1.2
+     },
+     {
+      "give": {
+       "item": "frame.vestige"
+      }
+     },
+     {
+      "flag": "ch1.frame_fitted"
+     },
+     {
+      "camera": {}
+     },
+     {
+      "say": "ch1.fit.c"
+     },
+     {
+      "message": "仮登録：フレーム〈ヴェスティージ〉・ナゴミと同行"
+     }
+    ]
    },
    {
     "freeze": false
@@ -826,12 +846,16 @@
     "camera": {
      "pos": [
       0,
-      12,
-      200
+      16,
+      150
      ],
      "height": 0,
-     "time": 3.0
+     "time": 40.0,
+     "wait": false
     }
+   },
+   {
+    "wait": 3.0
    },
    {
     "say": "ch1.ending.a"

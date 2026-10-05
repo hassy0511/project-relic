@@ -3147,15 +3147,99 @@
      "event": "ch1.clerk"
     },
     {
-     "type": "sign",
-     "text": "◤ 巡礼機カラン ◢",
+     "type": "decor",
+     "id": "ch1.upper.karan_body",
      "pos": [
       0,
-      14,
-      200
+      20,
+      150
      ],
-     "size": 90,
-     "color": "#9ad0ff",
+     "size": [
+      44,
+      14,
+      22
+     ],
+     "color": "#46506a",
+     "when": "ch1.drill_developed"
+    },
+    {
+     "type": "decor",
+     "id": "ch1.upper.karan_head",
+     "pos": [
+      -26,
+      22,
+      150
+     ],
+     "size": [
+      10,
+      8,
+      9
+     ],
+     "color": "#46506a",
+     "when": "ch1.drill_developed"
+    },
+    {
+     "type": "decor",
+     "id": "ch1.upper.karan_leg0",
+     "pos": [
+      -16,
+      0,
+      143
+     ],
+     "size": [
+      5,
+      20,
+      5
+     ],
+     "color": "#46506a",
+     "when": "ch1.drill_developed"
+    },
+    {
+     "type": "decor",
+     "id": "ch1.upper.karan_leg1",
+     "pos": [
+      16,
+      0,
+      143
+     ],
+     "size": [
+      5,
+      20,
+      5
+     ],
+     "color": "#46506a",
+     "when": "ch1.drill_developed"
+    },
+    {
+     "type": "decor",
+     "id": "ch1.upper.karan_leg2",
+     "pos": [
+      -16,
+      0,
+      157
+     ],
+     "size": [
+      5,
+      20,
+      5
+     ],
+     "color": "#46506a",
+     "when": "ch1.drill_developed"
+    },
+    {
+     "type": "decor",
+     "id": "ch1.upper.karan_leg3",
+     "pos": [
+      16,
+      0,
+      157
+     ],
+     "size": [
+      5,
+      20,
+      5
+     ],
+     "color": "#46506a",
      "when": "ch1.drill_developed"
     }
    ],

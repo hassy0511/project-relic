@@ -242,8 +242,19 @@ func _ch1b_steps() -> Array:
 	var go := func(room: String, spawn: String, at: Vector3, look: Vector3, flags: Array = []):
 		var g: GameSim = main.game
 		g.god_mode = true
+		# 前の場面のイベント・会話を片付ける
+		g.story._event_queue.clear()
+		g.story.dialogue = {}
+		g.story._wait_time = 0.0
+		g.story._has_wait_cond = false
+		g.story._waiting_dialogue = false
+		g.player_locked = false
+		g.cam_focus = null
 		for f in flags:
-			g.set_flag(f)
+			if String(f).begins_with("-"):
+				g.set_flag(String(f).substr(1), false)
+			else:
+				g.set_flag(f)
 		g.load_room(room, spawn)
 		for t in g.triggers:
 			t.fired = true
@@ -254,7 +265,10 @@ func _ch1b_steps() -> Array:
 				main.game.story.confirm()
 	var late := ["ch1.got_spark", "ch1.ordo_stopped", "ch1.night"]
 	return [
-		{"ticks": 30, "input": {}},
+		{"ticks": 230, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(30)},
+		{"ticks": 60, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(30)},
 		{"ticks": 2, "setup": func():
 			go.call("ch1.r05", "from_r04", Vector3(0, 0, 0), Vector3(0, 0, 8), late)
 			main.game.story.start_event("ch1.collapse")},
@@ -266,7 +280,7 @@ func _ch1b_steps() -> Array:
 		{"ticks": 2, "setup": func(): go.call("ch1.r09", "from_r08", Vector3(0, 0, -9.5), Vector3(0, 0, 8), late + ["ch1.frame_fitted"])},
 		{"ticks": 150, "input": {"move_y": 0.0}},
 		{"ticks": 1, "shot": "ch1b_02_b2_pipes", "input": {}},
-		{"ticks": 2, "setup": func(): go.call("ch1.r12", "from_r11", Vector3(0, 0, -13), Vector3(0, 0, 12), late + ["ch1.frame_fitted", "ch1.drive_powered", "switch.ch1.r12.s1", "switch.ch1.r12.s2"])},
+		{"ticks": 2, "setup": func(): go.call("ch1.r12", "from_r11", Vector3(0, 0, -10.5), Vector3(0, 0, 12), late + ["ch1.frame_fitted", "ch1.drive_powered", "switch.ch1.r12.s1", "switch.ch1.r12.s2"])},
 		{"ticks": 130, "input": {}},
 		{"ticks": 1, "shot": "ch1b_03_b3_pistons", "input": {}},
 		{"ticks": 2, "setup": func(): go.call("ch1.r13", "from_r12", Vector3(0, 0, -9), Vector3(0, 3, 8), late + ["ch1.frame_fitted", "ch1.drive_powered"])},
@@ -279,17 +293,14 @@ func _ch1b_steps() -> Array:
 			go.call("ch1.r20", "from_r19", Vector3(0, 0, -6), Vector3(0, 0, 2), late + ["ch1.frame_fitted", "ch1.boss_defeated", "ch1.ordo_restarted"])
 			main.game.story.start_dialogue("ch1.node")},
 		{"ticks": 2, "setup": func(): skip.call(4)},
-		{"ticks": 2, "setup": func(): skip.call(1)},
-		{"ticks": 2, "setup": func(): skip.call(1)},
-		{"ticks": 2, "setup": func(): skip.call(1)},
 		{"ticks": 70, "input": {}},
 		{"ticks": 1, "shot": "ch1b_06_node_memory", "input": {}},
 		{"ticks": 2, "setup": func(): skip.call(40)},
-		{"ticks": 2, "setup": func(): go.call("ch1.mid", "start", Vector3(-4, 0, -4), Vector3(8, 0, 10), ["ch1.got_spark", "ch1.ordo_stopped", "ch1.ordo_restarted", "ch1.morning", "ch1.descent_permit", "ch1.plaza_done"])},
+		{"ticks": 2, "setup": func(): go.call("ch1.mid", "start", Vector3(-4, 0, -4), Vector3(8, 0, 10), ["-ch1.night", "ch1.got_spark", "ch1.ordo_stopped", "ch1.ordo_restarted", "ch1.morning", "ch1.descent_permit", "ch1.plaza_done"])},
 		{"ticks": 60, "input": {}},
 		{"ticks": 1, "shot": "ch1b_07_morning_town", "input": {}},
 		{"ticks": 2, "setup": func():
-			go.call("ch1.upper", "start", Vector3(0, 0, 16), Vector3(0, 0, 40), ["ch1.got_spark", "ch1.ordo_restarted", "ch1.morning", "ch1.descent_permit", "ch1.drill_developed"])
+			go.call("ch1.upper", "start", Vector3(0, 0, 16), Vector3(0, 0, 40), ["-ch1.night", "ch1.got_spark", "ch1.ordo_restarted", "ch1.morning", "ch1.descent_permit", "ch1.drill_developed"])
 			main.game.story.start_event("ch1.ending")},
 		{"ticks": 240, "input": {}},
 		{"ticks": 1, "shot": "ch1b_08_ending", "check": func(): return _check(main.game.story.running_event() or main.game.flag("ch1.complete"), "章末の演出が走る")},
