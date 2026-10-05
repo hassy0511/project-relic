@@ -10,7 +10,6 @@ var _npc_models := {}   # id → {anim, face_mats, expr}
 var _pickups := {}
 var _time := 0.0
 var _doors := {}
-var _exits := {}
 var _switches := {}
 var _movers := {}
 var _loot := {}
@@ -94,11 +93,6 @@ func _build_world_objects(game: GameSim) -> void:
 		_doors[d] = root
 		_door_amt[d] = 1.0 if d.is_open else 0.0
 		root.visible = not d.is_open
-	for x in game.exits:
-		var glow := MeshKit.glow(Color("#5ad1ff"), 1.0, 0.12)
-		var mi := MeshKit.add(self, MeshKit.box(x.half * 2.0), glow, x.center)
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_exits[x] = glow
 	for sw in game.switches:
 		var glow := MeshKit.glow(Color("#7a8aa0"), 1.0)
 		if sw.mode == "interact":
@@ -127,9 +121,6 @@ func _sync_world_objects(game: GameSim, dt: float) -> void:
 		var root: Node3D = _doors[d]
 		root.visible = a < 1.0
 		root.position.y = d.pos.y - a * d.size.y
-	for x in _exits:
-		var open: bool = Cond.eval(x.lock, game)
-		_exits[x].albedo_color = Color(0.35, 0.82, 1.0, 0.12) if open else Color(1.0, 0.35, 0.25, 0.18)
 	for sw in _switches:
 		_switches[sw].albedo_color = Color("#5ad1ff") if sw.on else Color("#7a8aa0")
 		_switches[sw].emission = Color("#5ad1ff") if sw.on else Color("#3a4252")

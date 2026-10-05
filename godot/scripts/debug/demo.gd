@@ -66,9 +66,10 @@ func _ready() -> void:
 		{"ticks": 1, "shot": "07_after_drill", "check": func(): return _check(main.game.breakables[0].broken, "ドリルで壁を壊せる")},
 	]
 	# 引数 --arena_only：試しの部屋の場面だけ（画面の確認を早く撮るため）
-	if main.args.has("arena_only"):
+	if main.args.has("arena_only") or main.args.has("world_only"):
 		_steps.clear()
-	_steps.append_array(_arena_steps())
+	if not main.args.has("world_only"):
+		_steps.append_array(_arena_steps())
 	_steps.append_array(_world_steps())
 	_steps.append({"ticks": 1, "done": true})
 
