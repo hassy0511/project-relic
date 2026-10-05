@@ -6,6 +6,14 @@ extends Node
 var _streams := {}
 var _last := {}
 var _music: AudioStreamPlayer
+var _music_b: AudioStreamPlayer
+var _music_tween: Tween
+var _active: AudioStreamPlayer = null
+## 今かけている曲の ID（"" ＝ なし）。曲が最後まで鳴り終わると "" に戻り、music_finished が出る（ファンファーレなど、ループしない曲）
+var current_music := ""
+## 音楽のクロスフェードの秒数
+var fade_time := 1.4
+signal music_finished(id: String)
 var _pool: Array[AudioStreamPlayer3D] = []
 var _ui_pool: Array[AudioStreamPlayer] = []
 var volumes := {"master": 0.8, "music": 0.5, "sfx": 0.8}
@@ -13,8 +21,13 @@ var volumes := {"master": 0.8, "music": 0.5, "sfx": 0.8}
 
 func _ready() -> void:
 	_music = AudioStreamPlayer.new()
-	_music.volume_db = linear_to_db(volumes.music)
+	_music.volume_db = -60.0
 	add_child(_music)
+	_music_b = AudioStreamPlayer.new()
+	_music_b.volume_db = -60.0
+	add_child(_music_b)
+	_music.finished.connect(_on_music_finished.bind(_music))
+	_music_b.finished.connect(_on_music_finished.bind(_music_b))
 	for i in 16:
 		var p := AudioStreamPlayer3D.new()
 		p.unit_size = 6.0
@@ -66,15 +79,41 @@ func play(id: String, at = null) -> void:
 			return
 
 
-func play_music(id: String) -> void:
-	var s := _stream(id)
-	if s == null:
+func _on_music_finished(p: AudioStreamPlayer) -> void:
+	if p == _active:
+		var id := current_music
+		current_music = ""
+		music_finished.emit(id)
+
+
+## 曲を切り替える（今の曲を消しながら新しい曲を上げる）。同じ曲なら何もしない。"" で止める。bgm_end は繰り返さない
+func play_music(id: String, fade := -1.0) -> void:
+	if id == current_music:
 		return
-	if s is AudioStreamOggVorbis:
-		(s as AudioStreamOggVorbis).loop = true
-	_music.stream = s
-	_music.play()
+	var seconds := fade_time if fade < 0.0 else fade
+	current_music = id
+	var old := _active if _active != null and _active.playing else null
+	var nxt := _music_b if old == _music else _music
+	_active = null
+	if _music_tween != null and _music_tween.is_valid():
+		_music_tween.kill()
+	_music_tween = create_tween().set_parallel(true)
+	var s := _stream(id) if id != "" else null
+	if s != null:
+		if s is AudioStreamOggVorbis:
+			(s as AudioStreamOggVorbis).loop = id != "bgm_end"
+		nxt.stop()
+		nxt.stream = s
+		nxt.volume_db = -60.0
+		nxt.play()
+		_active = nxt
+		_music_tween.tween_property(nxt, "volume_db", linear_to_db(volumes.music), seconds)
+	elif old == null:
+		nxt.stop()
+	if old != null:
+		_music_tween.tween_property(old, "volume_db", -60.0, seconds)
+		_music_tween.chain().tween_callback(old.stop)
 
 
 func stop_music() -> void:
-	_music.stop()
+	play_music("")

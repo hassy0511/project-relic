@@ -611,6 +611,9 @@
     "freeze": true
    },
    {
+    "music": "none"
+   },
+   {
     "wait": 1.5
    },
    {
@@ -635,6 +638,9 @@
   "steps": [
    {
     "freeze": true
+   },
+   {
+    "music": "none"
    },
    {
     "camera": {
@@ -875,6 +881,9 @@
    },
    {
     "say": "ch1.ending.b"
+   },
+   {
+    "music": "bgm_end"
    },
    {
     "flag": "ch1.complete"

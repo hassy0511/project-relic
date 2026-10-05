@@ -41,6 +41,9 @@ var touch: TouchControls
 var arena_kind := ""
 var _lines: Array = []
 var _line_time := 0.0
+var _blip_shown := 0
+var _blip_id := ""
+var _retry_open := false
 
 
 func _ready() -> void:
@@ -66,6 +69,10 @@ func _ready() -> void:
 	touch.activated.connect(func(): menu.touch_mode = true)
 	audio = GameAudio.new()
 	add_child(audio)
+	# ファンファーレなど、ループしない曲が鳴り終わったら部屋の曲へ戻す
+	audio.music_finished.connect(func(id: String):
+		if game != null and game.music_override == id:
+			game.music_override = "")
 	sun = EnvironmentSetup.build(self)
 	arena_kind = args.get("arena", "")
 	world = World.load_manifest(WORLD_PATH)
@@ -209,7 +216,10 @@ func start_game(save) -> void:
 	hud.set_hint("")
 	hud.visible = true
 	state = "playing"
-	audio.play_music("bgm_trial")
+	_retry_open = false
+	# やられたら「やられた」画面で選ぶ（見本・自動確認では自動で再開する）
+	game.manual_respawn = demo == null
+	audio.play_music(arena_music() if arena_kind != "" else game.music_id(), 0.3)
 	if save != null:
 		hud.show_toast("セーブした場所から再開しました")
 
@@ -251,16 +261,46 @@ func pause() -> void:
 	state = "paused"
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	audio.play("ui_ok")
-	menu.show_pause(game,
-		func():
-			menu.hide_menu()
-			state = "playing",
-		func(): game.toggle_chip("chip.charge"),
-		func():
-			var s = read_save()
-			if s != null:
-				start_game(s),
-		func(): show_title())
+	menu.show_pause(self)
+
+
+## ポーズ・店などの画面を閉じて、ゲームに戻る
+func resume() -> void:
+	menu.hide_menu()
+	state = "playing"
+
+
+func toggle_chip() -> void:
+	game.toggle_chip("chip.charge")
+
+
+func to_title() -> void:
+	show_title()
+
+
+## 手動セーブできる状況か（会話・イベント・ボス戦・やられている間は不可）
+func can_save() -> bool:
+	return game != null and not game.story.blocking() and not game.story.running_event() \
+		and game.boss_status().is_empty() and not game.player.dead
+
+
+func read_slot(path: String):
+	if not FileAccess.file_exists(path):
+		return null
+	return GameSim.parse_save(FileAccess.get_file_as_string(path))
+
+
+func save_slot(path: String) -> bool:
+	var ok := _write_save(path)
+	menu.set_note("セーブした" if ok else "セーブできなかった")
+	audio.play("save")
+	return ok
+
+
+func load_slot(path: String) -> void:
+	var d = read_slot(path)
+	if d != null:
+		start_game(d)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -285,9 +325,13 @@ func _physics_process(dt: float) -> void:
 		pause()
 		return
 	hud.device = input.last_device
+	if game.manual_respawn and game.player.dead and game.player.dead_time >= 1.3 and not _retry_open:
+		_open_retry()
+		return
 	var f: InputFrame = demo.next_input() if demo else input.sample(dt)
 	game.step(f)
 	_handle_events()
+	_update_audio()
 	player_view.sync(game.player, game, dt, _aim_dir())
 	nagomi_view.sync(game, camera.global_position, dt)
 	enemy_view.sync(game.enemies, dt)
@@ -308,6 +352,30 @@ func _process(dt: float) -> void:
 			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)]
 
 
+## 音楽（部屋・状況から決まる曲へ、なめらかに切り替える）としゃべり音
+func _update_audio() -> void:
+	audio.play_music(arena_music() if arena_kind != "" else game.music_id())
+	var d: Dictionary = game.story.dialogue
+	if d.is_empty():
+		_blip_shown = 0
+		_blip_id = ""
+	else:
+		var key := "%s:%d" % [d.id, d.index]
+		if key != _blip_id:
+			_blip_id = key
+			_blip_shown = 0
+		if int(d.shown) >= _blip_shown + 2:
+			_blip_shown = int(d.shown)
+			var ch := String(d.text).substr(maxi(0, _blip_shown - 1), 1)
+			if ch != "　" and ch != " " and ch != "…" and ch != "。" and ch != "、":
+				audio.play("blip")
+
+
+## 試しの部屋の曲：ボスの部屋だけボスの曲
+func arena_music() -> String:
+	return "bgm_boss" if arena_kind == "kannuki" else "bgm_trial"
+
+
 func _aim_dir() -> Vector3:
 	var t = game.lock_on.target
 	if t != null:
@@ -322,7 +390,10 @@ func _handle_events() -> void:
 			"sfx":
 				audio.play(e.id, e.get("at"))
 			"message":
-				hud.show_toast(e.text)
+				if menu.is_open():
+					menu.set_note(e.text)
+				else:
+					hud.show_toast(e.text)
 			"saved":
 				if _write_save(SAVE_PATH):
 					hud.show_toast("セーブしました（HP と武器エネルギーが回復）")
@@ -348,22 +419,39 @@ func _handle_events() -> void:
 			"ui":
 				open_economy_ui(e.kind, e.id)
 			"music":
-				if audio.has_method("play_music"):
-					audio.play_music(e.id)
+				pass   # 曲は game.music_id()（music_override）から毎刻み決まる
 			"respawned":
 				hud.fade_in(0.8)
 			"playerHurt":
 				hud.flash_damage()
 			"bossLine":
-				_lines.append("%s：%s" % [e.who, e.text])
+				_lines.append([e.who, e.text])
 			"bossPhase":
-				hud.show_toast("閂が第 %d 段階に入った" % e.phase)
+				audio.play("boss_phase")
+				hud.show_subtitle("閂", "――第 %d 段階――" % e.phase, 2.2)
 			"bossStart":
 				audio.play("alert")
 			"bossReset":
 				_lines.clear()
 			"playerDied":
-				hud.show_toast("やられた……中継地点から再開します")
+				_retry_open = false
+
+
+## やられた画面：中継地点から再開・最後のセーブから・タイトルへ
+func _open_retry() -> void:
+	_retry_open = true
+	state = "paused"
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	menu.show_retry(has_save(),
+		func():
+			game.request_respawn()
+			_retry_open = false
+			resume(),
+		func():
+			var sv = read_save()
+			if sv != null:
+				start_game(sv),
+		func(): show_title())
 
 
 func _write_save(path: String) -> bool:
@@ -376,60 +464,94 @@ func _write_save(path: String) -> bool:
 	return true
 
 
-## 店・工房・ギルドの薄い画面（段階 D で作り込む）
-func open_economy_ui(kind: String, id: String) -> void:
+## 店・工房・ギルドの画面。左に品の一覧（値段・状態）、右に選んでいる品の説明。買う・作る・受けるたびに作り直し、選択位置は保つ
+func open_economy_ui(kind: String, id: String, focus := 0) -> void:
 	state = "paused"
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var g := game
 	var eco: Dictionary = g.world.economy
-	var close := func():
-		menu.hide_menu()
-		state = "playing"
-	var items := []
+	var rows := []
 	var title := ""
+	var sub := "セル %d" % g.cells
+	var again := func(idx: int):
+		_flush_events()
+		open_economy_ui(kind, id, idx)
 	match kind:
 		"shop":
 			var shop: Dictionary = eco.get("shops", {}).get(id, {})
 			title = shop.get("name", "店")
 			for s in shop.get("stock", []):
-				items.append(["%s　%d セル" % [g.world.item_name(s.item), int(s.price)], func():
-					Economy.buy(g, id, s.item)
-					open_economy_ui(kind, id)])
+				var idx := rows.size()
+				rows.append({"label": g.world.item_name(s.item), "right": "%d セル" % int(s.price), "dim": g.cells < int(s.price),
+					"detail": PauseInfo.shop_detail(g, id, s),
+					"cb": func():
+						Economy.buy(g, id, s.item)
+						again.call(idx)})
 			if shop.get("buys_relics", false):
 				for r in g.relics.keys():
-					items.append(["売る：%s　%d セル" % [g.world.item_name(r), int(g.world.items.get(r, {}).get("sell", 20))], func():
-						Economy.sell_relic(g, id, r)
-						open_economy_ui(kind, id)])
+					var idx := rows.size()
+					var price := int(g.world.items.get(r, {}).get("sell", 20))
+					rows.append({"label": "売る：%s" % g.world.item_name(r), "right": "+%d セル" % price,
+						"detail": "%s\n\n遺物を売る。\n買い取り価格　%d セル" % [g.world.item_name(r), price],
+						"cb": func():
+							Economy.sell_relic(g, id, r)
+							again.call(maxi(0, idx - 1))})
+			if rows.is_empty():
+				rows.append({"label": "（いま売っている物はない）", "dim": true, "detail": "遺物を持ってくると買い取る。", "cb": func(): pass})
 		"workshop":
 			var ws: Dictionary = eco.get("workshops", {}).get(id, {})
 			title = ws.get("name", "工房")
 			for r in ws.get("recipes", []):
-				items.append(["%s　%d セル" % [r.name, int(r.get("cost", 0))], func():
-					Economy.craft(g, id, r.id)
-					open_economy_ui(kind, id), g.flag("crafted." + r.id)])
+				var idx := rows.size()
+				var crafted: bool = g.flag("crafted." + r.id) and r.id == "drill"
+				var can: bool = Cond.eval(r.get("cond"), g) and not crafted
+				var ok := can
+				if ok:
+					for m in r.get("needs", {}):
+						if g.material_count(m) < int(r.needs[m]):
+							ok = false
+					ok = ok and g.cells >= int(r.get("cost", 0))
+				rows.append({"label": ("（開発済み）" if crafted else "") + String(r.name), "right": "%d セル" % int(r.get("cost", 0)),
+					"dim": not ok, "detail": PauseInfo.recipe_detail(g, r),
+					"cb": func():
+						Economy.craft(g, id, r.id)
+						again.call(idx)})
 		"guild":
 			title = "回収屋ギルド"
+			sub = "ギルドポイント %d　／　印：%s　／　セル %d" % [g.guild_points, g.mark, g.cells]
 			for r in eco.get("guild", {}).get("requests", []):
 				var st: String = g.requests.get(r.id, "")
+				var idx := rows.size()
 				if st == "done":
-					continue
-				if st == "":
+					rows.append({"label": "（達成済み）%s" % r.name, "dim": true, "detail": PauseInfo.request_detail(g, r), "cb": func(): pass})
+				elif st == "":
 					if not Cond.eval(r.get("cond"), g):
 						continue
-					items.append(["受ける：%s" % r.name, func():
-						Economy.accept_request(g, r.id)
-						open_economy_ui(kind, id)])
+					rows.append({"label": "受ける：%s" % r.name, "right": PauseInfo.reward_text(r), "detail": PauseInfo.request_detail(g, r),
+						"cb": func():
+							Economy.accept_request(g, r.id)
+							again.call(idx)})
 				else:
-					items.append(["報告する：%s" % r.name, func():
-						Economy.complete_request(g, r.id)
-						open_economy_ui(kind, id)])
-	items.append(["閉じる", close])
-	menu.show_list(title, "セル %d" % g.cells, items)
+					var done: bool = Cond.eval(r.get("done"), g)
+					rows.append({"label": "報告する：%s" % r.name, "right": "報告できる" if done else "進行中", "dim": not done,
+						"detail": PauseInfo.request_detail(g, r),
+						"cb": func():
+							Economy.complete_request(g, r.id)
+							again.call(idx)})
+			if rows.is_empty():
+				rows.append({"label": "（いま受けられる依頼はない）", "dim": true, "detail": "物語を進めると、依頼が増える。", "cb": func(): pass})
+	menu.show_trade(title, sub, rows, resume, focus)
+
+
+## ポーズ中の操作（買う・作る）で出た音とメッセージを、すぐ出す
+func _flush_events() -> void:
+	_handle_events()
 
 
 ## 戦闘中の掛け合いは操作を止めずに、1 行ずつ上の通知に出す
 func _update_lines(dt: float) -> void:
 	_line_time -= dt
 	if _line_time <= 0.0 and not _lines.is_empty():
-		hud.show_toast(_lines.pop_front())
-		_line_time = 2.8
+		var ln: Array = _lines.pop_front()
+		hud.show_subtitle(ln[0], ln[1], 3.2)
+		_line_time = 3.2

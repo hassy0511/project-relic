@@ -226,6 +226,7 @@ class Mover:
 	var t := 0.0
 	var dir := 1.0
 	var hold := 0.0
+	var moving := false
 	var pos: Vector3
 	var body: StaticBody3D = null
 

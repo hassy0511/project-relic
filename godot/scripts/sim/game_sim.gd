@@ -67,8 +67,13 @@ var requests := {}
 var guild_points := 0
 var equipped_chips := {}
 var objective := ""
+## 音楽：イベントの music 手順が決めた曲（"" ＝ 部屋に任せる、"none" ＝ 無音）。部屋を移ると解除
+var music_override := ""
 var checkpoint := ""
 var god_mode := false
+## true のとき、やられても自動では再開せず、request_respawn() を待つ（やられた画面用）
+var manual_respawn := false
+var _respawn_requested := false
 ## このフレームのジャンプボタンを「調べる」に使ったか
 var consumed_jump := false
 ## 今「調べる」ことができる対象
@@ -177,6 +182,7 @@ func _unload_room() -> void:
 		e.alive = false
 	enemies = []
 	boss = null
+	music_override = ""
 	shots = []
 	pickups = []
 	breakables = []
@@ -432,6 +438,24 @@ func add_enemy(type: String, at: Vector3, yaw: float) -> Enemy:
 
 
 ## ボスの体力バーに出す情報。戦いが始まっていない・倒したあとは空
+## 今かけるべき曲の ID（"" ＝ 無音）。イベントの指定 > ボス戦 > 部屋の music > 雰囲気（mood）の順
+func music_id() -> String:
+	if music_override != "":
+		return "" if music_override == "none" else music_override
+	if not boss_status().is_empty():
+		return "bgm_boss"
+	var r: Dictionary = room
+	if r.has("music"):
+		return String(r.music)
+	var night := flag("ch1.night")
+	match String(r.get("mood", "")):
+		"ruin_b1", "ruin_b2", "ruin_b3", "ruin_b4":
+			return "bgm_ruins"
+		"outdoor", "day", "dawn", "interior":
+			return "bgm_town_night" if night else "bgm_town_day"
+	return "bgm_trial"
+
+
 func boss_status() -> Dictionary:
 	if boss == null or not boss.alive or boss.state == "idle":
 		return {}
@@ -596,7 +620,7 @@ func _interact(it) -> void:
 		respawn = {"room": room_id, "pos": it.pos, "yaw": player.yaw}
 		checkpoint = it.id
 		emit_event({"type": "saved"})
-		emit_event({"type": "sfx", "id": "save"})
+		emit_event({"type": "sfx", "id": "beacon"})
 		if it.event != "":
 			story.start_event(it.event)
 	elif it is Props.Door:
@@ -667,12 +691,16 @@ func _update_movers(dt: float) -> void:
 			m.dir = -m.dir
 			m.hold = m.wait
 		if nt == m.t:
+			m.moving = false
 			continue
 		var newpos: Vector3 = m.at_t(nt)
 		var delta: Vector3 = newpos - m.pos
 		if riding:
 			phys.move_character(player.body, delta, Phys.TERRAIN | Phys.BREAKABLE | Phys.ENEMY, delta.y <= 0.0)
 			player.pos = phys.feet_of(player.body)
+		if not m.moving:
+			m.moving = true
+			emit_event({"type": "sfx", "id": "lift", "at": newpos})
 		m.t = nt
 		m.pos = newpos
 		m.body.position = newpos + Vector3(0, m.size.y * 0.5, 0)
@@ -1032,12 +1060,23 @@ func _update_triggers() -> void:
 			respawn = {"room": room_id, "pos": c.pos, "yaw": c.yaw}
 
 
+## やられた画面で「再開」を選んだ（manual_respawn のとき）
+func request_respawn() -> void:
+	_respawn_requested = true
+
+
 ## やられたら、最後に使ったセーブビーコン（無ければ中継地点か最初の場所）から再開する。ノーマルでは何も失わない。
 ## 倒したボス・開けた宝箱・開いた扉・立てたフラグはそのまま。ほかの部屋なら、その部屋を最初から作り直す
 func _update_respawn() -> void:
 	var p := player
-	if not p.dead or p.dead_time < 2.0 or not _pending_room.is_empty():
+	if not p.dead or not _pending_room.is_empty():
 		return
+	if manual_respawn:
+		if not _respawn_requested:
+			return
+	elif p.dead_time < 2.0:
+		return
+	_respawn_requested = false
 	var rp := respawn
 	p.dead = false
 	p.hp = p.max_hp

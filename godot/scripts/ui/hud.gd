@@ -6,6 +6,17 @@ const FACE_COLORS := {
 	"ヤーナ": Color("#b5452f"), "ナゴミ": Color("#ffb23e"), "ハル": Color("#c9a46a"), "バートン": Color("#4d6a8a"),
 	"トルーデ": Color("#7a5a8a"), "ニコ": Color("#3f9a8a"),
 }
+## 顔のアイコン：モデルに貼る顔の絵（2×2 の表情の並び）から、顔の部分を切り出して使う（絵が無い人は頭文字の丸）
+const FACE_ATLAS := {
+	"ハル": "res://assets/models/haru_r_haru_face_base.png",
+	"ヤーナ": "res://assets/models/yana_yana_face_base.png",
+	"バートン": "res://assets/models/burton_burton_face_base.png",
+}
+## 表情 → 並びの番号（0 左上 通常、1 右上 笑い、2 左下 驚き、3 右下 険しい）
+const FACE_CELL := {
+	"normal": 0, "analyzing": 0, "laugh": 1, "smile": 1, "smirk": 1, "smug": 1,
+	"surprised": 2, "warning": 2, "angry": 3, "serious": 3, "sad": 3,
+}
 const AMBER := Color("#ffb23e")
 const PAPER := Color("#f3e9d2")
 
@@ -35,6 +46,12 @@ var _boss_phase: Label
 var _dlg: PanelContainer
 var _dlg_face: Panel
 var _dlg_face_label: Label
+var _dlg_icon: TextureRect
+var _sub: PanelContainer
+var _sub_who: Label
+var _sub_text: Label
+var _sub_time := 0.0
+static var _face_cache := {}
 var _dlg_name: Label
 var _dlg_text: Label
 var _dlg_next: Label
@@ -52,6 +69,26 @@ static func panel_style(bg: Color = Color(0.08, 0.06, 0.05, 0.72), radius: int =
 	s.content_margin_top = 10
 	s.content_margin_bottom = 10
 	return s
+
+
+## 顔のアイコン用の絵（無ければ null）。who：話し手、face：表情の名前
+static func face_texture(who: String, face: String) -> Texture2D:
+	if not FACE_ATLAS.has(who):
+		return null
+	var cell := int(FACE_CELL.get(face, 0))
+	var key := "%s:%d" % [who, cell]
+	if not _face_cache.has(key):
+		var tex = load(FACE_ATLAS[who]) if ResourceLoader.exists(FACE_ATLAS[who]) else null
+		if tex == null:
+			_face_cache[key] = null
+		else:
+			var size: Vector2 = tex.get_size() * 0.5
+			var at := AtlasTexture.new()
+			at.atlas = tex
+			var o := Vector2(cell % 2, cell / 2) * size
+			at.region = Rect2(o + size * Vector2(0.08, 0.13), size * Vector2(0.86, 0.69))
+			_face_cache[key] = at
+	return _face_cache[key]
 
 
 static func make_label(text: String, size: int, color: Color = PAPER, bold: bool = false) -> Label:
@@ -114,6 +151,8 @@ func _ready() -> void:
 	_objective.position += Vector2(-760, 70)
 	_objective.custom_minimum_size = Vector2(730, 0)
 	_objective.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_objective.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_objective.add_theme_stylebox_override("normal", panel_style(Color(0.05, 0.04, 0.03, 0.55), 8))
 	root.add_child(_objective)
 
 	_prompt = make_label("", 26, PAPER, true)
@@ -151,6 +190,24 @@ func _ready() -> void:
 	_toast.custom_minimum_size = Vector2(1000, 0)
 	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(_toast)
+
+	_sub = PanelContainer.new()
+	_sub.add_theme_stylebox_override("panel", panel_style(Color(0.04, 0.03, 0.03, 0.78), 8))
+	_sub.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_sub.position += Vector2(-600, -190)
+	_sub.custom_minimum_size = Vector2(1200, 0)
+	_sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sub.visible = false
+	root.add_child(_sub)
+	var sub_row := HBoxContainer.new()
+	sub_row.add_theme_constant_override("separation", 18)
+	_sub.add_child(sub_row)
+	_sub_who = make_label("", 28, Color("#ff9a5a"), true)
+	sub_row.add_child(_sub_who)
+	_sub_text = make_label("", 30)
+	_sub_text.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	_sub_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sub_row.add_child(_sub_text)
 
 	_dmg = ColorRect.new()
 	_dmg.color = Color(0.8, 0.1, 0.05, 0.0)
@@ -202,13 +259,20 @@ func _ready() -> void:
 	row.add_theme_constant_override("separation", 24)
 	_dlg.add_child(row)
 	_dlg_face = Panel.new()
-	_dlg_face.custom_minimum_size = Vector2(120, 120)
+	_dlg_face.custom_minimum_size = Vector2(150, 120)
+	_dlg_face.clip_contents = true
 	row.add_child(_dlg_face)
+	_dlg_icon = TextureRect.new()
+	_dlg_icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_dlg_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_dlg_icon.stretch_mode = TextureRect.STRETCH_SCALE
+	_dlg_icon.visible = false
 	_dlg_face_label = make_label("", 56, Color.WHITE, true)
 	_dlg_face_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_dlg_face_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_dlg_face_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_dlg_face.add_child(_dlg_face_label)
+	_dlg_face.add_child(_dlg_icon)
 	var body := VBoxContainer.new()
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(body)
@@ -241,6 +305,18 @@ func _hint_text() -> String:
 		var key := "kb" if device == "keyboard" else device
 		return String(d.get(key, d.get("kb", "")))
 	return String(_hint_data)
+
+
+## 戦闘中の掛け合いの字幕（操作を止めない。画面の下の 1 行）
+func show_subtitle(who: String, text: String, seconds := 3.4) -> void:
+	_sub_who.text = who
+	_sub_text.text = text
+	_sub_time = seconds
+	_sub.visible = true
+
+
+func subtitle_text() -> String:
+	return "%s：%s" % [_sub_who.text, _sub_text.text] if _sub.visible else ""
 
 
 func show_toast(text: String) -> void:
@@ -276,6 +352,7 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 	_cells.text = "セル %d" % game.cells
 	_cells.modulate.a = 1.0 if _cells_time > 0.0 else 0.4
 	_objective.text = "目的：%s" % game.objective if game.objective != "" else ""
+	_objective.visible = game.objective != ""
 
 	# 調べる・話すの案内
 	var f = game.focus
@@ -317,8 +394,12 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 		var text: String = d.text
 		_dlg_name.text = d.who
 		_dlg_text.text = text.substr(0, d.shown)
+		var icon := face_texture(String(d.who), String(d.get("face", "normal")))
+		_dlg_icon.texture = icon
+		_dlg_icon.visible = icon != null
+		_dlg_face_label.visible = icon == null
 		_dlg_face_label.text = String(d.who).substr(0, 1)
-		_dlg_face.add_theme_stylebox_override("panel", panel_style(FACE_COLORS.get(d.who, Color("#777777")), 60))
+		_dlg_face.add_theme_stylebox_override("panel", panel_style(FACE_COLORS.get(d.who, Color("#777777")), 12 if icon != null else 60))
 		_dlg_next.visible = d.shown >= text.length() and not d.has("choices")
 		_dlg_choices.visible = d.has("choices") and d.shown >= text.length()
 		if d.has("choices"):
@@ -329,6 +410,8 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 
 	_fade_time = maxf(0.0, _fade_time - dt)
 	_fade.color.a = clampf(_fade_time / 0.5, 0.0, 1.0)
+	_sub_time -= dt
+	_sub.visible = _sub_time > 0.0
 	_toast_time -= dt
 	_toast.modulate.a = clampf(_toast_time, 0.0, 1.0)
 	_dmg_time = maxf(0.0, _dmg_time - dt)

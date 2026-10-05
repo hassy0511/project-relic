@@ -5,7 +5,7 @@ extends RefCounted
 ## 会話の行：{ who, face, text, choices? } か、途中の動作 { action: give_item / flag / objective / event, ... }
 ##   choices：[ { text, set?: フラグ, event?: イベント, say?: 次の会話 } ]。出し終えたあと上下で選び、決定で確定する
 ## イベントの手順（1 つの手順に主となる 1 つのキー）：
-##   say / flag / clear / give / wait / wait_until / message / objective / sfx / music
+##   say / flag / clear / give / wait / wait_until / message / objective / sfx / music（曲の ID。"none" で無音、"auto" で部屋の曲へ戻す）
 ##   if（then・else）/ event（別のイベントを呼ぶ）
 ##   open / close（扉）/ spawn（敵）/ boss（敵 id を戦闘開始に）/ go（部屋を移る）/ teleport（同じ部屋の中で移す）
 ##   camera（注視点）/ freeze（操作ロック）/ mark（印）/ shop・workshop・guild（画面を開く）/ accept・complete（依頼）/ autosave
@@ -141,6 +141,7 @@ func _run_step(step: Dictionary) -> void:
 	elif step.has("sfx"):
 		h.emit_event({"type": "sfx", "id": step.sfx})
 	elif step.has("music"):
+		h.music_override = "" if step.music == "auto" else String(step.music)
 		h.emit_event({"type": "music", "id": step.music})
 	elif step.has("if"):
 		_push_front(step.get("then", []) if Cond.eval(step["if"], h) else step.get("else", []))
@@ -196,6 +197,8 @@ func _run_step(step: Dictionary) -> void:
 		h.remove_npc(step.remove)
 	elif step.has("shake"):
 		h.emit_event({"type": "shake", "strength": float(step.shake)})
+		if float(step.shake) >= 0.3:
+			h.emit_event({"type": "sfx", "id": "rumble"})
 	elif step.has("despawn"):
 		h.despawn_group(String(step.despawn))
 	else:

@@ -1,6 +1,6 @@
-"""効果音と BGM を書き出す（public/assets/audio/*.ogg）。
+"""効果音と BGM を書き出す（godot/assets/audio/*.ogg）。
 
-  npm run audio
+  .venv-blender/bin/python tools/audio/build.py [--all]
 ID は content/audio.yaml と、ゲーム内の sfx の ID に対応する。
 """
 from __future__ import annotations
@@ -24,7 +24,7 @@ sys.path.insert(0, HERE)
 from synth import (SR, delay, env, fm, highpass, lowpass, noise, normalize, note_freq, osc, pad_to,  # noqa: E402
                    sweep, t_axis)
 
-OUT = os.path.join(REPO, 'public', 'assets', 'audio')
+OUT = os.path.join(REPO, 'godot', 'assets', 'audio')
 
 
 def save(name: str, x: np.ndarray, peak: float = 0.8) -> None:
@@ -154,9 +154,17 @@ def bgm_trial() -> np.ndarray:
 
 
 def main() -> None:
-    for name, x in sfx().items():
+    """引数なし：第 1 章用の新しい音（music.py）だけ書き出す。--all：古い音（試験場）も書き直す"""
+    import music
+    if '--all' in sys.argv:
+        for name, x in sfx().items():
+            save(name, x)
+        save('bgm_trial', bgm_trial(), 0.7)
+    for name, x in music.extra_sfx().items():
         save(name, x)
-    save('bgm_trial', bgm_trial(), 0.7)
+    for name, fn in [('bgm_town_day', music.town_day), ('bgm_town_night', music.town_night), ('bgm_ruins', music.ruins),
+                     ('bgm_boss', music.boss), ('bgm_end', music.fanfare)]:
+        save(name, fn(), 0.7)
     print('wrote audio to', OUT)
 
 
