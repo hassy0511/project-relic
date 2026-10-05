@@ -228,8 +228,8 @@
       -3
      ],
      "color": "#ffe3a8",
-     "range": 16,
-     "energy": 1.5
+     "range": 20.0,
+     "energy": 3.0
     },
     {
      "pos": [
@@ -238,8 +238,8 @@
       4
      ],
      "color": "#ffe3a8",
-     "range": 16,
-     "energy": 1.5
+     "range": 20.0,
+     "energy": 3.0
     },
     {
      "pos": [
@@ -248,8 +248,8 @@
       10
      ],
      "color": "#ffd28a",
-     "range": 12,
-     "energy": 1.0
+     "range": 15.0,
+     "energy": 2.0
     }
    ],
    "props": [
@@ -626,8 +626,8 @@
       -14
      ],
      "color": "#ffe3a8",
-     "range": 14,
-     "energy": 1.4
+     "range": 17.5,
+     "energy": 2.8
     },
     {
      "pos": [
@@ -636,8 +636,8 @@
       -2
      ],
      "color": "#ffe3a8",
-     "range": 14,
-     "energy": 1.4
+     "range": 17.5,
+     "energy": 2.8
     },
     {
      "pos": [
@@ -646,8 +646,8 @@
       10
      ],
      "color": "#ffe3a8",
-     "range": 14,
-     "energy": 1.4
+     "range": 17.5,
+     "energy": 2.8
     }
    ],
    "props": [
@@ -957,8 +957,8 @@
       0
      ],
      "color": "#ffe3a8",
-     "range": 18,
-     "energy": 1.4
+     "range": 22.5,
+     "energy": 2.8
     },
     {
      "pos": [
@@ -967,8 +967,8 @@
       8
      ],
      "color": "#ffd28a",
-     "range": 10,
-     "energy": 0.9
+     "range": 12.5,
+     "energy": 1.8
     }
    ],
    "props": [
@@ -1247,8 +1247,8 @@
       0
      ],
      "color": "#ffe3a8",
-     "range": 16,
-     "energy": 1.4
+     "range": 20.0,
+     "energy": 2.8
     },
     {
      "pos": [
@@ -1257,8 +1257,8 @@
       9
      ],
      "color": "#ffd28a",
-     "range": 10,
-     "energy": 1.0
+     "range": 12.5,
+     "energy": 2.0
     }
    ],
    "props": [
@@ -1538,8 +1538,8 @@
       -8
      ],
      "color": "#ff4a3a",
-     "range": 6,
-     "energy": 1.0
+     "range": 7.5,
+     "energy": 2.0
     },
     {
      "pos": [
@@ -1548,8 +1548,8 @@
       -2
      ],
      "color": "#ff4a3a",
-     "range": 6,
-     "energy": 1.1
+     "range": 7.5,
+     "energy": 2.2
     },
     {
      "pos": [
@@ -1558,8 +1558,8 @@
       4
      ],
      "color": "#ff4a3a",
-     "range": 6,
-     "energy": 1.2
+     "range": 7.5,
+     "energy": 2.4
     },
     {
      "pos": [
@@ -1568,8 +1568,8 @@
       10
      ],
      "color": "#ff4a3a",
-     "range": 6,
-     "energy": 1.3
+     "range": 7.5,
+     "energy": 2.6
     },
     {
      "pos": [
@@ -1578,8 +1578,8 @@
       -12
      ],
      "color": "#7fb0ff",
-     "range": 10,
-     "energy": 0.3
+     "range": 12.5,
+     "energy": 0.6
     }
    ],
    "props": [
@@ -1759,8 +1759,8 @@
       -12
      ],
      "color": "#ff4a3a",
-     "range": 7,
-     "energy": 0.9
+     "range": 8.8,
+     "energy": 1.8
     },
     {
      "pos": [
@@ -1769,8 +1769,8 @@
       -4
      ],
      "color": "#ff4a3a",
-     "range": 7,
-     "energy": 0.9
+     "range": 8.8,
+     "energy": 1.8
     },
     {
      "pos": [
@@ -1779,8 +1779,8 @@
       4
      ],
      "color": "#ff4a3a",
-     "range": 7,
-     "energy": 0.9
+     "range": 8.8,
+     "energy": 1.8
     },
     {
      "pos": [
@@ -1789,8 +1789,8 @@
       12
      ],
      "color": "#ff4a3a",
-     "range": 7,
-     "energy": 0.9
+     "range": 8.8,
+     "energy": 1.8
     }
    ],
    "props": [
@@ -2161,8 +2161,8 @@
       0
      ],
      "color": "#6fe3d6",
-     "range": 14,
-     "energy": 1.8
+     "range": 17.5,
+     "energy": 3.6
     },
     {
      "pos": [
@@ -2171,8 +2171,8 @@
       0
      ],
      "color": "#7fb0ff",
-     "range": 18,
-     "energy": 0.8
+     "range": 22.5,
+     "energy": 1.6
     }
    ],
    "props": [
@@ -2404,8 +2404,8 @@
       -8
      ],
      "color": "#7fb0ff",
-     "range": 12,
-     "energy": 1.0
+     "range": 15.0,
+     "energy": 2.0
     },
     {
      "pos": [
@@ -2414,8 +2414,8 @@
       -8
      ],
      "color": "#ff4a3a",
-     "range": 6,
-     "energy": 0.7
+     "range": 7.5,
+     "energy": 1.4
     },
     {
      "pos": [
@@ -2424,8 +2424,8 @@
       0
      ],
      "color": "#7fb0ff",
-     "range": 12,
-     "energy": 1.0
+     "range": 15.0,
+     "energy": 2.0
     },
     {
      "pos": [
@@ -2434,8 +2434,8 @@
       0
      ],
      "color": "#ff4a3a",
-     "range": 6,
-     "energy": 0.7
+     "range": 7.5,
+     "energy": 1.4
     },
     {
      "pos": [
@@ -2444,8 +2444,8 @@
       8
      ],
      "color": "#7fb0ff",
-     "range": 12,
-     "energy": 1.0
+     "range": 15.0,
+     "energy": 2.0
     },
     {
      "pos": [
@@ -2454,8 +2454,8 @@
       8
      ],
      "color": "#ff4a3a",
-     "range": 6,
-     "energy": 0.7
+     "range": 7.5,
+     "energy": 1.4
     }
    ],
    "props": [
@@ -2736,8 +2736,8 @@
       -7
      ],
      "color": "#7fb0ff",
-     "range": 12,
-     "energy": 1.0
+     "range": 15.0,
+     "energy": 2.0
     },
     {
      "pos": [
@@ -2746,8 +2746,8 @@
       2
      ],
      "color": "#7fb0ff",
-     "range": 12,
-     "energy": 1.0
+     "range": 15.0,
+     "energy": 2.0
     },
     {
      "pos": [
@@ -2756,8 +2756,8 @@
       8
      ],
      "color": "#7fb0ff",
-     "range": 12,
-     "energy": 1.0
+     "range": 15.0,
+     "energy": 2.0
     },
     {
      "pos": [
@@ -2766,8 +2766,8 @@
       10
      ],
      "color": "#ff4a3a",
-     "range": 8,
-     "energy": 1.0
+     "range": 10.0,
+     "energy": 2.0
     }
    ],
    "props": [
@@ -3132,8 +3132,8 @@
       0
      ],
      "color": "#7fb0ff",
-     "range": 10,
-     "energy": 1.0
+     "range": 12.5,
+     "energy": 2.0
     },
     {
      "pos": [
@@ -3142,8 +3142,8 @@
       0
      ],
      "color": "#7fb0ff",
-     "range": 10,
-     "energy": 1.0
+     "range": 12.5,
+     "energy": 2.0
     },
     {
      "pos": [
@@ -3152,8 +3152,8 @@
       0
      ],
      "color": "#7fb0ff",
-     "range": 10,
-     "energy": 1.0
+     "range": 12.5,
+     "energy": 2.0
     },
     {
      "pos": [
@@ -3162,8 +3162,8 @@
       0
      ],
      "color": "#7fb0ff",
-     "range": 10,
-     "energy": 1.0
+     "range": 12.5,
+     "energy": 2.0
     }
    ],
    "props": [
@@ -3509,8 +3509,8 @@
       -12
      ],
      "color": "#ffb050",
-     "range": 18,
-     "energy": 1.4
+     "range": 22.5,
+     "energy": 2.8
     },
     {
      "pos": [
@@ -3519,8 +3519,8 @@
       2
      ],
      "color": "#ffa24a",
-     "range": 18,
-     "energy": 1.2
+     "range": 22.5,
+     "energy": 2.4
     },
     {
      "pos": [
@@ -3529,8 +3529,8 @@
       14
      ],
      "color": "#ffa24a",
-     "range": 18,
-     "energy": 1.2
+     "range": 22.5,
+     "energy": 2.4
     }
    ],
    "props": [
@@ -3969,8 +3969,8 @@
       -6
      ],
      "color": "#ffa24a",
-     "range": 16,
-     "energy": 1.5
+     "range": 20.0,
+     "energy": 3.0
     },
     {
      "pos": [
@@ -3979,8 +3979,8 @@
       8
      ],
      "color": "#ffb050",
-     "range": 16,
-     "energy": 1.5
+     "range": 20.0,
+     "energy": 3.0
     }
    ],
    "props": [
@@ -4221,8 +4221,8 @@
       0
      ],
      "color": "#ffb050",
-     "range": 12,
-     "energy": 1.6
+     "range": 15.0,
+     "energy": 3.2
     }
    ],
    "props": [
@@ -4428,8 +4428,8 @@
       -8
      ],
      "color": "#ffa24a",
-     "range": 14,
-     "energy": 1.3
+     "range": 17.5,
+     "energy": 2.6
     },
     {
      "pos": [
@@ -4438,8 +4438,8 @@
       0
      ],
      "color": "#ffa24a",
-     "range": 14,
-     "energy": 1.3
+     "range": 17.5,
+     "energy": 2.6
     },
     {
      "pos": [
@@ -4448,8 +4448,8 @@
       8
      ],
      "color": "#ffa24a",
-     "range": 14,
-     "energy": 1.3
+     "range": 17.5,
+     "energy": 2.6
     }
    ],
    "props": [
@@ -4692,8 +4692,8 @@
       0
      ],
      "color": "#ffa24a",
-     "range": 12,
-     "energy": 1.2
+     "range": 15.0,
+     "energy": 2.4
     },
     {
      "pos": [
@@ -4702,8 +4702,8 @@
       0
      ],
      "color": "#ffa24a",
-     "range": 12,
-     "energy": 1.2
+     "range": 15.0,
+     "energy": 2.4
     },
     {
      "pos": [
@@ -4712,8 +4712,8 @@
       0
      ],
      "color": "#ffa24a",
-     "range": 12,
-     "energy": 1.2
+     "range": 15.0,
+     "energy": 2.4
     },
     {
      "pos": [
@@ -4722,8 +4722,8 @@
       0
      ],
      "color": "#ffa24a",
-     "range": 12,
-     "energy": 1.2
+     "range": 15.0,
+     "energy": 2.4
     }
    ],
    "props": [
@@ -4931,8 +4931,8 @@
       0
      ],
      "color": "#ffb050",
-     "range": 12,
-     "energy": 1.4
+     "range": 15.0,
+     "energy": 2.8
     }
    ],
    "props": [
@@ -5128,8 +5128,8 @@
       0
      ],
      "color": "#6fe3d6",
-     "range": 16,
-     "energy": 1.2
+     "range": 20.0,
+     "energy": 2.4
     },
     {
      "pos": [
@@ -5138,8 +5138,8 @@
       9
      ],
      "color": "#9a7cff",
-     "range": 10,
-     "energy": 1.0
+     "range": 12.5,
+     "energy": 2.0
     }
    ],
    "props": [
@@ -5268,21 +5268,6 @@
       40
      ],
      "tint": "#2b2740"
-    },
-    {
-     "t": "box",
-     "pos": [
-      0.0,
-      0,
-      16.5
-     ],
-     "size": [
-      3.28,
-      16,
-      1.0
-     ],
-     "yaw": 0.0,
-     "tint": "#3f3a52"
     },
     {
      "t": "box",
@@ -5537,6 +5522,21 @@
       1.0
      ],
      "yaw": 170.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0.0,
+      0,
+      -16.5
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 180.0,
      "tint": "#3f3a52"
     },
     {
@@ -5799,7 +5799,7 @@
      "pos": [
       0,
       0,
-      -19.5
+      19.5
      ],
      "size": [
       8,
@@ -5813,7 +5813,7 @@
      "pos": [
       -3.8,
       0,
-      -18
+      18
      ],
      "size": [
       0.6,
@@ -5827,7 +5827,7 @@
      "pos": [
       3.8,
       0,
-      -18
+      18
      ],
      "size": [
       0.6,
@@ -6381,7 +6381,7 @@
      "pos": [
       0,
       0,
-      15.5
+      -15.5
      ],
      "size": [
       7,
@@ -6395,7 +6395,7 @@
      "pos": [
       0,
       0,
-      15.2
+      -15.2
      ],
      "size": [
       2,
@@ -6410,25 +6410,25 @@
      "pos": [
       0,
       0,
-      -14.9
+      14.9
      ],
-     "yaw": 0
+     "yaw": 180
     },
     "start": {
      "pos": [
       0,
       0,
-      -14.9
+      14.9
      ],
-     "yaw": 0
+     "yaw": 180
     },
     "from_r20": {
      "pos": [
       0,
       0,
-      12
+      -12
      ],
-     "yaw": 180
+     "yaw": 0
     }
    },
    "playerStart": "from_r18",
@@ -6441,8 +6441,8 @@
       0
      ],
      "color": "#6fe3d6",
-     "range": 30,
-     "energy": 1.6
+     "range": 37.5,
+     "energy": 3.2
     },
     {
      "pos": [
@@ -6451,8 +6451,8 @@
       12
      ],
      "color": "#9a7cff",
-     "range": 16,
-     "energy": 1.0
+     "range": 20.0,
+     "energy": 2.0
     },
     {
      "pos": [
@@ -6461,8 +6461,8 @@
       -12
      ],
      "color": "#9a7cff",
-     "range": 16,
-     "energy": 1.0
+     "range": 20.0,
+     "energy": 2.0
     }
    ],
    "props": [
@@ -6472,9 +6472,9 @@
      "pos": [
       0,
       0,
-      15.0
+      -15.0
      ],
-     "yaw": 0,
+     "yaw": 180,
      "size": [
       6,
       4.5,
@@ -6492,7 +6492,7 @@
      "pos": [
       0,
       0,
-      -17.6
+      17.6
      ],
      "size": [
       4,
@@ -6508,7 +6508,7 @@
      "pos": [
       0,
       0,
-      14.3
+      -14.3
      ],
      "size": [
       5,
@@ -6601,9 +6601,9 @@
      "pos": [
       0,
       0,
-      -14.9
+      14.9
      ],
-     "yaw": 0,
+     "yaw": 180,
      "radius": 4
     }
    ],
@@ -6613,7 +6613,7 @@
      "pos": [
       0,
       0,
-      -15.6
+      15.6
      ],
      "size": [
       8,
@@ -6844,8 +6844,8 @@
       2
      ],
      "color": "#6fe3d6",
-     "range": 16,
-     "energy": 1.8
+     "range": 20.0,
+     "energy": 3.6
     },
     {
      "pos": [
@@ -6854,8 +6854,8 @@
       0
      ],
      "color": "#9a7cff",
-     "range": 18,
-     "energy": 0.8
+     "range": 22.5,
+     "energy": 1.6
     }
    ],
    "props": [

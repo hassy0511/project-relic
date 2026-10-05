@@ -83,7 +83,7 @@ class Room:
         self.d["checkpoints"].append({"id": "%s.cp" % self.rid, "pos": [x, y, z], "yaw": yaw, "radius": 4})
 
     def light(self, x, y, z, color=None, rng=14, energy=1.2):
-        self.d["lights"].append({"pos": [x, y, z], "color": color or self.L["light"], "range": rng, "energy": energy})
+        self.d["lights"].append({"pos": [x, y, z], "color": color or self.L["light"], "range": round(rng * 1.25, 1), "energy": round(energy * 2.0, 2)})
 
     # ---- 置く物
     def prop(self, **kw):
@@ -495,29 +495,29 @@ SEG = 36
 seg_len = 2 * math.pi * (R + 0.5) / SEG + 0.4
 r.box(0, -1, 0, 40, 1, 40, "#2b2740")
 for i in range(SEG):
-    if i == 18:
-        continue                                  # 入口（南）の隙間
+    if i == 0:
+        continue                                  # 入口（北＝+Z）の隙間。ボスはレールの南の端（-Z）で待つので、入口から遠い
     a = 2 * math.pi * i / SEG
     r.d["geometry"].append({"t": "box", "pos": [r2(math.sin(a) * (R + 0.5)), 0, r2(math.cos(a) * (R + 0.5))],
                             "size": [r2(seg_len), 16, 1.0], "yaw": r2(math.degrees(a)), "tint": "#3f3a52"})
 # 入口の通路
-r.box(0, 0, -19.5, 8, 16, 1, "#3f3a52")
-r.box(-3.8, 0, -18, 0.6, 16, 4, "#3f3a52")
-r.box(3.8, 0, -18, 0.6, 16, 4, "#3f3a52")
+r.box(0, 0, 19.5, 8, 16, 1, "#3f3a52")
+r.box(-3.8, 0, 18, 0.6, 16, 4, "#3f3a52")
+r.box(3.8, 0, 18, 0.6, 16, 4, "#3f3a52")
 # 外周のレール（見た目。半径 10.5m）
 for i in range(SEG):
     a = 2 * math.pi * i / SEG
     r.d["geometry"].append({"t": "box", "pos": [r2(math.sin(a) * 10.5), 0, r2(math.cos(a) * 10.5)],
                             "size": [2.1, 0.06, 0.5], "yaw": r2(math.degrees(a) + 90), "tint": "#6fe3d6"})
 # 炉心の扉（奥の壁）
-r.box(0, 0, 15.5, 7, 9, 0.6, "#5a5272")
-r.box(0, 0, 15.2, 2, 9, 0.3, "#6fe3d6")
-r.prop(type="door", id="ch1.r19.furnace", pos=[0, 0, 15.0], yaw=0, size=[6, 4.5, 0.4], opens="auto",
+r.box(0, 0, -15.5, 7, 9, 0.6, "#5a5272")
+r.box(0, 0, -15.2, 2, 9, 0.3, "#6fe3d6")
+r.prop(type="door", id="ch1.r19.furnace", pos=[0, 0, -15.0], yaw=180, size=[6, 4.5, 0.4], opens="auto",
        lock="ch1.boss_defeated", text="炉心の扉は固く閉ざされている。")
-r.start("from_r18", 0, 0, -14.9, 0)
-r.exit("to_r18", "r18", "from_r19", 0, 0, -17.6, size=(4, 4, 1.2))
-r.marker("from_r20", 0, 0, 12, 180)
-r.exit("to_r20", "r20", "from_r19", 0, 0, 14.3, size=(5, 4.5, 1.6), lock="ch1.boss_defeated", text="")
+r.start("from_r18", 0, 0, 14.9, 180)
+r.exit("to_r18", "r18", "from_r19", 0, 0, 17.6, size=(4, 4, 1.2))
+r.marker("from_r20", 0, 0, -12, 0)
+r.exit("to_r20", "r20", "from_r19", 0, 0, -14.3, size=(5, 4.5, 1.6), lock="ch1.boss_defeated", text="")
 for i in range(4):
     a = math.pi * 0.25 + math.pi * 0.5 * i
     r.prop(type="breakable", id="ch1.r19.pillar_%d" % i, pos=[r2(math.sin(a) * 6.5), 0, r2(math.cos(a) * 6.5)],
@@ -526,7 +526,7 @@ r.enemy("kannuki", 0, 0, 0, 0, id="kannuki", unless="ch1.boss_defeated")
 r.light(0, 12, 0, "#6fe3d6", 30, 1.6)
 r.light(0, 8, 12, "#9a7cff", 16, 1.0)
 r.light(0, 8, -12, "#9a7cff", 16, 1.0)
-r.trigger("intro", 0, 0, -15.6, 8, 3, 2.4, "ch1.r19.enter", persist=False, cond={"not": "ch1.boss_defeated"})
+r.trigger("intro", 0, 0, 15.6, 8, 3, 2.4, "ch1.r19.enter", persist=False, cond={"not": "ch1.boss_defeated"})
 r.flag_trigger("down", "ch1.boss_defeated", "ch1.boss_down")
 
 r = new("r20", "B4", "炉心", 6, 3)

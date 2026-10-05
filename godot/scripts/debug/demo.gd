@@ -66,10 +66,14 @@ func _ready() -> void:
 		{"ticks": 1, "shot": "07_after_drill", "check": func(): return _check(main.game.breakables[0].broken, "ドリルで壁を壊せる")},
 	]
 	# 引数 --arena_only：試しの部屋の場面だけ（画面の確認を早く撮るため）
-	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots"):
+	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots"):
 		_steps.clear()
 	if main.args.has("ch1_shots"):
 		_steps.append_array(_ch1_steps())
+	elif main.args.has("ruins_shots"):
+		_steps.append_array(_ruins_survey_steps())
+	elif main.args.has("ch1b_shots"):
+		_steps.append_array(_ch1b_steps())
 	else:
 		if not main.args.has("world_only"):
 			_steps.append_array(_arena_steps())
@@ -202,6 +206,98 @@ func _ch1_steps() -> Array:
 		{"ticks": 2, "setup": func(): skip.call(30)},
 		{"ticks": 90, "input": {}},
 		{"ticks": 1, "shot": "ch1_11_gate_open", "check": func(): return _check(main.game.flag("ch1.got_spark") and main.game.has_item("weapon.spark"), "ヤーナから父の銃を受け取る")},
+	]
+
+
+## 遺構の全部屋を 1 枚ずつ撮る（--ruins_shots。部屋の形と色の確認用。イベントは走らせない）
+func _ruins_survey_steps() -> Array:
+	var list := [
+		["r02", "from_r01", Vector3(0, 0, -10), Vector3(0, 0, 5)], ["r03", "from_r02", Vector3(0, 0, -16), Vector3(0, 0, 10)],
+		["r04", "from_r03", Vector3(0, 0, -9.5), Vector3(0, 0, 6)], ["r05", "from_r04", Vector3(0, 0, -9.5), Vector3(0, 0, 8)],
+		["r06", "fall", Vector3(0, 0, -12), Vector3(0, 0, 8)], ["r07", "from_r06", Vector3(0, 0, -16), Vector3(0, 0, 18)],
+		["r08", "from_r07", Vector3(0, 0, -8.5), Vector3(0, 0, 0)], ["r09", "from_r08", Vector3(0, 0, -9.5), Vector3(0, 0, 8)],
+		["r10", "from_r09", Vector3(0, 0, -9.5), Vector3(0, 0, 8)], ["r11", "from_r10", Vector3(-3, 21, -3.5), Vector3(3, 14, 3)],
+		["r12", "from_r11", Vector3(0, 0, -16), Vector3(0, 0, 12)], ["r13", "from_r12", Vector3(0, 0, -12.5), Vector3(0, 0, 8)],
+		["r14", "from_r12", Vector3(3, 0, 0), Vector3(-5, 0, 0)], ["r15", "from_r13", Vector3(0, 0, -9.5), Vector3(0, 0, 8)],
+		["r16", "from_r15", Vector3(0, 20, -3), Vector3(0, 10, 3)], ["r17", "from_r12", Vector3(3, 0, 0), Vector3(-5, 0, 0)],
+		["r18", "from_r16", Vector3(0, 0, -10), Vector3(0, 0, 6)], ["r19", "from_r18", Vector3(0, 0, 14.9), Vector3(0, 0, 0)],
+		["r20", "from_r19", Vector3(0, 0, -8), Vector3(0, 0, 2)],
+	]
+	var steps := []
+	for it in list:
+		steps.append({"ticks": 2, "setup": func():
+			var g: GameSim = main.game
+			g.god_mode = true
+			g.load_room("ch1." + it[0], it[1])
+			for t in g.triggers:
+				t.fired = true
+			_stand(it[2], it[3])})
+		steps.append({"ticks": 50, "input": {}})
+		steps.append({"ticks": 1, "shot": "ruin_" + it[0], "input": {}})
+	return steps
+
+
+## 第 1 章 後半の画面の確認（--ch1b_shots）：B1 崩落・B2 配管広間・B3 ピストン・浮遊型・ボス・ノードの記憶・朝の町・章末
+func _ch1b_steps() -> Array:
+	var go := func(room: String, spawn: String, at: Vector3, look: Vector3, flags: Array = []):
+		var g: GameSim = main.game
+		g.god_mode = true
+		for f in flags:
+			g.set_flag(f)
+		g.load_room(room, spawn)
+		for t in g.triggers:
+			t.fired = true
+		_stand(at, look)
+	var skip := func(n: int):
+		for i in n:
+			if main.game.story.blocking():
+				main.game.story.confirm()
+	var late := ["ch1.got_spark", "ch1.ordo_stopped", "ch1.night"]
+	return [
+		{"ticks": 30, "input": {}},
+		{"ticks": 2, "setup": func():
+			go.call("ch1.r05", "from_r04", Vector3(0, 0, 0), Vector3(0, 0, 8), late)
+			main.game.story.start_event("ch1.collapse")},
+		{"ticks": 24, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(2)},
+		{"ticks": 75, "input": {}},
+		{"ticks": 1, "shot": "ch1b_01_collapse", "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(4)},
+		{"ticks": 2, "setup": func(): go.call("ch1.r09", "from_r08", Vector3(0, 0, -9.5), Vector3(0, 0, 8), late + ["ch1.frame_fitted"])},
+		{"ticks": 150, "input": {"move_y": 0.0}},
+		{"ticks": 1, "shot": "ch1b_02_b2_pipes", "input": {}},
+		{"ticks": 2, "setup": func(): go.call("ch1.r12", "from_r11", Vector3(0, 0, -13), Vector3(0, 0, 12), late + ["ch1.frame_fitted", "ch1.drive_powered", "switch.ch1.r12.s1", "switch.ch1.r12.s2"])},
+		{"ticks": 130, "input": {}},
+		{"ticks": 1, "shot": "ch1b_03_b3_pistons", "input": {}},
+		{"ticks": 2, "setup": func(): go.call("ch1.r13", "from_r12", Vector3(0, 0, -9), Vector3(0, 3, 8), late + ["ch1.frame_fitted", "ch1.drive_powered"])},
+		{"ticks": 150, "input": {}},
+		{"ticks": 1, "shot": "ch1b_04_floaters", "input": {}},
+		{"ticks": 2, "setup": func(): go.call("ch1.r19", "from_r18", Vector3(0, 0, 6), Vector3(0, 0, -8), late + ["ch1.frame_fitted", "ch1.boss_intro", "ch1.diagnosis"])},
+		{"ticks": 420, "input": {}},
+		{"ticks": 1, "shot": "ch1b_05_boss", "input": {}},
+		{"ticks": 2, "setup": func():
+			go.call("ch1.r20", "from_r19", Vector3(0, 0, -6), Vector3(0, 0, 2), late + ["ch1.frame_fitted", "ch1.boss_defeated", "ch1.ordo_restarted"])
+			main.game.story.start_dialogue("ch1.node")},
+		{"ticks": 2, "setup": func(): skip.call(4)},
+		{"ticks": 2, "setup": func(): skip.call(1)},
+		{"ticks": 2, "setup": func(): skip.call(1)},
+		{"ticks": 2, "setup": func(): skip.call(1)},
+		{"ticks": 70, "input": {}},
+		{"ticks": 1, "shot": "ch1b_06_node_memory", "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(40)},
+		{"ticks": 2, "setup": func(): go.call("ch1.mid", "start", Vector3(-4, 0, -4), Vector3(8, 0, 10), ["ch1.got_spark", "ch1.ordo_stopped", "ch1.ordo_restarted", "ch1.morning", "ch1.descent_permit", "ch1.plaza_done"])},
+		{"ticks": 60, "input": {}},
+		{"ticks": 1, "shot": "ch1b_07_morning_town", "input": {}},
+		{"ticks": 2, "setup": func():
+			go.call("ch1.upper", "start", Vector3(0, 0, 16), Vector3(0, 0, 40), ["ch1.got_spark", "ch1.ordo_restarted", "ch1.morning", "ch1.descent_permit", "ch1.drill_developed"])
+			main.game.story.start_event("ch1.ending")},
+		{"ticks": 240, "input": {}},
+		{"ticks": 1, "shot": "ch1b_08_ending", "check": func(): return _check(main.game.story.running_event() or main.game.flag("ch1.complete"), "章末の演出が走る")},
+		{"ticks": 2, "setup": func(): skip.call(40)},
+		{"ticks": 90, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(40)},
+		{"ticks": 60, "input": {}},
+		{"ticks": 1, "check": func(): return _check(main.game.flag("ch1.complete"), "章末のフラグが立つ")},
 	]
 
 
@@ -369,7 +465,7 @@ func _process(_dt: float) -> void:
 		for i in 10:
 			await get_tree().process_frame
 		await _shoot("00_title")
-		if not main.args.has("ch1_shots"):
+		if not (main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots")):
 			main.args["mvp"] = "1"   # 見本の前半は古い試験場（mvp.main）で進める
 		main.start_game(null)
 		main.game.god_mode = true
@@ -393,7 +489,13 @@ func _shoot(name: String) -> void:
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	var path := "%s/%s.png" % [out_dir, name]
-	img.save_png(path)
+	if main.args.has("jpg"):
+		# 小さな JPEG（docs/progress_shots 用）
+		img.resize(960, 540, Image.INTERPOLATE_BILINEAR)
+		path = "%s/%s.jpg" % [out_dir, name]
+		img.save_jpg(path, 0.82)
+	else:
+		img.save_png(path)
 	print("撮影：", path)
 
 
