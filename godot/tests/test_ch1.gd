@@ -572,3 +572,73 @@ func test_sleep_after_restart_brings_morning() -> void:
 	h.expect(g2.flag("ch1.night") and not g2.flag("ch1.morning"), "再始動の前は眠れない")
 	h.free_game(g)
 	h.free_game(g2)
+
+
+## 実際に歩く：整備通路（B1）の溝を、走ってジャンプで渡りきれること（溝 1.5〜3.5m・段 1.0m）
+func test_ruins_walking_maintenance_corridor() -> void:
+	var g := _new_game()
+	await h.settle()
+	g.set_flag("ch1.got_spark")
+	g.load_room("ch1.r03", "from_r02")
+	for t in g.triggers:
+		t.fired = true
+	await _pump(g, 6)
+	var edges := [-13.0, -7.0, -0.5, 7.5, 13.5]
+	var next := [0]
+	var hold := [0]
+	var fell := [false]
+	await h.run(g, TestHelpers.seconds(14.0), func(i):
+		var z: float = g.player.pos.z
+		if g.player.pos.y < -1.0:
+			fell[0] = true
+		if next[0] < edges.size() and z >= edges[next[0]] - 0.5 and g.player.grounded:
+			next[0] += 1
+			hold[0] = 24
+		var jump: bool = hold[0] > 0
+		if hold[0] > 0:
+			hold[0] -= 1
+		return {"move_y": 1.0, "jump": jump})
+	h.expect(not fell[0], "整備通路：走ってジャンプするだけで、溝に落ちずに渡れる")
+	h.expect(g.room_id == "ch1.r04" or g.player.pos.z > 15.0, "整備通路を渡りきる（%s, z=%.1f）" % [g.room_id, g.player.pos.z])
+	h.free_game(g)
+
+
+## 実際に歩く：駆動回廊（B3）のピストンを、タイミングを見て跳び移って渡りきれること（動力が通った状態）
+func test_ruins_walking_pistons() -> void:
+	var g := _new_game()
+	await h.settle()
+	g.set_flag("ch1.drive_powered")
+	g.load_room("ch1.r12", "from_r11")
+	for t in g.triggers:
+		t.fired = true
+	await _pump(g, 6)
+	var edges := [-10.4, -3.4, 4.6, 12.6]
+	var targets := ["ch1.r12.p1", "ch1.r12.p2", "ch1.r12.p3", ""]
+	var hop := [0]
+	var hold := [0]
+	var fell := [false]
+	var reached := await h.run_until(g, 4000, func(i):
+		var z: float = g.player.pos.z
+		var y: float = g.player.pos.y
+		if y < -3.0:
+			fell[0] = true
+		var inp := {}
+		if hold[0] > 0:
+			hold[0] -= 1
+			return {"move_y": 1.0, "jump": true}
+		if hop[0] >= edges.size():
+			return {"move_y": 1.0}
+		if z < edges[hop[0]] - 0.3:
+			return {"move_y": 1.0}
+		if g.player.grounded:
+			var top := 0.0
+			if targets[hop[0]] != "":
+				var mv: Props.Mover = g.movers.filter(func(m): return m.id == targets[hop[0]])[0]
+				top = mv.pos.y + mv.size.y
+			if absf(top - y) <= 0.9:
+				hop[0] += 1
+				hold[0] = 26
+				return {"move_y": 1.0, "jump": true}
+		return inp, func(): return g.player.pos.z > 16.5 or fell[0])
+	h.expect(reached and not fell[0], "駆動回廊：ピストンを見て跳び移れば渡りきれる（z=%.1f, 落下=%s）" % [g.player.pos.z, str(fell[0])])
+	h.free_game(g)
