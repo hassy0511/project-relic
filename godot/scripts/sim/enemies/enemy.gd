@@ -32,6 +32,8 @@ var _grounded := true
 var _no_sight := 0.0
 ## 無敵（ボスの段階の変わり目など）。当たっても減らない
 var invulnerable := false
+## 練習用の的：何もしない（動かず、撃たない）
+var passive := false
 var _wander_target := Vector3.ZERO
 
 
@@ -101,7 +103,8 @@ func update(dt: float) -> void:
 		if state_time > 0.6:
 			set_state("engage")
 	else:
-		_think(dt)
+		if not passive:
+			_think(dt)
 	_integrate(dt)
 
 

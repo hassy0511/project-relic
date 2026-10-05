@@ -350,6 +350,7 @@ func spawn_enemy_spec(e: Dictionary) -> Enemy:
 	var en := add_enemy(e.type, m.pos, m.yaw)
 	en.id = e.get("id", "")
 	en.invulnerable = bool(e.get("invulnerable", false))
+	en.passive = bool(e.get("passive", false))
 	en.group = e.get("group", "")
 	en.once = e.get("once", false)
 	if en.group != "":

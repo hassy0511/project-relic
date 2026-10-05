@@ -35,6 +35,7 @@ static func buy(g, shop_id: String, item: String) -> Dictionary:
 			g.add_material(item, int(s.get("count", 1)))
 		else:
 			g.give_item(item)
+		g.emit_event({"type": "sfx", "id": "buy"})
 		return {"ok": true, "msg": ""}
 	return _result(g, false, "その品はない")
 
@@ -105,4 +106,5 @@ static func complete_request(g, id: String) -> Dictionary:
 	g.grant(r.get("reward", {}))
 	g.set_flag("request." + id)
 	g.emit_event({"type": "message", "text": "依頼を達成した：%s" % r.name})
+	g.emit_event({"type": "sfx", "id": "complete"})
 	return {"ok": true, "msg": ""}
