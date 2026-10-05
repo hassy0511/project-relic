@@ -3,6 +3,7 @@ extends Node
 ## 自動の見本：決まった入力でゲームを進め、場面ごとに画面を撮って終了する。
 ## 画面の確認と、起動から一通り遊べることの確認（通しのテスト）に使う。
 ## 起動 → ヤーナと会話 → 奥の部屋で戦闘 → 光刃 → ひび割れた壁をドリルで壊す
+## → 試しの部屋（Arena）で 子番機・盾型・浮遊型・ボス「閂」（段階の移り変わり・核の露出・撃破）を順に確かめる
 ## 進み方はゲームの刻み（1/60 秒）で数える（描画が遅い環境でも同じ場面になるように）
 
 var main
@@ -15,6 +16,7 @@ var _pending_shot := ""
 var _started := false
 var _shooting := false
 var failures: Array = []
+var _seen := {}
 
 
 func _init(m, dir: String) -> void:
@@ -62,8 +64,125 @@ func _ready() -> void:
 		{"ticks": 60, "input": {"special": true}},
 		{"ticks": 30, "input": {}},
 		{"ticks": 1, "shot": "07_after_drill", "check": func(): return _check(main.game.breakables[0].broken, "ドリルで壁を壊せる")},
-		{"ticks": 1, "done": true},
 	]
+	_steps.append_array(_arena_steps())
+	_steps.append({"ticks": 1, "done": true})
+
+
+## 試しの部屋の見本：新しい試合を始め、決まった場面を作って確かめる（やられないように god_mode）
+func _arena_start(kind: String) -> void:
+	main.load_arena(kind)
+	main.game.god_mode = true
+	_seen.clear()
+
+
+func _alive_count(kind: String) -> int:
+	var n := 0
+	for e in main.game.enemies:
+		if e.kind == kind and e.alive:
+			n += 1
+	return n
+
+
+func _arena_steps() -> Array:
+	var steps := []
+	# 子番機：跳びついてくる。銃で倒す
+	steps.append_array([
+		{"ticks": 2, "setup": func():
+			_arena_start("mini")
+			_stand(Vector3(0, 0, 2), Vector3(0, 0, -9))},
+		{"ticks": 150, "input": {}},
+		{"ticks": 1, "shot": "10_mini", "input": {}},
+		{"ticks": 420, "input_fn": func(i): return {"lock_on": true, "fire": i % 8 < 4}},
+		{"ticks": 1, "check": func():
+			return _check(_alive_count("mini") < 3, "子番機を銃で倒せる")},
+	])
+	# 盾型：正面は装甲。光刃で盾を崩す
+	steps.append_array([
+		{"ticks": 2, "setup": func():
+			_arena_start("shield")
+			_stand(Vector3(0, 0, 3), Vector3(0, 0, -9))},
+		{"ticks": 150, "input": {}},
+		{"ticks": 1, "shot": "11_shield", "input": {}},
+		{"ticks": 2, "setup": func():
+			var s = main.game.enemies[1]
+			for e in main.game.enemies:
+				if e != s:
+					e.alive = false
+					main.game.phys.remove(e.body)
+			s.become_alert()
+			_stand(s.pos + Vector3(0, 0, 1.6), s.pos)},
+		{"ticks": 360, "input_fn": func(i):
+			for e in main.game.enemies:
+				if e.state == "stunned":
+					_seen["shield_broken"] = true
+			return {"sword": i % 10 < 2}},
+		{"ticks": 1, "shot": "11b_shield_blade", "check": func(): return _check(_seen.has("shield_broken"), "光刃で盾型の盾を崩せる")},
+	])
+	# 浮遊型：旋回して撃つ。銃で撃ち落とす
+	steps.append_array([
+		{"ticks": 2, "setup": func():
+			_arena_start("floater")
+			_stand(Vector3(0, 0, 2), Vector3(0, 0, -9))},
+		{"ticks": 200, "input": {}},
+		{"ticks": 1, "shot": "12_floater", "input": {}},
+		{"ticks": 480, "input_fn": func(i): return {"lock_on": true, "fire": i % 8 < 4}},
+		{"ticks": 1, "check": func(): return _check(_alive_count("floater") < 3, "浮遊型を銃で撃ち落とせる")},
+	])
+	# ボス「閂」：始まり → 回転薙ぎの予兆 → 核の露出 → 叩きつけ → 過熱 → 段階の移り変わり → 撃破
+	steps.append_array([
+		{"ticks": 2, "setup": func(): _arena_start("kannuki")},
+		{"ticks": 150, "input": {}},
+		{"ticks": 1, "shot": "13_kannuki_start", "input": {}, "check": func():
+			return _check(main.game.boss != null and main.game.boss.state != "idle" and not main.game.boss_status().is_empty(), "閂の戦いが始まり、体力バーが出る")},
+		{"ticks": 2, "setup": func():
+			main.game.boss.debug_set_phase(1)
+			main.game.boss.set_state("spin_windup")},
+		{"ticks": 60, "input": {}},
+		{"ticks": 1, "shot": "14_kannuki_spin", "input": {}},
+		{"ticks": 2, "setup": func():
+			var b = main.game.boss
+			b.set_state("stuck")
+			b.core_open = true},
+		{"ticks": 40, "input": {}},
+		{"ticks": 1, "shot": "15_kannuki_core", "input": {}},
+		{"ticks": 2, "setup": func():
+			var b = main.game.boss
+			b.debug_set_phase(2)
+			b.pos = Vector3(0, 0, 0)
+			main.game.phys.set_feet(b.body, Vector3.ZERO)
+			b.set_state("slam_windup")},
+		{"ticks": 66, "input": {}},
+		{"ticks": 1, "shot": "16_kannuki_slam", "input": {}},
+		{"ticks": 2, "setup": func():
+			var b = main.game.boss
+			b.debug_set_phase(3)
+			b.set_state("engage")
+			b.heat_state = 2
+			b.heat_time = 0.0},
+		{"ticks": 90, "input": {}},
+		{"ticks": 1, "shot": "17_kannuki_overheat", "input": {}},
+		# 段階の移り変わり：大きく当てても境で止まり、次の区切りで段階が移る
+		{"ticks": 2, "setup": func():
+			var b = main.game.boss
+			b.debug_set_phase(1)
+			b.core_open = true
+			main.game.damage_enemy(b, 700.0, main.game.player.pos, {"melee": true, "at": b.axis_center()})
+			_check(b.hp >= 1200.0 * 0.66 - 0.5, "ボスの HP は 66% の境で止まる（段階を飛ばさない）")},
+		{"ticks": 720, "input": {}},
+		{"ticks": 1, "check": func(): return _check(main.game.boss.phase >= 2, "66% を割ると第 2 段階に移る")},
+		{"ticks": 2, "setup": func():
+			var b = main.game.boss
+			b.debug_set_phase(3)
+			b.core_open = true
+			for i in 60:
+				main.game.damage_enemy(b, 50.0, main.game.player.pos, {"melee": true, "at": b.axis_center()})},
+		{"ticks": 30, "input": {}},
+		{"ticks": 1, "check": func(): return _check(not main.game.boss.alive and main.game.story.flags.get("ch1.boss_defeated", false), "核を狙えば閂を倒せる（ch1.boss_defeated）")},
+		{"ticks": 60, "input": {}},
+		{"ticks": 1, "shot": "18_kannuki_defeated", "input": {}},
+	])
+	return steps
 
 
 func _check(cond: bool, what: String) -> bool:

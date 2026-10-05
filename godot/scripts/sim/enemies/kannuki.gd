@@ -70,6 +70,11 @@ func _init(g, center_pos: Vector3, start_yaw: float) -> void:
 	_reset_state()
 
 
+## 予備動作中か（見た目で光らせる）。技ごとの「〜_windup」の間
+func telegraphing() -> bool:
+	return state.ends_with("_windup")
+
+
 func _reset_state() -> void:
 	var c: Dictionary = game.tuning.boss
 	hp = max_hp
