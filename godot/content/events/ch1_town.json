@@ -3,7 +3,7 @@
     "steps": [
       {"freeze": true},
       {"wait": 0.5},
-      {"camera": {"pos": [0, 20, 120], "height": 0, "time": 3.0}},
+      {"camera": {"pos": [0, 4, 150], "height": 0, "time": 3.0}},
       {"say": "ch1.opening"},
       {"camera": {}},
       {"flag": "ch1.opening_done"},

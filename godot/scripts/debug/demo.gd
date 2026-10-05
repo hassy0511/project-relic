@@ -66,11 +66,14 @@ func _ready() -> void:
 		{"ticks": 1, "shot": "07_after_drill", "check": func(): return _check(main.game.breakables[0].broken, "ドリルで壁を壊せる")},
 	]
 	# 引数 --arena_only：試しの部屋の場面だけ（画面の確認を早く撮るため）
-	if main.args.has("arena_only") or main.args.has("world_only"):
+	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots"):
 		_steps.clear()
-	if not main.args.has("world_only"):
-		_steps.append_array(_arena_steps())
-	_steps.append_array(_world_steps())
+	if main.args.has("ch1_shots"):
+		_steps.append_array(_ch1_steps())
+	else:
+		if not main.args.has("world_only"):
+			_steps.append_array(_arena_steps())
+		_steps.append_array(_world_steps())
 	_steps.append({"ticks": 1, "done": true})
 
 
@@ -122,6 +125,83 @@ func _world_steps() -> Array:
 		{"ticks": 20, "input": {}},
 		{"ticks": 1, "check": func():
 			return _check(main.game.room_id == "sample.gym" and main.game.flag("switch.s1") and main.game.movers[0].pos.y > 3.9, "セーブから復帰すると部屋・フラグ・足場の状態が戻る")},
+	]
+
+
+## 第 1 章 前半の画面の確認（--ch1_shots）：町の 3 段・訓練場・ニコの戦闘・夜の町・ヤーナが銃を渡す場面
+func _ch1_steps() -> Array:
+	var go := func(room: String, spawn: String, at: Vector3, look: Vector3, flags: Array = []):
+		var g: GameSim = main.game
+		g.god_mode = true
+		for f in flags:
+			g.set_flag(f)
+		g.load_room(room, spawn)
+		_stand(at, look)
+	# 会話を決定ボタンで送る代わりに、直接送る（撮影を速くするため）。n 回
+	var skip := func(n: int):
+		for i in n:
+			if main.game.story.blocking():
+				main.game.story.confirm()
+	var night := ["ch1.night", "ch1.ordo_stopped", "ch1.scolded", "ch1.debt_scene", "ch1.nico_rescued"]
+	return [
+		{"ticks": 230, "input": {}},
+		{"ticks": 1, "shot": "ch1_01_opening", "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(30)},
+		{"ticks": 60, "input": {}},
+		{"ticks": 1, "check": func(): return _check(main.game.room_id == "ch1.training" and main.game.flag("ch1.opening_done"), "オープニングのあと訓練場へ")},
+		{"ticks": 2, "setup": func(): skip.call(30)},
+		{"ticks": 2, "setup": func():
+			go.call("ch1.training", "start", Vector3(0, 0, -6), Vector3(0, 0, 30), ["ch1.chores_started", "ch1.t_move", "trigger.ch1.training.start"])
+			main.hud.set_hint({"kb": "Space でジャンプ（長押しで高く）　② の段に登ってみよう", "pad": "", "touch": ""})},
+		{"ticks": 50, "input": {}},
+		{"ticks": 1, "shot": "ch1_02_training", "input": {}},
+		{"ticks": 2, "setup": func():
+			main.hud.set_hint("")
+			go.call("ch1.lower", "start", Vector3(-14, 0, -9), Vector3(14, 0, 8))},
+		{"ticks": 50, "input": {}},
+		{"ticks": 1, "shot": "ch1_03_lower", "input": {}},
+		{"ticks": 2, "setup": func(): go.call("ch1.mid", "start", Vector3(-6, 0, -9), Vector3(10, 0, 8))},
+		{"ticks": 50, "input": {}},
+		{"ticks": 1, "shot": "ch1_04_mid", "input": {}},
+		{"ticks": 2, "setup": func(): go.call("ch1.upper", "start", Vector3(-6, 0, -9), Vector3(4, 0, 18))},
+		{"ticks": 50, "input": {}},
+		{"ticks": 1, "shot": "ch1_05_upper", "input": {}},
+		{"ticks": 2, "setup": func(): go.call("ch1.r01", "from_town", Vector3(0, 0, -6), Vector3(0, 0, 8), ["ch1.nico_ran", "ch1.chores_started"])},
+		{"ticks": 50, "input": {}},
+		{"ticks": 1, "shot": "ch1_06_nico_dialogue", "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(8)},
+		{"ticks": 50, "input": {}},
+		{"ticks": 1, "shot": "ch1_07_nico_fight", "check": func(): return _check(not main.game.enemies.is_empty() and main.game.enemies[0].kind == "mini", "ニコの救出で子番機が出る")},
+		{"ticks": 2, "setup": func():
+			for e in main.game.enemies:
+				main.game.damage_enemy(e, 9999.0, e.pos, {})},
+		{"ticks": 60, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(30)},
+		{"ticks": 40, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(30)},
+		{"ticks": 60, "input": {}},
+		{"ticks": 1, "check": func(): return _check(main.game.flag("ch1.nico_rescued") and main.game.room_id == "ch1.lower", "ニコを救出して町へ戻る")},
+		{"ticks": 2, "setup": func(): go.call("ch1.mid", "start", Vector3(-2, 0, -4), Vector3(0, 0, 8), night)},
+		{"ticks": 70, "input": {"move_y": 1.0}},
+		{"ticks": 2, "setup": func(): skip.call(4)},
+		{"ticks": 50, "input": {}},
+		{"ticks": 1, "shot": "ch1_08_night_plaza", "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(30)},
+		{"ticks": 60, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(30)},
+		{"ticks": 2, "setup": func(): _stand(Vector3(20, 0, -2), Vector3(28, 0, 8))},
+		{"ticks": 50, "input": {}},
+		{"ticks": 1, "shot": "ch1_09_night_market", "input": {}},
+		{"ticks": 2, "setup": func():
+			go.call("ch1.lower", "start", Vector3(-26, 0, 0), Vector3(-45, 0, 0), night + ["ch1.plaza_done"])
+			main.game.player.teleport(Vector3(-33, 0, 0), 4.71)},
+		{"ticks": 50, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(12)},
+		{"ticks": 50, "input": {}},
+		{"ticks": 1, "shot": "ch1_10_yana_gun", "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(30)},
+		{"ticks": 90, "input": {}},
+		{"ticks": 1, "shot": "ch1_11_gate_open", "check": func(): return _check(main.game.flag("ch1.got_spark") and main.game.has_item("weapon.spark"), "ヤーナから父の銃を受け取る")},
 	]
 
 
@@ -289,7 +369,8 @@ func _process(_dt: float) -> void:
 		for i in 10:
 			await get_tree().process_frame
 		await _shoot("00_title")
-		main.args["mvp"] = "1"   # 見本の前半は古い試験場（mvp.main）で進める
+		if not main.args.has("ch1_shots"):
+			main.args["mvp"] = "1"   # 見本の前半は古い試験場（mvp.main）で進める
 		main.start_game(null)
 		main.game.god_mode = true
 		for i in 30:

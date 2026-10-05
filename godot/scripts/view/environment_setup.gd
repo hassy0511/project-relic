@@ -53,6 +53,7 @@ static func build(parent: Node) -> DirectionalLight3D:
 static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 	var env: Environment = sun.get_meta("env")
 	var sky: ProceduralSkyMaterial = env.sky.sky_material
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	match mood:
 		"dawn":
 			sky.sky_top_color = Color("#4f5f86")
@@ -69,9 +70,12 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 			sky.ground_bottom_color = Color("#0a0a12")
 			sky.ground_horizon_color = Color("#1e2238")
 			sun.light_color = Color("#8fa6ff")
-			sun.light_energy = 0.28
+			sun.light_energy = 0.7
 			sun.rotation_degrees = Vector3(-60, -150, 0)
-			env.ambient_light_energy = 0.4
+			# 空が暗いと環境光も暗くなりすぎるので、夜は青みの色で与える
+			env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+			env.ambient_light_color = Color("#5a6a9a")
+			env.ambient_light_energy = 0.9
 			env.fog_light_color = Color("#1c2340")
 		"interior":
 			sky.sky_top_color = Color("#6d6358")
