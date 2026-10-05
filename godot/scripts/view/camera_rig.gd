@@ -23,6 +23,9 @@ func sync(game: GameSim, player_pos: Vector3, dt: float, shake: float) -> void:
 		# プレイヤーと対象の中間より、少しプレイヤー寄りを注視する
 		want_pivot = want_pivot.lerp(target, 0.3)
 		want_pivot.y = minf(want_pivot.y, player_pos.y + c.pivotHeight + 1.0)
+	elif game.cam_focus != null:
+		# イベントの注視点：プレイヤーと注視点のあいだ、注視点寄りを見る
+		want_pivot = want_pivot.lerp(game.cam_focus, 0.65)
 	if not _initialized:
 		_pivot = want_pivot
 		_initialized = true

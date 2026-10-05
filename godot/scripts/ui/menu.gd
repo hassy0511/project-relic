@@ -55,7 +55,7 @@ func hide_menu() -> void:
 		c.queue_free()
 
 
-func _build(title: String, sub: String, badge: String, items: Array, dark: bool) -> void:
+func _build(title: String, sub: String, badge: String, items: Array, dark: bool, show_help := true) -> void:
 	for c in _root.get_children():
 		c.queue_free()
 	_root.visible = true
@@ -69,7 +69,7 @@ func _build(title: String, sub: String, badge: String, items: Array, dark: bool)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 14)
 	center.add_child(box)
-	var t := Hud.make_label(title, 96, Color("#f3e9d2"), true)
+	var t := Hud.make_label(title, 96 if show_help else 56, Color("#f3e9d2"), true)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(t)
 	if sub != "":
@@ -100,6 +100,10 @@ func _build(title: String, sub: String, badge: String, items: Array, dark: bool)
 		box.add_child(btn)
 		if first == null and not btn.disabled:
 			first = btn
+	if not show_help:
+		if first:
+			first.call_deferred("grab_focus")
+		return
 	var help := GridContainer.new()
 	help.columns = 2
 	help.add_theme_constant_override("h_separation", 24)
@@ -131,7 +135,28 @@ func show_pause(game: GameSim, resume: Callable, toggle_chip: Callable, load_sav
 		[chip_label, func():
 			toggle_chip.call()
 			show_pause(game, resume, toggle_chip, load_save, to_title), not has_chip],
+		["地図（入った部屋）", func(): show_map(game, func(): show_pause(game, resume, toggle_chip, load_save, to_title))],
 		["最後のセーブから再開", load_save],
 		["タイトルへ", to_title],
 	]
 	_build("PAUSE", "セル %d　／　プレイ時間 %d 分" % [game.cells, int(game.play_time / 60.0)], "", items, false)
+
+
+## 汎用の一覧画面（店・工房・ギルドの薄い画面、地図）。items：[[名前, 呼ぶ関数, 無効か], ...]
+func show_list(title: String, sub: String, items: Array) -> void:
+	_build(title, sub, "", items, false, false)
+
+
+## 入った部屋の一覧（地図の簡易版）：エリアごとに、今いる部屋に印を付ける
+func show_map(game: GameSim, back: Callable) -> void:
+	var rows := []
+	var visited := game.visited_rooms()
+	for id in visited:
+		var r: Dictionary = game.world.rooms[id]
+		var mark := "◆ " if id == game.room_id else "　"
+		var floor_name := String(r.get("map", {}).get("floor", ""))
+		rows.append(["%s%s　%s%s" % [mark, r.get("name", id), floor_name, "" if floor_name == "" else "　"], func(): pass, true])
+	if rows.is_empty():
+		rows.append(["（まだ入った部屋がない）", func(): pass, true])
+	rows.append(["戻る", back])
+	_build("MAP", "入った部屋 %d ／ 全部で %d" % [visited.size(), game.world.rooms.size()], "", rows, false, false)

@@ -1,0 +1,50 @@
+{
+  "special.drill": {
+    "name": "特殊武器「ブレイクドリル」",
+    "kind": "weapon"
+  },
+  "chip.charge": {
+    "name": "チューニングチップ「チャージ化」",
+    "kind": "chip"
+  },
+  "key.sample": {
+    "name": "試験場の鍵",
+    "kind": "key"
+  },
+  "consumable.repair": {
+    "name": "補修パック",
+    "kind": "consumable",
+    "price": 150
+  },
+  "scrap": {
+    "name": "錆鉄",
+    "kind": "material"
+  },
+  "wire": {
+    "name": "導線",
+    "kind": "material"
+  },
+  "gear": {
+    "name": "歯車",
+    "kind": "material"
+  },
+  "core.kannuki": {
+    "name": "閂のコア",
+    "kind": "material"
+  },
+  "relic.old_gear": {
+    "name": "古い歯車",
+    "kind": "relic",
+    "sell": 120
+  },
+  "relic.broken_lens": {
+    "name": "割れたレンズ",
+    "kind": "relic",
+    "sell": 60
+  },
+  "relic.tin_toy": {
+    "name": "ブリキのおもちゃ",
+    "kind": "relic",
+    "sell": 40
+  }
+}

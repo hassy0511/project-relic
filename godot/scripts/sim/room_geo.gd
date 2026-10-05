@@ -101,7 +101,7 @@ static func _shell(pos: Vector3, size: Vector3, s: Dictionary) -> Array:
 	var out := []
 	# 床（上面が pos.y）
 	out.append(box(pos + Vector3(0, -t * 0.5, 0), Vector3(size.x + 2 * t, t, size.z + 2 * t)))
-	if s.get("ceiling", true):
+	if s.get("ceiling", false):
 		out.append(box(pos + Vector3(0, size.y + t * 0.5, 0), Vector3(size.x + 2 * t, t, size.z + 2 * t)))
 	var ops: Array = s.get("openings", [])
 	for side in ["n", "s", "e", "w"]:

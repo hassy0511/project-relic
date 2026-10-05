@@ -9,6 +9,12 @@ var _npcs := {}
 var _npc_models := {}   # id → {anim, face_mats, expr}
 var _pickups := {}
 var _time := 0.0
+var _doors := {}
+var _exits := {}
+var _switches := {}
+var _movers := {}
+var _loot := {}
+var _door_amt := {}
 
 ## 住人の 3D モデル（絵から起こした GLB。tools/blender/recon/build_char.py）。無ければ従来の簡単な形で描く
 const NPC_MODELS := {"npc_yana": "res://assets/models/yana.glb"}
@@ -72,10 +78,72 @@ func build(game: GameSim) -> void:
 		cyl.cap_bottom = false
 		MeshKit.add(self, cyl, beam, b.pos + Vector3(0, 6.2, 0))
 		_beams.append(beam)
+	_build_world_objects(game)
+
+
+## 部屋の仕掛け：扉・出口・スイッチ・動く足場・端末・置いてある物
+func _build_world_objects(game: GameSim) -> void:
+	var metal := MeshKit.mat(Color("#8c8478"), 0.4, 0.5)
+	for d in game.doors:
+		var root := Node3D.new()
+		root.position = d.pos
+		root.rotation.y = d.yaw
+		add_child(root)
+		MeshKit.add(root, MeshKit.box(d.size), metal, Vector3(0, d.size.y * 0.5, 0))
+		MeshKit.add(root, MeshKit.box(Vector3(d.size.x * 0.8, 0.12, d.size.z + 0.04)), MeshKit.glow(Color("#ffb23e"), 1.5), Vector3(0, d.size.y * 0.55, 0))
+		_doors[d] = root
+		_door_amt[d] = 1.0 if d.is_open else 0.0
+		root.visible = not d.is_open
+	for x in game.exits:
+		var glow := MeshKit.glow(Color("#5ad1ff"), 1.0, 0.12)
+		var mi := MeshKit.add(self, MeshKit.box(x.half * 2.0), glow, x.center)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_exits[x] = glow
+	for sw in game.switches:
+		var glow := MeshKit.glow(Color("#7a8aa0"), 1.0)
+		if sw.mode == "interact":
+			MeshKit.add(self, MeshKit.box(Vector3(0.5, 1.0, 0.5)), metal, sw.pos + Vector3(0, 0.5, 0))
+			MeshKit.add(self, MeshKit.sphere(0.2), glow, sw.pos + Vector3(0, 1.1, 0))
+		else:
+			MeshKit.add(self, MeshKit.sphere(sw.radius * 0.8), glow, sw.pos)
+		_switches[sw] = glow
+	for m in game.movers:
+		var mi := MeshKit.add(self, MeshKit.box(m.size), MeshKit.mat(Color("#a79b86"), 0.5, 0.3), m.pos + Vector3(0, m.size.y * 0.5, 0))
+		_movers[m] = mi
+	for t in game.terminals:
+		MeshKit.add(self, MeshKit.box(Vector3(0.8, 1.2, 0.6)), metal, t.pos + Vector3(0, 0.6, 0))
+		MeshKit.add(self, MeshKit.box(Vector3(0.6, 0.4, 0.05)), MeshKit.glow(Color("#ffb23e"), 2.0), t.pos + Vector3(0, 1.0, 0.3))
+	for lt in game.loot:
+		var mi := MeshKit.add(self, MeshKit.sphere(0.22, 6), MeshKit.glow(Color("#ffd27a"), 2.5), lt.pos + Vector3(0, 0.6, 0))
+		mi.visible = not lt.taken
+		_loot[lt] = mi
+
+
+func _sync_world_objects(game: GameSim, dt: float) -> void:
+	for d in _doors:
+		var a: float = _door_amt[d]
+		a = U.approach(a, 1.0 if d.is_open else 0.0, dt * 2.0)
+		_door_amt[d] = a
+		var root: Node3D = _doors[d]
+		root.visible = a < 1.0
+		root.position.y = d.pos.y - a * d.size.y
+	for x in _exits:
+		var open: bool = Cond.eval(x.lock, game)
+		_exits[x].albedo_color = Color(0.35, 0.82, 1.0, 0.12) if open else Color(1.0, 0.35, 0.25, 0.18)
+	for sw in _switches:
+		_switches[sw].albedo_color = Color("#5ad1ff") if sw.on else Color("#7a8aa0")
+		_switches[sw].emission = Color("#5ad1ff") if sw.on else Color("#3a4252")
+	for m in _movers:
+		_movers[m].position = m.pos + Vector3(0, m.size.y * 0.5, 0)
+	for lt in _loot:
+		var mi: MeshInstance3D = _loot[lt]
+		mi.visible = not lt.taken
+		mi.position = lt.pos + Vector3(0, 0.6 + sin(_time * 3.0) * 0.08, 0)
 
 
 func sync(game: GameSim, dt: float) -> void:
 	_time += dt
+	_sync_world_objects(game, dt)
 	for b in game.breakables:
 		var m: MeshInstance3D = _walls.get(b.id)
 		if m == null:

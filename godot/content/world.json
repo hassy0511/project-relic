@@ -1,0 +1,20 @@
+{
+  "start": {
+    "room": "mvp.main",
+    "spawn": "start"
+  },
+  "areas": [
+    "areas/mvp.json",
+    "areas/sample.json"
+  ],
+  "dialogue": [
+    "dialogue/mvp.json",
+    "dialogue/sample.json"
+  ],
+  "events": [
+    "events/mvp.json",
+    "events/sample.json"
+  ],
+  "items": "items.json",
+  "economy": "economy.json"
+}

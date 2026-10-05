@@ -33,6 +33,9 @@ var _dlg_face_label: Label
 var _dlg_name: Label
 var _dlg_text: Label
 var _dlg_next: Label
+var _dlg_choices: Label
+var _fade: ColorRect
+var _fade_time := 0.0
 
 
 static func panel_style(bg: Color = Color(0.08, 0.06, 0.05, 0.72), radius: int = 8) -> StyleBoxFlat:
@@ -140,6 +143,11 @@ func _ready() -> void:
 	_dmg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_dmg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_dmg)
+	_fade = ColorRect.new()
+	_fade.color = Color(0, 0, 0, 0)
+	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(_fade)
 
 	# ボスの体力バー（画面の上の真ん中。段階の境に印）
 	_boss_box = Control.new()
@@ -196,9 +204,16 @@ func _ready() -> void:
 	_dlg_text.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 	_dlg_text.custom_minimum_size = Vector2(1060, 0)
 	body.add_child(_dlg_text)
+	_dlg_choices = make_label("", 26, Color("#fff3b0"))
+	body.add_child(_dlg_choices)
 	_dlg_next = make_label("▼", 22, AMBER)
 	_dlg_next.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	body.add_child(_dlg_next)
+
+
+## 画面を暗くしてから明るくする（部屋の移動）
+func fade_in(seconds := 0.5) -> void:
+	_fade_time = seconds
 
 
 func show_toast(text: String) -> void:
@@ -272,8 +287,16 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 		_dlg_text.text = text.substr(0, d.shown)
 		_dlg_face_label.text = String(d.who).substr(0, 1)
 		_dlg_face.add_theme_stylebox_override("panel", panel_style(FACE_COLORS.get(d.who, Color("#777777")), 60))
-		_dlg_next.visible = d.shown >= text.length()
+		_dlg_next.visible = d.shown >= text.length() and not d.has("choices")
+		_dlg_choices.visible = d.has("choices") and d.shown >= text.length()
+		if d.has("choices"):
+			var lines := []
+			for i in d.choices.size():
+				lines.append("%s %s" % ["▶" if i == d.sel else "　", d.choices[i]])
+			_dlg_choices.text = "\n".join(lines)
 
+	_fade_time = maxf(0.0, _fade_time - dt)
+	_fade.color.a = clampf(_fade_time / 0.5, 0.0, 1.0)
 	_toast_time -= dt
 	_toast.modulate.a = clampf(_toast_time, 0.0, 1.0)
 	_dmg_time = maxf(0.0, _dmg_time - dt)

@@ -1,0 +1,71 @@
+{
+  "sample.yana": {
+    "lines": [
+      {
+        "who": "ヤーナ",
+        "face": "smirk",
+        "text": "よく来たね。ここは世界と進行の動作確認用の部屋さ。"
+      },
+      {
+        "who": "ヤーナ",
+        "face": "normal",
+        "text": "西の箱に鍵が入ってる。北の扉を開けてみな。東の部屋は動力の仕掛けだよ。"
+      },
+      {
+        "who": "ヤーナ",
+        "face": "laugh",
+        "text": "ところで、ドリルがいるかい？",
+        "choices": [
+          {
+            "text": "ほしい",
+            "event": "sample.give_drill"
+          },
+          {
+            "text": "いらない",
+            "set": "sample.no_drill"
+          }
+        ]
+      },
+      {
+        "action": "flag",
+        "flag": "sample.talked_yana"
+      }
+    ]
+  },
+  "sample.yana.again": {
+    "lines": [
+      {
+        "who": "ヤーナ",
+        "face": "normal",
+        "text": "東の部屋のひび割れた壁は、ドリルで壊すんだよ。"
+      }
+    ]
+  },
+  "sample.nagomi_gym": {
+    "lines": [
+      {
+        "who": "ナゴミ",
+        "face": "analyzing",
+        "text": "奥の動力の球が 2 つ止まっています。撃てば、足場が動きます。"
+      }
+    ]
+  },
+  "sample.nagomi_power": {
+    "lines": [
+      {
+        "who": "ナゴミ",
+        "face": "normal",
+        "text": "動力が通りました。足場が上がります。"
+      }
+    ]
+  },
+  "sample.nagomi_ambush": {
+    "lines": [
+      {
+        "who": "ナゴミ",
+        "face": "warning",
+        "text": "番機が出ました。倒せば静かになります。"
+      }
+    ]
+  }
+}

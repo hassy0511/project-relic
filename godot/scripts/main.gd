@@ -7,10 +7,14 @@ extends Node
 ##       -- --arena=<型>            試しの部屋（直径 32 m の円形）から始める。型：mini（子番機）| shield（盾型）| floater（浮遊型）|
 ##                                 kannuki（ボス「閂」と壊れる柱 4 本）| all（3 種）。タイトルを飛ばし、HP 無限にはしない
 ##                                 （--god を足すと、やられない）。例：tools/godot.sh shot -- --arena=kannuki --god
-## ブラウザ版では URL の引数で同じことができる：…/project-relic/?arena=kannuki&god（demo 以外）
+##       -- --room=<部屋 id>[:<目印>]  その部屋から始める（例：--room=sample.gym  --room=sample.hub:from_gym）。タイトルを飛ばす
+##       -- --flags=a,b             始めにフラグを立てておく（扉の条件などの確認用）
+##       -- --items=a,b             始めにアイテムを持っておく（例：--items=special.drill,key.sample）
+## ブラウザ版では URL の引数で同じことができる：…/project-relic/?arena=kannuki&god や ?room=sample.gym（demo 以外）
 
 const SAVE_PATH := "user://save_slot1.json"
-const AREA_ID := "area.mvp"
+const AUTOSAVE_PATH := "user://save_auto.json"
+const WORLD_PATH := "res://content/world.json"
 
 var state := "title"
 var input: InputSource
@@ -19,7 +23,8 @@ var camera: CameraRig
 var hud: Hud
 var menu: Menu
 var perf: Label
-var level: Dictionary
+var level: Node3D
+var world: World
 var game: GameSim = null
 var views: Node3D = null
 var player_view: PlayerView
@@ -45,8 +50,9 @@ func _ready() -> void:
 	if OS.has_feature("web"):
 		var q = JavaScriptBridge.eval("window.location.search", true)
 		if q is String:
-			for a in q.trim_prefix("?").split("&", false):
-				var kv := a.uri_decode().split("=", true, 1)
+			var query: String = q
+			for a in query.trim_prefix("?").split("&", false):
+				var kv: PackedStringArray = a.uri_decode().split("=", true, 1)
 				args[kv[0]] = kv[1] if kv.size() > 1 else "1"
 	InputSource.setup_actions()
 	input = InputSource.new()
@@ -61,7 +67,7 @@ func _ready() -> void:
 	add_child(audio)
 	sun = EnvironmentSetup.build(self)
 	arena_kind = args.get("arena", "")
-	_load_level()
+	world = World.load_manifest(WORLD_PATH)
 	camera = CameraRig.new()
 	add_child(camera)
 	camera.current = true
@@ -82,7 +88,7 @@ func _ready() -> void:
 	if args.has("demo"):
 		demo = Demo.new(self, args.demo)
 		add_child(demo)
-	elif arena_kind != "":
+	elif arena_kind != "" or args.has("room"):
 		start_game(null)
 		if args.has("god"):
 			game.god_mode = true
@@ -90,22 +96,29 @@ func _ready() -> void:
 		show_title()
 
 
-## 地形を読み込む（試しの部屋なら部屋を作る）
-func _load_level() -> void:
-	if level.has("node") and is_instance_valid(level.node):
-		level.node.queue_free()
+## 今の部屋の地形・仕掛け・敵の見た目を作り直す（始めと、部屋を移ったとき）
+func _rebuild_room_views() -> void:
+	if level != null and is_instance_valid(level):
+		level.queue_free()
 	if arena_kind != "":
-		var geo := Arena.geometry(16.0)
-		level = {"node": ArenaView.build(geo), "geometry": geo}
+		level = ArenaView.build(game.geometry)
 	else:
-		level = LevelLoader.load_level("res://assets/levels/mvp_greybox.glb")
-	add_child(level.node)
+		level = RoomView.build(game.world, game.room_id)
+	add_child(level)
+	if enemy_view != null and is_instance_valid(enemy_view):
+		enemy_view.queue_free()
+	enemy_view = EnemyView.new()
+	views.add_child(enemy_view)
+	if props_view != null and is_instance_valid(props_view):
+		props_view.queue_free()
+	props_view = PropsView.new()
+	views.add_child(props_view)
+	props_view.build(game)
 
 
 ## 試しの部屋に切り替えて始め直す（見本・確認用）
 func load_arena(kind: String) -> void:
 	arena_kind = kind
-	_load_level()
 	start_game(null)
 
 
@@ -120,20 +133,20 @@ func snap_views() -> void:
 		camera.reset_physics_interpolation()
 
 
-func _placement() -> Dictionary:
-	if arena_kind != "":
-		return Arena.placement(arena_kind)
-	return U.load_json("res://content/areas/mvp.json")
-
-
 func has_save() -> bool:
-	return FileAccess.file_exists(SAVE_PATH)
+	return FileAccess.file_exists(SAVE_PATH) or FileAccess.file_exists(AUTOSAVE_PATH)
 
 
+## 手動セーブとオートセーブのうち、新しいほう
 func read_save():
-	if not has_save():
-		return null
-	return GameSim.parse_save(FileAccess.get_file_as_string(SAVE_PATH))
+	var best = null
+	for path in [SAVE_PATH, AUTOSAVE_PATH]:
+		if not FileAccess.file_exists(path):
+			continue
+		var d = GameSim.parse_save(FileAccess.get_file_as_string(path))
+		if d != null and (best == null or String(d.get("savedAt", "")) > String(best.get("savedAt", ""))):
+			best = d
+	return best
 
 
 func show_title() -> void:
@@ -150,26 +163,31 @@ func start_game(save) -> void:
 		game.queue_free()
 	game = GameSim.new()
 	add_child(game)
-	game.setup({
-		"geometry": level.geometry,
-		"placement": _placement(),
-		"tuning": U.load_json("res://content/tuning.json"),
-		"dialogues": U.load_json("res://content/dialogue/mvp.json"),
-		"events": U.load_json("res://content/events/mvp.json"),
-		"seed": 12345,
-		"save": save,
-	})
+	var init := {"tuning": U.load_json("res://content/tuning.json"), "seed": 12345, "save": save}
+	if arena_kind != "":
+		# 試しの部屋：1 部屋だけの世界
+		init.merge({"geometry": Arena.geometry(16.0), "placement": Arena.placement(arena_kind), "dialogues": world.dialogues, "events": world.events})
+	else:
+		init["world"] = world
+		if args.has("room") and save == null:
+			var kv := String(args.room).split(":", true, 1)
+			init["start"] = {"room": kv[0], "spawn": kv[1] if kv.size() > 1 else "start"}
+	game.setup(init)
+	if save == null:
+		for f in String(args.get("flags", "")).split(",", false):
+			game.set_flag(f)
+		for it in String(args.get("items", "")).split(",", false):
+			game.items[it] = true
 	views = Node3D.new()
 	add_child(views)
 	player_view = null
 	nagomi_view = NagomiView.new()
 	views.add_child(nagomi_view)
 	_load_haru(_haru_path(args.get("haru", "r")))
-	enemy_view = EnemyView.new()
-	views.add_child(enemy_view)
-	props_view = PropsView.new()
-	views.add_child(props_view)
-	props_view.build(game)
+	enemy_view = null
+	props_view = null
+	_rebuild_room_views()
+	game.drain_events()
 	fx = Fx.new()
 	views.add_child(fx)
 	menu.hide_menu()
@@ -290,14 +308,26 @@ func _handle_events() -> void:
 			"message":
 				hud.show_toast(e.text)
 			"saved":
-				var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-				if f:
-					var data := game.to_save(AREA_ID)
-					data["savedAt"] = Time.get_datetime_string_from_system()
-					f.store_string(JSON.stringify(data))
+				if _write_save(SAVE_PATH):
 					hud.show_toast("セーブしました（HP と武器エネルギーが回復）")
 				else:
 					hud.show_toast("セーブできませんでした")
+			"autosave":
+				_write_save(AUTOSAVE_PATH)
+			"roomChanged":
+				if not e.first:
+					_rebuild_room_views()
+					snap_views()
+					hud.fade_in(0.6)
+			"snap":
+				snap_views()
+			"ui":
+				open_economy_ui(e.kind, e.id)
+			"music":
+				if audio.has_method("play_music"):
+					audio.play_music(e.id)
+			"respawned":
+				hud.fade_in(0.8)
 			"playerHurt":
 				hud.flash_damage()
 			"bossLine":
@@ -310,6 +340,65 @@ func _handle_events() -> void:
 				_lines.clear()
 			"playerDied":
 				hud.show_toast("やられた……中継地点から再開します")
+
+
+func _write_save(path: String) -> bool:
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		return false
+	var data := game.to_save()
+	data["savedAt"] = Time.get_datetime_string_from_system()
+	f.store_string(JSON.stringify(data))
+	return true
+
+
+## 店・工房・ギルドの薄い画面（段階 D で作り込む）
+func open_economy_ui(kind: String, id: String) -> void:
+	state = "paused"
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var g := game
+	var eco: Dictionary = g.world.economy
+	var close := func():
+		menu.hide_menu()
+		state = "playing"
+	var items := []
+	var title := ""
+	match kind:
+		"shop":
+			var shop: Dictionary = eco.get("shops", {}).get(id, {})
+			title = shop.get("name", "店")
+			for s in shop.get("stock", []):
+				items.append(["%s　%d セル" % [g.world.item_name(s.item), int(s.price)], func():
+					Economy.buy(g, id, s.item)
+					open_economy_ui(kind, id)])
+			if shop.get("buys_relics", false):
+				for r in g.relics.keys():
+					items.append(["売る：%s　%d セル" % [g.world.item_name(r), int(g.world.items.get(r, {}).get("sell", 20))], func():
+						Economy.sell_relic(g, id, r)
+						open_economy_ui(kind, id)])
+		"workshop":
+			var ws: Dictionary = eco.get("workshops", {}).get(id, {})
+			title = ws.get("name", "工房")
+			for r in ws.get("recipes", []):
+				items.append(["%s　%d セル" % [r.name, int(r.get("cost", 0))], func():
+					Economy.craft(g, id, r.id)
+					open_economy_ui(kind, id), g.flag("crafted." + r.id)])
+		"guild":
+			title = "回収屋ギルド"
+			for r in eco.get("guild", {}).get("requests", []):
+				var st: String = g.requests.get(r.id, "")
+				if st == "done":
+					continue
+				if st == "":
+					items.append(["受ける：%s" % r.name, func():
+						Economy.accept_request(g, r.id)
+						open_economy_ui(kind, id)])
+				else:
+					items.append(["報告する：%s" % r.name, func():
+						Economy.complete_request(g, r.id)
+						open_economy_ui(kind, id)])
+	items.append(["閉じる", close])
+	menu.show_list(title, "セル %d" % g.cells, items)
 
 
 ## 戦闘中の掛け合いは操作を止めずに、1 行ずつ上の通知に出す

@@ -1,0 +1,114 @@
+{
+  "sample.give_drill": {
+    "steps": [
+      {
+        "give": {
+          "item": "special.drill"
+        }
+      },
+      {
+        "flag": "sample.got_drill"
+      }
+    ]
+  },
+  "sample.shop": {
+    "steps": [
+      {
+        "shop": "zakka"
+      }
+    ]
+  },
+  "sample.workshop": {
+    "steps": [
+      {
+        "workshop": "yana"
+      }
+    ]
+  },
+  "sample.guild": {
+    "steps": [
+      {
+        "guild": "main"
+      }
+    ]
+  },
+  "sample.gym_enter": {
+    "steps": [
+      {
+        "say": "sample.nagomi_gym"
+      },
+      {
+        "objective": "動力の球（青い玉）を 2 つ撃つ"
+      }
+    ]
+  },
+  "sample.power_on": {
+    "steps": [
+      {
+        "camera": {
+          "pos": [
+            0,
+            0,
+            9
+          ],
+          "height": 2.5,
+          "time": 2.0
+        }
+      },
+      {
+        "sfx": "alert"
+      },
+      {
+        "say": "sample.nagomi_power"
+      },
+      {
+        "flag": "sample.drive_powered"
+      },
+      {
+        "objective": "上がった足場で高台へ。西の壁のひび割れはドリルで壊せる"
+      }
+    ]
+  },
+  "sample.ambush": {
+    "steps": [
+      {
+        "spawn": [
+          {
+            "type": "mini",
+            "pos": [
+              -4,
+              0,
+              -15
+            ],
+            "group": "amb"
+          },
+          {
+            "type": "mini",
+            "pos": [
+              4,
+              0,
+              -15
+            ],
+            "group": "amb"
+          }
+        ]
+      },
+      {
+        "say": "sample.nagomi_ambush"
+      },
+      {
+        "wait_until": {
+          "cleared": "amb"
+        }
+      },
+      {
+        "give": {
+          "cells": 50
+        }
+      },
+      {
+        "message": "静かになった"
+      }
+    ]
+  }
+}
