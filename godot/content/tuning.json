@@ -127,6 +127,127 @@
       "moveSpeed": 3.5,
       "sight": 18,
       "poise": 30
+    },
+    "mini": {
+      "hp": 16,
+      "damage": 5,
+      "moveSpeed": 4.5,
+      "hopInterval": 0.55,
+      "leapRange": 3.5,
+      "windup": 0.45,
+      "leapSpeed": 8.0,
+      "leapTime": 0.5,
+      "recover": 0.9,
+      "cooldown": 1.2,
+      "sight": 12,
+      "poise": 8
+    },
+    "shield": {
+      "hp": 80,
+      "damage": 12,
+      "moveSpeed": 2.2,
+      "turnDeg": 80,
+      "guardArcDeg": 130,
+      "guard": 40,
+      "guardBreakTime": 2.0,
+      "guardRegenDelay": 3.0,
+      "punchRange": 2.3,
+      "windup": 0.6,
+      "punchTime": 0.3,
+      "recover": 0.9,
+      "cooldown": 1.4,
+      "sight": 16,
+      "poise": 120
+    },
+    "floater": {
+      "hp": 30,
+      "shotDamage": 6,
+      "shotSpeed": 16,
+      "hover": 2.0,
+      "orbitRadius": 8.0,
+      "orbitDegPerSec": 40,
+      "moveSpeed": 5.0,
+      "diveSpeed": 10.0,
+      "windup": 0.6,
+      "diveTime": 0.9,
+      "burstCount": 2,
+      "burstInterval": 0.25,
+      "recover": 1.2,
+      "cooldown": 2.4,
+      "sight": 20,
+      "poise": 15
     }
+  },
+  "boss": {
+    "hp": 1200,
+    "arenaRadius": 16.0,
+    "railRadius": 10.5,
+    "bodyHalfLen": 4.6,
+    "bodyRadius": 1.75,
+    "bodyHeight": 2.6,
+    "phaseAt": [
+      0.66,
+      0.33
+    ],
+    "armHp": 90,
+    "armShare": 0.4,
+    "railSpeed": 5.0,
+    "walkSpeed": [
+      0,
+      3.0,
+      4.0
+    ],
+    "sight": 30,
+    "thrust": {
+      "windup": 0.8,
+      "windupOverheat": 0.55,
+      "speed": 16,
+      "speedOverheat": 20,
+      "damage": 20,
+      "stuck": 2.0,
+      "stuckOverheat": 3.0,
+      "chainStuck": 0.5
+    },
+    "spin": {
+      "windup": 0.8,
+      "time": 1.6,
+      "timeOverheat": 2.0,
+      "radius": 8.0,
+      "degPerSec": 300,
+      "damage": 14,
+      "recover": 1.4
+    },
+    "volley": {
+      "windup": 0.5,
+      "count": 5,
+      "interval": 0.15,
+      "damage": 8,
+      "speed": 15,
+      "spreadDeg": 7,
+      "recover": 1.0
+    },
+    "slam": {
+      "windup": 0.9,
+      "waveSpeed": 11,
+      "waveWidth": 1.0,
+      "damage": 15,
+      "open": 1.5
+    },
+    "summon": {
+      "windup": 1.0,
+      "count": 2,
+      "max": 2,
+      "recover": 1.2
+    },
+    "heat": {
+      "warn": 1.5,
+      "hot": 5.0,
+      "every": 12.0,
+      "radiusIn": 11.5,
+      "tickDamage": 4,
+      "tick": 0.5
+    },
+    "phaseShift": 2.2,
+    "intro": 1.5
   }
 }

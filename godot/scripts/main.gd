@@ -4,6 +4,9 @@ extends Node
 ##       -- --haru=a                ハルを以前の試作にする（既定は絵から起こした haru_r。proxy で MVP の仮、b で AI 変換）。F2 で切り替え
 ##       -- --shade=toon            3 段の塗り分け
 ##       -- --touch                 スマホの画面の操作を出す（スマホのブラウザでは自動で出る）
+##       -- --arena=<型>            試しの部屋（直径 32 m の円形）から始める。型：mini（子番機）| shield（盾型）| floater（浮遊型）|
+##                                 kannuki（ボス「閂」と壊れる柱 4 本）| all（3 種）。タイトルを飛ばし、HP 無限にはしない
+##                                 （--god を足すと、やられない）。例：tools/godot.sh shot -- --arena=kannuki --god
 
 const SAVE_PATH := "user://save_slot1.json"
 const AREA_ID := "area.mvp"
@@ -28,6 +31,9 @@ var args := {}
 var demo: Demo = null
 var haru_path := ""
 var touch: TouchControls
+var arena_kind := ""
+var _lines: Array = []
+var _line_time := 0.0
 
 
 func _ready() -> void:
@@ -46,8 +52,8 @@ func _ready() -> void:
 	audio = GameAudio.new()
 	add_child(audio)
 	sun = EnvironmentSetup.build(self)
-	level = LevelLoader.load_level("res://assets/levels/mvp_greybox.glb")
-	add_child(level.node)
+	arena_kind = args.get("arena", "")
+	_load_level()
 	camera = CameraRig.new()
 	add_child(camera)
 	camera.current = true
@@ -68,8 +74,31 @@ func _ready() -> void:
 	if args.has("demo"):
 		demo = Demo.new(self, args.demo)
 		add_child(demo)
+	elif arena_kind != "":
+		start_game(null)
+		if args.has("god"):
+			game.god_mode = true
 	else:
 		show_title()
+
+
+## 地形を読み込む（試しの部屋なら部屋を作る）
+func _load_level() -> void:
+	if level.has("node") and is_instance_valid(level.node):
+		level.node.queue_free()
+	if arena_kind != "":
+		var geo := Arena.geometry(16.0)
+		level = {"node": ArenaView.build(geo), "geometry": geo}
+	else:
+		level = LevelLoader.load_level("res://assets/levels/mvp_greybox.glb")
+	add_child(level.node)
+
+
+## 試しの部屋に切り替えて始め直す（見本・確認用）
+func load_arena(kind: String) -> void:
+	arena_kind = kind
+	_load_level()
+	start_game(null)
 
 
 ## 瞬間移動のあと、見た目の補間を切る（前の位置から滑って見えないように）
@@ -84,6 +113,8 @@ func snap_views() -> void:
 
 
 func _placement() -> Dictionary:
+	if arena_kind != "":
+		return Arena.placement(arena_kind)
 	return U.load_json("res://content/areas/mvp.json")
 
 
@@ -218,6 +249,7 @@ func _physics_process(dt: float) -> void:
 	player_view.sync(game.player, game, dt, _aim_dir())
 	nagomi_view.sync(game, camera.global_position, dt)
 	enemy_view.sync(game.enemies, dt)
+	_update_lines(dt)
 	props_view.sync(game, dt)
 	fx.sync(game, dt)
 	camera.sync(game, game.player.pos, dt, fx.shake)
@@ -260,5 +292,21 @@ func _handle_events() -> void:
 					hud.show_toast("セーブできませんでした")
 			"playerHurt":
 				hud.flash_damage()
+			"bossLine":
+				_lines.append("%s：%s" % [e.who, e.text])
+			"bossPhase":
+				hud.show_toast("閂が第 %d 段階に入った" % e.phase)
+			"bossStart":
+				audio.play("alert")
+			"bossReset":
+				_lines.clear()
 			"playerDied":
 				hud.show_toast("やられた……中継地点から再開します")
+
+
+## 戦闘中の掛け合いは操作を止めずに、1 行ずつ上の通知に出す
+func _update_lines(dt: float) -> void:
+	_line_time -= dt
+	if _line_time <= 0.0 and not _lines.is_empty():
+		hud.show_toast(_lines.pop_front())
+		_line_time = 2.8

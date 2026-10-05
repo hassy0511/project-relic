@@ -29,6 +29,8 @@ var story: Story
 var player: Player
 
 var enemies: Array = []
+## ボス（いなければ null）。HUD の体力バーが見る
+var boss = null
 var shots: Array = []
 var breakables: Array = []
 var chests: Array = []
@@ -140,7 +142,7 @@ func _build(save) -> void:
 		checkpoints.append(Props.Checkpoint.new(c.id, m.pos, m.yaw, c.get("radius", 4.0)))
 	for e in placement.get("enemies", []):
 		var m := marker(e.at)
-		enemies.append(Sentry.new(self, m.pos, m.yaw) if e.type == "sentry" else Charger.new(self, m.pos, m.yaw))
+		add_enemy(e.type, m.pos, m.yaw)
 
 	var start := marker(placement.playerStart)
 	player = Player.new(self, start.pos, start.yaw)
@@ -149,6 +151,36 @@ func _build(save) -> void:
 	objective = placement.get("objective", "")
 	if save != null:
 		_apply_save(save)
+
+
+## 敵を 1 体足す（型の名前から作る）。呼び出し・配置の両方で使う
+func add_enemy(type: String, at: Vector3, yaw: float) -> Enemy:
+	var e: Enemy
+	match type:
+		"sentry":
+			e = Sentry.new(self, at, yaw)
+		"charger":
+			e = Charger.new(self, at, yaw)
+		"mini":
+			e = Mini.new(self, at, yaw)
+		"shield":
+			e = ShieldBanki.new(self, at, yaw)
+		"floater":
+			e = Floater.new(self, at, yaw)
+		"kannuki":
+			e = Kannuki.new(self, at, yaw)
+			boss = e
+		_:
+			assert(false, "知らない敵の型: %s" % type)
+	enemies.append(e)
+	return e
+
+
+## ボスの体力バーに出す情報。戦いが始まっていない・倒したあとは空
+func boss_status() -> Dictionary:
+	if boss == null or not boss.alive or boss.state == "idle":
+		return {}
+	return {"name": "大番機「閂」", "hp": boss.hp, "max_hp": boss.max_hp, "phase": boss.phase, "overheat": boss.overheat}
 
 
 # ---------------------------------------------------------------- 1 刻み
@@ -293,12 +325,16 @@ func damage_enemy(e, amount: float, from: Vector3, info: Dictionary) -> void:
 		return
 	var r: Dictionary = e.receive(amount, from, info)
 	var c: Vector3 = e.center()
-	emit_event({"type": "hit", "at": c, "kind": r.kind})
-	emit_event({"type": "sfx", "id": "hit_weak" if r.kind == "weak" else "hit", "at": c})
+	var at: Vector3 = info.get("at", c)
+	emit_event({"type": "hit", "at": at, "kind": r.kind})
+	emit_event({"type": "sfx", "id": "hit_weak" if r.kind == "weak" else "hit", "at": at})
 	if r.killed:
 		emit_event({"type": "enemyDestroyed", "at": c})
 		emit_event({"type": "sfx", "id": "explode", "at": c})
-		_drop_loot(c)
+		# 倒した手応え：ほんの一瞬止まる
+		hitstop = maxf(hitstop, 0.06)
+		if e != boss:
+			_drop_loot(c)
 
 
 func _drop_loot(at: Vector3) -> void:
@@ -322,13 +358,19 @@ func drill_breakable(b, dt: float) -> void:
 	b.progress += dt
 	emit_event({"type": "hit", "at": b.center, "kind": "armor"})
 	if b.progress >= b.toughness and not b.broken:
-		b.broken = true
-		if b.body != null:
-			phys.remove(b.body)
-		b.body = null
-		emit_event({"type": "wallBroken", "id": b.id})
-		emit_event({"type": "sfx", "id": "wall_break"})
-		emit_event({"type": "shake", "strength": 0.4})
+		break_breakable(b)
+
+
+func break_breakable(b) -> void:
+	if b.broken:
+		return
+	b.broken = true
+	if b.body != null:
+		phys.remove(b.body)
+	b.body = null
+	emit_event({"type": "wallBroken", "id": b.id})
+	emit_event({"type": "sfx", "id": "wall_break"})
+	emit_event({"type": "shake", "strength": 0.4})
 
 
 func alert_noise(at: Vector3, radius: float) -> void:
@@ -374,11 +416,11 @@ func _update_shots(dt: float) -> void:
 			for e in enemies:
 				if not e.alive or s.hit.has(e):
 					continue
-				var t := U.segment_sphere(s.pos, end, e.center(), e.radius + s.radius)
+				var t: float = e.hit_segment(s.pos, end, s.radius)
 				if t < 0.0 or t > stop_at:
 					continue
 				s.hit[e] = true
-				damage_enemy(e, s.damage, s.pos, {"armorBreak": s.kind != "normal"})
+				damage_enemy(e, s.damage, s.pos, {"armorBreak": s.kind != "normal", "at": s.pos.lerp(end, t)})
 				if not s.pierce:
 					stop_at = t
 					s.alive = false
@@ -469,8 +511,8 @@ func _update_respawn() -> void:
 	for s in shots:
 		if not s.from_player:
 			s.alive = false
-	for e in enemies:
-		tokens.release(e)
+	for e in enemies.duplicate():
+		e.on_player_died()
 
 
 # ---------------------------------------------------------------- セーブ

@@ -26,6 +26,8 @@ var dead_time := 0.0
 var body: CharacterBody3D
 var _grounded := true
 var _no_sight := 0.0
+## 無敵（ボスの段階の変わり目など）。当たっても減らない
+var invulnerable := false
 var _wander_target := Vector3.ZERO
 
 
@@ -47,6 +49,21 @@ func _init(g, spawn: Vector3, start_yaw: float, r: float, h: float, hp_max: floa
 
 func center() -> Vector3:
 	return Vector3(pos.x, pos.y + height * 0.5, pos.z)
+
+
+## 弾が当たるか（球で近似。大きな敵は上書きする）。線分 a→b の上の位置 t（0〜1）、当たらなければ -1
+func hit_segment(a: Vector3, b: Vector3, r: float) -> float:
+	return U.segment_sphere(a, b, center(), radius + r)
+
+
+## 点 p にいちばん近い体の中の点（近接攻撃の距離・向きの判定に使う）
+func closest_point(_p: Vector3) -> Vector3:
+	return center()
+
+
+## 点 p から体の表面までの距離（3D）
+func surface_dist(p: Vector3) -> float:
+	return closest_point(p).distance_to(p) - radius
 
 
 func set_state(s: String) -> void:
@@ -95,6 +112,8 @@ func _damage_multiplier(_from: Vector3, _info: Dictionary) -> Array:
 
 ## ダメージを受ける。返り値：{ killed, kind, dealt }
 func receive(amount: float, from: Vector3, info: Dictionary) -> Dictionary:
+	if invulnerable:
+		return {"killed": false, "kind": "armor", "dealt": 0.0}
 	var dm := _damage_multiplier(from, info)
 	var dealt: float = amount * dm[0]
 	hp -= dealt
@@ -108,6 +127,7 @@ func receive(amount: float, from: Vector3, info: Dictionary) -> Dictionary:
 		set_state("dead")
 		game.phys.remove(body)
 		game.tokens.release(self)
+		_on_killed()
 		return {"killed": true, "kind": dm[1], "dealt": dealt}
 	if poise <= 0.0 and state != "stunned":
 		poise = max_poise
@@ -119,6 +139,16 @@ func receive(amount: float, from: Vector3, info: Dictionary) -> Dictionary:
 		if info.get("launch", false):
 			vel.y = 6.0
 	return {"killed": false, "kind": dm[1], "dealt": dealt}
+
+
+## 倒れた瞬間（型ごとに上書きする）
+func _on_killed() -> void:
+	pass
+
+
+## プレイヤーがやられて再開するとき（ボスは最初からやり直す）
+func on_player_died() -> void:
+	game.tokens.release(self)
 
 
 # ------------------------------------------------------------ 知覚

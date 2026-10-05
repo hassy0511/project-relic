@@ -374,17 +374,19 @@ func _update_sword(dt: float) -> void:
 		for e in g.enemies:
 			if not e.alive or a.hit.has(e):
 				continue
-			var d: float = U.hdist(e.pos, pos) - e.radius
+			var cp: Vector3 = e.closest_point(pos)
+			var d: float = U.hdist(cp, pos) - e.radius
 			if d > rng:
 				continue
 			if absf(e.center().y - chest().y) > 1.8:
 				continue
-			var rel := absf(U.wrap_angle(U.dir_to_yaw(e.pos.x - pos.x, e.pos.z - pos.z) - yaw))
+			var rel := absf(U.wrap_angle(U.dir_to_yaw(cp.x - pos.x, cp.z - pos.z) - yaw))
 			if rel > arc / 2.0 and d > 0.3:
 				continue
 			a.hit[e] = true
 			var finisher := a.move == "combo3" or a.move == "charge"
-			g.damage_enemy(e, a.damage, pos, {"melee": true, "launch": a.move == "combo3"})
+			var reach := fw * minf(rng, maxf(d, 0.5) + e.radius * 0.5) + Vector3(0, 1.0, 0)
+			g.damage_enemy(e, a.damage, pos, {"melee": true, "launch": a.move == "combo3", "at": pos + reach})
 			var hs: float = s.hitstopCharge if a.move == "charge" else (s.hitstopFinisher if finisher else s.hitstop)
 			g.hitstop = maxf(g.hitstop, hs)
 
@@ -488,8 +490,8 @@ func _update_drill(dt: float) -> void:
 	for e in g.enemies:
 		if not e.alive:
 			continue
-		if e.center().distance_to(tip) <= cfg.range * 0.6 + e.radius:
-			g.damage_enemy(e, cfg.damagePerTick, pos, {"melee": true, "armorBreak": true})
+		if e.surface_dist(tip) <= cfg.range * 0.6:
+			g.damage_enemy(e, cfg.damagePerTick, pos, {"melee": true, "armorBreak": true, "special": true, "at": tip})
 	for b in g.breakables:
 		if not b.broken and b.distance_to(tip) <= cfg.range * 0.7:
 			g.drill_breakable(b, cfg.tickInterval)
@@ -505,7 +507,7 @@ func take_damage(amount: float, from: Vector3, heavy: bool, ignore_invuln: bool 
 		return false
 	hp = maxf(0.0, hp - amount)
 	invuln = g.tuning.player.hurtInvuln
-	hurt_time = 0.6 if heavy else 0.25
+	hurt_time = 1.0 if heavy else 0.25
 	attack = null
 	drilling = false
 	dash_time = 0.0

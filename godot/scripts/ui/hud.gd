@@ -23,6 +23,10 @@ var _dmg: ColorRect
 var _dmg_time := 0.0
 var _last_cells := -1
 var _cells_time := 0.0
+var _boss_box: Control
+var _boss_name: Label
+var _boss_fill: ColorRect
+var _boss_phase: Label
 var _dlg: PanelContainer
 var _dlg_face: Panel
 var _dlg_face_label: Label
@@ -137,6 +141,34 @@ func _ready() -> void:
 	_dmg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_dmg)
 
+	# ボスの体力バー（画面の上の真ん中。段階の境に印）
+	_boss_box = Control.new()
+	_boss_box.position = Vector2(460, 30)
+	_boss_box.visible = false
+	root.add_child(_boss_box)
+	_boss_name = make_label("", 26, PAPER, true)
+	_boss_box.add_child(_boss_name)
+	var boss_bg := ColorRect.new()
+	boss_bg.color = Color(0, 0, 0, 0.6)
+	boss_bg.position = Vector2(0, 38)
+	boss_bg.size = Vector2(1000, 22)
+	_boss_box.add_child(boss_bg)
+	_boss_fill = ColorRect.new()
+	_boss_fill.color = Color("#d9503a")
+	_boss_fill.size = Vector2(1000, 22)
+	boss_bg.add_child(_boss_fill)
+	for frac in [0.66, 0.33]:
+		var notch := ColorRect.new()
+		notch.color = Color(1, 1, 1, 0.8)
+		notch.position = Vector2(1000.0 * frac - 1.0, -3)
+		notch.size = Vector2(3, 28)
+		boss_bg.add_child(notch)
+	_boss_phase = make_label("", 22, AMBER)
+	_boss_phase.position = Vector2(780, 0)
+	_boss_phase.size = Vector2(220, 30)
+	_boss_phase.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_boss_box.add_child(_boss_phase)
+
 	# 会話ウィンドウ
 	_dlg = PanelContainer.new()
 	_dlg.add_theme_stylebox_override("panel", panel_style(Color(0.1, 0.08, 0.06, 0.88), 12))
@@ -183,6 +215,13 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 	_hp_fill.size.x = 320.0 * p.hp / p.max_hp
 	_hp_fill.color = Color("#e5533a") if p.hp / p.max_hp < 0.3 else Color("#f2b45a")
 	_hp_text.text = str(ceili(p.hp))
+	var bs := game.boss_status()
+	_boss_box.visible = not bs.is_empty()
+	if not bs.is_empty():
+		_boss_name.text = bs.name
+		_boss_fill.size.x = 1000.0 * clampf(bs.hp / bs.max_hp, 0.0, 1.0)
+		_boss_fill.color = Color("#ff7a3a") if bs.overheat else Color("#d9503a")
+		_boss_phase.text = "第 %d 段階%s" % [bs.phase, "　過熱" if bs.overheat else ""]
 	var has_drill := game.has_item("special.drill")
 	_we_name.text = "ドリル" if has_drill else "———"
 	_we_fill.size.x = 200.0 * p.weapon_energy / 100.0 if has_drill else 0.0
@@ -210,7 +249,10 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 		_reticle.hp = t.hp / t.max_hp
 		_reticle.scanned = game.lock_on.scanned.has(t.kind)
 		_reticle.scan = game.lock_on.scan_progress()
-		_reticle.weak_text = "弱点：激突後の側面" if t.kind == "charger" else "弱点：背面の核"
+		_reticle.weak_text = {
+			"charger": "弱点：激突後の側面", "mini": "弱点：全身", "floater": "弱点：上部の核（降下のあと）",
+			"shield": "弱点：背面。盾は光刃で崩す", "kannuki": "弱点：錠前核（突きが刺さったあと・叩きつけのあと）",
+		}.get(t.kind, "弱点：背面の核")
 		_reticle.queue_redraw()
 	else:
 		_reticle.visible = false
