@@ -519,7 +519,9 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
         # 頭の面に沿った帽子（刈り上げ・もみあげの下）は、線より下なら肌：前（正面から 75 度まで）は生え際の線（目の横は
         # 絵のとおり耳寄り）、耳の前は耳の中ほど、耳より後ろはえり足。頭から浮いた房（前髪・長い房）は線より下でも髪。
         # 2 周目：あごの横・目の横に、頭の面に貼り付いた帽子の髪の色が平らな茶の板として残った
-        flush = (f['hair'] - f['skin']) < 0.004
+        # 横（75 度より後ろ）は刈り上げの帽子が頭から 8mm（hair.CAP.undercut）なので、その厚みまで「貼り付いた帽子」に数える
+        # （3 周目：あごの横・耳の下に茶の横縞が残った）
+        flush = (f['hair'] - f['skin']) < np.where(th_f < 75.0, 0.004, 0.011)
         line = np.where(th_f < 75.0, np.interp(np.abs(xh + 0.012), HAIRLINE_PAINT[0], HAIRLINE_PAINT[1]),
                         np.where(th_f < 100.0, 1.318, 1.25))
         hair &= ~(flush & (zh < line))
