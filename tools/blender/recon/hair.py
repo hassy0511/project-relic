@@ -1171,7 +1171,7 @@ def lock_mesh(L: Lock, rtab: RadialTable, thick: float = 0.34, n: int = 22, root
     t = np.linspace(0.0, 1.0, n)
     dirs = slerp(d0, d1, t)
     w = L.width * 0.5 * (1 - t) ** 0.8 * (0.75 + 0.8 * t) + 0.0008
-    h = np.maximum(w * thick, 0.0012)
+    h = np.clip(w * thick, 0.0012, LOCK_PART.get('h_max', 1.0))
     sink = root_sink * (1 - t) ** 2
     R = rtab(dirs) + L.lift * t ** 2 + 0.6 * h - sink
     P = HEAD_C[None] + R[:, None] * dirs
