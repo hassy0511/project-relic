@@ -597,7 +597,9 @@ def build_all(verts: np.ndarray, tris: np.ndarray, out_npz: str | None = None, s
     for spec in pieces():
         if spec.get('clear_only') or spec['name'] in skip:   # 塗りだけを直す範囲（形は作らない）
             continue
-        if spec.get('loft'):
+        if spec.get('mesh') is not None:      # 面をそのまま渡す部品（髪の房：hair.lock_mesh）
+            V, F = spec['mesh']
+        elif spec.get('loft'):
             V, F, _ = build_loft(spec)
         elif spec.get('tube'):
             V, F, FIT[spec['name']] = build_tube(spec, bvh)

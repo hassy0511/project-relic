@@ -53,13 +53,15 @@ const ZONES = {
   torso: { y: 1.02, dist: 1.05, fov: 30, el: [['level', 88], ['above', 62]] },
   hips: { y: 0.66, dist: 1.25, fov: 30, el: [['level', 88], ['above', 62]] },
   legs: { y: 0.27, dist: 1.35, fov: 30, el: [['level', 88], ['above', 62]] },
+  // 顔の確認（SKILL 7 の顔の表）：ユーザーの画面の正面の近写と ±30・±90 度、上から・下から
+  face: { y: 1.37, dist: 0.5, fov: 24, az: [0, 30, 330, 90, 270], el: [['level', 88], ['above', 65], ['below', 112]] },
 };
 // 頭の高さはキャラクターごと（--head-y、身長 1.55m の座標の m。バートンは頭が小さく高い：1.43）
-if (args['head-y']) ZONES.head.y = parseFloat(args['head-y']);
+if (args['head-y']) { ZONES.head.y = parseFloat(args['head-y']); ZONES.face.y = ZONES.head.y + 0.01; }
 for (const z of Object.values(ZONES)) { z.y *= HS; z.dist *= HS; }
 const zones = (args.zones || 'full,head,torso,hips,legs').split(',');
 const AZ_NAME = { 0: 'front', 45: 'front-left', 90: 'left', 135: 'back-left', 180: 'back', 225: 'back-right',
-  270: 'right', 315: 'front-right' };
+  270: 'right', 315: 'front-right', 30: 'left 30', 330: 'right 30' };
 
 fs.mkdirSync(WORK, { recursive: true });
 fs.mkdirSync(OUT, { recursive: true });
@@ -111,7 +113,7 @@ for (const zone of zones) {
   fs.mkdirSync(tdir, { recursive: true });
   const tiles = [];
   for (const [eln, ph] of z.el) {
-    for (const th of AZ) {
+    for (const th of (z.az || AZ)) {
       await page.evaluate(async ({ th, ph, z, TRACK }) => {
         const mv = document.getElementById('mv');
         mv.minCameraOrbit = 'auto 0deg 0.05m'; mv.maxCameraOrbit = 'auto 180deg auto'; mv.minFieldOfView = '5deg';
@@ -145,7 +147,7 @@ for (const zone of zones) {
     }
   }
   // 並べる：横 8（方位）× 縦（高さ）
-  const cols = 8, size = 360;
+  const cols = (z.az || AZ).length, size = 360;
   const html = `<html><body style="margin:0;background:#222;font:13px sans-serif;color:#eee">
     <div style="display:grid;grid-template-columns:repeat(${cols},${size}px);gap:4px;padding:4px">
     ${tiles.map((t) => `<div style="position:relative"><img src="data:image/png;base64,${fs.readFileSync(t.f).toString('base64')}"

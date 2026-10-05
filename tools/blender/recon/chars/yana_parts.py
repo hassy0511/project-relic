@@ -425,7 +425,22 @@ def pieces() -> list[dict]:
     P += apron()
     P += belt_items()
     P += legs()
+    P += hair_locks()
     return P
+
+
+def hair_locks() -> list[dict]:
+    """髪の房と前髪を 1 本ずつの面の部品にする（hair.LOCKS_AS_PARTS、hair.lock_mesh）。色は髪の 1 色、骨は head。
+    道は形の段の場（hull.npz：帽子＋頭。房は含まない）の面に沿う"""
+    from recon import hair as HR
+    from recon import views as V
+    if not HR.LOCKS_AS_PARTS:
+        return []
+    d = np.load(os.path.join(V.WORK, 'hull.npz'))
+    out = []
+    for name, Vm, Fm in HR.lock_parts(d['phi'], d['lo'], float(d['vox'])):
+        out.append(dict(name='hair_' + name, bone='head', color='hair', mesh=(Vm, Fm)))
+    return out
 
 
 def boot_pieces(side: float, sx: str) -> list[dict]:

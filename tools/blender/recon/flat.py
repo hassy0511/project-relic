@@ -505,18 +505,24 @@ FACE_WARM_SOFT = CH.p('flat.FACE_WARM_SOFT', None)
 FACE_NO_HAIR = CH.p('flat.FACE_NO_HAIR', False)
 
 
-def paint_face_atlas(atlas_p: str, meta: dict, out_p: str) -> str:
-    t0 = time.time()
-    rgb = np.asarray(Image.open(atlas_p).convert('RGB')).astype(np.float32) / 255.0
-    H, W = rgb.shape[:2]
-    lb = lab(rgb)
-    skin_hex = hex_rgb(PALETTE['skin'])
-    # 絵の肌の色（表の色の近くの画素の中央値）
-    d0 = np.linalg.norm((lb - lab(skin_hex)) * [L_WEIGHT_FACE, 1, 1], axis=-1)
-    ref = np.median(lb[d0 < 20], 0)
-    d = np.linalg.norm((lb - ref) * [L_WEIGHT_FACE, 1, 1], axis=-1)
-    s = 1.0 - np.clip((d - FACE_SKIN_D[0]) / (FACE_SKIN_D[1] - FACE_SKIN_D[0]), 0, 1)
-    nonskin = s < 0.5
+FACE_MIRROR = CH.p('flat.FACE_MIRROR', None)
+
+
+def _calib_front():
+    try:
+        import json as _j
+        with open(os.path.join(CH.REPO, CH.CFG['work'], 'calib.json')) as fp:
+            v = _j.load(fp)['views']['front']
+        return v['v0'], v['pixels_per_meter']
+    except (OSError, KeyError):
+        return None, None
+
+
+CAL_FRONT_V0, CAL_FRONT_PPM = _calib_front()
+
+
+def _face_features(nonskin: np.ndarray, meta: dict, H: int, W: int) -> tuple[np.ndarray, np.ndarray]:
+    """目・眉・口（区画の縁に届かない小さな肌でない塊、表情の範囲の中）と、大きな塊（髪など）"""
     feature = np.zeros((H, W), bool)
     region = np.zeros((H, W), bool)
     for x0, y0, x1, y1 in meta['quadrants_atlas_px'].values():
@@ -530,13 +536,59 @@ def paint_face_atlas(atlas_p: str, meta: dict, out_p: str) -> str:
             border[edge] = True
         big = (sizes > FACE_FEATURE_MAX * sub.size) | border[1:]
         speck = sizes < FACE_SPECK
-        # 目・眉・口は表情の範囲の中だけ（あごの下の陰などは肌）
         zx0, zy0, zx1, zy1 = meta['expression_zone_atlas_px']
         inzone = np.zeros(n + 1, bool)
         inzone[np.unique(lab_[zy0:zy1, zx0:zx1])] = True
         feat = ~big & ~speck & inzone[1:]
         feature[y0:y1, x0:x1] = np.isin(lab_, np.nonzero(feat)[0] + 1)
         region[y0:y1, x0:x1] = np.isin(lab_, np.nonzero(big)[0] + 1)
+    return feature, region
+
+
+def _eye_axis(feature: np.ndarray, meta: dict) -> float:
+    """「通常」の区画の 2 つの目（目・眉の帯の中の大きな 2 つの塊）の中点の x（区画の中の画素）"""
+    x0, y0, x1, y1 = meta['quadrants_atlas_px'][meta['expressions'][0]]
+    sub = feature[y0:y1, x0:x1]
+    lab_, n = ndi.label(sub)
+    sizes = ndi.sum(sub, lab_, range(1, n + 1))
+    order = np.argsort(sizes)[::-1][:2] + 1
+    cx = [float(np.nonzero(lab_ == k)[1].mean()) for k in order]
+    if len(cx) == 2 and (cx[0] - (x1 - x0) / 2) * (cx[1] - (x1 - x0) / 2) < 0:
+        return (cx[0] + cx[1]) / 2
+    return (x1 - x0) / 2
+
+
+def paint_face_atlas(atlas_p: str, meta: dict, out_p: str) -> str:
+    t0 = time.time()
+    rgb = np.asarray(Image.open(atlas_p).convert('RGB')).astype(np.float32) / 255.0
+    H, W = rgb.shape[:2]
+    lb = lab(rgb)
+    skin_hex = hex_rgb(PALETTE['skin'])
+    # 絵の肌の色（表の色の近くの画素の中央値）
+    d0 = np.linalg.norm((lb - lab(skin_hex)) * [L_WEIGHT_FACE, 1, 1], axis=-1)
+    ref = np.median(lb[d0 < 20], 0)
+    d = np.linalg.norm((lb - ref) * [L_WEIGHT_FACE, 1, 1], axis=-1)
+    s = 1.0 - np.clip((d - FACE_SKIN_D[0]) / (FACE_SKIN_D[1] - FACE_SKIN_D[0]), 0, 1)
+    feature, region = _face_features(s < 0.5, meta, H, W)
+    if FACE_MIRROR:
+        # 目と眉の帯（band_z より上）の左右の片方を、もう片方の鏡写しで置き換える（ヤーナ：顔の絵の前髪の房が本人の右の眉に
+        # 触れていて、眉が房と 1 つの塊になり肌に消えた。怒りの表情は目まで消えた）。軸は「通常」の 2 つの目の中点
+        axis = _eye_axis(feature, meta)
+        q0 = meta['window_atlas_px']
+        zq = meta['window_front_px']
+        fy = CAL_FRONT_V0 - CAL_FRONT_PPM * FACE_MIRROR['band_z'] if CAL_FRONT_PPM else None
+        band = int(round(q0[1] + (fy - zq[1]) * meta['atlas_px_per_front_px'])) if fy is not None else 500
+        for name, (x0, y0, x1, y1) in meta['quadrants_atlas_px'].items():
+            ax_ = x0 + axis
+            for xx in range(x0, x1):
+                src = int(round(2 * ax_ - xx))
+                keep_right = FACE_MIRROR.get('keep', 'right') == 'right'
+                if (xx < ax_) == keep_right and x0 <= src < x1:
+                    rgb[y0:y0 + band, xx] = rgb[y0:y0 + band, src]
+                    s[y0:y0 + band, xx] = s[y0:y0 + band, src]
+        log(f'顔の目と眉の帯を鏡写し：軸 {axis:.1f}px、帯の下 {band}px')
+        feature, region = _face_features(s < 0.5, meta, H, W)
+    nonskin = s < 0.5
     # 大きな塊（髪・ゴーグルなど）は色の表で平らに（多数決で掃除し、境目は細く混ぜる）
     rl, _ = classify(rgb.reshape(-1, 3), FACE_REGION)
     rl = rl.reshape(H, W)

@@ -126,6 +126,13 @@ LOCK_WIDTH_MAX = CH.p('hair.LOCK_WIDTH_MAX', 0.10)
 LOCK_LIFT_MIN = CH.p('hair.LOCK_LIFT_MIN', {})
 # 当てはめで動かさない房（名前の頭）。白髪の房は絵で読んだ位置・浮きのまま（当てはめると 3cm 浮いた）
 LOCK_FIXED = tuple(CH.p('hair.LOCK_FIXED', ()))
+# 房を形の場に足さず、骨付けの段で 1 本ずつの面の部品（lock_mesh：葉の形、菱形の断面、先がとがる、髪の 1 色）にする（ヤーナ）。
+# 場に足すと房どうし・帽子となめらかな和で溶けて丸いかたまりになり、陰がまだらに見えた（2026-10-05 のユーザーの評価）
+LOCKS_AS_PARTS = CH.p('hair.LOCKS_AS_PARTS', False)
+# 前髪の房（部品）：(根, 先, 浮き, 幅, 名前)。根・先は世界の点（m）。LOCKS_AS_PARTS のときだけ使う
+FRINGE = CH.p('hair.FRINGE', ())
+# 耳のまわりの房を避ける範囲（耳の中心からの楕円体の半径の倍率）。房の点が入ると先を縮める
+EAR_CLEAR = CH.p('hair.EAR_CLEAR', 1.6)
 
 
 def lift_min(name: str) -> float:
@@ -1006,6 +1013,22 @@ def ears_field(lo, vox, shape) -> np.ndarray:
     return out
 
 
+def skin_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo_b, vox: float, shp) -> tuple[Stack, np.ndarray]:
+    """頭（顔・あご・頭の骨）＋鼻＋首の場と、その断面の表。chars/<id>.json に "head.HEAD" があれば、測った寸法の表から
+    作る左右対称の解析的な頭（head.py。ヤーナ）。無ければ今までの絵の肌の幅を読む頭（skin_stack、ハル・バートン）"""
+    from recon import head as HD
+    if HD.enabled():
+        sk = HD.stack()
+        S = HD.field(lo_b, vox, shp)
+    else:
+        sk = skin_stack(cams, masks)
+        S = stack_field(sk, lo_b, vox, shp, 0)
+    nose = ellipsoid_field((float(sk.cx[0]),) + tuple(SKIN['nose'][0]), tuple(SKIN['nose'][1]), lo_b, vox, shp, 0)
+    S = smooth_max(S, nose, 0.007)
+    S = smooth_max(S, neck_field(lo_b, vox, shp, 0), 0.012)
+    return sk, S
+
+
 def build_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.ndarray, vox: float, shape,
                z0: float = 1.10, params: dict | None = None, fit_sweeps: int = 6, log=log, x_half: float = 0.30
                ) -> tuple[int, np.ndarray, dict]:
@@ -1021,11 +1044,7 @@ def build_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.ndar
     shp = (shape[0] - k0, i1 - i0, shape[2])
     info: dict = {'params': p, 'head_center': HEAD_C.tolist(), 'hairline': HAIRLINE}
     # 1. 頭（顔・あご）、鼻、首
-    sk = skin_stack(cams, masks)
-    S = stack_field(sk, lo_b, vox, shp, 0)
-    nose = ellipsoid_field((float(sk.cx[0]),) + tuple(SKIN['nose'][0]), tuple(SKIN['nose'][1]), lo_b, vox, shp, 0)
-    S = smooth_max(S, nose, 0.007)
-    S = smooth_max(S, neck_field(lo_b, vox, shp, 0), 0.012)
+    sk, S = skin_head(cams, masks, lo_b, vox, shp)
     ears = ears_field(lo_b, vox, shp) if PARTS['ears'] else np.full(S.shape, -0.05, np.float32)
     if PARTS['ears']:
         S = smooth_max(S, ears, 0.006)
@@ -1108,8 +1127,11 @@ def build_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.ndar
             np.maximum(Lf[sl], f, out=Lf[sl])
         return Lf
 
-    Lf = smooth_min(add(locks), -np.maximum(np.maximum(cut, gz), ears + 0.004) - 0.004, 0.004)
-    phi_b = smooth_max(base, Lf, p['union_k'])
+    if LOCKS_AS_PARTS:
+        phi_b = base      # 房は骨付けの段で面の部品にする（lock_mesh）
+    else:
+        Lf = smooth_min(add(locks), -np.maximum(np.maximum(cut, gz), ears + 0.004) - 0.004, 0.004)
+        phi_b = smooth_max(base, Lf, p['union_k'])
     # ベルト：髪の包み（房のすき間をうめてなめらかにした場）の面の上の帯
     env = ndi.gaussian_filter(phi_b, 5.0)
     if PARTS['strap']:
@@ -1124,6 +1146,86 @@ def build_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.ndar
         v2.splat_field(n, phi_b, lo_b, vox))), 4) for n in REAL}
     log('房', info['n_locks'], '本', info['iou_head_region'])
     return k0, phi, info
+
+
+def lock_mesh(L: Lock, rtab: RadialTable, thick: float = 0.34, n: int = 22, root_sink: float = 0.006
+              ) -> tuple[np.ndarray, np.ndarray]:
+    """房 1 本の面（形の部品）：lock_samples と同じ道（頭の中心からの向きを slerp、帽子の面 ＋ 浮き）に、
+    葉の形の幅（根元の 0.75 から 30% で最も広く、先がとがる）の菱形の断面（外の峰・左右の縁・内の浅い峰）を並べる。
+    峰と縁は 35 度より鋭いので、骨付けの段で折れ目のはっきりした平らな面になる（絵の房の面）。根は帽子の中へ沈める"""
+    d0, d1 = _unit(L.root), _unit(L.tip)
+    t = np.linspace(0.0, 1.0, n)
+    dirs = slerp(d0, d1, t)
+    w = L.width * 0.5 * (1 - t) ** 0.8 * (0.75 + 0.8 * t) + 0.0008
+    h = np.maximum(w * thick, 0.0012)
+    sink = root_sink * (1 - t) ** 2
+    R = rtab(dirs) + L.lift * t ** 2 + 0.6 * h - sink
+    P = HEAD_C[None] + R[:, None] * dirs
+    T = np.gradient(P, axis=0)
+    T /= np.maximum(np.linalg.norm(T, axis=1, keepdims=True), 1e-12)
+    N = dirs - (dirs * T).sum(1, keepdims=True) * T
+    N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-12)
+    B = np.cross(T, N)
+    ring = [(0.0, 1.0), (1.0, 0.0), (0.0, -0.45), (-1.0, 0.0)]     # (B の向きの幅の比, N の向きの厚みの比)
+    k = len(ring)
+    rings = np.stack([P + B * (w * cb)[:, None] + N * (h * cn)[:, None] for cb, cn in ring], 1)   # (n, k, 3)
+    V = np.concatenate([rings[:-1].reshape(-1, 3), P[-1:], P[:1] - T[:1] * 0.002])
+    tip, root = (n - 1) * k, (n - 1) * k + 1
+    F = []
+    for i in range(n - 2):
+        for j in range(k):
+            a0, a1 = i * k + j, i * k + (j + 1) % k
+            b0, b1 = a0 + k, a1 + k
+            F += [(a0, b0, b1), (a0, b1, a1)]
+    last = (n - 2) * k
+    for j in range(k):
+        F.append((last + j, tip, last + (j + 1) % k))
+        F.append((root, j, (j + 1) % k)[::-1])
+    F = np.array(F, np.int64)
+    vol = np.einsum('ij,ij->i', V[F[:, 0]], np.cross(V[F[:, 1]], V[F[:, 2]])).sum()
+    if vol < 0:
+        F = F[:, ::-1]
+    return V, F
+
+
+def ear_clear(L: Lock, rtab: RadialTable, thick: float = 0.34) -> Lock | None:
+    """耳にかかる房は先を縮める（耳が見える：頭の横・背面の絵）。縮めきれなければ None"""
+    for _ in range(14):
+        P = lock_samples(L, rtab, thick)[0]
+        bad = False
+        for sx in (1.0, -1.0):
+            c = np.array([EAR.get('x0', 0.0) + sx * EAR['c'][0], EAR['c'][1], EAR['c'][2]])
+            r = np.array(EAR['r']) * EAR_CLEAR + np.array([0.012, 0.004, 0.004])
+            if (np.sum(((P - c) / r) ** 2, 1) < 1.0).any():
+                bad = True
+        if not bad:
+            return L
+        L2 = perturb(L, 'len', -5.0)
+        if L2 is L:
+            return None
+        L = Lock(L2.root, L2.tip, L2.lift * 0.9, L2.width, L2.name)
+    return None
+
+
+def lock_parts(phi: np.ndarray, lo: np.ndarray, vox: float, thick: float = 0.34) -> list[tuple[str, np.ndarray, np.ndarray]]:
+    """LOCKS_AS_PARTS：形の段が当てはめた房（recon_report.json）と前髪の表 FRINGE を、面の部品にする。
+    phi は形の段の場（hull.npz。房を含まない帽子＋頭）。返り値：[(名前, V, F)]"""
+    with open(os.path.join(V.WORK, 'recon_report.json')) as fp:
+        rep = json.load(fp)['hull']['head']['locks']
+    locks = [Lock(tuple(L['root']), tuple(L['tip']), L['lift'], L['width'], L.get('name', '')) for L in rep]
+    for e in FRINGE:
+        r0, r1, lift, w = e[:4]
+        locks.append(Lock(tuple(_unit(np.array(r0) - HEAD_C)), tuple(_unit(np.array(r1) - HEAD_C)), lift, w,
+                          e[4] if len(e) > 4 else 'fringe'))
+    rtab = RadialTable(phi, lo, vox)
+    out = []
+    for L in locks:
+        L2 = L if L.name.startswith('fringe') else ear_clear(L, rtab, thick)
+        if L2 is None:
+            continue
+        Vm, Fm = lock_mesh(L2, rtab, thick)
+        out.append((L2.name, Vm, Fm))
+    return out
 
 
 def part_fields_at(P: np.ndarray, x_half: float = 0.26, z0: float = 1.12) -> dict[str, np.ndarray]:
@@ -1141,11 +1243,7 @@ def part_fields_at(P: np.ndarray, x_half: float = 0.26, z0: float = 1.12) -> dic
     shp = (shape[0] - k0, i1 - i0, shape[2])
     cams = V.load_calib()
     masks = {n: V.load_mask(n) for n in V.VIEWS}
-    sk = skin_stack(cams, masks)
-    S = stack_field(sk, lo_b, vox, shp, 0)
-    nose = ellipsoid_field((float(sk.cx[0]),) + tuple(SKIN['nose'][0]), tuple(SKIN['nose'][1]), lo_b, vox, shp, 0)
-    S = smooth_max(S, nose, 0.007)
-    S = smooth_max(S, neck_field(lo_b, vox, shp, 0), 0.012)
+    sk, S = skin_head(cams, masks, lo_b, vox, shp)
     out = {'skin': S}
     ears = ears_field(lo_b, vox, shp) if PARTS['ears'] else np.full(S.shape, -0.05, np.float32)
     out['ear'] = ears
@@ -1172,7 +1270,7 @@ def part_fields_at(P: np.ndarray, x_half: float = 0.26, z0: float = 1.12) -> dic
                      for L in json.load(fp)['hull']['head']['locks']]
     except (OSError, KeyError):
         locks = []
-    if locks:
+    if locks and not LOCKS_AS_PARTS:
         rtab = RadialTable(base, lo_b, vox)
 
         def lock_union(sel):
