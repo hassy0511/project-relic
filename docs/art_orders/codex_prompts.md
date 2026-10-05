@@ -918,3 +918,284 @@ W2-01 の納品のうち、トルーデ・バートン・店主・ジャンク�
 - git worktree remove ../relic-docs で片付ける。
 - 納品したファイルの一覧を報告する。
 ```
+
+---
+
+## 12. 第4弾（2026-10-05）：ボルタ・コウ・アルデン・UI・エフェクト（そのまま貼れる）
+
+5 つは別々のブランチに納品するので、**並行して出しても、1 つずつ出してもよい**（1 つずつなら、第2章のライバルのボルタを最初に）。
+身長比較（W1-99）は、この 3 人の納品の後に出す。
+
+### 12.1 W1-04：ボルタ（設計＋3D 変換用）
+
+```text
+あなたはゲーム開発プロジェクト『アークウォーカー』の作画担当です。下のリポジトリに接続し、発注書を読み、指示どおりに画像を制作して納品してください。
+
+【リポジトリ】
+- URL：https://github.com/hassy0511/project-relic
+- 元にするブランチ：claude/busy-bell-oagnck（発注書はここで読む。最新にすること）
+- 作業ブランチ：art/w1-volta（元にするブランチから新しく作る。すでにあればそれを使う）
+- 参照するブランチ（読むだけ・取り込まない）：art/w0（画風の基準 W0 A案）、art/w1-haru3d（ハル。3D 変換用の絵の塗り・光・頭身の手本、大きさの基準 155cm、見分けるべき相手）、art/w1-yana・art/w2-townsfolk（3D 変換用の絵の手本。ニコの r2 は「ハルと別の見た目」の手本）
+
+【最初に行うこと】
+1. git clone https://github.com/hassy0511/project-relic.git（取得済みなら git fetch --all）
+   cd project-relic
+   git checkout claude/busy-bell-oagnck && git pull
+2. git checkout -b art/w1-volta（すでにあれば git checkout art/w1-volta && git pull）
+3. 参照する絵を別のフォルダに取り出す：
+   git worktree add ../relic-w0 origin/art/w0
+   git worktree add ../relic-haru3d origin/art/w1-haru3d
+   git worktree add ../relic-yana origin/art/w1-yana
+   git worktree add ../relic-townsfolk origin/art/w2-townsfolk
+4. 下の「必ず読む文書」がそろっていることを確認する。見つからない場合は作業を止め、見つからないファイル名を報告する。
+
+【必ず読む文書】
+1. docs/art_orders/W1_04_ボルタ.md（今回の発注書。設計の絵と 3D 変換用の絵の両方）
+2. docs/art_orders/00_共通ルール.md（設計の絵のルール）
+3. docs/art_orders/01_3D変換用の絵の条件.md（3D 変換用の絵のルール。3D 変換用の絵ではこちらを優先）
+4. ../relic-w0/art/concepts/W0_art_bible/spec_a.md と artbible_a_*_r3.png（画風・色の基準）
+5. ../relic-haru3d/art/concepts/W1_haru_3d/ の絵と spec_haru_3d.md（ハルの色と形。ボルタはこれと遠目で見分けられること）
+6. ../relic-yana/art/concepts/W1_yana/、../relic-townsfolk/art/concepts/W2_townsfolk/ の 3D 変換用の絵と spec（塗り・光・頭身の手本）
+7. docs/design/11_キャラクター設定.md の「ボルタ」「ボルタの道具」
+
+【作業】
+- 画像生成機能を使い、発注書の設計の絵と 3D 変換用の絵をすべて制作する。先に設計の絵でデザインを決め、ハルとの比較の絵（volta_vs_haru.png）で見分けられることを確かめてから、同じデザインで 3D 変換用の絵を描く。
+- 保存先：art/concepts/W1_volta/　ファイル名は発注書の表のとおり。
+- 説明書き：spec.md（設計の絵。共通ルール 6 章の項目）と spec_volta_3d.md（3D 変換用の絵。01_3D変換用の絵の条件.md 6 章の項目、自己確認の数値、発注書 4 章の「部品の一覧」）。
+- 3D 変換用の絵は、向きごとに大きさと位置をそろえ、納品前に測って数値を spec に書く。45 度の絵は、足の間隔が正面の約 0.7 倍になっているか確かめる（0.8 倍より広ければ描き直す）。
+- 硬い物（ヘアクリップ、ルーペ、手袋、靴、ベルト、工具、背嚢、スパナ、道具）は輪郭をはっきり描き、1 部品を 1 色の平らな面で塗る。
+- 類似チェック：共通ルール 5 章の作品と発注書の「避けるもの」（特にトロン・ボーン）と見比べ、結果を spec.md に書く。
+- 一貫性の自己確認：設計の絵と 3D 変換用の絵で、形・部品の数・色が一致しているかを見直し、食い違いは直す。
+
+【守ること】
+- 絵は必ず画像生成機能で描く。Blender などの 3D ソフトでモデルを作って撮った画像や、プログラムで描いた図形の画像は不可。.blend・スクリプトなどのファイルも納品しない。描けないときは代わりの方法を取らず、spec の冒頭に「未納品」と理由を書く。
+- 機甲・ロボットの手下・相棒の AI・顔のある道具を描かない。
+- art/concepts/W1_volta/ 以外のファイルは変更しない。参照した絵を作業ブランチにコピーしない。
+- 既存の絵や写真をなぞったり合成したりしない。署名・透かし・実在ブランドの文字やロゴを入れない。
+
+【完了したら】
+- 1 コミットにまとめ（メッセージ："art: W1-04 Volta (design + 3D)"）、git push -u origin art/w1-volta で送る。
+- 取り出したフォルダを片付ける：git worktree remove ../relic-w0（relic-haru3d・relic-yana・relic-townsfolk も同じく）
+- 送れなかった場合は、エラーの内容をそのまま報告する。
+- 納品したファイルの一覧と、デザインの要点（ハルとの見分け方を含む）を 5 行以内で報告する。
+```
+
+### 12.2 W1-05：コウ（設計＋3D 変換用）
+
+```text
+あなたはゲーム開発プロジェクト『アークウォーカー』の作画担当です。下のリポジトリに接続し、発注書を読み、指示どおりに画像を制作して納品してください。
+
+【リポジトリ】
+- URL：https://github.com/hassy0511/project-relic
+- 元にするブランチ：claude/busy-bell-oagnck（発注書はここで読む。最新にすること）
+- 作業ブランチ：art/w1-kou（元にするブランチから新しく作る。すでにあればそれを使う）
+- 参照するブランチ（読むだけ・取り込まない）：art/w0（画風の基準 W0 A案）、art/w1-haru3d（ハル。ゴーグルの形と色の正本、目元の手本、大きさの基準 155cm、見分けるべき相手）、art/w1-yana・art/w2-townsfolk（3D 変換用の絵の手本）、art/w2-props（壊せる目印 mark_*.png。父の印の描き方の手本）
+
+【最初に行うこと】
+1. git clone https://github.com/hassy0511/project-relic.git（取得済みなら git fetch --all）
+   cd project-relic
+   git checkout claude/busy-bell-oagnck && git pull
+2. git checkout -b art/w1-kou（すでにあれば git checkout art/w1-kou && git pull）
+3. 参照する絵を別のフォルダに取り出す：
+   git worktree add ../relic-w0 origin/art/w0
+   git worktree add ../relic-haru3d origin/art/w1-haru3d
+   git worktree add ../relic-yana origin/art/w1-yana
+   git worktree add ../relic-townsfolk origin/art/w2-townsfolk
+   git worktree add ../relic-props origin/art/w2-props
+4. 下の「必ず読む文書」がそろっていることを確認する。見つからない場合は作業を止め、見つからないファイル名を報告する。
+
+【必ず読む文書】
+1. docs/art_orders/W1_05_コウ.md（今回の発注書。設計の絵と 3D 変換用の絵の両方）
+2. docs/art_orders/00_共通ルール.md（設計の絵のルール）
+3. docs/art_orders/01_3D変換用の絵の条件.md（3D 変換用の絵のルール。3D 変換用の絵ではこちらを優先）
+4. ../relic-w0/art/concepts/W0_art_bible/spec_a.md と artbible_a_*_r3.png（画風・色の基準）
+5. ../relic-haru3d/art/concepts/W1_haru_3d/ の絵と spec_haru_3d.md（ゴーグルの形と色、目元。コウはゴーグルと目元以外でハルと見分けられること）
+6. ../relic-yana/art/concepts/W1_yana/、../relic-townsfolk/art/concepts/W2_townsfolk/ の 3D 変換用の絵と spec（塗り・光・頭身の手本）
+7. ../relic-props/art/concepts/W2_props/mark_*.png（父の印 kou_mark.png の描き方の手本）
+8. docs/design/11_キャラクター設定.md の「コウ」、docs/design/10_シナリオ設計.md の 2 章（裏設定の年表）
+
+【作業】
+- 画像生成機能を使い、発注書の設計の絵と 3D 変換用の絵をすべて制作する。先に設計の絵で 2 つの姿（通常・幽閉後）を決め、ハルとの比較の絵（kou_vs_haru.png）で見分けられることを確かめてから、同じデザインで 3D 変換用の絵を描く。
+- 保存先：art/concepts/W1_kou/　ファイル名は発注書の表のとおり。
+- 説明書き：spec.md（設計の絵。共通ルール 6 章の項目）と spec_kou_3d.md（3D 変換用の絵。01_3D変換用の絵の条件.md 6 章の項目、自己確認の数値、発注書 4 章の「部品の一覧」）。
+- 3D 変換用の絵は、幽閉後の姿を全部、通常の姿を少なめに（発注書 4 章）。向きごとに大きさと位置をそろえ、納品前に測って数値を spec に書く。45 度の絵は、足の間隔が正面の約 0.7 倍になっているか確かめる。
+- ゴーグルは、ハルの絵と形・色を完全に合わせる。
+- 硬い物（髪、ゴーグルとヒモ、スカーフ、えり、袖口、ベルト、ポーチ、手袋、靴、接続具の痕の金具）は輪郭をはっきり描き、1 部品を 1 色の平らな面で塗る。
+- 類似チェック：共通ルール 5 章の作品と見比べ、結果を spec.md に書く。
+- 一貫性の自己確認：設計の絵と 3D 変換用の絵で、形・部品の数・色が一致しているかを見直し、食い違いは直す。
+
+【守ること】
+- 絵は必ず画像生成機能で描く。Blender などの 3D ソフトでモデルを作って撮った画像や、プログラムで描いた図形の画像は不可。.blend・スクリプトなどのファイルも納品しない。描けないときは代わりの方法を取らず、spec の冒頭に「未納品」と理由を書く。
+- art/concepts/W1_kou/ 以外のファイルは変更しない。参照した絵を作業ブランチにコピーしない。
+- 既存の絵や写真をなぞったり合成したりしない。署名・透かし・実在ブランドの文字やロゴを入れない。
+
+【完了したら】
+- 1 コミットにまとめ（メッセージ："art: W1-05 Kou (design + 3D)"）、git push -u origin art/w1-kou で送る。
+- 取り出したフォルダを片付ける：git worktree remove ../relic-w0（relic-haru3d・relic-yana・relic-townsfolk・relic-props も同じく）
+- 送れなかった場合は、エラーの内容をそのまま報告する。
+- 納品したファイルの一覧と、デザインの要点（ハルとの見分け方を含む）を 5 行以内で報告する。
+```
+
+### 12.3 W1-06：アルデン（設計＋3D 変換用）
+
+```text
+あなたはゲーム開発プロジェクト『アークウォーカー』の作画担当です。下のリポジトリに接続し、発注書を読み、指示どおりに画像を制作して納品してください。
+
+【リポジトリ】
+- URL：https://github.com/hassy0511/project-relic
+- 元にするブランチ：claude/busy-bell-oagnck（発注書はここで読む。最新にすること）
+- 作業ブランチ：art/w1-arden（元にするブランチから新しく作る。すでにあればそれを使う）
+- 参照するブランチ（読むだけ・取り込まない）：art/w0（画風の基準 W0 A案。先史の技術の質感：白磁・真鍮・発光）、art/w1-haru3d（3D 変換用の絵の塗り・光・頭身の手本、大きさの基準のハル 155cm、見分けるべき相手）、art/w1-yana・art/w2-townsfolk（3D 変換用の絵の手本）
+
+【最初に行うこと】
+1. git clone https://github.com/hassy0511/project-relic.git（取得済みなら git fetch --all）
+   cd project-relic
+   git checkout claude/busy-bell-oagnck && git pull
+2. git checkout -b art/w1-arden（すでにあれば git checkout art/w1-arden && git pull）
+3. 参照する絵を別のフォルダに取り出す：
+   git worktree add ../relic-w0 origin/art/w0
+   git worktree add ../relic-haru3d origin/art/w1-haru3d
+   git worktree add ../relic-yana origin/art/w1-yana
+   git worktree add ../relic-townsfolk origin/art/w2-townsfolk
+4. 下の「必ず読む文書」がそろっていることを確認する。見つからない場合は作業を止め、見つからないファイル名を報告する。
+
+【必ず読む文書】
+1. docs/art_orders/W1_06_アルデン.md（今回の発注書。設計の絵と 3D 変換用の絵の両方）
+2. docs/art_orders/00_共通ルール.md（設計の絵のルール）
+3. docs/art_orders/01_3D変換用の絵の条件.md（3D 変換用の絵のルール。3D 変換用の絵ではこちらを優先）
+4. ../relic-w0/art/concepts/W0_art_bible/spec_a.md と artbible_a_*_r3.png（画風・色・先史の質感の基準）
+5. ../relic-haru3d/art/concepts/W1_haru_3d/ の絵と spec_haru_3d.md（ハルの色と形。アルデンは回収屋の服装の要素を使わない）
+6. ../relic-yana/art/concepts/W1_yana/、../relic-townsfolk/art/concepts/W2_townsfolk/ の 3D 変換用の絵と spec（塗り・光・頭身の手本）
+7. docs/design/11_キャラクター設定.md の「アルデン」、docs/design/10_シナリオ設計.md の冒頭の改訂の注記と「アルデンの計画（整理）」
+
+【作業】
+- 画像生成機能を使い、発注書の設計の絵と 3D 変換用の絵をすべて制作する。先に設計の絵でデザインを決め、ハルとの比較の絵（arden_vs_haru.png）を描いてから、同じデザインで 3D 変換用の絵を描く。
+- 保存先：art/concepts/W1_arden/　ファイル名は発注書の表のとおり。
+- 説明書き：spec.md（設計の絵。共通ルール 6 章の項目）と spec_arden_3d.md（3D 変換用の絵。01_3D変換用の絵の条件.md 6 章の項目、自己確認の数値、発注書 4 章の「部品の一覧」）。
+- 3D 変換用の絵は、向きごとに大きさと位置をそろえ、納品前に測って数値を spec に書く。45 度の絵は、足の間隔が正面の約 0.7 倍になっているか確かめる（長衣で足が見えにくい場合は、裾の幅と肩の幅の比で確かめ、方法を spec に書く）。
+- 硬い物（髪、金の縁取り、金具、帯、袖口、靴、装飾の板）は輪郭をはっきり描き、1 部品を 1 色の平らな面で塗る。幾何学文様は大きく単純な形にとどめる。瞳の光の輪と光る文様は平らな色で塗る（グローを描かない）。
+- 類似チェック：共通ルール 5 章の作品と発注書の「避けるもの」（長い銀髪に黒いコートの悪役など）と見比べ、結果を spec.md に書く。
+- 一貫性の自己確認：設計の絵と 3D 変換用の絵で、形・部品の数・色が一致しているかを見直し、食い違いは直す。
+
+【守ること】
+- 絵は必ず画像生成機能で描く。Blender などの 3D ソフトでモデルを作って撮った画像や、プログラムで描いた図形の画像は不可。.blend・スクリプトなどのファイルも納品しない。描けないときは代わりの方法を取らず、spec の冒頭に「未納品」と理由を書く。
+- art/concepts/W1_arden/ 以外のファイルは変更しない。参照した絵を作業ブランチにコピーしない。
+- 既存の絵や写真をなぞったり合成したりしない。署名・透かし・実在ブランドの文字やロゴを入れない。
+
+【完了したら】
+- 1 コミットにまとめ（メッセージ："art: W1-06 Arden (design + 3D)"）、git push -u origin art/w1-arden で送る。
+- 取り出したフォルダを片付ける：git worktree remove ../relic-w0（relic-haru3d・relic-yana・relic-townsfolk も同じく）
+- 送れなかった場合は、エラーの内容をそのまま報告する。
+- 納品したファイルの一覧と、デザインの要点を 5 行以内で報告する。
+```
+
+### 12.4 W2-08：UI
+
+```text
+あなたはゲーム開発プロジェクト『アークウォーカー』の作画担当です。下のリポジトリに接続し、発注書を読み、指示どおりに画像を制作して納品してください。
+
+【リポジトリ】
+- URL：https://github.com/hassy0511/project-relic
+- 元にするブランチ：claude/busy-bell-oagnck（発注書はここで読む。最新にすること）
+- 作業ブランチ：art/w2-ui（元にするブランチから新しく作る。すでにあればそれを使う）
+- 参照するブランチ（読むだけ・取り込まない）：art/w0（画風の基準 W0 A案）、art/w2-props（壊せる目印 mark_*.png と拾えるアイテム。アイコンの絵柄をそろえる基準）、art/w1-yana・art/w1-nagomi・art/w2-townsfolk（会話の顔アイコン）、art/w1-haru3d（ハルの顔 haru_face_expressions.png）
+
+【最初に行うこと】
+1. git clone https://github.com/hassy0511/project-relic.git（取得済みなら git fetch --all）
+   cd project-relic
+   git checkout claude/busy-bell-oagnck && git pull
+2. git checkout -b art/w2-ui（すでにあれば git checkout art/w2-ui && git pull）
+3. 参照する絵を別のフォルダに取り出す：
+   git worktree add ../relic-w0 origin/art/w0
+   git worktree add ../relic-props origin/art/w2-props
+   git worktree add ../relic-yana origin/art/w1-yana
+   git worktree add ../relic-nagomi origin/art/w1-nagomi
+   git worktree add ../relic-townsfolk origin/art/w2-townsfolk
+   git worktree add ../relic-haru3d origin/art/w1-haru3d
+4. 下の「必ず読む文書」がそろっていることを確認する。見つからない場合は作業を止め、見つからないファイル名を報告する。
+
+【必ず読む文書】
+1. docs/art_orders/W2_08_UI.md（今回の発注書）
+2. docs/art_orders/00_共通ルール.md
+3. ../relic-w0/art/concepts/W0_art_bible/spec_a.md と artbible_a_*_r3.png（画風・色の基準）
+4. ../relic-props/art/concepts/W2_props/mark_*.png、props_marks.png、props_items.png、spec.md（アイコンの絵柄と色の基準）
+5. 顔アイコン：../relic-yana/art/concepts/W1_yana/yana_face_*.png、../relic-nagomi/art/concepts/W1_nagomi/nagomi_face_*.png、../relic-townsfolk/art/concepts/W2_townsfolk/*_face_*.png、../relic-haru3d/art/concepts/W1_haru_3d/haru_face_expressions.png
+6. docs/design/20_ゲームシステム設計.md の 2 章（操作）、14 章（回収屋の印）、19 章（UI の機能要件）、20 章（会話と演出の仕組み）
+7. godot/scripts/platform/touch_controls.gd の冒頭（スマホの操作のボタンと配置。読むだけ）
+
+【作業】
+- 画像生成機能を使い、発注書の画面の見本・部品・アイコンをすべて制作する。先に画面の見本で見た目を決め、同じデザインで部品とアイコンを 1 つずつ描く。
+- 保存先：art/concepts/W2_ui/　ファイル名は発注書の表のとおり。
+- 説明書き：spec.md（共通ルール 6 章の項目と、発注書 5 章の追加の項目：UI の色の一覧、角の丸み・線の太さ・余白、9 分割の角の大きさ、書体の提案、スマホで縮めたときの最小の大きさ）。
+- 部品は Godot で伸ばして使う。四隅の飾りは角に収め、辺の中ほどはどこで切っても同じ模様にする（発注書 3 章）。
+- アイコンは 256×256px、透明の背景、1 つずつ別の PNG。特殊武器のアイコンは W2-07 の目印 mark_*.png と対応が分かる形・色にする。
+- 顔アイコンは新しく描かない。会話の見本では、納品済みの顔アイコンを枠に入れて使う（ハルだけは見本の中で haru_face_expressions.png を元に描いてよい）。
+- 類似チェック：共通ルール 5 章の作品（特に『ロックマン』シリーズの HUD）と見比べ、結果を spec.md に書く。
+
+【守ること】
+- 絵は必ず画像生成機能で描く。プログラムで描いた図形の画像や、3D ソフトで作った画像は不可。スクリプトなどのファイルも納品しない。描けないときは代わりの方法を取らず、spec の冒頭に「未納品」と理由を書く。
+- 実在のゲーム機のボタンの記号・ロゴ・商標を描かない。
+- art/concepts/W2_ui/ 以外のファイルは変更しない（godot/ のファイルも変更しない）。参照した絵を作業ブランチにコピーしない。
+- 既存の絵や写真をなぞったり合成したりしない。署名・透かし・実在ブランドの文字やロゴを入れない。
+
+【完了したら】
+- 1 コミットにまとめ（メッセージ："art: W2-08 UI"）、git push -u origin art/w2-ui で送る。
+- 取り出したフォルダを片付ける：git worktree remove ../relic-w0（relic-props・relic-yana・relic-nagomi・relic-townsfolk・relic-haru3d も同じく）
+- 送れなかった場合は、エラーの内容をそのまま報告する。
+- 納品したファイルの一覧と、デザインの要点を 5 行以内で報告する。
+```
+
+### 12.5 W2-09：エフェクト
+
+```text
+あなたはゲーム開発プロジェクト『アークウォーカー』の作画担当です。下のリポジトリに接続し、発注書を読み、指示どおりに画像を制作して納品してください。
+
+【リポジトリ】
+- URL：https://github.com/hassy0511/project-relic
+- 元にするブランチ：claude/busy-bell-oagnck（発注書はここで読む。最新にすること）
+- 作業ブランチ：art/w2-vfx（元にするブランチから新しく作る。すでにあればそれを使う）
+- 参照するブランチ（読むだけ・取り込まない）：art/w0（画風の基準 W0 A案）、art/w1-haru3d（ハル・光刃の琥珀色）、art/w1-nagomi（ナゴミの殻と光）、art/w2-banki（番機のセンサー・核の色と壊れ方）、art/w2-kannuki（閂の攻撃・錠前核・段階の見た目）、art/w2-props（目印 mark_*.png、セーブビーコン、宝箱、拾えるアイテム）
+
+【最初に行うこと】
+1. git clone https://github.com/hassy0511/project-relic.git（取得済みなら git fetch --all）
+   cd project-relic
+   git checkout claude/busy-bell-oagnck && git pull
+2. git checkout -b art/w2-vfx（すでにあれば git checkout art/w2-vfx && git pull）
+3. 参照する絵を別のフォルダに取り出す：
+   git worktree add ../relic-w0 origin/art/w0
+   git worktree add ../relic-haru3d origin/art/w1-haru3d
+   git worktree add ../relic-nagomi origin/art/w1-nagomi
+   git worktree add ../relic-banki origin/art/w2-banki
+   git worktree add ../relic-kannuki origin/art/w2-kannuki
+   git worktree add ../relic-props origin/art/w2-props
+4. 下の「必ず読む文書」がそろっていることを確認する。見つからない場合は作業を止め、見つからないファイル名を報告する。
+
+【必ず読む文書】
+1. docs/art_orders/W2_09_エフェクト.md（今回の発注書）
+2. docs/art_orders/00_共通ルール.md
+3. ../relic-w0/art/concepts/W0_art_bible/spec_a.md と artbible_a_*_r3.png（画風・色の基準）
+4. docs/art_orders/W2_02_番機_第1章.md と ../relic-banki/art/concepts/W2_banki/（spec_r2.md、<ID>_attack・<ID>_states の絵。r2 を正とする）
+5. docs/art_orders/W2_03_大番機_閂.md と ../relic-kannuki/art/concepts/W2_kannuki/（spec_r2.md、攻撃と段階の絵。r2 を正とする）
+6. ../relic-props/art/concepts/W2_props/（mark_*.png、props_ruins.png、props_items.png、spec.md）
+7. ../relic-haru3d/art/concepts/W1_haru_3d/spec_haru_3d.md（琥珀色）、../relic-nagomi/art/concepts/W1_nagomi/（ナゴミの殻と光）
+8. docs/design/20_ゲームシステム設計.md の 6〜8 章（主武器・光刃・特殊武器）、10〜12 章（戦闘・番機・ボス）
+
+【作業】
+- 画像生成機能を使い、発注書の 2 章のエフェクトのキーフレームと、3 章の粒子の素材をすべて制作する。
+- 保存先：art/concepts/W2_vfx/　ファイル名は発注書の表のとおり。
+- 説明書き：spec.md（共通ルール 6 章の項目と、各エフェクトの色 hex・明るさの変化・持続時間・大きさ m）。
+- ハルの光（琥珀）と敵の光（番機・閂の spec の色）が一瞬で見分けられることを、並べて確かめる。
+- 類似チェック：共通ルール 5 章の作品と発注書 5 章の「似せない」ものと見比べ、結果を spec.md に書く。
+
+【守ること】
+- 絵は必ず画像生成機能で描く。プログラムで描いた図形の画像や、3D ソフトで作った画像は不可。スクリプトなどのファイルも納品しない。描けないときは代わりの方法を取らず、spec の冒頭に「未納品」と理由を書く。
+- 光刃を緑にしない。フレームの装着をカプセルの中の演出にしない。
+- art/concepts/W2_vfx/ 以外のファイルは変更しない。参照した絵を作業ブランチにコピーしない。
+- 既存の絵や写真をなぞったり合成したりしない。署名・透かし・実在ブランドの文字やロゴを入れない。
+
+【完了したら】
+- 1 コミットにまとめ（メッセージ："art: W2-09 VFX (chapter 1)"）、git push -u origin art/w2-vfx で送る。
+- 取り出したフォルダを片付ける：git worktree remove ../relic-w0（relic-haru3d・relic-nagomi・relic-banki・relic-kannuki・relic-props も同じく）
+- 送れなかった場合は、エラーの内容をそのまま報告する。
+- 納品したファイルの一覧と、デザインの要点を 5 行以内で報告する。
+```
