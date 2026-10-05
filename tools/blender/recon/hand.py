@@ -384,8 +384,10 @@ HYPOTHENAR = _H.get('HYPOTHENAR', ((0.032, 0.004, -0.018), 0.011))
 PALM_X = _H.get('PALM_X', (0.012, 0.040))            # 掌の甲・内の面の点の x（手首からの距離）
 
 
-def build_open(wrist_section: np.ndarray | None = None) -> dict:
+def build_open(wrist_section: np.ndarray | None = None, mech: dict | None = None) -> dict:
     """力を抜いて開いた手（手の座標）。wrist_section：体の手首の断面の点（手の座標の (y, z)）。
+    mech：義手（ヤーナの右手。HAND['MECH']）。節は面のある筒（seg の色）、関節は暗い玉（joint）、掌は palm、
+    甲に白い板（plate）。None なら今までどおり（肌と手袋）。
     返り値：{V, F, color, report}"""
     M = Mesh()
     rep = {}
@@ -408,6 +410,11 @@ def build_open(wrist_section: np.ndarray | None = None) -> dict:
         d0 = np.array([math.cos(f), 0.0, math.sin(f)])
         J = chain((x, 0.001, z), d0, np.array([0.0, 1.0, 0.0]), lens, OPEN_CURL)
         rr = [r, r * 0.96, r * 0.92, r * 0.85]
+        if mech:
+            _mech_chain(M, J, rr, mech)
+            knuckles.append((J[0], r))
+            rep[name] = [p.round(4).tolist() for p in J]
+            continue
         for k in range(3):
             V, F = capsule(J[k], J[k + 1], rr[k], rr[k + 1])
             M.add(V, F, SKIN)
@@ -424,11 +431,15 @@ def build_open(wrist_section: np.ndarray | None = None) -> dict:
     T = chain(th['base'], d0, np.array([0.0, 1.0, -0.4]) / np.linalg.norm([0.0, 1.0, -0.4]), th['lens'], th['curl'])
     rt = th['r']
     rr = [rt * 1.15, rt, rt * 0.95, rt * 0.85]
-    for k in range(3):     # 中手骨は手袋（掌の凸包にも入る）、基節は手袋の筒、末節は肌
+    if mech:
+        V, F = capsule(T[0], T[1], rr[0], rr[1])
+        M.add(V, F, mech['palm'])
+        _mech_chain(M, T[1:], rr[1:] + [rr[-1] * 0.95], mech)
+    for k in range(3) if not mech else ():     # 中手骨は手袋（掌の凸包にも入る）、基節は手袋の筒、末節は肌
         V, F = capsule(T[k], T[k + 1], rr[k], rr[k + 1])
         M.add(V, F, GRAPHITE if k == 0 else SKIN)
     d2 = (T[2] - T[1]) / np.linalg.norm(T[2] - T[1])
-    if HAS_GLOVE:
+    if HAS_GLOVE and not mech:
         V, F = sleeve(T[1] - d2 * rt * 0.5, T[1] + (T[2] - T[1]) * GLOVE_FRAC, rr[1] + GLOVE_THICK)
         M.add(V, F, GRAPHITE)
     rep['thumb'] = [p.round(4).tolist() for p in T]
@@ -451,7 +462,20 @@ def build_open(wrist_section: np.ndarray | None = None) -> dict:
     pts.append(sphere_pts(THENAR[0], THENAR[1]))      # 母指球
     pts.append(sphere_pts(HYPOTHENAR[0], HYPOTHENAR[1]))     # 小指球
     V, F = convex_hull3(np.concatenate(pts))
-    M.add(V, F, GRAPHITE)
+    M.add(V, F, mech['palm'] if mech else GRAPHITE)
+    if mech:
+        # 甲の白い板：掌の甲の面の外の薄い板（手首の側から指の付け根の手前まで、面取りした角）
+        x0, x1 = PALM_X[0] - 0.006, max(c[0] for c, _ in knuckles) - 0.010
+        y0, y1 = -PALM_HALF_T - 0.0035, -PALM_HALF_T + 0.004
+        za, zb = zb + 0.001, zt - 0.001
+        q = []
+        for x in (x0, x1):
+            for y in (y0, y1):
+                for z in (za, zb):
+                    q.append((x, y, z))
+                    q.append((x + (0.003 if x == x0 else -0.003), y, z + (0.003 if z == za else -0.003)))
+        V, F = convex_hull3(np.array(q, float))
+        M.add(V, F, mech['plate'])
     # カフのふた：手袋のカフ（costume の glove_cuff.L）の先の口をふさぐ暗い栓（体の手首の断面＋2mm、先の縁は面取り）
     if wrist_section is not None and len(wrist_section) > 8:
         sec = np.asarray(wrist_section, float)
@@ -468,8 +492,29 @@ def build_open(wrist_section: np.ndarray | None = None) -> dict:
         for x, k in ((CUFF_LID[0], 1.0), (CUFF_LID[1] - 0.002, 1.0), (CUFF_LID[1], 0.88)):
             lid.append(np.stack([np.full(n, x), c0[0] + k * rad * np.cos(an), c0[1] + k * rad * np.sin(an)], 1))
         V, F = convex_hull3(np.concatenate(lid))
-        M.add(V, F, LID)
+        M.add(V, F, mech['joint'] if mech else LID)
         rep['cuff_lid_radius'] = [round(float(rad.min()), 4), round(float(rad.max()), 4)]
     rep['wrist_ellipse'] = [round(float(v), 4) for v in (cy, cz, wy, wz)]
     V, F, C = M.arrays()
     return {'V': V, 'F': F, 'color': C, 'report': rep}
+
+
+def _mech_chain(M: Mesh, J: list, rr: list, mech: dict) -> None:
+    """義手の指：節ごとに面のある筒（白）、関節に暗い玉（付け根・中・先の手前）"""
+    gap = mech.get('gap', 0.003)
+    n = mech.get('seg_n', 8)
+    for k in range(len(J) - 1):
+        a, b = np.asarray(J[k], float), np.asarray(J[k + 1], float)
+        d = (b - a) / np.linalg.norm(b - a)
+        rj = rr[k] * mech.get('joint_r', 1.05)
+        V, F = capsule(a - d * rj * 0.2, a + d * rj * 0.2, rj, rj, seg=12, rings=3)
+        M.add(V, F, mech['joint'])
+        rs = rr[k] * mech.get('seg_r', 1.1)
+        end = b - d * (gap if k < len(J) - 2 else 0.0)
+        V, F = sleeve(a + d * gap, end, rs, seg=n, bevel=min(0.0015, rs * 0.25))
+        M.add(V, F, mech['seg'])
+    # 指先の暗い先端（絵：末節の先は暗い）
+    a, b = np.asarray(J[-2], float), np.asarray(J[-1], float)
+    d = (b - a) / np.linalg.norm(b - a)
+    V, F = capsule(b - d * rr[-1] * 0.3, b + d * rr[-1] * 0.25, rr[-1] * 1.02, rr[-1] * 0.85, seg=12, rings=3)
+    M.add(V, F, mech['joint'])

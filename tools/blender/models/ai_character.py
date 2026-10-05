@@ -500,6 +500,12 @@ def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple
         vs = p.vertices[:]
         for k in range(1, len(vs) - 1):
             tris.append((vs[0], vs[k], vs[k + 1]))
+    # 体の出っ張りを押し戻す（キャラクターの部品の表の BODY_CLAMP。ヤーナの腰の前。無ければ何もしない）
+    clamp = getattr(CO, 'BODY_CLAMP', None)
+    if clamp is not None:
+        co = clamp(co)
+        me.vertices.foreach_set('co', co.ravel())
+        me.update()
     P = CO.build_all(co, np.array(tris), skip=skip)
     removed_feet = 0
     # ゴーグルのヒモの下の髪を押し込む（8 回目、costume.strap_push）
@@ -1189,7 +1195,9 @@ def add_left_hand_part(body: bpy.types.Object, arm: bpy.types.Object, sx: str = 
     near = (np.linalg.norm(co - W, axis=1) < 0.25) & (arm_w > 0.5) & ~is_part
     band = near & (loc[:, 0] > -0.002) & (loc[:, 0] < 0.012)
     sec = loc[band][:, 1:]
-    H = HD.build_open(sec)
+    # 義手（ヤーナの右手、HAND['MECH']）。ほかのキャラクターは MECH が無いので今までどおり
+    mech = CO.HAND.get('MECH') if sx == '.R' else None
+    H = HD.build_open(sec, mech=mech) if mech else HD.build_open(sec)
     gone = near & (loc[:, 0] > cut)
     bm = bmesh.new()
     bm.from_mesh(me)
