@@ -131,10 +131,11 @@ def pieces() -> list[dict]:
         P += boot_pieces(side, sx)
         # 側頭の白髪：房の形の部品 2 本（上・下）。こめかみから耳の上を通って後ろへ流れ、先がとがる（絵 burton_head_side_right・
         # burton_face_front・burton_head_back。左右対称）。房全体が 1 色（灰）。耳（θ 96〜118 度、上の端 z 1.427）の上を通す
-        for nm, path, wd in (('grey_hi', [(66, 1.458), (108, 1.452), (140, 1.432)], 0.026),
-                             ('grey_lo', [(70, 1.440), (108, 1.437), (136, 1.418)], 0.024)):
+        # 頭に沿って寝かせる（先を浮かせると角のように飛び出した）。2 本は重なって 1 本の帯に見える幅
+        for nm, path, wd in (('grey_hi', [(64, 1.458), (108, 1.451), (138, 1.433)], 0.036),
+                             ('grey_lo', [(68, 1.441), (108, 1.437), (134, 1.420)], 0.032)):
             P.append(dict(name=nm + sx, bone='head', color='grey',
-                          tube=dict(axis=(0.0, 0.01), side=side, path=path, width=wd, thick=0.35, lift=(0.002, 0.010))))
+                          tube=dict(axis=(0.0, 0.01), side=side, path=path, width=wd, thick=0.34, lift=(0.0035, 0.004))))
     return P
 
 

@@ -543,9 +543,15 @@ def build_tube(spec: dict, bvh) -> tuple[np.ndarray, np.ndarray, dict]:
     zz = np.interp(t, kp, path[:, 1])
     dirs = np.stack([side * np.sin(th), -np.cos(th), np.zeros(n)], 1)
     R0 = 0.30
-    org = np.stack([ax[0] + R0 * dirs[:, 0], ax[1] + R0 * dirs[:, 1], zz], 1)
-    d = cast(bvh, org, -dirs, R0)
-    rs = R0 - np.where(np.isfinite(d), d, R0 - 0.08)
+    w0 = tb['width'] * 0.5
+    rs = np.full(n, -1.0)
+    d = np.full(n, np.nan)
+    for dz in (-w0, -0.5 * w0, 0.0, 0.5 * w0, w0):     # 幅の中で一番外の面に載せる（横の房が管を突き抜けないように）
+        org = np.stack([ax[0] + R0 * dirs[:, 0], ax[1] + R0 * dirs[:, 1], zz + dz], 1)
+        dd = cast(bvh, org, -dirs, R0)
+        if dz == 0.0:
+            d = dd
+        rs = np.maximum(rs, R0 - np.where(np.isfinite(dd), dd, R0 - 0.08))
     rs = np.convolve(np.pad(rs, 2, mode='edge'), np.ones(5) / 5, mode='valid')     # 面の凸凹で波打たないように
     lift = tb['lift'][0] + (tb['lift'][1] - tb['lift'][0]) * t ** 2
     w = tb['width'] * 0.5 * (1 - t) ** 0.8 * (0.75 + 0.8 * t) + 0.0012
