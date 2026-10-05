@@ -54,6 +54,10 @@ func make_game(opts: Dictionary = {}) -> GameSim:
 	for b in opts.get("boxes", []):
 		faces.append(box_faces(b[0], b[1]))
 	var markers := {"start": {"pos": Vector3.ZERO, "yaw": 0.0}}
+	if opts.has("geometry"):
+		# 地形ごと渡す（試しの部屋など）：{ faces, markers: { 名前: { pos, yaw } } }
+		faces = opts.geometry.faces
+		markers = opts.geometry.markers.duplicate()
 	var mk: Dictionary = opts.get("markers", {})
 	for k in mk:
 		markers[k] = {"pos": mk[k], "yaw": 0.0}

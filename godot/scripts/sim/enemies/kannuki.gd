@@ -206,6 +206,7 @@ func receive(amount: float, from: Vector3, info: Dictionary) -> Dictionary:
 	else:
 		dealt = amount * 0.25
 		kind_hit = "armor"
+	var before := hp
 	hp -= dealt
 	flash = 1.0
 	# 段階は飛ばさない：境で止めて、次の区切りで段階を移す
@@ -214,7 +215,7 @@ func receive(amount: float, from: Vector3, info: Dictionary) -> Dictionary:
 		floor_hp = max_hp * c.phaseAt[0]
 	elif phase == 2:
 		floor_hp = max_hp * c.phaseAt[1]
-	if floor_hp > 0.0 and hp <= floor_hp:
+	if floor_hp > 0.0 and hp <= floor_hp and before >= floor_hp - 0.01:
 		hp = floor_hp
 		_phase_pending = true
 	if hp <= 0.0:
@@ -232,6 +233,19 @@ func receive(amount: float, from: Vector3, info: Dictionary) -> Dictionary:
 		_on_killed()
 		return {"killed": true, "kind": kind_hit, "dealt": dealt}
 	return {"killed": false, "kind": kind_hit, "dealt": dealt}
+
+
+## 確認用：段階 n の始まりの状態にする（待機・導入を飛ばす）
+func debug_set_phase(n: int) -> void:
+	var c: Dictionary = game.tuning.boss
+	phase = n
+	overheat = n >= 3
+	_phase_pending = false
+	invulnerable = false
+	hp = max_hp * (1.0 if n == 1 else float(c.phaseAt[n - 2]))
+	if state == "idle" or state == "intro" or state == "shift":
+		set_state("engage")
+	_cooldown = 0.5
 
 
 func _break_arm(a: String) -> void:
@@ -409,7 +423,7 @@ func _think(dt: float) -> void:
 			_brake(dt, 40.0)
 			wave_r += c.slam.waveSpeed * dt
 			# 衝撃波：輪が通るときに地面にいると当たる（ジャンプで越える）
-			if not _wave_hit and not p.dead and p.grounded and absf(U.hdist(p.pos, pos) - wave_r) < c.slam.waveWidth * 0.5 + 0.35:
+			if not _wave_hit and not p.dead and p.pos.y - pos.y < 0.45 and absf(U.hdist(p.pos, pos) - wave_r) < c.slam.waveWidth * 0.5 + 0.35:
 				_wave_hit = p.take_damage(c.slam.damage, pos, true)
 			if wave_r > c.arenaRadius + 2.0:
 				wave_r = -1.0
