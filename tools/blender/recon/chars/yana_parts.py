@@ -57,6 +57,7 @@ BIB_BACK = dict(top=1.104, x_top=(-0.118, 0.104), x_bot=(-0.122, 0.112))
 SKIRT_HEM = 0.512
 SLEEVE_T = (0.098, 0.150)       # 左のまくり袖の口：上腕の軸に沿った肩からの長さ
 NECK_TOP = 1.235                # シャツの首の上の端（あごの下）
+HAIRLINE_PAINT = ([0.0, 0.06, 0.075, 0.085, 0.095, 0.11], [1.44, 1.425, 1.40, 1.375, 1.335, 1.318])
 HAIR_LOW = ([50, 60, 72, 95, 100, 180], [1.40, 1.36, 1.30, 1.30, 1.27, 1.25])
 BOOT_CUT = 0.222        # この高さより下の脚の体は消して、靴の部品に置き換える（裾の帯の中で切る）
 BOOT_RAMP = (0.07, 0.15)
@@ -264,8 +265,9 @@ def apron() -> list[dict]:
         out = [(sb, tb0), (sf, tf0), (sf, tf1), (sb, tb1)]
         if side < 0:
             out = out[::-1]
+        # 2 周目：肩の上の体の凸凹でひもの縁が波打った → 近所の最大 1 輪、よくならす
         P.append(dict(name='strap' + sx, bone='chest', color='umber', frame=fst, outline=out, off=0.008,
-                      thick=0.005, bevel=0.0015, under='umber', rmax=0.25, env_rings=0, h=0.0045, smooth_iters=16,
+                      thick=0.005, bevel=0.0015, under='umber', rmax=0.25, env_rings=1, h=0.0045, smooth_iters=40,
                       raw_tol=0.0))
         # 金具（胸当ての上、ひもの上の輪）
         xa, xb = (0.062, 0.110) if side > 0 else (-0.116, -0.068)
@@ -514,6 +516,13 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
         zb = np.interp(th_f, HAIR_LOW[0], HAIR_LOW[1])
         # 角度の表の髪は耳より後ろ（えり足）だけ。1 周目は 50 度から使い、ほおの横が髪の色になった
         low = (th_f > 100.0) & (zh > zb) & ~ear
+        # 頭の面に沿った帽子（刈り上げ・もみあげの下）は、線より下なら肌：前（正面から 75 度まで）は生え際の線（目の横は
+        # 絵のとおり耳寄り）、耳の前は耳の中ほど、耳より後ろはえり足。頭から浮いた房（前髪・長い房）は線より下でも髪。
+        # 2 周目：あごの横・目の横に、頭の面に貼り付いた帽子の髪の色が平らな茶の板として残った
+        flush = (f['hair'] - f['skin']) < 0.004
+        line = np.where(th_f < 75.0, np.interp(np.abs(xh + 0.012), HAIRLINE_PAINT[0], HAIRLINE_PAINT[1]),
+                        np.where(th_f < 100.0, 1.318, 1.25))
+        hair &= ~(flush & (zh < line))
         lab_h[hair | low] = NAMES.index('hair')
         lab_h[ear] = NAMES.index('skin')
         keep = under[hi] >= 0

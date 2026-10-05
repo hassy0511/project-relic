@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://1iy4hy6e0r8n"
-path="res://.godot/imported/yana_yana_face_base.png-919d9d7a25f6d06ba585c585ab8e4ebf.ctex"
+uid="uid://dpp70hatcgl3"
+path="res://.godot/imported/yana_yana_parts_emissive.png-9fc522609f92643033e59296410ee02d.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "5d8a16949ad74f1332e645fdb52b2e82"
+"md5": "f85fc28f9d4f07aeab7c5524c697e3ea"
 }
 
 [deps]
 
-source_file="res://assets/models/yana_yana_face_base.png"
-dest_files=["res://.godot/imported/yana_yana_face_base.png-919d9d7a25f6d06ba585c585ab8e4ebf.ctex"]
+source_file="res://assets/models/yana_yana_parts_emissive.png"
+dest_files=["res://.godot/imported/yana_yana_parts_emissive.png-9fc522609f92643033e59296410ee02d.ctex"]
 
 [params]
 
