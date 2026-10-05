@@ -1,594 +1,4235 @@
 {
-  "id": "ch1",
-  "name": "第 1 章 止まった町（町と禁足扉）",
-  "rooms": {
-    "opening": {
-      "name": "夜明けの甲羅",
-      "mood": "dawn",
-      "map": {
-        "floor": "オープニング",
-        "x": 0,
-        "y": 0,
-        "w": 1,
-        "h": 1
-      },
-      "geometry": [
-        {"t": "box", "pos": [0, -2, 0], "size": [40, 2, 40], "tint": "#b39a72"},
-        {"t": "box", "pos": [0, -2, 20.5], "size": [42, 3.2, 1], "tint": "#7c746a"},
-        {"t": "box", "pos": [-20.5, -2, 0], "size": [1, 3.2, 40], "tint": "#7c746a"},
-        {"t": "box", "pos": [20.5, -2, 0], "size": [1, 3.2, 40], "tint": "#7c746a"},
-        {"t": "box", "pos": [0, -2, -20.5], "size": [42, 3.2, 1], "tint": "#7c746a"},
-        {"t": "box", "pos": [-80, -30, 160], "size": [120, 34, 60], "tint": "#c9a27e"},
-        {"t": "box", "pos": [70, -30, 210], "size": [160, 38, 60], "tint": "#bf936a"},
-        {"t": "box", "pos": [0, -30, 320], "size": [400, 44, 80], "tint": "#b98a66"}
-      ],
-      "markers": {
-        "start": {"pos": [0, 0, -6], "yaw": 0}
-      },
-      "playerStart": "start",
-      "objective": "",
-      "lights": [
-        {"pos": [-8, 2, 14], "color": "#ffb070", "range": 14, "energy": 1.6},
-        {"pos": [8, 2, 14], "color": "#ffb070", "range": 14, "energy": 1.6},
-        {"pos": [0, 3, 4], "color": "#ffd9a8", "range": 18, "energy": 1.0}
-      ],
-      "props": [],
-      "enemies": [],
-      "checkpoints": [],
-      "triggers": [
-        {"id": "ch1.opening.enter", "pos": [0, 0, -6], "size": [8, 3, 8], "event": "ch1.opening"}
-      ]
+ "id": "ch1",
+ "name": "第 1 章 止まった町（町と禁足扉）",
+ "rooms": {
+  "opening": {
+   "name": "夜明けの甲羅",
+   "mood": "dawn",
+   "map": {
+    "floor": "オープニング",
+    "x": 0,
+    "y": 0,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2,
+      0
+     ],
+     "size": [
+      40,
+      2,
+      40
+     ],
+     "tint": "#b39a72"
     },
-    "training": {
-      "name": "訓練場",
-      "mood": "outdoor",
-      "map": {
-        "floor": "町・下段",
-        "x": 0,
-        "y": 1,
-        "w": 1,
-        "h": 1
-      },
-      "geometry": [
-        {"t": "box", "pos": [0, -2, 0], "size": [44, 2, 52], "tint": "#b5a27c"},
-        {"t": "box", "pos": [0, -2, 44], "size": [44, 2, 24], "tint": "#b5a27c"},
-        {"t": "box", "pos": [-22.5, -3.5, 14], "size": [1, 12, 84], "tint": "#7c746a"},
-        {"t": "box", "pos": [22.5, -3.5, 14], "size": [1, 12, 84], "tint": "#7c746a"},
-        {"t": "box", "pos": [0, -3.5, -26.5], "size": [46, 12, 1], "tint": "#7c746a"},
-        {"t": "box", "pos": [0, -3.5, 56.5], "size": [46, 14, 1], "tint": "#7c746a"},
-        {"t": "box", "pos": [0, -3.5, 29], "size": [44, 2, 6], "tint": "#8c7a58"},
-        {"t": "ramp", "pos": [0, -1.5, 27.7], "size": [10, 1.5, 3.4], "yaw": 180, "tint": "#8c7a58"},
-        {"t": "box", "pos": [0, 0, 0], "size": [8, 1.0, 4], "tint": "#c9b48a"},
-        {"t": "box", "pos": [0, 0, 6], "size": [8, 1.8, 4], "tint": "#d3bf94"},
-        {"t": "box", "pos": [-8, 0, 16], "size": [0.5, 1.3, 0.5], "tint": "#8c6a46"},
-        {"t": "box", "pos": [0, 0, 18], "size": [0.5, 1.6, 0.5], "tint": "#8c6a46"},
-        {"t": "box", "pos": [8, 0, 16], "size": [0.5, 1.3, 0.5], "tint": "#8c6a46"},
-        {"t": "box", "pos": [-10, 0, 42], "size": [3.4, 1.3, 2.4], "yaw": 15, "tint": "#4a463f"},
-        {"t": "box", "pos": [-9.2, 1.3, 42], "size": [1.6, 0.8, 1.4], "yaw": -20, "tint": "#5a544a"},
-        {"t": "box", "pos": [9, 0, 46], "size": [3.4, 1.3, 2.4], "yaw": 15, "tint": "#4a463f"},
-        {"t": "box", "pos": [9.8, 1.3, 46], "size": [1.6, 0.8, 1.4], "yaw": -20, "tint": "#5a544a"},
-        {"t": "box", "pos": [-3, 0, 51], "size": [3.4, 1.3, 2.4], "yaw": 15, "tint": "#4a463f"},
-        {"t": "box", "pos": [-2.2, 1.3, 51], "size": [1.6, 0.8, 1.4], "yaw": -20, "tint": "#5a544a"},
-        {"t": "box", "pos": [0, 0, -8], "size": [7, 0.06, 3.4], "tint": "#e6c56a"}
-      ],
-      "markers": {
-        "start": {"pos": [0, 0, -17], "yaw": 0},
-        "from_lower": {"pos": [0, 0, -19], "yaw": 0}
-      },
-      "playerStart": "start",
-      "objective": "バートンに仕事を言いつけられた",
-      "lights": [
-        {"pos": [-14, 6, -10], "color": "#ffc27a", "range": 14, "energy": 1.6},
-        {"pos": [14, 6, 10], "color": "#ffc27a", "range": 14, "energy": 1.6},
-        {"pos": [0, 6, 40], "color": "#ffc27a", "range": 14, "energy": 1.6}
-      ],
-      "props": [
-        {"type": "sign", "text": "訓練場", "pos": [0, 5.5, -22], "size": 72, "color": "#ffe7b8"},
-        {"type": "sign", "text": "① 歩く", "pos": [0, 2.3, -8], "size": 40, "color": "#ffe7b8"},
-        {"type": "sign", "text": "② 跳ぶ", "pos": [0, 3.6, 6], "size": 40, "color": "#ffe7b8"},
-        {"type": "sign", "text": "③ 撃つ", "pos": [0, 3.2, 17], "size": 40, "color": "#ffe7b8"},
-        {"type": "sign", "text": "④ ダッシュ", "pos": [0, 2.8, 25], "size": 40, "color": "#ffe7b8"},
-        {"type": "sign", "text": "⑤ 残骸を片付ける", "pos": [0, 3.0, 40], "size": 40, "color": "#ffe7b8"},
-        {"type": "exit", "id": "ch1.training.to_lower", "to": "lower", "spawn": "from_training", "pos": [0, 0, -24], "size": [8, 4, 2]},
-        {"type": "npc", "id": "npc_burton", "name": "バートン", "pos": [-6, 0, -13], "yaw": 90, "talk": "ch1.burton.training", "unless": "ch1.nico_ran"},
-        {"type": "npc", "id": "npc_nico", "name": "ニコ", "pos": [6, 0, 38], "yaw": 180, "talk": "ch1.nico.training", "unless": "ch1.nico_ran"},
-        {"type": "switch", "id": "ch1.tg1", "pos": [-8, 1.65, 16], "mode": "shoot", "radius": 0.6},
-        {"type": "switch", "id": "ch1.tg2", "pos": [0, 1.9500000000000002, 18], "mode": "shoot", "radius": 0.6},
-        {"type": "switch", "id": "ch1.tg3", "pos": [8, 1.65, 16], "mode": "shoot", "radius": 0.6},
-        {"type": "switch", "id": "ch1.w1", "pos": [-10, 0, 40.0], "mode": "interact", "prompt": "残骸を片付ける"},
-        {"type": "switch", "id": "ch1.w2", "pos": [9, 0, 44.0], "mode": "interact", "prompt": "残骸を片付ける"},
-        {"type": "switch", "id": "ch1.w3", "pos": [-3, 0, 49.0], "mode": "interact", "prompt": "残骸を片付ける"}
-      ],
-      "enemies": [],
-      "checkpoints": [
-        {"id": "ch1.training.cp0", "pos": [0, 0, -17], "yaw": 0, "radius": 5},
-        {"id": "ch1.training.cp1", "pos": [0, 0, 36], "yaw": 0, "radius": 5}
-      ],
-      "triggers": [
-        {"id": "ch1.training.start", "pos": [0, 0, -17], "size": [10, 3, 5], "event": "ch1.training.start"},
-        {"id": "ch1.training.t_move", "pos": [0, 0, -8], "size": [7, 3, 3.4], "cond": "ch1.chores_started", "event": "ch1.t.move"},
-        {"id": "ch1.training.t_jump", "pos": [0, 1.8, 6], "size": [6, 2, 3], "cond": "ch1.chores_started", "event": "ch1.t.jump"},
-        {"id": "ch1.training.t_shoot", "on": "flag", "cond": ["switch.ch1.tg1", "switch.ch1.tg2", "switch.ch1.tg3"], "event": "ch1.t.shoot"},
-        {"id": "ch1.training.t_ditch", "pos": [0, 0, 22], "size": [30, 3, 2], "cond": "ch1.t_shoot", "event": "ch1.t.ditch"},
-        {"id": "ch1.training.t_dash", "pos": [0, 0, 35], "size": [30, 3, 2], "cond": "ch1.chores_started", "event": "ch1.t.dash"},
-        {"id": "ch1.training.nico_run", "on": "flag", "cond": {"any": ["switch.ch1.w1", "switch.ch1.w2", "switch.ch1.w3"]}, "event": "ch1.nico_run"}
-      ]
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2,
+      20.5
+     ],
+     "size": [
+      42,
+      3.2,
+      1
+     ],
+     "tint": "#7c746a"
     },
-    "lower": {
-      "name": "オルド背町・下段",
-      "mood": "outdoor",
-      "map": {
-        "floor": "町・下段",
-        "x": 1,
-        "y": 1,
-        "w": 2,
-        "h": 1
-      },
-      "geometry": [
-        {"t": "box", "pos": [0, -2, 1], "size": [96, 2, 30], "tint": "#a8906c"},
-        {"t": "box", "pos": [0, 0, -14.5], "size": [96, 1.2, 1], "tint": "#7c746a"},
-        {"t": "box", "pos": [-48.5, -2, 1], "size": [1, 3.2, 30], "tint": "#7c746a"},
-        {"t": "box", "pos": [48.5, -2, 1], "size": [1, 3.2, 30], "tint": "#7c746a"},
-        {"t": "box", "pos": [-26.25, 0, 16.5], "size": [43.5, 16, 1], "tint": "#7c746a"},
-        {"t": "box", "pos": [26.25, 0, 16.5], "size": [43.5, 16, 1], "tint": "#7c746a"},
-        {"t": "stairs", "pos": [0, 0, 22], "size": [8, 5, 12], "steps": 16, "tint": "#8d8f94"},
-        {"t": "box", "pos": [0, 0, 31], "size": [8, 5, 6], "tint": "#8d8f94"},
-        {"t": "box", "pos": [-4.25, 0, 25], "size": [0.5, 9, 18], "tint": "#7c746a"},
-        {"t": "box", "pos": [4.25, 0, 25], "size": [0.5, 9, 18], "tint": "#7c746a"},
-        {"t": "box", "pos": [0, 0, 34.5], "size": [9, 12, 1], "tint": "#7c746a"},
-        {"t": "box", "pos": [-45, 0, -9.5], "size": [6, 10, 13], "tint": "#5f646c"},
-        {"t": "box", "pos": [-45, 0, 9.5], "size": [6, 10, 13], "tint": "#5f646c"},
-        {"t": "box", "pos": [-45, 6.5, 0], "size": [6, 3.5, 6], "tint": "#5f646c"},
-        {"t": "box", "pos": [-48.5, 0, 0], "size": [1, 10, 6], "tint": "#3a3d44"},
-        {"t": "box", "pos": [-27.8, 0, 10.0], "size": [4.4, 6, 8], "tint": "#b5a27c"},
-        {"t": "box", "pos": [-20.2, 0, 10.0], "size": [4.4, 6, 8], "tint": "#b5a27c"},
-        {"t": "box", "pos": [-24, 0, 11.0], "size": [3.2, 6, 6], "tint": "#b5a27c"},
-        {"t": "box", "pos": [-24, 3.8, 7], "size": [3.2, 2.2, 2], "tint": "#b5a27c"},
-        {"t": "box", "pos": [-24, 6, 10.0], "size": [12.6, 0.6, 8.6], "tint": "#8a5a46"},
-        {"t": "box", "pos": [14.7, 0, 10.0], "size": [3.4, 6, 8], "tint": "#a8896a"},
-        {"t": "box", "pos": [21.3, 0, 10.0], "size": [3.4, 6, 8], "tint": "#a8896a"},
-        {"t": "box", "pos": [18, 0, 11.0], "size": [3.2, 6, 6], "tint": "#a8896a"},
-        {"t": "box", "pos": [18, 3.8, 7], "size": [3.2, 2.2, 2], "tint": "#a8896a"},
-        {"t": "box", "pos": [18, 6, 10.0], "size": [10.6, 0.6, 8.6], "tint": "#8a5a46"},
-        {"t": "box", "pos": [-12, 0, 9], "size": [7, 4.5, 6], "tint": "#a39075"},
-        {"t": "box", "pos": [-12, 4.5, 9], "size": [7.6, 0.5, 6.6], "tint": "#8a5a46"},
-        {"t": "box", "pos": [34, 0, 8], "size": [8, 5, 10], "tint": "#a39075"},
-        {"t": "box", "pos": [41, 0, 11], "size": [8, 7, 8], "tint": "#9a8670"},
-        {"t": "box", "pos": [46, 0, 4], "size": [4, 4, 6], "tint": "#a8967a"},
-        {"t": "box", "pos": [42, 0, -9], "size": [8, 0.3, 8], "tint": "#6b7078"},
-        {"t": "box", "pos": [38.3, 0, -12.7], "size": [0.5, 6, 0.5], "tint": "#4a4e55"},
-        {"t": "box", "pos": [45.7, 0, -12.7], "size": [0.5, 6, 0.5], "tint": "#4a4e55"},
-        {"t": "box", "pos": [38.3, 0, -5.3], "size": [0.5, 6, 0.5], "tint": "#4a4e55"},
-        {"t": "box", "pos": [45.7, 0, -5.3], "size": [0.5, 6, 0.5], "tint": "#4a4e55"},
-        {"t": "box", "pos": [42, 6, -9], "size": [8.5, 0.5, 8.5], "tint": "#4a4e55"}
-      ],
-      "markers": {
-        "start": {"pos": [0, 0, 0], "yaw": 0},
-        "from_mid": {"pos": [0, 5, 29], "yaw": 180},
-        "from_training": {"pos": [-24, 0, 2.5], "yaw": 180},
-        "from_home": {"pos": [18, 0, 2.5], "yaw": 180},
-        "from_gate": {"pos": [-36, 0, 0], "yaw": 90}
-      },
-      "playerStart": "start",
-      "objective": "",
-      "lights": [
-        {"pos": [-34, 5, -2], "color": "#ffc27a", "range": 14, "energy": 1.6},
-        {"pos": [-12, 5, 0], "color": "#ffc27a", "range": 14, "energy": 1.6},
-        {"pos": [0, 5, -2], "color": "#ffc27a", "range": 14, "energy": 1.6},
-        {"pos": [18, 5, 0], "color": "#ffc27a", "range": 14, "energy": 1.6},
-        {"pos": [36, 5, 0], "color": "#ffc27a", "range": 14, "energy": 1.6},
-        {"pos": [-42, 4, 0], "color": "#ff8a60", "range": 9, "energy": 1.6}
-      ],
-      "props": [
-        {"type": "sign", "text": "訓練場", "pos": [-24, 5.2, 5.4], "size": 64, "color": "#ffe7b8"},
-        {"type": "sign", "text": "ハルの家", "pos": [18, 5.2, 5.4], "size": 64, "color": "#ffe7b8"},
-        {"type": "sign", "text": "禁足扉", "pos": [-42, 7.5, 0], "size": 64, "color": "#ff9a7a"},
-        {"type": "sign", "text": "昇降リフト（停止中）", "pos": [42, 7.2, -9], "size": 44, "color": "#ffe7b8"},
-        {"type": "exit", "id": "ch1.lower.to_training", "to": "training", "spawn": "from_lower", "pos": [-24, 0, 7.2], "size": [2.4, 3, 1.6]},
-        {"type": "exit", "id": "ch1.lower.to_home", "to": "home", "spawn": "from_lower", "pos": [18, 0, 7.2], "size": [2.4, 3, 1.6]},
-        {"type": "exit", "id": "ch1.lower.to_mid", "to": "mid", "spawn": "from_lower", "pos": [0, 5, 33], "size": [6, 4, 2]},
-        {"type": "exit", "id": "ch1.lower.to_r01", "to": "r01", "spawn": "from_town", "pos": [-47, 0, 0], "size": [2.5, 5, 5]},
-        {"type": "door", "id": "ch1.lower.gate", "pos": [-42.5, 0, 0], "yaw": 90, "size": [6, 6, 1], "lock": "ch1.gate_open", "opens": "auto", "text": "禁足扉だ。固く閉ざされている。（立入禁止）"},
-        {"type": "terminal", "id": "ch1.lower.lift", "pos": [40, 0, -4], "yaw": 0, "event": "ch1.lift", "prompt": "調べる"},
-        {"type": "npc", "id": "npc_martha", "name": "洗濯のマーサ", "pos": [30, 0, 3], "yaw": 180, "event": "ch1.martha"},
-        {"type": "npc", "id": "npc_gen", "name": "老人ゲン", "pos": [-8, 0, -8], "yaw": 90, "event": "ch1.gen"},
-        {"type": "npc", "id": "npc_nico", "name": "ニコ", "pos": [14, 0, 3.2], "yaw": 180, "talk": "ch1.nico.home", "when": "ch1.nico_rescued", "unless": "ch1.night"},
-        {"type": "npc", "id": "npc_yana", "name": "ヤーナ", "pos": [-37, 0, 3], "yaw": 90, "event": "ch1.yana.gate", "when": "ch1.plaza_done"}
-      ],
-      "enemies": [],
-      "checkpoints": [
-        {"id": "ch1.lower.cp", "pos": [-30, 0, 0], "yaw": 90, "radius": 8}
-      ],
-      "triggers": [
-        {"id": "ch1.lower.yana_gun", "pos": [-37, 0, 0], "size": [8, 3, 10], "cond": ["ch1.plaza_done"], "event": "ch1.yana_gun"}
-      ]
+    {
+     "t": "box",
+     "pos": [
+      -20.5,
+      -2,
+      0
+     ],
+     "size": [
+      1,
+      3.2,
+      40
+     ],
+     "tint": "#7c746a"
     },
-    "mid": {
-      "name": "オルド背町・中段（広場と市場）",
-      "mood": "outdoor",
-      "map": {
-        "floor": "町・中段",
-        "x": 1,
-        "y": 0,
-        "w": 2,
-        "h": 1
-      },
-      "geometry": [
-        {"t": "box", "pos": [0, -2, 1], "size": [96, 2, 30], "tint": "#9a9588"},
-        {"t": "box", "pos": [-26.25, 0, -14.5], "size": [43.5, 1.2, 1], "tint": "#74706a"},
-        {"t": "box", "pos": [26.25, 0, -14.5], "size": [43.5, 1.2, 1], "tint": "#74706a"},
-        {"t": "stairs", "pos": [0, -5, -20], "size": [8, 5, 12], "steps": 16, "tint": "#8d8f94"},
-        {"t": "box", "pos": [0, -7, -29], "size": [8, 2, 6], "tint": "#8d8f94"},
-        {"t": "box", "pos": [-4.25, -8, -23], "size": [0.5, 11, 18], "tint": "#74706a"},
-        {"t": "box", "pos": [4.25, -8, -23], "size": [0.5, 11, 18], "tint": "#74706a"},
-        {"t": "box", "pos": [0, -8, -32.5], "size": [9, 12, 1], "tint": "#74706a"},
-        {"t": "box", "pos": [-48.5, -2, 1], "size": [1, 3.2, 30], "tint": "#74706a"},
-        {"t": "box", "pos": [48.5, -2, 1], "size": [1, 3.2, 30], "tint": "#74706a"},
-        {"t": "box", "pos": [-26.25, 0, 16.5], "size": [43.5, 16, 1], "tint": "#74706a"},
-        {"t": "box", "pos": [26.25, 0, 16.5], "size": [43.5, 16, 1], "tint": "#74706a"},
-        {"t": "stairs", "pos": [0, 0, 22], "size": [8, 5, 12], "steps": 16, "tint": "#8d8f94"},
-        {"t": "box", "pos": [0, 0, 31], "size": [8, 5, 6], "tint": "#8d8f94"},
-        {"t": "box", "pos": [-4.25, 0, 25], "size": [0.5, 9, 18], "tint": "#74706a"},
-        {"t": "box", "pos": [4.25, 0, 25], "size": [0.5, 9, 18], "tint": "#74706a"},
-        {"t": "box", "pos": [0, 0, 34.5], "size": [9, 12, 1], "tint": "#74706a"},
-        {"t": "box", "pos": [0, 0, 1], "size": [26, 0.08, 18], "tint": "#b8b2a4"},
-        {"t": "box", "pos": [0, 0, 2], "size": [3.2, 1.0, 3.2], "tint": "#8a8a86"},
-        {"t": "box", "pos": [0, 1.0, 2], "size": [1.0, 2.6, 1.0], "tint": "#a4a49e"},
-        {"t": "box", "pos": [0, 0, 9], "size": [8, 0.8, 3], "tint": "#8a8a86"},
-        {"t": "box", "pos": [-38.300000000000004, 0, 8.5], "size": [5.4, 7, 9], "tint": "#9c8460"},
-        {"t": "box", "pos": [-29.7, 0, 8.5], "size": [5.4, 7, 9], "tint": "#9c8460"},
-        {"t": "box", "pos": [-34, 0, 9.5], "size": [3.2, 7, 7], "tint": "#9c8460"},
-        {"t": "box", "pos": [-34, 3.8, 5], "size": [3.2, 3.2, 2], "tint": "#9c8460"},
-        {"t": "box", "pos": [-34, 7, 8.5], "size": [14.6, 0.6, 9.6], "tint": "#8a5a46"},
-        {"t": "box", "pos": [-20, 0, 5], "size": [10, 5.5, 9], "tint": "#a8896a"},
-        {"t": "box", "pos": [-20, 5.5, 5], "size": [10.6, 0.5, 9.6], "tint": "#8a5a46"},
-        {"t": "box", "pos": [-20, 0, 0.3], "size": [4, 1.0, 1.2], "tint": "#8c6a46"},
-        {"t": "box", "pos": [24, 0, 3.8], "size": [7, 1.1, 0.8], "tint": "#8c6a46"},
-        {"t": "box", "pos": [24, 0, 8.6], "size": [7, 2.4, 1.0], "tint": "#6f5a40"},
-        {"t": "box", "pos": [24, 3.2, 6.3], "size": [8, 0.25, 5.2], "tint": "#b0503c"},
-        {"t": "box", "pos": [38, 0, 3.8], "size": [7, 1.1, 0.8], "tint": "#8c6a46"},
-        {"t": "box", "pos": [38, 0, 8.6], "size": [7, 2.4, 1.0], "tint": "#6f5a40"},
-        {"t": "box", "pos": [38, 3.2, 6.3], "size": [8, 0.25, 5.2], "tint": "#4a7a8a"},
-        {"t": "box", "pos": [30.5, 0, -6], "size": [3, 1.0, 2], "tint": "#6f5a40"},
-        {"t": "box", "pos": [42, 0, -7], "size": [2, 1.6, 2], "tint": "#6f5a40"},
-        {"t": "box", "pos": [-30, 0, -7], "size": [2.5, 1.2, 2], "tint": "#4a463f"}
-      ],
-      "markers": {
-        "start": {"pos": [0, 0, -8], "yaw": 0},
-        "from_lower": {"pos": [0, -5, -27.5], "yaw": 0},
-        "from_upper": {"pos": [0, 5, 29], "yaw": 180},
-        "from_workshop": {"pos": [-34, 0, 0.8], "yaw": 180}
-      },
-      "playerStart": "start",
-      "objective": "",
-      "lights": [
-        {"pos": [0, 6, 2], "color": "#ffcf8a", "range": 20, "energy": 1.6},
-        {"pos": [-34, 5, -2], "color": "#ffc27a", "range": 14, "energy": 1.6},
-        {"pos": [-20, 5, -2], "color": "#ffc27a", "range": 14, "energy": 1.6},
-        {"pos": [24, 5, 2], "color": "#ffc27a", "range": 14, "energy": 1.6},
-        {"pos": [38, 5, 2], "color": "#ffc27a", "range": 14, "energy": 1.6},
-        {"pos": [0, 5, -10], "color": "#ffc27a", "range": 14, "energy": 1.6}
-      ],
-      "props": [
-        {"type": "sign", "text": "広場", "pos": [0, 4.6, 2], "size": 72, "color": "#ffe7b8"},
-        {"type": "sign", "text": "ヤーナの工房", "pos": [-34, 6.4, 3.4], "size": 64, "color": "#ffe7b8"},
-        {"type": "sign", "text": "食堂", "pos": [-20, 7.0, 2.4], "size": 64, "color": "#ffe7b8"},
-        {"type": "sign", "text": "雑貨屋", "pos": [24, 4.5, 4], "size": 56, "color": "#ffe7b8"},
-        {"type": "sign", "text": "ジャンク屋", "pos": [38, 4.5, 4], "size": 56, "color": "#ffe7b8"},
-        {"type": "exit", "id": "ch1.mid.to_lower", "to": "lower", "spawn": "from_mid", "pos": [0, -5, -31], "size": [6, 4, 2]},
-        {"type": "exit", "id": "ch1.mid.to_upper", "to": "upper", "spawn": "from_mid", "pos": [0, 5, 33], "size": [6, 4, 2]},
-        {"type": "exit", "id": "ch1.mid.to_workshop", "to": "workshop", "spawn": "from_mid", "pos": [-34, 0, 5.2], "size": [2.4, 3, 1.6]},
-        {"type": "npc", "id": "npc_shopkeeper", "name": "雑貨屋の店主", "pos": [24, 0, 5.0], "yaw": 180, "event": "ch1.shop_zakka"},
-        {"type": "npc", "id": "npc_junker", "name": "ジャンク屋", "pos": [38, 0, 5.0], "yaw": 180, "event": "ch1.shop_junk"},
-        {"type": "npc", "id": "npc_domi", "name": "食堂のドミ", "pos": [-20, 0, -1.4], "yaw": 0, "event": "ch1.domi"},
-        {"type": "npc", "id": "npc_tobi", "name": "少年トビ", "pos": [10, 0, -6], "yaw": 270, "event": "ch1.tobi"},
-        {"type": "npc", "id": "npc_trude", "name": "町長トルーデ", "pos": [0, 0.8, 9], "yaw": 180, "event": "ch1.trude.plaza", "when": "ch1.ordo_stopped"},
-        {"type": "npc", "id": "npc_burton", "name": "バートン", "pos": [-4, 0, 7], "yaw": 150, "event": "ch1.burton.plaza", "when": "ch1.ordo_stopped"},
-        {"type": "npc", "id": "npc_woman", "name": "ミナ婆", "pos": [6, 0, 6], "yaw": 200, "event": "ch1.mina", "when": "ch1.ordo_stopped"}
-      ],
-      "enemies": [],
-      "checkpoints": [
-        {"id": "ch1.mid.cp", "pos": [0, 0, -8], "yaw": 0, "radius": 8}
-      ],
-      "triggers": [
-        {"id": "ch1.mid.plaza", "pos": [0, 0, 3], "size": [14, 3, 10], "cond": ["ch1.ordo_stopped"], "event": "ch1.plaza"}
-      ]
+    {
+     "t": "box",
+     "pos": [
+      20.5,
+      -2,
+      0
+     ],
+     "size": [
+      1,
+      3.2,
+      40
+     ],
+     "tint": "#7c746a"
     },
-    "upper": {
-      "name": "オルド背町・上段（展望台）",
-      "mood": "outdoor",
-      "map": {
-        "floor": "町・上段",
-        "x": 1,
-        "y": -1,
-        "w": 2,
-        "h": 1
-      },
-      "geometry": [
-        {"t": "box", "pos": [0, -2, 1], "size": [80, 2, 30], "tint": "#a39a84"},
-        {"t": "box", "pos": [-22.25, 0, -14.5], "size": [35.5, 1.2, 1], "tint": "#7a7468"},
-        {"t": "box", "pos": [22.25, 0, -14.5], "size": [35.5, 1.2, 1], "tint": "#7a7468"},
-        {"t": "stairs", "pos": [0, -5, -20], "size": [8, 5, 12], "steps": 16, "tint": "#8d8f94"},
-        {"t": "box", "pos": [0, -7, -29], "size": [8, 2, 6], "tint": "#8d8f94"},
-        {"t": "box", "pos": [-4.25, -8, -23], "size": [0.5, 11, 18], "tint": "#7a7468"},
-        {"t": "box", "pos": [4.25, -8, -23], "size": [0.5, 11, 18], "tint": "#7a7468"},
-        {"t": "box", "pos": [0, -8, -32.5], "size": [9, 12, 1], "tint": "#7a7468"},
-        {"t": "box", "pos": [-40.5, -2, 1], "size": [1, 3.2, 30], "tint": "#7a7468"},
-        {"t": "box", "pos": [40.5, -2, 1], "size": [1, 3.2, 30], "tint": "#7a7468"},
-        {"t": "box", "pos": [-24, 0, 16.5], "size": [32, 1.2, 1], "tint": "#7a7468"},
-        {"t": "box", "pos": [24, 0, 16.5], "size": [32, 1.2, 1], "tint": "#7a7468"},
-        {"t": "box", "pos": [-26.3, 0, 8.5], "size": [5.4, 7, 9], "tint": "#9aa08a"},
-        {"t": "box", "pos": [-17.7, 0, 8.5], "size": [5.4, 7, 9], "tint": "#9aa08a"},
-        {"t": "box", "pos": [-22, 0, 9.5], "size": [3.2, 7, 7], "tint": "#9aa08a"},
-        {"t": "box", "pos": [-22, 3.8, 5], "size": [3.2, 3.2, 2], "tint": "#9aa08a"},
-        {"t": "box", "pos": [-22, 7, 8.5], "size": [14.6, 0.6, 9.6], "tint": "#8a5a46"},
-        {"t": "box", "pos": [15.2, 0, 8.5], "size": [6.4, 8, 9], "tint": "#8a8f9c"},
-        {"t": "box", "pos": [24.8, 0, 8.5], "size": [6.4, 8, 9], "tint": "#8a8f9c"},
-        {"t": "box", "pos": [20, 0, 9.5], "size": [3.2, 8, 7], "tint": "#8a8f9c"},
-        {"t": "box", "pos": [20, 3.8, 5], "size": [3.2, 4.2, 2], "tint": "#8a8f9c"},
-        {"t": "box", "pos": [20, 8, 8.5], "size": [16.6, 0.6, 9.6], "tint": "#8a5a46"},
-        {"t": "box", "pos": [0, -2, 22], "size": [16, 2, 12], "tint": "#9a9078"},
-        {"t": "box", "pos": [-8.4, -2, 22], "size": [0.8, 3.2, 12], "tint": "#8c6a46"},
-        {"t": "box", "pos": [8.4, -2, 22], "size": [0.8, 3.2, 12], "tint": "#8c6a46"},
-        {"t": "box", "pos": [0, -2, 28.4], "size": [17.6, 3.2, 0.8], "tint": "#8c6a46"},
-        {"t": "box", "pos": [0, 0, 24], "size": [1.6, 1.2, 1.6], "tint": "#5a5a60"}
-      ],
-      "markers": {
-        "start": {"pos": [0, 0, -8], "yaw": 0},
-        "from_mid": {"pos": [0, -5, -27.5], "yaw": 0},
-        "from_mayor": {"pos": [-22, 0, 0.8], "yaw": 180},
-        "from_guild": {"pos": [20, 0, 0.8], "yaw": 180}
-      },
-      "playerStart": "start",
-      "objective": "",
-      "lights": [
-        {"pos": [-22, 5, -2], "color": "#ffc27a", "range": 14, "energy": 1.6},
-        {"pos": [20, 5, -2], "color": "#ffc27a", "range": 14, "energy": 1.6},
-        {"pos": [0, 5, -8], "color": "#ffc27a", "range": 14, "energy": 1.6},
-        {"pos": [0, 3, 22], "color": "#ffd9a8", "range": 12, "energy": 1.6}
-      ],
-      "props": [
-        {"type": "sign", "text": "町長の家", "pos": [-22, 6.4, 3.4], "size": 64, "color": "#ffe7b8"},
-        {"type": "sign", "text": "回収屋ギルド", "pos": [20, 7.4, 3.4], "size": 64, "color": "#ffe7b8"},
-        {"type": "sign", "text": "展望台", "pos": [0, 3.4, 18], "size": 64, "color": "#ffe7b8"},
-        {"type": "exit", "id": "ch1.upper.to_mid", "to": "mid", "spawn": "from_upper", "pos": [0, -5, -31], "size": [6, 4, 2]},
-        {"type": "exit", "id": "ch1.upper.to_mayor", "to": "mayor", "spawn": "from_upper", "pos": [-22, 0, 5.2], "size": [2.4, 3, 1.6]},
-        {"type": "exit", "id": "ch1.upper.to_guild", "to": "guild", "spawn": "from_upper", "pos": [20, 0, 5.2], "size": [2.4, 3, 1.6]},
-        {"type": "terminal", "id": "ch1.upper.scope", "pos": [0, 0, 24], "yaw": 0, "event": "ch1.scope", "prompt": "のぞく"},
-        {"type": "npc", "id": "npc_lookout", "name": "見張りのロブ", "pos": [-4, 0, 22], "yaw": 0, "event": "ch1.lookout"},
-        {"type": "npc", "id": "npc_clerk", "name": "ギルドの事務員", "pos": [30, 0, -2], "yaw": 270, "event": "ch1.clerk"}
-      ],
-      "enemies": [],
-      "checkpoints": [],
-      "triggers": []
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2,
+      -20.5
+     ],
+     "size": [
+      42,
+      3.2,
+      1
+     ],
+     "tint": "#7c746a"
     },
-    "home": {
-      "name": "ハルの家",
-      "mood": "interior",
-      "map": {
-        "floor": "町・下段",
-        "x": 2,
-        "y": 2,
-        "w": 1,
-        "h": 1
-      },
-      "geometry": [
-        {"t": "shell", "pos": [0, 0, 0], "size": [14, 4.5, 12], "thick": 1, "ceiling": true, "tint": "#8a7660"},
-        {"t": "box", "pos": [0, 0, -5.95], "size": [3, 3.2, 0.2], "tint": "#c7a46a"},
-        {"t": "box", "pos": [-5.2, 0, 3.5], "size": [2.4, 0.6, 4], "tint": "#6a5a8a"},
-        {"t": "box", "pos": [-5.6, 0.6, 3.5], "size": [1.2, 0.3, 1.6], "tint": "#e6dcc8"},
-        {"t": "box", "pos": [3.5, 0, -2], "size": [3, 0.9, 1.2], "tint": "#8c6a46"},
-        {"t": "box", "pos": [5.5, 0, -4.5], "size": [1.6, 2.2, 1.0], "tint": "#5a4a38"},
-        {"t": "box", "pos": [-5.5, 0, -3], "size": [1.2, 1.6, 2], "tint": "#5a4a38"}
-      ],
-      "markers": {
-        "from_lower": {"pos": [0, 0, -1.5], "yaw": 0},
-        "bed": {"pos": [-2, 0, 1.5], "yaw": 270}
-      },
-      "playerStart": "from_lower",
-      "objective": "",
-      "lights": [
-        {"pos": [0, 3.6, 0], "color": "#ffd9a8", "range": 14, "energy": 1.4},
-        {"pos": [-4.5, 1.6, 3.5], "color": "#ffb070", "range": 5, "energy": 1.2}
-      ],
-      "props": [
-        {"type": "exit", "id": "ch1.home.out", "to": "lower", "spawn": "from_home", "pos": [0, 0, -5.0], "size": [3, 3.5, 1.6]},
-        {"type": "sign", "text": "ハルの家", "pos": [0, 3.6, -5.2], "size": 48, "color": "#ffe7b8"},
-        {"type": "terminal", "id": "ch1.home.bed", "pos": [-4.5, 0, 3.5], "yaw": 90, "event": "ch1.sleep", "prompt": "休む"},
-        {"type": "beacon", "id": "ch1.home.bc", "pos": [4.5, 0, 3], "flag": "ch1.home_beacon"}
-      ],
-      "enemies": [],
-      "checkpoints": [],
-      "triggers": []
+    {
+     "t": "box",
+     "pos": [
+      -80,
+      -30,
+      160
+     ],
+     "size": [
+      120,
+      34,
+      60
+     ],
+     "tint": "#c9a27e"
     },
-    "workshop": {
-      "name": "ヤーナの工房",
-      "mood": "interior",
-      "map": {
-        "floor": "町・中段",
-        "x": 0,
-        "y": 0,
-        "w": 1,
-        "h": 1
-      },
-      "geometry": [
-        {"t": "shell", "pos": [0, 0, 0], "size": [20, 6, 14], "thick": 1, "ceiling": true, "tint": "#7a6c5c"},
-        {"t": "box", "pos": [0, 0, -6.95], "size": [3, 3.2, 0.2], "tint": "#c7a46a"},
-        {"t": "box", "pos": [-5, 0, 6], "size": [6, 1.0, 1.6], "tint": "#8c6a46"},
-        {"t": "box", "pos": [6, 0, 6.2], "size": [4, 1.2, 1.2], "tint": "#4a4e55"},
-        {"t": "box", "pos": [-8.5, 0, 0], "size": [1.4, 2.4, 6], "tint": "#5a4a38"},
-        {"t": "box", "pos": [8.5, 0, -1], "size": [1.4, 2.0, 5], "tint": "#5a4a38"}
-      ],
-      "markers": {
-        "from_mid": {"pos": [0, 0, -2.5], "yaw": 0}
-      },
-      "playerStart": "from_mid",
-      "objective": "",
-      "lights": [
-        {"pos": [0, 5, 0], "color": "#ffd9a8", "range": 18, "energy": 1.3},
-        {"pos": [-6, 3, 4], "color": "#ff9a5a", "range": 8, "energy": 1.6}
-      ],
-      "props": [
-        {"type": "exit", "id": "ch1.workshop.out", "to": "mid", "spawn": "from_workshop", "pos": [0, 0, -6.0], "size": [3, 3.5, 1.6]},
-        {"type": "sign", "text": "ヤーナの工房", "pos": [0, 4.6, -6.2], "size": 48, "color": "#ffe7b8"},
-        {"type": "npc", "id": "npc_yana", "name": "ヤーナ", "pos": [3, 0, 3.5], "yaw": 200, "event": "ch1.yana.shop", "unless": "ch1.plaza_done"},
-        {"type": "terminal", "id": "ch1.workshop.bench", "pos": [-5, 0, 4.5], "yaw": 0, "event": "ch1.workshop_bench", "prompt": "作業台を使う"}
-      ],
-      "enemies": [],
-      "checkpoints": [],
-      "triggers": [
-        {"id": "ch1.workshop.debt", "pos": [0, 0, -2], "size": [10, 3, 4], "cond": ["ch1.scolded"], "event": "ch1.debt"}
-      ]
+    {
+     "t": "box",
+     "pos": [
+      70,
+      -30,
+      210
+     ],
+     "size": [
+      160,
+      38,
+      60
+     ],
+     "tint": "#bf936a"
     },
-    "guild": {
-      "name": "回収屋ギルド",
-      "mood": "interior",
-      "map": {
-        "floor": "町・上段",
-        "x": 2,
-        "y": 0,
-        "w": 1,
-        "h": 1
-      },
-      "geometry": [
-        {"t": "shell", "pos": [0, 0, 0], "size": [24, 6, 16], "thick": 1, "ceiling": true, "tint": "#7c7468"},
-        {"t": "box", "pos": [0, 0, -7.95], "size": [3, 3.2, 0.2], "tint": "#c7a46a"},
-        {"t": "box", "pos": [-7, 0, 7], "size": [7, 1.1, 1.2], "tint": "#8c6a46"},
-        {"t": "box", "pos": [0, 0, 6.5], "size": [6, 1.1, 1.2], "tint": "#8c6a46"},
-        {"t": "box", "pos": [7, 0, 7.6], "size": [4, 2.4, 0.4], "tint": "#5a4a38"}
-      ],
-      "markers": {
-        "from_upper": {"pos": [0, 0, -3.5], "yaw": 0}
-      },
-      "playerStart": "from_upper",
-      "objective": "",
-      "lights": [
-        {"pos": [0, 5, 0], "color": "#ffd9a8", "range": 20, "energy": 1.3},
-        {"pos": [-7, 3, 5], "color": "#ffc27a", "range": 8, "energy": 1.6}
-      ],
-      "props": [
-        {"type": "exit", "id": "ch1.guild.out", "to": "upper", "spawn": "from_guild", "pos": [0, 0, -7.0], "size": [3, 3.5, 1.6]},
-        {"type": "sign", "text": "回収屋ギルド", "pos": [0, 4.6, -7.2], "size": 48, "color": "#ffe7b8"},
-        {"type": "npc", "id": "npc_burton", "name": "バートン", "pos": [0, 0, 5], "yaw": 180, "event": "ch1.burton.guild", "unless": "ch1.night"},
-        {"type": "npc", "id": "npc_rita", "name": "受付のリタ", "pos": [-7, 0, 5], "yaw": 180, "event": "ch1.rita"},
-        {"type": "terminal", "id": "ch1.guild.board", "pos": [7, 0, 6.5], "yaw": 180, "event": "ch1.guild_board", "prompt": "依頼板を見る"}
-      ],
-      "enemies": [],
-      "checkpoints": [],
-      "triggers": [
-        {"id": "ch1.guild.scold", "pos": [0, 0, -2], "size": [12, 3, 4], "cond": ["ch1.nico_rescued"], "event": "ch1.scold"}
-      ]
-    },
-    "mayor": {
-      "name": "町長の家",
-      "mood": "interior",
-      "map": {
-        "floor": "町・上段",
-        "x": 0,
-        "y": 0,
-        "w": 1,
-        "h": 1
-      },
-      "geometry": [
-        {"t": "shell", "pos": [0, 0, 0], "size": [14, 4.8, 12], "thick": 1, "ceiling": true, "tint": "#8a806a"},
-        {"t": "box", "pos": [0, 0, -5.95], "size": [3, 3.2, 0.2], "tint": "#c7a46a"},
-        {"t": "box", "pos": [0, 0, 5], "size": [5, 0.9, 1.4], "tint": "#8c6a46"},
-        {"t": "box", "pos": [-5.5, 0, 0], "size": [1.2, 2.2, 6], "tint": "#5a4a38"}
-      ],
-      "markers": {
-        "from_upper": {"pos": [0, 0, -1.5], "yaw": 0}
-      },
-      "playerStart": "from_upper",
-      "objective": "",
-      "lights": [
-        {"pos": [0, 3.8, 0], "color": "#ffd9a8", "range": 14, "energy": 1.3}
-      ],
-      "props": [
-        {"type": "exit", "id": "ch1.mayor.out", "to": "upper", "spawn": "from_mayor", "pos": [0, 0, -5.0], "size": [3, 3.5, 1.6]},
-        {"type": "sign", "text": "町長の家", "pos": [0, 3.8, -5.2], "size": 48, "color": "#ffe7b8"},
-        {"type": "npc", "id": "npc_trude", "name": "町長トルーデ", "pos": [0, 0, 3], "yaw": 180, "event": "ch1.trude.house", "unless": "ch1.ordo_stopped"}
-      ],
-      "enemies": [],
-      "checkpoints": [],
-      "triggers": []
-    },
-    "r01": {
-      "name": "禁足扉の前室",
-      "mood": "interior",
-      "map": {
-        "floor": "遺構 B1",
-        "x": 0,
-        "y": 0,
-        "w": 1,
-        "h": 1
-      },
-      "geometry": [
-        {"t": "shell", "pos": [0, 0, 0], "size": [20, 8, 28], "thick": 1, "ceiling": true, "tint": "#6b7078"},
-        {"t": "box", "pos": [0, 0, -13.9], "size": [6, 4, 0.3], "tint": "#3a3d44"},
-        {"t": "box", "pos": [0, 0, 13.9], "size": [6, 4, 0.3], "tint": "#3a3d44"},
-        {"t": "box", "pos": [-5, 0, 0], "size": [2, 2.4, 2], "tint": "#59606a"},
-        {"t": "box", "pos": [5.5, 0, 2], "size": [2.4, 1.6, 2], "tint": "#59606a"},
-        {"t": "box", "pos": [-6, 0, 7], "size": [3, 1.2, 1.4], "tint": "#59606a"},
-        {"t": "box", "pos": [0, 0, -5], "size": [1.4, 3.4, 1.4], "tint": "#59606a"},
-        {"t": "box", "pos": [7.5, 0, -6], "size": [2, 1.2, 3], "tint": "#4a4e55"}
-      ],
-      "markers": {
-        "start": {"pos": [0, 0, -9.5], "yaw": 0},
-        "from_town": {"pos": [0, 0, -9.5], "yaw": 0},
-        "from_r02": {"pos": [0, 0, 9.5], "yaw": 180}
-      },
-      "playerStart": "from_town",
-      "objective": "",
-      "lights": [
-        {"pos": [0, 6, -8], "color": "#9ad0ff", "range": 16, "energy": 1.0},
-        {"pos": [0, 6, 8], "color": "#9ad0ff", "range": 16, "energy": 1.0},
-        {"pos": [6, 1.4, 8], "color": "#ffb070", "range": 6, "energy": 1.2}
-      ],
-      "props": [
-        {"type": "sign", "text": "遺構 B1 外殻層", "pos": [0, 4.2, 13], "size": 48, "color": "#9ad0ff"},
-        {"type": "exit", "id": "ch1.r01.to_town", "to": "lower", "spawn": "from_gate", "pos": [0, 0, -13], "size": [6, 4, 2], "lock": "ch1.nico_rescued", "text": "ニコを置いては戻れない。"},
-        {"type": "exit", "id": "ch1.r01.to_r02", "to": "r02", "spawn": "from_r01", "pos": [0, 0, 13], "size": [6, 4, 2], "lock": "ch1.got_spark", "text": "奥は暗く、深い。丸腰で入る気にはなれない。"},
-        {"type": "npc", "id": "npc_nico", "name": "ニコ", "pos": [6, 0, 9], "yaw": 200, "talk": "ch1.nico.corner", "when": "ch1.nico_ran", "unless": "ch1.nico_rescued"}
-      ],
-      "enemies": [],
-      "checkpoints": [
-        {"id": "ch1.r01.cp", "pos": [0, 0, -9.5], "yaw": 0, "radius": 4}
-      ],
-      "triggers": [
-        {"id": "ch1.r01.nico", "pos": [0, 0, -6], "size": [18, 3, 3], "cond": ["ch1.nico_ran", {"not": "ch1.nico_rescued"}], "event": "ch1.nico_fight"}
-      ]
-    },
-    "r02": {
-      "name": "ジャンク溜まり（仮）",
-      "mood": "interior",
-      "map": {
-        "floor": "遺構 B1",
-        "x": 1,
-        "y": 0,
-        "w": 1,
-        "h": 1
-      },
-      "geometry": [
-        {"t": "shell", "pos": [0, 0, 0], "size": [20, 8, 16], "thick": 1, "ceiling": true, "tint": "#5a5e66"}
-      ],
-      "markers": {
-        "start": {"pos": [0, 0, -4], "yaw": 0},
-        "from_r01": {"pos": [0, 0, -4], "yaw": 0}
-      },
-      "playerStart": "from_r01",
-      "objective": "（第 1 章 前半はここまで。遺構 B1 は次の段階で作る）",
-      "lights": [
-        {"pos": [0, 6, 0], "color": "#9ad0ff", "range": 16, "energy": 1.0}
-      ],
-      "props": [
-        {"type": "exit", "id": "ch1.r02.back", "to": "r01", "spawn": "from_r02", "pos": [0, 0, -7], "size": [6, 4, 2]},
-        {"type": "beacon", "id": "ch1.r02.bc", "pos": [5, 0, 3], "flag": "ch1.first_beacon_stub"}
-      ],
-      "enemies": [],
-      "checkpoints": [],
-      "triggers": [
-        {"id": "ch1.r02.stub", "pos": [0, 0, -3], "size": [16, 3, 3], "event": "ch1.r02.stub"}
-      ]
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -30,
+      320
+     ],
+     "size": [
+      400,
+      44,
+      80
+     ],
+     "tint": "#b98a66"
     }
+   ],
+   "markers": {
+    "start": {
+     "pos": [
+      0,
+      0,
+      -6
+     ],
+     "yaw": 0
+    }
+   },
+   "playerStart": "start",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      -8,
+      2,
+      14
+     ],
+     "color": "#ffb070",
+     "range": 14,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      8,
+      2,
+      14
+     ],
+     "color": "#ffb070",
+     "range": 14,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      0,
+      3,
+      4
+     ],
+     "color": "#ffd9a8",
+     "range": 18,
+     "energy": 1.0
+    }
+   ],
+   "props": [],
+   "enemies": [],
+   "checkpoints": [],
+   "triggers": [
+    {
+     "id": "ch1.opening.enter",
+     "pos": [
+      0,
+      0,
+      -6
+     ],
+     "size": [
+      8,
+      3,
+      8
+     ],
+     "event": "ch1.opening"
+    }
+   ]
+  },
+  "training": {
+   "name": "訓練場",
+   "mood": "outdoor",
+   "map": {
+    "floor": "町・下段",
+    "x": 0,
+    "y": 1,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2,
+      0
+     ],
+     "size": [
+      44,
+      2,
+      52
+     ],
+     "tint": "#b5a27c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2,
+      44
+     ],
+     "size": [
+      44,
+      2,
+      24
+     ],
+     "tint": "#b5a27c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -22.5,
+      -3.5,
+      14
+     ],
+     "size": [
+      1,
+      12,
+      84
+     ],
+     "tint": "#7c746a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      22.5,
+      -3.5,
+      14
+     ],
+     "size": [
+      1,
+      12,
+      84
+     ],
+     "tint": "#7c746a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -3.5,
+      -26.5
+     ],
+     "size": [
+      46,
+      12,
+      1
+     ],
+     "tint": "#7c746a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -3.5,
+      56.5
+     ],
+     "size": [
+      46,
+      14,
+      1
+     ],
+     "tint": "#7c746a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -3.5,
+      29
+     ],
+     "size": [
+      44,
+      2,
+      6
+     ],
+     "tint": "#8c7a58"
+    },
+    {
+     "t": "ramp",
+     "pos": [
+      0,
+      -1.5,
+      27.7
+     ],
+     "size": [
+      10,
+      1.5,
+      3.4
+     ],
+     "yaw": 180,
+     "tint": "#8c7a58"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      8,
+      1.0,
+      4
+     ],
+     "tint": "#c9b48a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      6
+     ],
+     "size": [
+      8,
+      1.8,
+      4
+     ],
+     "tint": "#d3bf94"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -8,
+      0,
+      16
+     ],
+     "size": [
+      0.5,
+      1.3,
+      0.5
+     ],
+     "tint": "#8c6a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      18
+     ],
+     "size": [
+      0.5,
+      1.6,
+      0.5
+     ],
+     "tint": "#8c6a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      8,
+      0,
+      16
+     ],
+     "size": [
+      0.5,
+      1.3,
+      0.5
+     ],
+     "tint": "#8c6a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -10,
+      0,
+      42
+     ],
+     "size": [
+      3.4,
+      1.3,
+      2.4
+     ],
+     "yaw": 15,
+     "tint": "#4a463f"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -9.2,
+      1.3,
+      42
+     ],
+     "size": [
+      1.6,
+      0.8,
+      1.4
+     ],
+     "yaw": -20,
+     "tint": "#5a544a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      9,
+      0,
+      46
+     ],
+     "size": [
+      3.4,
+      1.3,
+      2.4
+     ],
+     "yaw": 15,
+     "tint": "#4a463f"
+    },
+    {
+     "t": "box",
+     "pos": [
+      9.8,
+      1.3,
+      46
+     ],
+     "size": [
+      1.6,
+      0.8,
+      1.4
+     ],
+     "yaw": -20,
+     "tint": "#5a544a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -3,
+      0,
+      51
+     ],
+     "size": [
+      3.4,
+      1.3,
+      2.4
+     ],
+     "yaw": 15,
+     "tint": "#4a463f"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -2.2,
+      1.3,
+      51
+     ],
+     "size": [
+      1.6,
+      0.8,
+      1.4
+     ],
+     "yaw": -20,
+     "tint": "#5a544a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      -8
+     ],
+     "size": [
+      7,
+      0.06,
+      3.4
+     ],
+     "tint": "#e6c56a"
+    }
+   ],
+   "markers": {
+    "start": {
+     "pos": [
+      0,
+      0,
+      -17
+     ],
+     "yaw": 0
+    },
+    "from_lower": {
+     "pos": [
+      0,
+      0,
+      -19
+     ],
+     "yaw": 0
+    }
+   },
+   "playerStart": "start",
+   "objective": "バートンに仕事を言いつけられた",
+   "lights": [
+    {
+     "pos": [
+      -14,
+      6,
+      -10
+     ],
+     "color": "#ffc27a",
+     "range": 14,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      14,
+      6,
+      10
+     ],
+     "color": "#ffc27a",
+     "range": 14,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      0,
+      6,
+      40
+     ],
+     "color": "#ffc27a",
+     "range": 14,
+     "energy": 1.6
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "text": "訓練場",
+     "pos": [
+      0,
+      5.5,
+      -22
+     ],
+     "size": 72,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "sign",
+     "text": "① 歩く",
+     "pos": [
+      0,
+      2.3,
+      -8
+     ],
+     "size": 40,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "sign",
+     "text": "② 跳ぶ",
+     "pos": [
+      0,
+      3.6,
+      6
+     ],
+     "size": 40,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "sign",
+     "text": "③ 撃つ",
+     "pos": [
+      0,
+      3.2,
+      17
+     ],
+     "size": 40,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "sign",
+     "text": "④ ダッシュ",
+     "pos": [
+      0,
+      2.8,
+      25
+     ],
+     "size": 40,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "sign",
+     "text": "⑤ 残骸を片付ける",
+     "pos": [
+      0,
+      3.0,
+      40
+     ],
+     "size": 40,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "exit",
+     "id": "ch1.training.to_lower",
+     "to": "lower",
+     "spawn": "from_training",
+     "pos": [
+      0,
+      0,
+      -24
+     ],
+     "size": [
+      8,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "npc",
+     "id": "npc_burton",
+     "name": "バートン",
+     "pos": [
+      -6,
+      0,
+      -13
+     ],
+     "yaw": 90,
+     "talk": "ch1.burton.training",
+     "unless": "ch1.nico_ran"
+    },
+    {
+     "type": "npc",
+     "id": "npc_nico",
+     "name": "ニコ",
+     "pos": [
+      6,
+      0,
+      38
+     ],
+     "yaw": 180,
+     "talk": "ch1.nico.training",
+     "unless": "ch1.nico_ran"
+    },
+    {
+     "type": "switch",
+     "id": "ch1.tg1",
+     "pos": [
+      -8,
+      1.65,
+      16
+     ],
+     "mode": "shoot",
+     "radius": 0.6
+    },
+    {
+     "type": "switch",
+     "id": "ch1.tg2",
+     "pos": [
+      0,
+      1.9500000000000002,
+      18
+     ],
+     "mode": "shoot",
+     "radius": 0.6
+    },
+    {
+     "type": "switch",
+     "id": "ch1.tg3",
+     "pos": [
+      8,
+      1.65,
+      16
+     ],
+     "mode": "shoot",
+     "radius": 0.6
+    },
+    {
+     "type": "switch",
+     "id": "ch1.w1",
+     "pos": [
+      -10,
+      0,
+      40.0
+     ],
+     "mode": "interact",
+     "prompt": "残骸を片付ける"
+    },
+    {
+     "type": "switch",
+     "id": "ch1.w2",
+     "pos": [
+      9,
+      0,
+      44.0
+     ],
+     "mode": "interact",
+     "prompt": "残骸を片付ける"
+    },
+    {
+     "type": "switch",
+     "id": "ch1.w3",
+     "pos": [
+      -3,
+      0,
+      49.0
+     ],
+     "mode": "interact",
+     "prompt": "残骸を片付ける"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [
+    {
+     "id": "ch1.training.cp0",
+     "pos": [
+      0,
+      0,
+      -17
+     ],
+     "yaw": 0,
+     "radius": 5
+    },
+    {
+     "id": "ch1.training.cp1",
+     "pos": [
+      0,
+      0,
+      36
+     ],
+     "yaw": 0,
+     "radius": 5
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.training.start",
+     "pos": [
+      0,
+      0,
+      -17
+     ],
+     "size": [
+      10,
+      3,
+      5
+     ],
+     "event": "ch1.training.start"
+    },
+    {
+     "id": "ch1.training.t_move",
+     "pos": [
+      0,
+      0,
+      -8
+     ],
+     "size": [
+      7,
+      3,
+      3.4
+     ],
+     "cond": "ch1.chores_started",
+     "event": "ch1.t.move"
+    },
+    {
+     "id": "ch1.training.t_jump",
+     "pos": [
+      0,
+      1.8,
+      6
+     ],
+     "size": [
+      6,
+      2,
+      3
+     ],
+     "cond": "ch1.chores_started",
+     "event": "ch1.t.jump"
+    },
+    {
+     "id": "ch1.training.t_shoot",
+     "on": "flag",
+     "cond": [
+      "switch.ch1.tg1",
+      "switch.ch1.tg2",
+      "switch.ch1.tg3"
+     ],
+     "event": "ch1.t.shoot"
+    },
+    {
+     "id": "ch1.training.t_ditch",
+     "pos": [
+      0,
+      0,
+      22
+     ],
+     "size": [
+      30,
+      3,
+      2
+     ],
+     "cond": "ch1.t_shoot",
+     "event": "ch1.t.ditch"
+    },
+    {
+     "id": "ch1.training.t_dash",
+     "pos": [
+      0,
+      0,
+      35
+     ],
+     "size": [
+      30,
+      3,
+      2
+     ],
+     "cond": "ch1.chores_started",
+     "event": "ch1.t.dash"
+    },
+    {
+     "id": "ch1.training.nico_run",
+     "on": "flag",
+     "cond": {
+      "any": [
+       "switch.ch1.w1",
+       "switch.ch1.w2",
+       "switch.ch1.w3"
+      ]
+     },
+     "event": "ch1.nico_run"
+    }
+   ]
+  },
+  "lower": {
+   "name": "オルド背町・下段",
+   "mood": "outdoor",
+   "map": {
+    "floor": "町・下段",
+    "x": 1,
+    "y": 1,
+    "w": 2,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2,
+      1
+     ],
+     "size": [
+      96,
+      2,
+      30
+     ],
+     "tint": "#a8906c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      -14.5
+     ],
+     "size": [
+      96,
+      1.2,
+      1
+     ],
+     "tint": "#7c746a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -48.5,
+      -2,
+      1
+     ],
+     "size": [
+      1,
+      3.2,
+      30
+     ],
+     "tint": "#7c746a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      48.5,
+      -2,
+      1
+     ],
+     "size": [
+      1,
+      3.2,
+      30
+     ],
+     "tint": "#7c746a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -26.25,
+      0,
+      16.5
+     ],
+     "size": [
+      43.5,
+      16,
+      1
+     ],
+     "tint": "#7c746a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      26.25,
+      0,
+      16.5
+     ],
+     "size": [
+      43.5,
+      16,
+      1
+     ],
+     "tint": "#7c746a"
+    },
+    {
+     "t": "stairs",
+     "pos": [
+      0,
+      0,
+      22
+     ],
+     "size": [
+      8,
+      5,
+      12
+     ],
+     "steps": 16,
+     "tint": "#8d8f94"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      31
+     ],
+     "size": [
+      8,
+      5,
+      6
+     ],
+     "tint": "#8d8f94"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -4.25,
+      0,
+      25
+     ],
+     "size": [
+      0.5,
+      9,
+      18
+     ],
+     "tint": "#7c746a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      4.25,
+      0,
+      25
+     ],
+     "size": [
+      0.5,
+      9,
+      18
+     ],
+     "tint": "#7c746a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      34.5
+     ],
+     "size": [
+      9,
+      12,
+      1
+     ],
+     "tint": "#7c746a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -45,
+      0,
+      -9.5
+     ],
+     "size": [
+      6,
+      10,
+      13
+     ],
+     "tint": "#5f646c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -45,
+      0,
+      9.5
+     ],
+     "size": [
+      6,
+      10,
+      13
+     ],
+     "tint": "#5f646c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -45,
+      6.5,
+      0
+     ],
+     "size": [
+      6,
+      3.5,
+      6
+     ],
+     "tint": "#5f646c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -48.5,
+      0,
+      0
+     ],
+     "size": [
+      1,
+      10,
+      6
+     ],
+     "tint": "#3a3d44"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -27.8,
+      0,
+      10.0
+     ],
+     "size": [
+      4.4,
+      6,
+      8
+     ],
+     "tint": "#b5a27c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -20.2,
+      0,
+      10.0
+     ],
+     "size": [
+      4.4,
+      6,
+      8
+     ],
+     "tint": "#b5a27c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -24,
+      0,
+      11.0
+     ],
+     "size": [
+      3.2,
+      6,
+      6
+     ],
+     "tint": "#b5a27c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -24,
+      3.8,
+      7
+     ],
+     "size": [
+      3.2,
+      2.2,
+      2
+     ],
+     "tint": "#b5a27c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -24,
+      6,
+      10.0
+     ],
+     "size": [
+      12.6,
+      0.6,
+      8.6
+     ],
+     "tint": "#8a5a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      14.7,
+      0,
+      10.0
+     ],
+     "size": [
+      3.4,
+      6,
+      8
+     ],
+     "tint": "#a8896a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      21.3,
+      0,
+      10.0
+     ],
+     "size": [
+      3.4,
+      6,
+      8
+     ],
+     "tint": "#a8896a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      18,
+      0,
+      11.0
+     ],
+     "size": [
+      3.2,
+      6,
+      6
+     ],
+     "tint": "#a8896a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      18,
+      3.8,
+      7
+     ],
+     "size": [
+      3.2,
+      2.2,
+      2
+     ],
+     "tint": "#a8896a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      18,
+      6,
+      10.0
+     ],
+     "size": [
+      10.6,
+      0.6,
+      8.6
+     ],
+     "tint": "#8a5a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -12,
+      0,
+      9
+     ],
+     "size": [
+      7,
+      4.5,
+      6
+     ],
+     "tint": "#a39075"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -12,
+      4.5,
+      9
+     ],
+     "size": [
+      7.6,
+      0.5,
+      6.6
+     ],
+     "tint": "#8a5a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      34,
+      0,
+      8
+     ],
+     "size": [
+      8,
+      5,
+      10
+     ],
+     "tint": "#a39075"
+    },
+    {
+     "t": "box",
+     "pos": [
+      41,
+      0,
+      11
+     ],
+     "size": [
+      8,
+      7,
+      8
+     ],
+     "tint": "#9a8670"
+    },
+    {
+     "t": "box",
+     "pos": [
+      46,
+      0,
+      4
+     ],
+     "size": [
+      4,
+      4,
+      6
+     ],
+     "tint": "#a8967a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      42,
+      0,
+      -9
+     ],
+     "size": [
+      8,
+      0.3,
+      8
+     ],
+     "tint": "#6b7078"
+    },
+    {
+     "t": "box",
+     "pos": [
+      38.3,
+      0,
+      -12.7
+     ],
+     "size": [
+      0.5,
+      6,
+      0.5
+     ],
+     "tint": "#4a4e55"
+    },
+    {
+     "t": "box",
+     "pos": [
+      45.7,
+      0,
+      -12.7
+     ],
+     "size": [
+      0.5,
+      6,
+      0.5
+     ],
+     "tint": "#4a4e55"
+    },
+    {
+     "t": "box",
+     "pos": [
+      38.3,
+      0,
+      -5.3
+     ],
+     "size": [
+      0.5,
+      6,
+      0.5
+     ],
+     "tint": "#4a4e55"
+    },
+    {
+     "t": "box",
+     "pos": [
+      45.7,
+      0,
+      -5.3
+     ],
+     "size": [
+      0.5,
+      6,
+      0.5
+     ],
+     "tint": "#4a4e55"
+    },
+    {
+     "t": "box",
+     "pos": [
+      42,
+      6,
+      -9
+     ],
+     "size": [
+      8.5,
+      0.5,
+      8.5
+     ],
+     "tint": "#4a4e55"
+    }
+   ],
+   "markers": {
+    "start": {
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "yaw": 0
+    },
+    "from_mid": {
+     "pos": [
+      0,
+      5,
+      29
+     ],
+     "yaw": 180
+    },
+    "from_training": {
+     "pos": [
+      -24,
+      0,
+      2.5
+     ],
+     "yaw": 180
+    },
+    "from_home": {
+     "pos": [
+      18,
+      0,
+      2.5
+     ],
+     "yaw": 180
+    },
+    "from_gate": {
+     "pos": [
+      -36,
+      0,
+      0
+     ],
+     "yaw": 90
+    }
+   },
+   "playerStart": "start",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      -34,
+      5,
+      -2
+     ],
+     "color": "#ffc27a",
+     "range": 14,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      -12,
+      5,
+      0
+     ],
+     "color": "#ffc27a",
+     "range": 14,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      0,
+      5,
+      -2
+     ],
+     "color": "#ffc27a",
+     "range": 14,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      18,
+      5,
+      0
+     ],
+     "color": "#ffc27a",
+     "range": 14,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      36,
+      5,
+      0
+     ],
+     "color": "#ffc27a",
+     "range": 14,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      -42,
+      4,
+      0
+     ],
+     "color": "#ff8a60",
+     "range": 9,
+     "energy": 1.6
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "text": "訓練場",
+     "pos": [
+      -24,
+      5.2,
+      5.4
+     ],
+     "size": 64,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "sign",
+     "text": "ハルの家",
+     "pos": [
+      18,
+      5.2,
+      5.4
+     ],
+     "size": 64,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "sign",
+     "text": "禁足扉",
+     "pos": [
+      -42,
+      7.5,
+      0
+     ],
+     "size": 64,
+     "color": "#ff9a7a"
+    },
+    {
+     "type": "sign",
+     "text": "昇降リフト（停止中）",
+     "pos": [
+      42,
+      7.2,
+      -9
+     ],
+     "size": 44,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "exit",
+     "id": "ch1.lower.to_training",
+     "to": "training",
+     "spawn": "from_lower",
+     "pos": [
+      -24,
+      0,
+      7.2
+     ],
+     "size": [
+      2.4,
+      3,
+      1.6
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.lower.to_home",
+     "to": "home",
+     "spawn": "from_lower",
+     "pos": [
+      18,
+      0,
+      7.2
+     ],
+     "size": [
+      2.4,
+      3,
+      1.6
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.lower.to_mid",
+     "to": "mid",
+     "spawn": "from_lower",
+     "pos": [
+      0,
+      5,
+      33
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.lower.to_r01",
+     "to": "r01",
+     "spawn": "from_town",
+     "pos": [
+      -47,
+      0,
+      0
+     ],
+     "size": [
+      2.5,
+      5,
+      5
+     ]
+    },
+    {
+     "type": "door",
+     "id": "ch1.lower.gate",
+     "pos": [
+      -42.5,
+      0,
+      0
+     ],
+     "yaw": 90,
+     "size": [
+      6,
+      6,
+      1
+     ],
+     "lock": "ch1.gate_open",
+     "opens": "auto",
+     "text": "禁足扉だ。固く閉ざされている。（立入禁止）"
+    },
+    {
+     "type": "terminal",
+     "id": "ch1.lower.lift",
+     "pos": [
+      40,
+      0,
+      -4
+     ],
+     "yaw": 0,
+     "event": "ch1.lift",
+     "prompt": "調べる"
+    },
+    {
+     "type": "npc",
+     "id": "npc_martha",
+     "name": "洗濯のマーサ",
+     "pos": [
+      30,
+      0,
+      3
+     ],
+     "yaw": 180,
+     "event": "ch1.martha"
+    },
+    {
+     "type": "npc",
+     "id": "npc_gen",
+     "name": "老人ゲン",
+     "pos": [
+      -8,
+      0,
+      -8
+     ],
+     "yaw": 90,
+     "event": "ch1.gen"
+    },
+    {
+     "type": "npc",
+     "id": "npc_nico",
+     "name": "ニコ",
+     "pos": [
+      14,
+      0,
+      3.2
+     ],
+     "yaw": 180,
+     "when": "ch1.nico_rescued",
+     "unless": "ch1.night",
+     "event": "ch1.nico.home"
+    },
+    {
+     "type": "npc",
+     "id": "npc_yana",
+     "name": "ヤーナ",
+     "pos": [
+      -37,
+      0,
+      3
+     ],
+     "yaw": 90,
+     "event": "ch1.yana.gate",
+     "when": "ch1.plaza_done",
+     "unless": "ch1.morning"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [
+    {
+     "id": "ch1.lower.cp",
+     "pos": [
+      -30,
+      0,
+      0
+     ],
+     "yaw": 90,
+     "radius": 8
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.lower.yana_gun",
+     "pos": [
+      -37,
+      0,
+      0
+     ],
+     "size": [
+      8,
+      3,
+      10
+     ],
+     "cond": [
+      "ch1.plaza_done"
+     ],
+     "event": "ch1.yana_gun"
+    }
+   ]
+  },
+  "mid": {
+   "name": "オルド背町・中段（広場と市場）",
+   "mood": "outdoor",
+   "map": {
+    "floor": "町・中段",
+    "x": 1,
+    "y": 0,
+    "w": 2,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2,
+      1
+     ],
+     "size": [
+      96,
+      2,
+      30
+     ],
+     "tint": "#9a9588"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -26.25,
+      0,
+      -14.5
+     ],
+     "size": [
+      43.5,
+      1.2,
+      1
+     ],
+     "tint": "#74706a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      26.25,
+      0,
+      -14.5
+     ],
+     "size": [
+      43.5,
+      1.2,
+      1
+     ],
+     "tint": "#74706a"
+    },
+    {
+     "t": "stairs",
+     "pos": [
+      0,
+      -5,
+      -20
+     ],
+     "size": [
+      8,
+      5,
+      12
+     ],
+     "steps": 16,
+     "tint": "#8d8f94"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -7,
+      -29
+     ],
+     "size": [
+      8,
+      2,
+      6
+     ],
+     "tint": "#8d8f94"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -4.25,
+      -8,
+      -23
+     ],
+     "size": [
+      0.5,
+      11,
+      18
+     ],
+     "tint": "#74706a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      4.25,
+      -8,
+      -23
+     ],
+     "size": [
+      0.5,
+      11,
+      18
+     ],
+     "tint": "#74706a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -8,
+      -32.5
+     ],
+     "size": [
+      9,
+      12,
+      1
+     ],
+     "tint": "#74706a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -48.5,
+      -2,
+      1
+     ],
+     "size": [
+      1,
+      3.2,
+      30
+     ],
+     "tint": "#74706a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      48.5,
+      -2,
+      1
+     ],
+     "size": [
+      1,
+      3.2,
+      30
+     ],
+     "tint": "#74706a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -26.25,
+      0,
+      16.5
+     ],
+     "size": [
+      43.5,
+      16,
+      1
+     ],
+     "tint": "#74706a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      26.25,
+      0,
+      16.5
+     ],
+     "size": [
+      43.5,
+      16,
+      1
+     ],
+     "tint": "#74706a"
+    },
+    {
+     "t": "stairs",
+     "pos": [
+      0,
+      0,
+      22
+     ],
+     "size": [
+      8,
+      5,
+      12
+     ],
+     "steps": 16,
+     "tint": "#8d8f94"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      31
+     ],
+     "size": [
+      8,
+      5,
+      6
+     ],
+     "tint": "#8d8f94"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -4.25,
+      0,
+      25
+     ],
+     "size": [
+      0.5,
+      9,
+      18
+     ],
+     "tint": "#74706a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      4.25,
+      0,
+      25
+     ],
+     "size": [
+      0.5,
+      9,
+      18
+     ],
+     "tint": "#74706a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      34.5
+     ],
+     "size": [
+      9,
+      12,
+      1
+     ],
+     "tint": "#74706a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      1
+     ],
+     "size": [
+      26,
+      0.08,
+      18
+     ],
+     "tint": "#b8b2a4"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      2
+     ],
+     "size": [
+      3.2,
+      1.0,
+      3.2
+     ],
+     "tint": "#8a8a86"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      1.0,
+      2
+     ],
+     "size": [
+      1.0,
+      2.6,
+      1.0
+     ],
+     "tint": "#a4a49e"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      9
+     ],
+     "size": [
+      8,
+      0.8,
+      3
+     ],
+     "tint": "#8a8a86"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -38.300000000000004,
+      0,
+      8.5
+     ],
+     "size": [
+      5.4,
+      7,
+      9
+     ],
+     "tint": "#9c8460"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -29.7,
+      0,
+      8.5
+     ],
+     "size": [
+      5.4,
+      7,
+      9
+     ],
+     "tint": "#9c8460"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -34,
+      0,
+      9.5
+     ],
+     "size": [
+      3.2,
+      7,
+      7
+     ],
+     "tint": "#9c8460"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -34,
+      3.8,
+      5
+     ],
+     "size": [
+      3.2,
+      3.2,
+      2
+     ],
+     "tint": "#9c8460"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -34,
+      7,
+      8.5
+     ],
+     "size": [
+      14.6,
+      0.6,
+      9.6
+     ],
+     "tint": "#8a5a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -20,
+      0,
+      5
+     ],
+     "size": [
+      10,
+      5.5,
+      9
+     ],
+     "tint": "#a8896a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -20,
+      5.5,
+      5
+     ],
+     "size": [
+      10.6,
+      0.5,
+      9.6
+     ],
+     "tint": "#8a5a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -20,
+      0,
+      0.3
+     ],
+     "size": [
+      4,
+      1.0,
+      1.2
+     ],
+     "tint": "#8c6a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      24,
+      0,
+      3.8
+     ],
+     "size": [
+      7,
+      1.1,
+      0.8
+     ],
+     "tint": "#8c6a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      24,
+      0,
+      8.6
+     ],
+     "size": [
+      7,
+      2.4,
+      1.0
+     ],
+     "tint": "#6f5a40"
+    },
+    {
+     "t": "box",
+     "pos": [
+      24,
+      3.2,
+      6.3
+     ],
+     "size": [
+      8,
+      0.25,
+      5.2
+     ],
+     "tint": "#b0503c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      38,
+      0,
+      3.8
+     ],
+     "size": [
+      7,
+      1.1,
+      0.8
+     ],
+     "tint": "#8c6a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      38,
+      0,
+      8.6
+     ],
+     "size": [
+      7,
+      2.4,
+      1.0
+     ],
+     "tint": "#6f5a40"
+    },
+    {
+     "t": "box",
+     "pos": [
+      38,
+      3.2,
+      6.3
+     ],
+     "size": [
+      8,
+      0.25,
+      5.2
+     ],
+     "tint": "#4a7a8a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      30.5,
+      0,
+      -6
+     ],
+     "size": [
+      3,
+      1.0,
+      2
+     ],
+     "tint": "#6f5a40"
+    },
+    {
+     "t": "box",
+     "pos": [
+      42,
+      0,
+      -7
+     ],
+     "size": [
+      2,
+      1.6,
+      2
+     ],
+     "tint": "#6f5a40"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -30,
+      0,
+      -7
+     ],
+     "size": [
+      2.5,
+      1.2,
+      2
+     ],
+     "tint": "#4a463f"
+    }
+   ],
+   "markers": {
+    "start": {
+     "pos": [
+      0,
+      0,
+      -8
+     ],
+     "yaw": 0
+    },
+    "from_lower": {
+     "pos": [
+      0,
+      -5,
+      -27.5
+     ],
+     "yaw": 0
+    },
+    "from_upper": {
+     "pos": [
+      0,
+      5,
+      29
+     ],
+     "yaw": 180
+    },
+    "from_workshop": {
+     "pos": [
+      -34,
+      0,
+      0.8
+     ],
+     "yaw": 180
+    }
+   },
+   "playerStart": "start",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      6,
+      2
+     ],
+     "color": "#ffcf8a",
+     "range": 20,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      -34,
+      5,
+      -2
+     ],
+     "color": "#ffc27a",
+     "range": 14,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      -20,
+      5,
+      -2
+     ],
+     "color": "#ffc27a",
+     "range": 14,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      24,
+      5,
+      2
+     ],
+     "color": "#ffc27a",
+     "range": 14,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      38,
+      5,
+      2
+     ],
+     "color": "#ffc27a",
+     "range": 14,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      0,
+      5,
+      -10
+     ],
+     "color": "#ffc27a",
+     "range": 14,
+     "energy": 1.6
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "text": "広場",
+     "pos": [
+      0,
+      4.6,
+      2
+     ],
+     "size": 72,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "sign",
+     "text": "ヤーナの工房",
+     "pos": [
+      -34,
+      6.4,
+      3.4
+     ],
+     "size": 64,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "sign",
+     "text": "食堂",
+     "pos": [
+      -20,
+      7.0,
+      2.4
+     ],
+     "size": 64,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "sign",
+     "text": "雑貨屋",
+     "pos": [
+      24,
+      4.5,
+      4
+     ],
+     "size": 56,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "sign",
+     "text": "ジャンク屋",
+     "pos": [
+      38,
+      4.5,
+      4
+     ],
+     "size": 56,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "exit",
+     "id": "ch1.mid.to_lower",
+     "to": "lower",
+     "spawn": "from_mid",
+     "pos": [
+      0,
+      -5,
+      -31
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.mid.to_upper",
+     "to": "upper",
+     "spawn": "from_mid",
+     "pos": [
+      0,
+      5,
+      33
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.mid.to_workshop",
+     "to": "workshop",
+     "spawn": "from_mid",
+     "pos": [
+      -34,
+      0,
+      5.2
+     ],
+     "size": [
+      2.4,
+      3,
+      1.6
+     ]
+    },
+    {
+     "type": "npc",
+     "id": "npc_shopkeeper",
+     "name": "雑貨屋の店主",
+     "pos": [
+      24,
+      0,
+      5.0
+     ],
+     "yaw": 180,
+     "event": "ch1.shop_zakka"
+    },
+    {
+     "type": "npc",
+     "id": "npc_junker",
+     "name": "ジャンク屋",
+     "pos": [
+      38,
+      0,
+      5.0
+     ],
+     "yaw": 180,
+     "event": "ch1.shop_junk"
+    },
+    {
+     "type": "npc",
+     "id": "npc_domi",
+     "name": "食堂のドミ",
+     "pos": [
+      -20,
+      0,
+      -1.4
+     ],
+     "yaw": 0,
+     "event": "ch1.domi"
+    },
+    {
+     "type": "npc",
+     "id": "npc_tobi",
+     "name": "少年トビ",
+     "pos": [
+      10,
+      0,
+      -6
+     ],
+     "yaw": 270,
+     "event": "ch1.tobi"
+    },
+    {
+     "type": "npc",
+     "id": "npc_trude",
+     "name": "町長トルーデ",
+     "pos": [
+      0,
+      0.8,
+      9
+     ],
+     "yaw": 180,
+     "event": "ch1.trude.plaza",
+     "when": "ch1.ordo_stopped",
+     "unless": "ch1.morning"
+    },
+    {
+     "type": "npc",
+     "id": "npc_burton",
+     "name": "バートン",
+     "pos": [
+      -4,
+      0,
+      7
+     ],
+     "yaw": 150,
+     "event": "ch1.burton.plaza",
+     "when": "ch1.ordo_stopped",
+     "unless": "ch1.morning"
+    },
+    {
+     "type": "npc",
+     "id": "npc_woman",
+     "name": "ミナ婆",
+     "pos": [
+      6,
+      0,
+      6
+     ],
+     "yaw": 200,
+     "event": "ch1.mina",
+     "when": "ch1.ordo_stopped",
+     "unless": "ch1.morning"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [
+    {
+     "id": "ch1.mid.cp",
+     "pos": [
+      0,
+      0,
+      -8
+     ],
+     "yaw": 0,
+     "radius": 8
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.mid.plaza",
+     "pos": [
+      0,
+      0,
+      3
+     ],
+     "size": [
+      14,
+      3,
+      10
+     ],
+     "cond": [
+      "ch1.ordo_stopped"
+     ],
+     "event": "ch1.plaza"
+    }
+   ]
+  },
+  "upper": {
+   "name": "オルド背町・上段（展望台）",
+   "mood": "outdoor",
+   "map": {
+    "floor": "町・上段",
+    "x": 1,
+    "y": -1,
+    "w": 2,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2,
+      1
+     ],
+     "size": [
+      80,
+      2,
+      30
+     ],
+     "tint": "#a39a84"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -22.25,
+      0,
+      -14.5
+     ],
+     "size": [
+      35.5,
+      1.2,
+      1
+     ],
+     "tint": "#7a7468"
+    },
+    {
+     "t": "box",
+     "pos": [
+      22.25,
+      0,
+      -14.5
+     ],
+     "size": [
+      35.5,
+      1.2,
+      1
+     ],
+     "tint": "#7a7468"
+    },
+    {
+     "t": "stairs",
+     "pos": [
+      0,
+      -5,
+      -20
+     ],
+     "size": [
+      8,
+      5,
+      12
+     ],
+     "steps": 16,
+     "tint": "#8d8f94"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -7,
+      -29
+     ],
+     "size": [
+      8,
+      2,
+      6
+     ],
+     "tint": "#8d8f94"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -4.25,
+      -8,
+      -23
+     ],
+     "size": [
+      0.5,
+      11,
+      18
+     ],
+     "tint": "#7a7468"
+    },
+    {
+     "t": "box",
+     "pos": [
+      4.25,
+      -8,
+      -23
+     ],
+     "size": [
+      0.5,
+      11,
+      18
+     ],
+     "tint": "#7a7468"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -8,
+      -32.5
+     ],
+     "size": [
+      9,
+      12,
+      1
+     ],
+     "tint": "#7a7468"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -40.5,
+      -2,
+      1
+     ],
+     "size": [
+      1,
+      3.2,
+      30
+     ],
+     "tint": "#7a7468"
+    },
+    {
+     "t": "box",
+     "pos": [
+      40.5,
+      -2,
+      1
+     ],
+     "size": [
+      1,
+      3.2,
+      30
+     ],
+     "tint": "#7a7468"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -24,
+      0,
+      16.5
+     ],
+     "size": [
+      32,
+      1.2,
+      1
+     ],
+     "tint": "#7a7468"
+    },
+    {
+     "t": "box",
+     "pos": [
+      24,
+      0,
+      16.5
+     ],
+     "size": [
+      32,
+      1.2,
+      1
+     ],
+     "tint": "#7a7468"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -26.3,
+      0,
+      8.5
+     ],
+     "size": [
+      5.4,
+      7,
+      9
+     ],
+     "tint": "#9aa08a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -17.7,
+      0,
+      8.5
+     ],
+     "size": [
+      5.4,
+      7,
+      9
+     ],
+     "tint": "#9aa08a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -22,
+      0,
+      9.5
+     ],
+     "size": [
+      3.2,
+      7,
+      7
+     ],
+     "tint": "#9aa08a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -22,
+      3.8,
+      5
+     ],
+     "size": [
+      3.2,
+      3.2,
+      2
+     ],
+     "tint": "#9aa08a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -22,
+      7,
+      8.5
+     ],
+     "size": [
+      14.6,
+      0.6,
+      9.6
+     ],
+     "tint": "#8a5a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      15.2,
+      0,
+      8.5
+     ],
+     "size": [
+      6.4,
+      8,
+      9
+     ],
+     "tint": "#8a8f9c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      24.8,
+      0,
+      8.5
+     ],
+     "size": [
+      6.4,
+      8,
+      9
+     ],
+     "tint": "#8a8f9c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      20,
+      0,
+      9.5
+     ],
+     "size": [
+      3.2,
+      8,
+      7
+     ],
+     "tint": "#8a8f9c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      20,
+      3.8,
+      5
+     ],
+     "size": [
+      3.2,
+      4.2,
+      2
+     ],
+     "tint": "#8a8f9c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      20,
+      8,
+      8.5
+     ],
+     "size": [
+      16.6,
+      0.6,
+      9.6
+     ],
+     "tint": "#8a5a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2,
+      22
+     ],
+     "size": [
+      16,
+      2,
+      12
+     ],
+     "tint": "#9a9078"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -8.4,
+      -2,
+      22
+     ],
+     "size": [
+      0.8,
+      3.2,
+      12
+     ],
+     "tint": "#8c6a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      8.4,
+      -2,
+      22
+     ],
+     "size": [
+      0.8,
+      3.2,
+      12
+     ],
+     "tint": "#8c6a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2,
+      28.4
+     ],
+     "size": [
+      17.6,
+      3.2,
+      0.8
+     ],
+     "tint": "#8c6a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      24
+     ],
+     "size": [
+      1.6,
+      1.2,
+      1.6
+     ],
+     "tint": "#5a5a60"
+    }
+   ],
+   "markers": {
+    "start": {
+     "pos": [
+      0,
+      0,
+      -8
+     ],
+     "yaw": 0
+    },
+    "from_mid": {
+     "pos": [
+      0,
+      -5,
+      -27.5
+     ],
+     "yaw": 0
+    },
+    "from_mayor": {
+     "pos": [
+      -22,
+      0,
+      0.8
+     ],
+     "yaw": 180
+    },
+    "from_guild": {
+     "pos": [
+      20,
+      0,
+      0.8
+     ],
+     "yaw": 180
+    }
+   },
+   "playerStart": "start",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      -22,
+      5,
+      -2
+     ],
+     "color": "#ffc27a",
+     "range": 14,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      20,
+      5,
+      -2
+     ],
+     "color": "#ffc27a",
+     "range": 14,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      0,
+      5,
+      -8
+     ],
+     "color": "#ffc27a",
+     "range": 14,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      0,
+      3,
+      22
+     ],
+     "color": "#ffd9a8",
+     "range": 12,
+     "energy": 1.6
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "text": "町長の家",
+     "pos": [
+      -22,
+      6.4,
+      3.4
+     ],
+     "size": 64,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "sign",
+     "text": "回収屋ギルド",
+     "pos": [
+      20,
+      7.4,
+      3.4
+     ],
+     "size": 64,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "sign",
+     "text": "展望台",
+     "pos": [
+      0,
+      3.4,
+      18
+     ],
+     "size": 64,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "exit",
+     "id": "ch1.upper.to_mid",
+     "to": "mid",
+     "spawn": "from_upper",
+     "pos": [
+      0,
+      -5,
+      -31
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.upper.to_mayor",
+     "to": "mayor",
+     "spawn": "from_upper",
+     "pos": [
+      -22,
+      0,
+      5.2
+     ],
+     "size": [
+      2.4,
+      3,
+      1.6
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.upper.to_guild",
+     "to": "guild",
+     "spawn": "from_upper",
+     "pos": [
+      20,
+      0,
+      5.2
+     ],
+     "size": [
+      2.4,
+      3,
+      1.6
+     ]
+    },
+    {
+     "type": "terminal",
+     "id": "ch1.upper.scope",
+     "pos": [
+      0,
+      0,
+      24
+     ],
+     "yaw": 0,
+     "event": "ch1.scope",
+     "prompt": "のぞく"
+    },
+    {
+     "type": "npc",
+     "id": "npc_lookout",
+     "name": "見張りのロブ",
+     "pos": [
+      -4,
+      0,
+      22
+     ],
+     "yaw": 0,
+     "event": "ch1.lookout"
+    },
+    {
+     "type": "npc",
+     "id": "npc_clerk",
+     "name": "ギルドの事務員",
+     "pos": [
+      30,
+      0,
+      -2
+     ],
+     "yaw": 270,
+     "event": "ch1.clerk"
+    },
+    {
+     "type": "sign",
+     "text": "◤ 巡礼機カラン ◢",
+     "pos": [
+      0,
+      14,
+      200
+     ],
+     "size": 90,
+     "color": "#9ad0ff",
+     "when": "ch1.drill_developed"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [],
+   "triggers": []
+  },
+  "home": {
+   "name": "ハルの家",
+   "mood": "interior",
+   "map": {
+    "floor": "町・下段",
+    "x": 2,
+    "y": 2,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      14,
+      4.5,
+      12
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#8a7660"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      -5.95
+     ],
+     "size": [
+      3,
+      3.2,
+      0.2
+     ],
+     "tint": "#c7a46a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5.2,
+      0,
+      3.5
+     ],
+     "size": [
+      2.4,
+      0.6,
+      4
+     ],
+     "tint": "#6a5a8a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5.6,
+      0.6,
+      3.5
+     ],
+     "size": [
+      1.2,
+      0.3,
+      1.6
+     ],
+     "tint": "#e6dcc8"
+    },
+    {
+     "t": "box",
+     "pos": [
+      3.5,
+      0,
+      -2
+     ],
+     "size": [
+      3,
+      0.9,
+      1.2
+     ],
+     "tint": "#8c6a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      5.5,
+      0,
+      -4.5
+     ],
+     "size": [
+      1.6,
+      2.2,
+      1.0
+     ],
+     "tint": "#5a4a38"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5.5,
+      0,
+      -3
+     ],
+     "size": [
+      1.2,
+      1.6,
+      2
+     ],
+     "tint": "#5a4a38"
+    }
+   ],
+   "markers": {
+    "from_lower": {
+     "pos": [
+      0,
+      0,
+      -1.5
+     ],
+     "yaw": 0
+    },
+    "bed": {
+     "pos": [
+      -2,
+      0,
+      1.5
+     ],
+     "yaw": 270
+    }
+   },
+   "playerStart": "from_lower",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      3.6,
+      0
+     ],
+     "color": "#ffd9a8",
+     "range": 14,
+     "energy": 1.4
+    },
+    {
+     "pos": [
+      -4.5,
+      1.6,
+      3.5
+     ],
+     "color": "#ffb070",
+     "range": 5,
+     "energy": 1.2
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.home.out",
+     "to": "lower",
+     "spawn": "from_home",
+     "pos": [
+      0,
+      0,
+      -5.0
+     ],
+     "size": [
+      3,
+      3.5,
+      1.6
+     ]
+    },
+    {
+     "type": "sign",
+     "text": "ハルの家",
+     "pos": [
+      0,
+      3.6,
+      -5.2
+     ],
+     "size": 48,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "terminal",
+     "id": "ch1.home.bed",
+     "pos": [
+      -4.5,
+      0,
+      3.5
+     ],
+     "yaw": 90,
+     "event": "ch1.sleep",
+     "prompt": "休む"
+    },
+    {
+     "type": "beacon",
+     "id": "ch1.home.bc",
+     "pos": [
+      4.5,
+      0,
+      3
+     ],
+     "flag": "ch1.home_beacon"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [],
+   "triggers": []
+  },
+  "workshop": {
+   "name": "ヤーナの工房",
+   "mood": "interior",
+   "map": {
+    "floor": "町・中段",
+    "x": 0,
+    "y": 0,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      20,
+      6,
+      14
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#7a6c5c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      -6.95
+     ],
+     "size": [
+      3,
+      3.2,
+      0.2
+     ],
+     "tint": "#c7a46a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5,
+      0,
+      6
+     ],
+     "size": [
+      6,
+      1.0,
+      1.6
+     ],
+     "tint": "#8c6a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      6,
+      0,
+      6.2
+     ],
+     "size": [
+      4,
+      1.2,
+      1.2
+     ],
+     "tint": "#4a4e55"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -8.5,
+      0,
+      0
+     ],
+     "size": [
+      1.4,
+      2.4,
+      6
+     ],
+     "tint": "#5a4a38"
+    },
+    {
+     "t": "box",
+     "pos": [
+      8.5,
+      0,
+      -1
+     ],
+     "size": [
+      1.4,
+      2.0,
+      5
+     ],
+     "tint": "#5a4a38"
+    }
+   ],
+   "markers": {
+    "from_mid": {
+     "pos": [
+      0,
+      0,
+      -2.5
+     ],
+     "yaw": 0
+    }
+   },
+   "playerStart": "from_mid",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      5,
+      0
+     ],
+     "color": "#ffd9a8",
+     "range": 18,
+     "energy": 1.3
+    },
+    {
+     "pos": [
+      -6,
+      3,
+      4
+     ],
+     "color": "#ff9a5a",
+     "range": 8,
+     "energy": 1.6
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.workshop.out",
+     "to": "mid",
+     "spawn": "from_workshop",
+     "pos": [
+      0,
+      0,
+      -6.0
+     ],
+     "size": [
+      3,
+      3.5,
+      1.6
+     ]
+    },
+    {
+     "type": "sign",
+     "text": "ヤーナの工房",
+     "pos": [
+      0,
+      4.6,
+      -6.2
+     ],
+     "size": 48,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "npc",
+     "id": "npc_yana",
+     "name": "ヤーナ",
+     "pos": [
+      3,
+      0,
+      3.5
+     ],
+     "yaw": 200,
+     "event": "ch1.yana.shop",
+     "unless": {
+      "all": [
+       "ch1.plaza_done",
+       {
+        "not": "ch1.morning"
+       }
+      ]
+     }
+    },
+    {
+     "type": "terminal",
+     "id": "ch1.workshop.bench",
+     "pos": [
+      -5,
+      0,
+      4.5
+     ],
+     "yaw": 0,
+     "event": "ch1.workshop_bench",
+     "prompt": "作業台を使う"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [],
+   "triggers": [
+    {
+     "id": "ch1.workshop.debt",
+     "pos": [
+      0,
+      0,
+      -2
+     ],
+     "size": [
+      10,
+      3,
+      4
+     ],
+     "cond": [
+      "ch1.scolded"
+     ],
+     "event": "ch1.debt"
+    },
+    {
+     "id": "ch1.workshop.drill",
+     "on": "flag",
+     "cond": "crafted.drill",
+     "event": "ch1.drill_done"
+    }
+   ]
+  },
+  "guild": {
+   "name": "回収屋ギルド",
+   "mood": "interior",
+   "map": {
+    "floor": "町・上段",
+    "x": 2,
+    "y": 0,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      24,
+      6,
+      16
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#7c7468"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      -7.95
+     ],
+     "size": [
+      3,
+      3.2,
+      0.2
+     ],
+     "tint": "#c7a46a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -7,
+      0,
+      7
+     ],
+     "size": [
+      7,
+      1.1,
+      1.2
+     ],
+     "tint": "#8c6a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      6.5
+     ],
+     "size": [
+      6,
+      1.1,
+      1.2
+     ],
+     "tint": "#8c6a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      7,
+      0,
+      7.6
+     ],
+     "size": [
+      4,
+      2.4,
+      0.4
+     ],
+     "tint": "#5a4a38"
+    }
+   ],
+   "markers": {
+    "from_upper": {
+     "pos": [
+      0,
+      0,
+      -3.5
+     ],
+     "yaw": 0
+    }
+   },
+   "playerStart": "from_upper",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      5,
+      0
+     ],
+     "color": "#ffd9a8",
+     "range": 20,
+     "energy": 1.3
+    },
+    {
+     "pos": [
+      -7,
+      3,
+      5
+     ],
+     "color": "#ffc27a",
+     "range": 8,
+     "energy": 1.6
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.guild.out",
+     "to": "upper",
+     "spawn": "from_guild",
+     "pos": [
+      0,
+      0,
+      -7.0
+     ],
+     "size": [
+      3,
+      3.5,
+      1.6
+     ]
+    },
+    {
+     "type": "sign",
+     "text": "回収屋ギルド",
+     "pos": [
+      0,
+      4.6,
+      -7.2
+     ],
+     "size": 48,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "npc",
+     "id": "npc_burton",
+     "name": "バートン",
+     "pos": [
+      0,
+      0,
+      5
+     ],
+     "yaw": 180,
+     "event": "ch1.burton.guild",
+     "unless": "ch1.night"
+    },
+    {
+     "type": "npc",
+     "id": "npc_rita",
+     "name": "受付のリタ",
+     "pos": [
+      -7,
+      0,
+      5
+     ],
+     "yaw": 180,
+     "event": "ch1.rita"
+    },
+    {
+     "type": "terminal",
+     "id": "ch1.guild.board",
+     "pos": [
+      7,
+      0,
+      6.5
+     ],
+     "yaw": 180,
+     "event": "ch1.guild_board",
+     "prompt": "依頼板を見る"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [],
+   "triggers": [
+    {
+     "id": "ch1.guild.scold",
+     "pos": [
+      0,
+      0,
+      -2
+     ],
+     "size": [
+      12,
+      3,
+      4
+     ],
+     "cond": [
+      "ch1.nico_rescued"
+     ],
+     "event": "ch1.scold"
+    }
+   ]
+  },
+  "mayor": {
+   "name": "町長の家",
+   "mood": "interior",
+   "map": {
+    "floor": "町・上段",
+    "x": 0,
+    "y": 0,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      14,
+      4.8,
+      12
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#8a806a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      -5.95
+     ],
+     "size": [
+      3,
+      3.2,
+      0.2
+     ],
+     "tint": "#c7a46a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      5
+     ],
+     "size": [
+      5,
+      0.9,
+      1.4
+     ],
+     "tint": "#8c6a46"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5.5,
+      0,
+      0
+     ],
+     "size": [
+      1.2,
+      2.2,
+      6
+     ],
+     "tint": "#5a4a38"
+    }
+   ],
+   "markers": {
+    "from_upper": {
+     "pos": [
+      0,
+      0,
+      -1.5
+     ],
+     "yaw": 0
+    }
+   },
+   "playerStart": "from_upper",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      3.8,
+      0
+     ],
+     "color": "#ffd9a8",
+     "range": 14,
+     "energy": 1.3
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.mayor.out",
+     "to": "upper",
+     "spawn": "from_mayor",
+     "pos": [
+      0,
+      0,
+      -5.0
+     ],
+     "size": [
+      3,
+      3.5,
+      1.6
+     ]
+    },
+    {
+     "type": "sign",
+     "text": "町長の家",
+     "pos": [
+      0,
+      3.8,
+      -5.2
+     ],
+     "size": 48,
+     "color": "#ffe7b8"
+    },
+    {
+     "type": "npc",
+     "id": "npc_trude",
+     "name": "町長トルーデ",
+     "pos": [
+      0,
+      0,
+      3
+     ],
+     "yaw": 180,
+     "event": "ch1.trude.house",
+     "unless": {
+      "all": [
+       "ch1.ordo_stopped",
+       {
+        "not": "ch1.morning"
+       }
+      ]
+     }
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [],
+   "triggers": []
+  },
+  "r01": {
+   "name": "禁足扉の前室",
+   "mood": "interior",
+   "map": {
+    "floor": "遺構 B1",
+    "x": 0,
+    "y": 0,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      20,
+      8,
+      28
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#6b7078"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      -13.9
+     ],
+     "size": [
+      6,
+      4,
+      0.3
+     ],
+     "tint": "#3a3d44"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      13.9
+     ],
+     "size": [
+      6,
+      4,
+      0.3
+     ],
+     "tint": "#3a3d44"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5,
+      0,
+      0
+     ],
+     "size": [
+      2,
+      2.4,
+      2
+     ],
+     "tint": "#59606a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      5.5,
+      0,
+      2
+     ],
+     "size": [
+      2.4,
+      1.6,
+      2
+     ],
+     "tint": "#59606a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -6,
+      0,
+      7
+     ],
+     "size": [
+      3,
+      1.2,
+      1.4
+     ],
+     "tint": "#59606a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      -5
+     ],
+     "size": [
+      1.4,
+      3.4,
+      1.4
+     ],
+     "tint": "#59606a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      7.5,
+      0,
+      -6
+     ],
+     "size": [
+      2,
+      1.2,
+      3
+     ],
+     "tint": "#4a4e55"
+    }
+   ],
+   "markers": {
+    "start": {
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0
+    },
+    "from_town": {
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0
+    },
+    "from_r02": {
+     "pos": [
+      0,
+      0,
+      9.5
+     ],
+     "yaw": 180
+    }
+   },
+   "playerStart": "from_town",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      6,
+      -8
+     ],
+     "color": "#9ad0ff",
+     "range": 16,
+     "energy": 1.0
+    },
+    {
+     "pos": [
+      0,
+      6,
+      8
+     ],
+     "color": "#9ad0ff",
+     "range": 16,
+     "energy": 1.0
+    },
+    {
+     "pos": [
+      6,
+      1.4,
+      8
+     ],
+     "color": "#ffb070",
+     "range": 6,
+     "energy": 1.2
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "text": "遺構 B1 外殻層",
+     "pos": [
+      0,
+      4.2,
+      13
+     ],
+     "size": 48,
+     "color": "#9ad0ff"
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r01.to_town",
+     "to": "lower",
+     "spawn": "from_gate",
+     "pos": [
+      0,
+      0,
+      -13
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ],
+     "lock": "ch1.nico_rescued",
+     "text": "ニコを置いては戻れない。"
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r01.to_r02",
+     "to": "r02",
+     "spawn": "from_r01",
+     "pos": [
+      0,
+      0,
+      13
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ],
+     "lock": "ch1.got_spark",
+     "text": "奥は暗く、深い。丸腰で入る気にはなれない。"
+    },
+    {
+     "type": "npc",
+     "id": "npc_nico",
+     "name": "ニコ",
+     "pos": [
+      6,
+      0,
+      9
+     ],
+     "yaw": 200,
+     "talk": "ch1.nico.corner",
+     "when": "ch1.nico_ran",
+     "unless": "ch1.nico_rescued"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [
+    {
+     "id": "ch1.r01.cp",
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.r01.nico",
+     "pos": [
+      0,
+      0,
+      -6
+     ],
+     "size": [
+      18,
+      3,
+      3
+     ],
+     "cond": [
+      "ch1.nico_ran",
+      {
+       "not": "ch1.nico_rescued"
+      }
+     ],
+     "event": "ch1.nico_fight"
+    }
+   ]
   }
+ }
 }

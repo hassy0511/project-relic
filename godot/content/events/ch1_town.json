@@ -1,251 +1,911 @@
 {
-  "ch1.opening": {
-    "steps": [
-      {"freeze": true},
-      {"wait": 0.5},
-      {"camera": {"pos": [0, 4, 150], "height": 0, "time": 3.0}},
-      {"say": "ch1.opening"},
-      {"camera": {}},
-      {"flag": "ch1.opening_done"},
-      {"freeze": false},
-      {"go": {"room": "training", "spawn": "start"}}
+ "ch1.opening": {
+  "steps": [
+   {
+    "freeze": true
+   },
+   {
+    "wait": 0.5
+   },
+   {
+    "camera": {
+     "pos": [
+      0,
+      4,
+      150
+     ],
+     "height": 0,
+     "time": 3.0
+    }
+   },
+   {
+    "say": "ch1.opening"
+   },
+   {
+    "camera": {}
+   },
+   {
+    "flag": "ch1.opening_done"
+   },
+   {
+    "freeze": false
+   },
+   {
+    "go": {
+     "room": "training",
+     "spawn": "start"
+    }
+   }
+  ]
+ },
+ "ch1.training.start": {
+  "steps": [
+   {
+    "say": "ch1.burton.training"
+   },
+   {
+    "hint": {
+     "kb": "WASD で移動　マウス（矢印キー）でカメラ　C で背後に戻す　まず ① の黄色い床まで歩こう",
+     "pad": "左スティックで移動　右スティックでカメラ　まず ① の黄色い床まで歩こう",
+     "touch": "画面の左側をなぞって移動　右側をなぞってカメラ　まず ① の黄色い床まで歩こう"
+    }
+   }
+  ]
+ },
+ "ch1.t.move": {
+  "steps": [
+   {
+    "flag": "ch1.t_move"
+   },
+   {
+    "sfx": "item"
+   },
+   {
+    "hint": {
+     "kb": "Space でジャンプ（長押しで高く）　② の段に登ってみよう",
+     "pad": "A ボタンでジャンプ（長押しで高く）　② の段に登ってみよう",
+     "touch": "「ジャンプ」ボタン（長押しで高く）　② の段に登ってみよう"
+    }
+   }
+  ]
+ },
+ "ch1.t.jump": {
+  "steps": [
+   {
+    "flag": "ch1.t_jump"
+   },
+   {
+    "sfx": "item"
+   },
+   {
+    "hint": {
+     "kb": "J か左クリックで撃つ（長押しで溜め撃ち）　③ の的を 3 つ撃とう",
+     "pad": "右トリガーで撃つ（長押しで溜め撃ち）　③ の的を 3 つ撃とう",
+     "touch": "「撃つ」ボタン（長押しで溜め撃ち）　③ の的を 3 つ撃とう"
+    }
+   }
+  ]
+ },
+ "ch1.t.shoot": {
+  "steps": [
+   {
+    "flag": "ch1.t_shoot"
+   },
+   {
+    "sfx": "item"
+   },
+   {
+    "message": "的を全部撃った"
+   },
+   {
+    "hint": {
+     "kb": "敵が出たら F か右クリックを押し続けてロックオン（照準が敵を追う）。次は北の溝へ",
+     "pad": "敵が出たら左トリガーを押し続けてロックオン（照準が敵を追う）。次は北の溝へ",
+     "touch": "敵が出たら「ロック」ボタンでロックオンの入り切り（照準が敵を追う）。次は北の溝へ"
+    }
+   }
+  ]
+ },
+ "ch1.t.ditch": {
+  "steps": [
+   {
+    "hint": {
+     "kb": "Shift でダッシュ。ダッシュ中にジャンプすると遠くまで跳べる　④ の溝を越えよう（落ちても南のスロープから戻れる）",
+     "pad": "B ボタンでダッシュ。走りながら A で遠くまで跳べる　④ の溝を越えよう（落ちても戻れる）",
+     "touch": "「ダッシュ」を押しながら「ジャンプ」で遠くまで跳べる　④ の溝を越えよう（落ちても戻れる）"
+    }
+   }
+  ]
+ },
+ "ch1.t.dash": {
+  "steps": [
+   {
+    "flag": "ch1.t_dash"
+   },
+   {
+    "sfx": "item"
+   },
+   {
+    "message": "溝を越えた"
+   },
+   {
+    "hint": {
+     "kb": "⑤ 残骸に近づいて Space で片付けよう（「調べる」はジャンプのボタン）",
+     "pad": "⑤ 残骸に近づいて A ボタンで片付けよう",
+     "touch": "⑤ 残骸に近づいて「ジャンプ（調べる）」で片付けよう"
+    }
+   }
+  ]
+ },
+ "ch1.nico_run": {
+  "steps": [
+   {
+    "hint": ""
+   },
+   {
+    "say": "ch1.nico_run"
+   },
+   {
+    "remove": "npc_nico"
+   },
+   {
+    "sfx": "alert"
+   },
+   {
+    "flag": "ch1.nico_ran"
+   },
+   {
+    "flag": "ch1.gate_open"
+   },
+   {
+    "message": "ニコが禁足扉のほうへ走っていった！"
+   },
+   {
+    "objective": "ニコを追う：訓練場を出て、町の西の端の禁足扉へ"
+   }
+  ]
+ },
+ "ch1.nico_fight": {
+  "steps": [
+   {
+    "hint": {
+     "kb": "ロックオン：F（右クリック）を押し続ける　撃つ：J（左クリック）　斬る：E　ダッシュで避ける：Shift",
+     "pad": "ロックオン：左トリガー長押し　撃つ：右トリガー　斬る：X　ダッシュ：B",
+     "touch": "「ロック」でロックオン　「撃つ」「斬る」「ダッシュ」で戦う"
+    }
+   },
+   {
+    "say": "ch1.nico_fight"
+   },
+   {
+    "objective": "小さな番機を倒して、ニコを守る"
+   },
+   {
+    "spawn": [
+     {
+      "type": "mini",
+      "pos": [
+       3,
+       0,
+       6
+      ],
+      "yaw": 200,
+      "group": "nico_mini"
+     }
     ]
-  },
-  "ch1.training.start": {
-    "steps": [
-      {"say": "ch1.burton.training"},
-      {"hint": {"kb": "WASD で移動　マウス（矢印キー）でカメラ　C で背後に戻す　まず ① の黄色い床まで歩こう", "pad": "左スティックで移動　右スティックでカメラ　まず ① の黄色い床まで歩こう", "touch": "画面の左側をなぞって移動　右側をなぞってカメラ　まず ① の黄色い床まで歩こう"}}
+   },
+   {
+    "wait_until": {
+     "cleared": "nico_mini"
+    }
+   },
+   {
+    "hint": ""
+   },
+   {
+    "wait": 0.6
+   },
+   {
+    "say": "ch1.nico_saved"
+   },
+   {
+    "flag": "ch1.nico_rescued"
+   },
+   {
+    "clear": "ch1.gate_open"
+   },
+   {
+    "clear": "door.ch1.lower.gate"
+   },
+   {
+    "objective": "ギルドのバートンのところへ報告に行く（町の上段）"
+   },
+   {
+    "go": {
+     "room": "lower",
+     "spawn": "from_gate",
+     "autosave": true
+    }
+   }
+  ]
+ },
+ "ch1.scold": {
+  "steps": [
+   {
+    "say": "ch1.scold"
+   }
+  ]
+ },
+ "ch1.burton.guild": {
+  "steps": [
+   {
+    "if": "ch1.descent_permit",
+    "then": [
+     {
+      "say": "ch1.burton.after_permit"
+     }
+    ],
+    "else": [
+     {
+      "if": "ch1.ordo_restarted",
+      "then": [
+       {
+        "event": "ch1.permit"
+       }
+      ],
+      "else": [
+       {
+        "if": "ch1.scolded",
+        "then": [
+         {
+          "say": "ch1.burton.guild_after"
+         }
+        ],
+        "else": [
+         {
+          "say": "ch1.burton.guild_wait"
+         }
+        ]
+       }
+      ]
+     }
     ]
-  },
-  "ch1.t.move": {
-    "steps": [
-      {"flag": "ch1.t_move"},
-      {"sfx": "item"},
-      {"hint": {"kb": "Space でジャンプ（長押しで高く）　② の段に登ってみよう", "pad": "A ボタンでジャンプ（長押しで高く）　② の段に登ってみよう", "touch": "「ジャンプ」ボタン（長押しで高く）　② の段に登ってみよう"}}
+   }
+  ]
+ },
+ "ch1.rita": {
+  "steps": [
+   {
+    "if": "ch1.descent_permit",
+    "then": [
+     {
+      "say": "ch1.rita.after"
+     }
+    ],
+    "else": [
+     {
+      "say": "ch1.rita"
+     }
     ]
-  },
-  "ch1.t.jump": {
-    "steps": [
-      {"flag": "ch1.t_jump"},
-      {"sfx": "item"},
-      {"hint": {"kb": "J か左クリックで撃つ（長押しで溜め撃ち）　③ の的を 3 つ撃とう", "pad": "右トリガーで撃つ（長押しで溜め撃ち）　③ の的を 3 つ撃とう", "touch": "「撃つ」ボタン（長押しで溜め撃ち）　③ の的を 3 つ撃とう"}}
+   }
+  ]
+ },
+ "ch1.guild_board": {
+  "steps": [
+   {
+    "guild": "main"
+   }
+  ]
+ },
+ "ch1.debt": {
+  "steps": [
+   {
+    "say": "ch1.debt"
+   },
+   {
+    "say": "ch1.debt_end"
+   }
+  ]
+ },
+ "ch1.yana.shop": {
+  "steps": [
+   {
+    "if": "ch1.drill_developed",
+    "then": [
+     {
+      "say": "ch1.yana.after_drill"
+     }
+    ],
+    "else": [
+     {
+      "if": "ch1.ordo_restarted",
+      "then": [
+       {
+        "if": "ch1.descent_permit",
+        "then": [
+         {
+          "say": "ch1.yana.drill_a"
+         },
+         {
+          "workshop": "yana"
+         }
+        ],
+        "else": [
+         {
+          "say": "ch1.yana.drill_wait"
+         }
+        ]
+       }
+      ],
+      "else": [
+       {
+        "if": "ch1.night",
+        "then": [
+         {
+          "say": "ch1.yana.night_shop"
+         }
+        ],
+        "else": [
+         {
+          "if": "ch1.debt_scene",
+          "then": [
+           {
+            "say": "ch1.yana.day_after"
+           }
+          ],
+          "else": [
+           {
+            "say": "ch1.yana.day"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
     ]
-  },
-  "ch1.t.shoot": {
-    "steps": [
-      {"flag": "ch1.t_shoot"},
-      {"sfx": "item"},
-      {"message": "的を全部撃った"},
-      {"hint": {"kb": "敵が出たら F か右クリックを押し続けてロックオン（照準が敵を追う）。次は北の溝へ", "pad": "敵が出たら左トリガーを押し続けてロックオン（照準が敵を追う）。次は北の溝へ", "touch": "敵が出たら「ロック」ボタンでロックオンの入り切り（照準が敵を追う）。次は北の溝へ"}}
+   }
+  ]
+ },
+ "ch1.workshop_bench": {
+  "steps": [
+   {
+    "workshop": "yana"
+   }
+  ]
+ },
+ "ch1.sleep": {
+  "steps": [
+   {
+    "if": "ch1.night",
+    "then": [
+     {
+      "message": "外が騒がしい。今は眠れそうにない。"
+     }
+    ],
+    "else": [
+     {
+      "if": "ch1.debt_scene",
+      "then": [
+       {
+        "event": "ch1.stop"
+       }
+      ],
+      "else": [
+       {
+        "message": "まだ眠くない。やることが残っている気がする。"
+       }
+      ]
+     }
     ]
-  },
-  "ch1.t.ditch": {
-    "steps": [
-      {"hint": {"kb": "Shift でダッシュ。ダッシュ中にジャンプすると遠くまで跳べる　④ の溝を越えよう（落ちても南のスロープから戻れる）", "pad": "B ボタンでダッシュ。走りながら A で遠くまで跳べる　④ の溝を越えよう（落ちても戻れる）", "touch": "「ダッシュ」を押しながら「ジャンプ」で遠くまで跳べる　④ の溝を越えよう（落ちても戻れる）"}}
+   }
+  ]
+ },
+ "ch1.stop": {
+  "steps": [
+   {
+    "freeze": true
+   },
+   {
+    "hint": ""
+   },
+   {
+    "autosave": true
+   },
+   {
+    "message": "ハルは家に帰って、そのまま眠ってしまった……"
+   },
+   {
+    "wait": 2.0
+   },
+   {
+    "flag": "ch1.night"
+   },
+   {
+    "go": {
+     "room": "home",
+     "spawn": "bed"
+    }
+   },
+   {
+    "wait": 1.5
+   },
+   {
+    "sfx": "alert"
+   },
+   {
+    "message": "ゴゴゴゴゴ……"
+   },
+   {
+    "wait": 1.5
+   },
+   {
+    "sfx": "alert"
+   },
+   {
+    "flag": "ch1.ordo_stopped"
+   },
+   {
+    "wait": 1.5
+   },
+   {
+    "say": "ch1.stop"
+   },
+   {
+    "objective": "広場へ（町の中段）。外が騒がしい"
+   },
+   {
+    "freeze": false
+   }
+  ]
+ },
+ "ch1.plaza": {
+  "steps": [
+   {
+    "say": "ch1.plaza"
+   }
+  ]
+ },
+ "ch1.trude.plaza": {
+  "steps": [
+   {
+    "if": "ch1.plaza_done",
+    "then": [
+     {
+      "say": "ch1.trude.plaza_after"
+     }
+    ],
+    "else": [
+     {
+      "say": "ch1.plaza"
+     }
     ]
-  },
-  "ch1.t.dash": {
-    "steps": [
-      {"flag": "ch1.t_dash"},
-      {"sfx": "item"},
-      {"message": "溝を越えた"},
-      {"hint": {"kb": "⑤ 残骸に近づいて Space で片付けよう（「調べる」はジャンプのボタン）", "pad": "⑤ 残骸に近づいて A ボタンで片付けよう", "touch": "⑤ 残骸に近づいて「ジャンプ（調べる）」で片付けよう"}}
+   }
+  ]
+ },
+ "ch1.burton.plaza": {
+  "steps": [
+   {
+    "say": "ch1.burton.plaza_after"
+   }
+  ]
+ },
+ "ch1.mina": {
+  "steps": [
+   {
+    "say": "ch1.mina"
+   }
+  ]
+ },
+ "ch1.yana_gun": {
+  "steps": [
+   {
+    "freeze": true
+   },
+   {
+    "say": "ch1.yana_gun"
+   },
+   {
+    "give": {
+     "item": "weapon.spark"
+    }
+   },
+   {
+    "flag": "ch1.got_spark"
+   },
+   {
+    "flag": "ch1.gate_open"
+   },
+   {
+    "message": "ヤーナが禁足扉の鍵を開けた"
+   },
+   {
+    "objective": "禁足扉から遺構へ入る（準備ができたら、家でセーブしてもいい）"
+   },
+   {
+    "freeze": false
+   }
+  ]
+ },
+ "ch1.yana.gate": {
+  "steps": [
+   {
+    "if": "ch1.got_spark",
+    "then": [
+     {
+      "say": "ch1.yana.gate_after"
+     }
+    ],
+    "else": [
+     {
+      "say": "ch1.yana.gate_before"
+     }
     ]
-  },
-  "ch1.nico_run": {
-    "steps": [
-      {"hint": ""},
-      {"say": "ch1.nico_run"},
-      {"remove": "npc_nico"},
-      {"sfx": "alert"},
-      {"flag": "ch1.nico_ran"},
-      {"flag": "ch1.gate_open"},
-      {"message": "ニコが禁足扉のほうへ走っていった！"},
-      {"objective": "ニコを追う：訓練場を出て、町の西の端の禁足扉へ"}
+   }
+  ]
+ },
+ "ch1.martha": {
+  "steps": [
+   {
+    "if": {
+     "all": [
+      "ch1.parcel_taken",
+      {
+       "not": "ch1.parcel_delivered"
+      }
+     ]
+    },
+    "then": [
+     {
+      "say": "ch1.martha.parcel"
+     },
+     {
+      "flag": "ch1.parcel_delivered"
+     },
+     {
+      "message": "荷物を届けた"
+     }
+    ],
+    "else": [
+     {
+      "if": "ch1.ordo_restarted",
+      "then": [
+       {
+        "say": "ch1.martha.after"
+       }
+      ],
+      "else": [
+       {
+        "if": "ch1.night",
+        "then": [
+         {
+          "say": "ch1.martha.night"
+         }
+        ],
+        "else": [
+         {
+          "say": "ch1.martha.day"
+         }
+        ]
+       }
+      ]
+     }
     ]
-  },
-  "ch1.nico_fight": {
-    "steps": [
-      {"hint": {"kb": "ロックオン：F（右クリック）を押し続ける　撃つ：J（左クリック）　斬る：E　ダッシュで避ける：Shift", "pad": "ロックオン：左トリガー長押し　撃つ：右トリガー　斬る：X　ダッシュ：B", "touch": "「ロック」でロックオン　「撃つ」「斬る」「ダッシュ」で戦う"}},
-      {"say": "ch1.nico_fight"},
-      {"objective": "小さな番機を倒して、ニコを守る"},
-      {"spawn": [{"type": "mini", "pos": [3, 0, 6], "yaw": 200, "group": "nico_mini"}]},
-      {"wait_until": {"cleared": "nico_mini"}},
-      {"hint": ""},
-      {"wait": 0.6},
-      {"say": "ch1.nico_saved"},
-      {"flag": "ch1.nico_rescued"},
-      {"clear": "ch1.gate_open"},
-      {"clear": "door.ch1.lower.gate"},
-      {"objective": "ギルドのバートンのところへ報告に行く（町の上段）"},
-      {"go": {"room": "lower", "spawn": "from_gate", "autosave": true}}
+   }
+  ]
+ },
+ "ch1.gen": {
+  "steps": [
+   {
+    "if": "ch1.ordo_restarted",
+    "then": [
+     {
+      "say": "ch1.gen.after"
+     }
+    ],
+    "else": [
+     {
+      "if": "ch1.night",
+      "then": [
+       {
+        "say": "ch1.gen.night"
+       }
+      ],
+      "else": [
+       {
+        "say": "ch1.gen.day"
+       }
+      ]
+     }
     ]
-  },
-  "ch1.scold": {
-    "steps": [
-      {"say": "ch1.scold"}
+   }
+  ]
+ },
+ "ch1.domi": {
+  "steps": [
+   {
+    "if": "ch1.ordo_restarted",
+    "then": [
+     {
+      "say": "ch1.domi.after"
+     }
+    ],
+    "else": [
+     {
+      "if": "ch1.night",
+      "then": [
+       {
+        "say": "ch1.domi.night"
+       }
+      ],
+      "else": [
+       {
+        "say": "ch1.domi.day"
+       }
+      ]
+     }
     ]
-  },
-  "ch1.burton.guild": {
-    "steps": [
-      {"if": "ch1.scolded", "then": [{"say": "ch1.burton.guild_after"}], "else": [{"say": "ch1.burton.guild_wait"}]}
+   }
+  ]
+ },
+ "ch1.tobi": {
+  "steps": [
+   {
+    "if": "ch1.ordo_restarted",
+    "then": [
+     {
+      "say": "ch1.tobi.after"
+     }
+    ],
+    "else": [
+     {
+      "if": "ch1.night",
+      "then": [
+       {
+        "say": "ch1.tobi.night"
+       }
+      ],
+      "else": [
+       {
+        "say": "ch1.tobi.day"
+       }
+      ]
+     }
     ]
-  },
-  "ch1.rita": {
-    "steps": [
-      {"say": "ch1.rita"}
+   }
+  ]
+ },
+ "ch1.lookout": {
+  "steps": [
+   {
+    "if": "ch1.ordo_restarted",
+    "then": [
+     {
+      "say": "ch1.lookout.after"
+     }
+    ],
+    "else": [
+     {
+      "if": "ch1.night",
+      "then": [
+       {
+        "say": "ch1.lookout.night"
+       }
+      ],
+      "else": [
+       {
+        "say": "ch1.lookout.day"
+       }
+      ]
+     }
     ]
-  },
-  "ch1.guild_board": {
-    "steps": [
-      {"guild": "main"}
+   }
+  ]
+ },
+ "ch1.clerk": {
+  "steps": [
+   {
+    "if": "ch1.ordo_restarted",
+    "then": [
+     {
+      "say": "ch1.clerk.after"
+     }
+    ],
+    "else": [
+     {
+      "if": "ch1.night",
+      "then": [
+       {
+        "say": "ch1.clerk.night"
+       }
+      ],
+      "else": [
+       {
+        "say": "ch1.clerk.day"
+       }
+      ]
+     }
     ]
-  },
-  "ch1.debt": {
-    "steps": [
-      {"say": "ch1.debt"},
-      {"say": "ch1.debt_end"}
+   }
+  ]
+ },
+ "ch1.trude_house": {
+  "steps": [
+   {
+    "if": "ch1.ordo_restarted",
+    "then": [
+     {
+      "say": "ch1.trude_house.after"
+     }
+    ],
+    "else": [
+     {
+      "if": "ch1.night",
+      "then": [
+       {
+        "say": "ch1.trude_house.night"
+       }
+      ],
+      "else": [
+       {
+        "say": "ch1.trude_house.day"
+       }
+      ]
+     }
     ]
-  },
-  "ch1.yana.shop": {
-    "steps": [
-      {"if": "ch1.night", "then": [{"say": "ch1.yana.night_shop"}], "else": [{"if": "ch1.debt_scene", "then": [{"say": "ch1.yana.day_after"}], "else": [{"say": "ch1.yana.day"}]}]}
+   }
+  ]
+ },
+ "ch1.trude.house": {
+  "steps": [
+   {
+    "if": "ch1.ordo_restarted",
+    "then": [
+     {
+      "say": "ch1.trude_house.after"
+     }
+    ],
+    "else": [
+     {
+      "if": "ch1.night",
+      "then": [
+       {
+        "say": "ch1.trude_house.night"
+       }
+      ],
+      "else": [
+       {
+        "say": "ch1.trude_house.day"
+       }
+      ]
+     }
     ]
-  },
-  "ch1.workshop_bench": {
-    "steps": [
-      {"workshop": "yana"}
+   }
+  ]
+ },
+ "ch1.shop_zakka": {
+  "steps": [
+   {
+    "if": {
+     "all": [
+      "ch1.descent_permit",
+      {
+       "not": "ch1.parcel_taken"
+      }
+     ]
+    },
+    "then": [
+     {
+      "say": "ch1.shopkeeper.parcel"
+     },
+     {
+      "flag": "ch1.parcel_taken"
+     },
+     {
+      "message": "雑貨屋の荷物を預かった（下段のマーサへ）"
+     }
+    ],
+    "else": [
+     {
+      "if": "ch1.ordo_restarted",
+      "then": [
+       {
+        "say": "ch1.shopkeeper.after"
+       }
+      ],
+      "else": [
+       {
+        "if": "ch1.night",
+        "then": [
+         {
+          "say": "ch1.shopkeeper.night"
+         }
+        ],
+        "else": [
+         {
+          "say": "ch1.shopkeeper.day"
+         }
+        ]
+       }
+      ]
+     }
     ]
-  },
-  "ch1.sleep": {
-    "steps": [
-      {"if": "ch1.night", "then": [{"message": "外が騒がしい。今は眠れそうにない。"}], "else": [{"if": "ch1.debt_scene", "then": [{"event": "ch1.stop"}], "else": [{"message": "まだ眠くない。やることが残っている気がする。"}]}]}
+   },
+   {
+    "shop": "zakka"
+   }
+  ]
+ },
+ "ch1.shop_junk": {
+  "steps": [
+   {
+    "if": "ch1.ordo_restarted",
+    "then": [
+     {
+      "say": "ch1.junker.after"
+     }
+    ],
+    "else": [
+     {
+      "if": "ch1.night",
+      "then": [
+       {
+        "say": "ch1.junker.night"
+       }
+      ],
+      "else": [
+       {
+        "say": "ch1.junker.day"
+       }
+      ]
+     }
     ]
-  },
-  "ch1.stop": {
-    "steps": [
-      {"freeze": true},
-      {"hint": ""},
-      {"autosave": true},
-      {"message": "ハルは家に帰って、そのまま眠ってしまった……"},
-      {"wait": 2.0},
-      {"flag": "ch1.night"},
-      {"go": {"room": "home", "spawn": "bed"}},
-      {"wait": 1.5},
-      {"sfx": "alert"},
-      {"message": "ゴゴゴゴゴ……"},
-      {"wait": 1.5},
-      {"sfx": "alert"},
-      {"flag": "ch1.ordo_stopped"},
-      {"wait": 1.5},
-      {"say": "ch1.stop"},
-      {"objective": "広場へ（町の中段）。外が騒がしい"},
-      {"freeze": false}
+   },
+   {
+    "shop": "junk"
+   }
+  ]
+ },
+ "ch1.lift": {
+  "steps": [
+   {
+    "say": "ch1.lift"
+   }
+  ]
+ },
+ "ch1.scope": {
+  "steps": [
+   {
+    "if": {
+     "all": [
+      "ch1.descent_permit",
+      "ch1.drill_developed",
+      {
+       "not": "ch1.complete"
+      }
+     ]
+    },
+    "then": [
+     {
+      "event": "ch1.ending"
+     }
+    ],
+    "else": [
+     {
+      "if": "ch1.night",
+      "then": [
+       {
+        "say": "ch1.scope.night"
+       }
+      ],
+      "else": [
+       {
+        "say": "ch1.scope.day"
+       }
+      ]
+     }
     ]
-  },
-  "ch1.plaza": {
-    "steps": [
-      {"say": "ch1.plaza"}
-    ]
-  },
-  "ch1.trude.plaza": {
-    "steps": [
-      {"if": "ch1.plaza_done", "then": [{"say": "ch1.trude.plaza_after"}], "else": [{"say": "ch1.plaza"}]}
-    ]
-  },
-  "ch1.burton.plaza": {
-    "steps": [
-      {"say": "ch1.burton.plaza_after"}
-    ]
-  },
-  "ch1.mina": {
-    "steps": [
-      {"say": "ch1.mina"}
-    ]
-  },
-  "ch1.yana_gun": {
-    "steps": [
-      {"freeze": true},
-      {"say": "ch1.yana_gun"},
-      {"give": {"item": "weapon.spark"}},
-      {"flag": "ch1.got_spark"},
-      {"flag": "ch1.gate_open"},
-      {"message": "ヤーナが禁足扉の鍵を開けた"},
-      {"objective": "禁足扉から遺構へ入る（準備ができたら、家でセーブしてもいい）"},
-      {"freeze": false}
-    ]
-  },
-  "ch1.yana.gate": {
-    "steps": [
-      {"if": "ch1.got_spark", "then": [{"say": "ch1.yana.gate_after"}], "else": [{"say": "ch1.yana.gate_before"}]}
-    ]
-  },
-  "ch1.martha": {
-    "steps": [
-      {"if": "ch1.night", "then": [{"say": "ch1.martha.night"}], "else": [{"say": "ch1.martha.day"}]}
-    ]
-  },
-  "ch1.gen": {
-    "steps": [
-      {"if": "ch1.night", "then": [{"say": "ch1.gen.night"}], "else": [{"say": "ch1.gen.day"}]}
-    ]
-  },
-  "ch1.domi": {
-    "steps": [
-      {"if": "ch1.night", "then": [{"say": "ch1.domi.night"}], "else": [{"say": "ch1.domi.day"}]}
-    ]
-  },
-  "ch1.tobi": {
-    "steps": [
-      {"if": "ch1.night", "then": [{"say": "ch1.tobi.night"}], "else": [{"say": "ch1.tobi.day"}]}
-    ]
-  },
-  "ch1.lookout": {
-    "steps": [
-      {"if": "ch1.night", "then": [{"say": "ch1.lookout.night"}], "else": [{"say": "ch1.lookout.day"}]}
-    ]
-  },
-  "ch1.clerk": {
-    "steps": [
-      {"if": "ch1.night", "then": [{"say": "ch1.clerk.night"}], "else": [{"say": "ch1.clerk.day"}]}
-    ]
-  },
-  "ch1.trude_house": {
-    "steps": [
-      {"if": "ch1.night", "then": [{"say": "ch1.trude_house.night"}], "else": [{"say": "ch1.trude_house.day"}]}
-    ]
-  },
-  "ch1.trude.house": {
-    "steps": [
-      {"if": "ch1.night", "then": [{"say": "ch1.trude_house.night"}], "else": [{"say": "ch1.trude_house.day"}]}
-    ]
-  },
-  "ch1.shop_zakka": {
-    "steps": [
-      {"if": "ch1.night", "then": [{"say": "ch1.shopkeeper.night"}], "else": [{"say": "ch1.shopkeeper.day"}]},
-      {"shop": "zakka"}
-    ]
-  },
-  "ch1.shop_junk": {
-    "steps": [
-      {"if": "ch1.night", "then": [{"say": "ch1.junker.night"}], "else": [{"say": "ch1.junker.day"}]},
-      {"shop": "junk"}
-    ]
-  },
-  "ch1.lift": {
-    "steps": [
-      {"say": "ch1.lift"}
-    ]
-  },
-  "ch1.scope": {
-    "steps": [
-      {"if": "ch1.night", "then": [{"say": "ch1.scope.night"}], "else": [{"say": "ch1.scope.day"}]}
-    ]
-  },
-  "ch1.r02.stub": {
-    "steps": [
-      {"say": "ch1.r02.stub"},
-      {"flag": "ch1.part1_end"}
-    ]
-  }
+   }
+  ]
+ }
 }

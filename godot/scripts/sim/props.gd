@@ -11,6 +11,8 @@ class Breakable:
 	## 壊れるまでに必要なドリルの時間（秒）
 	var toughness := 1.0
 	var progress := 0.0
+	## false なら壊れた状態をセーブしない（ボス部屋の柱：やり直しで元に戻る）
+	var persist := true
 	var body: StaticBody3D = null
 
 	func _init(i: String, c: Vector3, s: Vector3, y: float) -> void:
@@ -119,6 +121,8 @@ class Trigger:
 	var on := "enter"
 	var cond = null
 	var group := ""
+	## false なら「走った」ことをセーブしない（戦闘の部屋のやり直しで、もう一度走る）
+	var persist := true
 
 	func _init(i: String, c: Vector3, h: Vector3, e: String, o: bool) -> void:
 		id = i

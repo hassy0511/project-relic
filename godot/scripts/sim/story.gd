@@ -10,6 +10,7 @@ extends RefCounted
 ##   open / close（扉）/ spawn（敵）/ boss（敵 id を戦闘開始に）/ go（部屋を移る）/ teleport（同じ部屋の中で移す）
 ##   camera（注視点）/ freeze（操作ロック）/ mark（印）/ shop・workshop・guild（画面を開く）/ accept・complete（依頼）/ autosave
 ##   hint（操作の案内を出し続ける。{ kb, pad, touch } か文字列。"" で消す）/ remove（住人 id を今の部屋から消す）
+##   shake（画面の揺れの強さ。0.4 くらい）/ despawn（グループの敵を倒さずに消す）
 
 const CHARS_PER_SEC := 45.0
 
@@ -193,6 +194,10 @@ func _run_step(step: Dictionary) -> void:
 		h.emit_event({"type": "hint", "text": step.hint})
 	elif step.has("remove"):
 		h.remove_npc(step.remove)
+	elif step.has("shake"):
+		h.emit_event({"type": "shake", "strength": float(step.shake)})
+	elif step.has("despawn"):
+		h.despawn_group(String(step.despawn))
 	else:
 		push_error("知らないイベントの手順: %s" % str(step))
 

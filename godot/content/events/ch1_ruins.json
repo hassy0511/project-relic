@@ -1,0 +1,868 @@
+{
+ "ch1.r02.enter": {
+  "steps": [
+   {
+    "say": "ch1.r02.enter"
+   },
+   {
+    "objective": "遺構の奥へ進み、動力の中継器を探す（ガラクタの山に、お宝があるかも）"
+   }
+  ]
+ },
+ "ch1.r03.enter": {
+  "steps": [
+   {
+    "say": "ch1.r03.enter"
+   },
+   {
+    "hint": {
+     "kb": "ジャンプのボタン：ちょんと押すと低く、長押しすると高く跳べる。溝の幅と段の高さで使い分けよう（落ちても足場へ戻される）",
+     "pad": "A ボタン：ちょんと押すと低く、長押しすると高く跳べる。溝の幅と段の高さで使い分けよう",
+     "touch": "「ジャンプ」：ちょん押しで低く、長押しで高く。溝の幅と段の高さで使い分けよう"
+    }
+   }
+  ]
+ },
+ "ch1.r04.enter": {
+  "steps": [
+   {
+    "hint": ""
+   },
+   {
+    "say": "ch1.r04.enter"
+   },
+   {
+    "objective": "左右の弁を撃って、奥の扉を開ける（子番機に注意）"
+   },
+   {
+    "hint": {
+     "kb": "狙って撃つ：照準は画面の中央。弁の球を 2 つ撃とう",
+     "pad": "右トリガーで撃つ：照準は画面の中央。弁の球を 2 つ撃とう",
+     "touch": "「撃つ」：照準は画面の中央。弁の球を 2 つ撃とう"
+    }
+   }
+  ]
+ },
+ "ch1.collapse": {
+  "steps": [
+   {
+    "freeze": true
+   },
+   {
+    "hint": ""
+   },
+   {
+    "say": "ch1.collapse.a"
+   },
+   {
+    "shake": 0.4
+   },
+   {
+    "sfx": "alert"
+   },
+   {
+    "wait": 0.6
+   },
+   {
+    "shake": 0.9
+   },
+   {
+    "message": "床が崩れる！"
+   },
+   {
+    "say": "ch1.collapse.b"
+   },
+   {
+    "go": {
+     "room": "r06",
+     "spawn": "fall",
+     "autosave": true
+    }
+   },
+   {
+    "wait": 1.5
+   },
+   {
+    "flag": "ch1.fell_to_b2"
+   },
+   {
+    "shake": 0.5
+   },
+   {
+    "sfx": "crash"
+   },
+   {
+    "wait": 0.8
+   },
+   {
+    "say": "ch1.r06.wake"
+   },
+   {
+    "objective": "上には戻れない。非常灯をたどって、出口を探す"
+   },
+   {
+    "freeze": false
+   }
+  ]
+ },
+ "ch1.chase": {
+  "steps": [
+   {
+    "say": "ch1.chase"
+   },
+   {
+    "spawn": [
+     {
+      "type": "sentry",
+      "pos": [
+       -1.2,
+       0,
+       -18.5
+      ],
+      "yaw": 0,
+      "group": "chase",
+      "invulnerable": true
+     },
+     {
+      "type": "sentry",
+      "pos": [
+       1.2,
+       0,
+       -19.2
+      ],
+      "yaw": 0,
+      "group": "chase",
+      "invulnerable": true
+     }
+    ]
+   },
+   {
+    "objective": "追われている！ 配管のすき間をくぐって、奥へ逃げる"
+   },
+   {
+    "hint": {
+     "kb": "撃っても倒せない。走って逃げろ（配管の壁は、すき間を通って）",
+     "pad": "撃っても倒せない。走って逃げろ",
+     "touch": "撃っても倒せない。走って逃げろ"
+    }
+   }
+  ]
+ },
+ "ch1.r07.dead": {
+  "steps": [
+   {
+    "freeze": true
+   },
+   {
+    "hint": ""
+   },
+   {
+    "say": "ch1.r07.dead"
+   },
+   {
+    "sfx": "item"
+   },
+   {
+    "shake": 0.3
+   },
+   {
+    "flag": "ch1.r07.seal_open"
+   },
+   {
+    "wait": 0.8
+   },
+   {
+    "freeze": false
+   },
+   {
+    "objective": "光る壁の奥へ飛び込め！"
+   }
+  ]
+ },
+ "ch1.frame_fit": {
+  "steps": [
+   {
+    "freeze": true
+   },
+   {
+    "hint": ""
+   },
+   {
+    "camera": {
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "height": 1.6,
+     "time": 2.0
+    }
+   },
+   {
+    "say": "ch1.fit.a"
+   },
+   {
+    "sfx": "item"
+   },
+   {
+    "shake": 0.3
+   },
+   {
+    "wait": 0.8
+   },
+   {
+    "say": "ch1.fit.b"
+   },
+   {
+    "shake": 0.7
+   },
+   {
+    "sfx": "alert"
+   },
+   {
+    "wait": 1.2
+   },
+   {
+    "give": {
+     "item": "frame.vestige"
+    }
+   },
+   {
+    "flag": "ch1.frame_fitted"
+   },
+   {
+    "camera": {}
+   },
+   {
+    "say": "ch1.fit.c"
+   },
+   {
+    "message": "仮登録：フレーム〈ヴェスティージ〉・ナゴミと同行"
+   },
+   {
+    "freeze": false
+   },
+   {
+    "objective": "ナゴミの訓練：標的を倒す"
+   },
+   {
+    "say": "ch1.fit.t1"
+   },
+   {
+    "hint": {
+     "kb": "ロックオン：F（右クリック）を押し続ける　撃つ：J（左クリック）",
+     "pad": "ロックオン：左トリガー長押し　撃つ：右トリガー",
+     "touch": "「ロック」を押して、「撃つ」で攻撃"
+    }
+   },
+   {
+    "spawn": [
+     {
+      "type": "mini",
+      "pos": [
+       0,
+       0,
+       6
+      ],
+      "yaw": 180,
+      "group": "r08_t1"
+     }
+    ]
+   },
+   {
+    "wait_until": {
+     "cleared": "r08_t1"
+    }
+   },
+   {
+    "hint": {
+     "kb": "ダッシュ：Shift　光刃：E　敵に近づいて斬ろう",
+     "pad": "ダッシュ：B　光刃：X　敵に近づいて斬ろう",
+     "touch": "「ダッシュ」で近づいて「斬る」"
+    }
+   },
+   {
+    "say": "ch1.fit.t2"
+   },
+   {
+    "spawn": [
+     {
+      "type": "mini",
+      "pos": [
+       -5,
+       0,
+       6
+      ],
+      "yaw": 180,
+      "group": "r08_t2"
+     },
+     {
+      "type": "mini",
+      "pos": [
+       5,
+       0,
+       6
+      ],
+      "yaw": 180,
+      "group": "r08_t2"
+     }
+    ]
+   },
+   {
+    "wait_until": {
+     "cleared": "r08_t2"
+    }
+   },
+   {
+    "hint": ""
+   },
+   {
+    "say": "ch1.fit.t3"
+   },
+   {
+    "flag": "ch1.r08.trained"
+   },
+   {
+    "objective": "奥へ。動力の中継器を目指す"
+   }
+  ]
+ },
+ "ch1.r09.wave2": {
+  "steps": [
+   {
+    "say": "ch1.r09.wave2"
+   },
+   {
+    "spawn": [
+     {
+      "type": "charger",
+      "pos": [
+       0,
+       0,
+       6
+      ],
+      "yaw": 180,
+      "group": "r09_w2"
+     }
+    ]
+   },
+   {
+    "wait_until": {
+     "cleared": "r09_w2"
+    }
+   },
+   {
+    "flag": "ch1.r09.cleared"
+   },
+   {
+    "message": "奥の扉が開いた"
+   },
+   {
+    "objective": "奥へ進む"
+   }
+  ]
+ },
+ "ch1.r10.enter": {
+  "steps": [
+   {
+    "say": "ch1.r10.enter"
+   },
+   {
+    "objective": "盾型を崩して倒し、弁の輪を撃って扉を開ける"
+   }
+  ]
+ },
+ "ch1.beacon": {
+  "steps": [
+   {
+    "if": {
+     "not": "ch1.beacon_told"
+    },
+    "then": [
+     {
+      "say": "ch1.beacon"
+     },
+     {
+      "flag": "ch1.beacon_told"
+     }
+    ]
+   }
+  ]
+ },
+ "ch1.r12.enter": {
+  "steps": [
+   {
+    "say": "ch1.r12.enter"
+   },
+   {
+    "objective": "動力の球を 2 つ撃って、ピストンを動かす"
+   },
+   {
+    "hint": {
+     "kb": "動力の球（足場の左右）を撃つ",
+     "pad": "動力の球（足場の左右）を撃つ",
+     "touch": "動力の球（足場の左右）を撃つ"
+    }
+   }
+  ]
+ },
+ "ch1.r12.powered": {
+  "steps": [
+   {
+    "hint": ""
+   },
+   {
+    "flag": "ch1.drive_powered"
+   },
+   {
+    "sfx": "switch"
+   },
+   {
+    "shake": 0.5
+   },
+   {
+    "camera": {
+     "pos": [
+      0,
+      0,
+      2
+     ],
+     "height": 2.0,
+     "time": 2.2
+    }
+   },
+   {
+    "camera": {}
+   },
+   {
+    "say": "ch1.r12.powered"
+   },
+   {
+    "objective": "ピストンに跳び移って、奥へ（落ちても足場へ戻される）"
+   }
+  ]
+ },
+ "ch1.r13.enter": {
+  "steps": [
+   {
+    "say": "ch1.r13.enter"
+   },
+   {
+    "objective": "浮遊型を倒す。歯車のリフトで奥の張り出しへ（宝箱）"
+   }
+  ]
+ },
+ "ch1.r13.done": {
+  "steps": [
+   {
+    "flag": "ch1.r13.cleared"
+   },
+   {
+    "message": "歯車の間を制圧した"
+   }
+  ]
+ },
+ "ch1.r15.wave2": {
+  "steps": [
+   {
+    "say": "ch1.r15.wave2"
+   },
+   {
+    "spawn": [
+     {
+      "type": "floater",
+      "pos": [
+       -4,
+       5,
+       2
+      ],
+      "yaw": 180,
+      "group": "r15_w2"
+     },
+     {
+      "type": "floater",
+      "pos": [
+       4,
+       5,
+       3
+      ],
+      "yaw": 180,
+      "group": "r15_w2"
+     }
+    ]
+   },
+   {
+    "wait_until": {
+     "cleared": "r15_w2"
+    }
+   },
+   {
+    "flag": "ch1.r15.cleared"
+   },
+   {
+    "message": "伝導路を制圧した"
+   }
+  ]
+ },
+ "ch1.r16.done": {
+  "steps": [
+   {
+    "flag": "ch1.r16.cleared"
+   }
+  ]
+ },
+ "ch1.r17.lever": {
+  "steps": [
+   {
+    "if": "ch1.shortcut_open",
+    "then": [
+     {
+      "message": "近道のエレベーターは、もう開いている"
+     }
+    ],
+    "else": [
+     {
+      "say": "ch1.r17.lever"
+     },
+     {
+      "flag": "ch1.shortcut_open"
+     },
+     {
+      "message": "近道が開いた：外殻層（ジャンク溜まり）へ戻れる"
+     },
+     {
+      "sfx": "item"
+     }
+    ]
+   }
+  ]
+ },
+ "ch1.diagnosis": {
+  "steps": [
+   {
+    "freeze": true
+   },
+   {
+    "say": "ch1.diagnosis"
+   },
+   {
+    "flag": "ch1.diagnosis"
+   },
+   {
+    "objective": "ビーコンで備えて、奥の大扉（心臓部）へ。炉心の扉を閉ざす番機を倒す"
+   },
+   {
+    "freeze": false
+   }
+  ]
+ },
+ "ch1.r19.enter": {
+  "steps": [
+   {
+    "if": "ch1.boss_intro",
+    "then": [
+     {
+      "message": "閂が待ち構えている……もう一度だ"
+     }
+    ],
+    "else": [
+     {
+      "freeze": true
+     },
+     {
+      "say": "ch1.r19.enter"
+     },
+     {
+      "flag": "ch1.boss_intro"
+     },
+     {
+      "freeze": false
+     }
+    ]
+   },
+   {
+    "objective": "大番機「閂」を倒す（腕は壊せる。壁に刺さったら背中の核を狙う）"
+   }
+  ]
+ },
+ "ch1.boss_down": {
+  "steps": [
+   {
+    "freeze": true
+   },
+   {
+    "wait": 1.5
+   },
+   {
+    "give": {
+     "materials": {
+      "core.kannuki": 1
+     }
+    }
+   },
+   {
+    "say": "ch1.boss_down"
+   },
+   {
+    "objective": "奥の炉心の扉へ（オルドを再始動する）"
+   },
+   {
+    "freeze": false
+   }
+  ]
+ },
+ "ch1.restart": {
+  "steps": [
+   {
+    "freeze": true
+   },
+   {
+    "camera": {
+     "pos": [
+      0,
+      0,
+      2
+     ],
+     "height": 2.0,
+     "time": 2.0
+    }
+   },
+   {
+    "say": "ch1.restart.a"
+   },
+   {
+    "sfx": "alert"
+   },
+   {
+    "shake": 0.5
+   },
+   {
+    "wait": 1.0
+   },
+   {
+    "shake": 0.9
+   },
+   {
+    "flag": "ch1.ordo_restarted"
+   },
+   {
+    "say": "ch1.restart.b"
+   },
+   {
+    "message": "オルドが再び歩き出した！"
+   },
+   {
+    "wait": 0.6
+   },
+   {
+    "say": "ch1.node"
+   },
+   {
+    "camera": {}
+   },
+   {
+    "message": "ナゴミが初めてノードの記憶を取り込んだ"
+   },
+   {
+    "objective": "町へ戻る"
+   },
+   {
+    "go": {
+     "room": "ch1.mid",
+     "spawn": "start",
+     "autosave": true
+    }
+   },
+   {
+    "wait": 1.8
+   },
+   {
+    "event": "ch1.cheer"
+   }
+  ]
+ },
+ "ch1.cheer": {
+  "steps": [
+   {
+    "say": "ch1.cheer"
+   },
+   {
+    "wait": 0.6
+   },
+   {
+    "message": "……やがて、夜が明けた"
+   },
+   {
+    "clear": "ch1.night"
+   },
+   {
+    "flag": "ch1.morning"
+   },
+   {
+    "go": {
+     "room": "ch1.home",
+     "spawn": "bed",
+     "autosave": true
+    }
+   },
+   {
+    "wait": 1.5
+   },
+   {
+    "say": "ch1.morning"
+   },
+   {
+    "objective": "ギルドのバートンのところへ（町の上段）。降下許可の話"
+   },
+   {
+    "autosave": true
+   },
+   {
+    "freeze": false
+   }
+  ]
+ },
+ "ch1.permit": {
+  "steps": [
+   {
+    "freeze": true
+   },
+   {
+    "say": "ch1.permit"
+   },
+   {
+    "mark": "降下許可"
+   },
+   {
+    "flag": "ch1.descent_permit"
+   },
+   {
+    "message": "降下許可を得た（回収屋の印：降下許可）"
+   },
+   {
+    "sfx": "item"
+   },
+   {
+    "objective": "ヤーナの工房へ（中段）。閂のコアから、新しい武器を作ってもらう。ギルドの依頼板も確認"
+   },
+   {
+    "autosave": true
+   },
+   {
+    "freeze": false
+   }
+  ]
+ },
+ "ch1.drill_done": {
+  "steps": [
+   {
+    "say": "ch1.yana.drill_b"
+   },
+   {
+    "flag": "ch1.drill_developed"
+   },
+   {
+    "sfx": "item"
+   },
+   {
+    "objective": "町の展望台（上段）へ。ひび割れた壁（駆動層）や、依頼板の依頼も片づけられる"
+   }
+  ]
+ },
+ "ch1.nico.home": {
+  "steps": [
+   {
+    "if": "ch1.marble_returned",
+    "then": [
+     {
+      "say": "ch1.nico.thanks"
+     }
+    ],
+    "else": [
+     {
+      "if": {
+       "item": "quest.marble"
+      },
+      "then": [
+       {
+        "say": "ch1.nico.found"
+       },
+       {
+        "flag": "ch1.marble_returned"
+       },
+       {
+        "message": "ニコにビー玉を返した"
+       }
+      ],
+      "else": [
+       {
+        "if": "ch1.ordo_restarted",
+        "then": [
+         {
+          "say": "ch1.nico.lost"
+         }
+        ],
+        "else": [
+         {
+          "say": "ch1.nico.home"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "ch1.ending": {
+  "steps": [
+   {
+    "freeze": true
+   },
+   {
+    "hint": ""
+   },
+   {
+    "camera": {
+     "pos": [
+      0,
+      12,
+      200
+     ],
+     "height": 0,
+     "time": 3.0
+    }
+   },
+   {
+    "say": "ch1.ending.a"
+   },
+   {
+    "camera": {}
+   },
+   {
+    "wait": 0.5
+   },
+   {
+    "say": "ch1.ending.b"
+   },
+   {
+    "flag": "ch1.complete"
+   },
+   {
+    "sfx": "item"
+   },
+   {
+    "message": "第 1 章 クリア！"
+   },
+   {
+    "objective": "第 1 章クリア！ 自由に歩いて、ひび割れた壁や依頼の続きを（第 2 章は、このあとの段階）"
+   },
+   {
+    "autosave": true
+   },
+   {
+    "freeze": false
+   }
+  ]
+ }
+}

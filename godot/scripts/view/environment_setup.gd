@@ -77,6 +77,21 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 			env.ambient_light_color = Color("#5a6a9a")
 			env.ambient_light_energy = 0.9
 			env.fog_light_color = Color("#1c2340")
+		"ruin_b1", "ruin_b2", "ruin_b3", "ruin_b4":
+			# 遺構の階層ごとの色（B1 外殻層＝割れ目の暖かい光、B2 配管層＝暗い青灰、B3 駆動層＝青銅とオレンジ、B4 心臓部＝紫と青緑）
+			var pal := {
+				"ruin_b1": ["#6d6358", "#a08a6c", "#ffe2b8", 0.8, 0.8, "#8a7660"],
+				"ruin_b2": ["#1c232e", "#35404f", "#8fb0e0", 0.35, 0.45, "#27303d"],
+				"ruin_b3": ["#2a2118", "#5a4228", "#ffb870", 0.5, 0.6, "#4a3622"],
+				"ruin_b4": ["#1c1830", "#3a3060", "#8fe8da", 0.45, 0.6, "#2c2848"],
+			}[mood]
+			sky.sky_top_color = Color(pal[0])
+			sky.sky_horizon_color = Color(pal[1])
+			sun.light_color = Color(pal[2])
+			sun.light_energy = pal[3]
+			sun.rotation_degrees = Vector3(-60, -150, 0)
+			env.ambient_light_energy = pal[4]
+			env.fog_light_color = Color(pal[5])
 		"interior":
 			sky.sky_top_color = Color("#6d6358")
 			sky.sky_horizon_color = Color("#a08a6c")

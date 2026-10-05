@@ -217,7 +217,8 @@ func _build_room() -> void:
 				var center: Vector3 = m.pos + Vector3(0, size.y / 2.0, 0)
 				var b := Props.Breakable.new(p.id, center, size, m.yaw)
 				b.toughness = float(p.get("toughness", 1.0))
-				if flag("broken." + p.id):
+				b.persist = bool(p.get("persist", true))
+				if b.persist and flag("broken." + p.id):
 					b.broken = true
 				else:
 					b.body = phys.add_box(center, size * 0.5, Phys.BREAKABLE, m.yaw)
@@ -317,7 +318,8 @@ func _build_room() -> void:
 		tr.on = t.get("on", "enter")
 		tr.cond = t.get("cond")
 		tr.group = t.get("group", "")
-		tr.fired = flag("trigger." + t.id) and tr.once
+		tr.persist = bool(t.get("persist", true))
+		tr.fired = flag("trigger." + t.id) and tr.once and tr.persist
 		triggers.append(tr)
 	for c in room.get("checkpoints", []):
 		var m := place(c)
@@ -341,6 +343,7 @@ func spawn_enemy_spec(e: Dictionary) -> Enemy:
 	var m := place(e)
 	var en := add_enemy(e.type, m.pos, m.yaw)
 	en.id = e.get("id", "")
+	en.invulnerable = bool(e.get("invulnerable", false))
 	en.group = e.get("group", "")
 	en.once = e.get("once", false)
 	if en.group != "":
@@ -389,6 +392,16 @@ func remove_npc(id: String) -> void:
 			if n.body != null:
 				phys.remove(n.body)
 			emit_event({"type": "npcRemoved", "id": id})
+
+
+## グループの敵を倒さずに消す（追跡の演出の終わりなど）。倒した扱いにはしない
+func despawn_group(g: String) -> void:
+	for e in enemies.duplicate():
+		if e.group == g and e.alive:
+			e.alive = false
+			phys.remove(e.body)
+			enemies.erase(e)
+	set_flag("cleared." + g)
 
 
 func group_cleared(g: String) -> bool:
@@ -712,8 +725,18 @@ func grant(c: Dictionary) -> void:
 		emit_event({"type": "message", "text": "補修パックを %d 個手に入れた" % int(c.heals)})
 	if c.has("gp"):
 		guild_points += int(c.gp)
+	if c.has("lifecore"):
+		give_item("item.lifecore")
+		refresh_max_hp()
+		player.hp = player.max_hp
 	if c.has("mark"):
 		set_mark(c.mark)
+
+
+## 最大 HP：基本の値＋ライフコア 1 個につき 20
+func refresh_max_hp() -> void:
+	if player != null:
+		player.max_hp = float(tuning.player.maxHp) + (20.0 if has_item("item.lifecore") else 0.0)
 
 
 func give_item(item: String) -> void:
@@ -861,7 +884,8 @@ func break_breakable(b) -> void:
 	if b.body != null:
 		phys.remove(b.body)
 	b.body = null
-	set_flag("broken." + b.id)
+	if b.persist:
+		set_flag("broken." + b.id)
 	emit_event({"type": "wallBroken", "id": b.id})
 	emit_event({"type": "sfx", "id": "wall_break"})
 	emit_event({"type": "shake", "strength": 0.4})
@@ -999,7 +1023,7 @@ func _update_triggers() -> void:
 				hit = t.contains(pos) and Cond.eval(t.cond, self)
 		if hit:
 			t.fired = true
-			if t.once:
+			if t.once and t.persist:
 				set_flag("trigger." + t.id)
 			story.start_event(t.event)
 	for c in checkpoints:

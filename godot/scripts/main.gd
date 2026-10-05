@@ -414,6 +414,8 @@ func open_economy_ui(kind: String, id: String) -> void:
 				if st == "done":
 					continue
 				if st == "":
+					if not Cond.eval(r.get("cond"), g):
+						continue
 					items.append(["受ける：%s" % r.name, func():
 						Economy.accept_request(g, r.id)
 						open_economy_ui(kind, id)])

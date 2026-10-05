@@ -1,71 +1,97 @@
 {
-  "shops": {
-    "zakka": {
-      "name": "雑貨屋",
-      "buys_relics": true,
-      "stock": [
-        {
-          "item": "consumable.repair",
-          "price": 150
-        },
-        {
-          "item": "scrap",
-          "price": 30,
-          "count": 3
-        }
-      ]
+ "shops": {
+  "zakka": {
+   "name": "雑貨屋",
+   "buys_relics": true,
+   "stock": [
+    {
+     "item": "consumable.repair",
+     "price": 150
     },
-    "junk": {
-      "name": "ジャンク屋",
-      "buys_relics": true,
-      "stock": []
+    {
+     "item": "scrap",
+     "price": 30,
+     "count": 3
     }
+   ]
   },
-  "workshops": {
-    "yana": {
-      "name": "ヤーナの工房",
-      "recipes": [
-        {
-          "id": "drill",
-          "name": "ブレイクドリルを開発する",
-          "cost": 0,
-          "needs": {
-            "core.kannuki": 1
-          },
-          "gives": {
-            "item": "special.drill"
-          },
-          "cond": "ch1.boss_defeated"
-        },
-        {
-          "id": "repair_pack",
-          "name": "補修パックを作る（錆鉄 ×2・導線 ×1）",
-          "cost": 50,
-          "needs": {
-            "scrap": 2,
-            "wire": 1
-          },
-          "gives": {
-            "heals": 1
-          }
-        }
-      ]
-    }
-  },
-  "guild": {
-    "requests": [
-      {
-        "id": "sample.fetch_gear",
-        "name": "歯車を持ってくる",
-        "text": "錆びた歯車を 1 つ探してほしい。",
-        "done": {
-          "material": "gear"
-        },
-        "reward": {
-          "cells": 300,
-          "gp": 10
-        }
-      }
-    ]
+  "junk": {
+   "name": "ジャンク屋",
+   "buys_relics": true,
+   "stock": []
   }
+ },
+ "workshops": {
+  "yana": {
+   "name": "ヤーナの工房",
+   "recipes": [
+    {
+     "id": "drill",
+     "name": "ブレイクドリルを開発する",
+     "cost": 0,
+     "needs": {
+      "core.kannuki": 1
+     },
+     "gives": {
+      "item": "special.drill"
+     },
+     "cond": [
+      "ch1.boss_defeated",
+      "ch1.descent_permit"
+     ]
+    },
+    {
+     "id": "repair_pack",
+     "name": "補修パックを作る（錆鉄 ×2・導線 ×1）",
+     "cost": 50,
+     "needs": {
+      "scrap": 2,
+      "wire": 1
+     },
+     "gives": {
+      "heals": 1
+     }
+    }
+   ]
+  }
+ },
+ "guild": {
+  "requests": [
+   {
+    "id": "ch1.req.marble",
+    "name": "ニコの失くし物探し",
+    "text": "ニコが遺構で大事なビー玉を落とした。見つけて、ニコに返してやってほしい。",
+    "cond": "ch1.descent_permit",
+    "done": "ch1.marble_returned",
+    "reward": {
+     "cells": 200,
+     "gp": 10
+    }
+   },
+   {
+    "id": "ch1.req.parcel",
+    "name": "雑貨屋の配達",
+    "text": "雑貨屋の荷物を、下段の洗濯屋のマーサさんに届けてほしい。",
+    "cond": "ch1.descent_permit",
+    "done": "ch1.parcel_delivered",
+    "reward": {
+     "cells": 150,
+     "gp": 10
+    }
+   },
+   {
+    "id": "sample.fetch_gear",
+    "name": "歯車を持ってくる（見本）",
+    "text": "錆びた歯車を 1 つ探してほしい。",
+    "cond": "sample.guild",
+    "done": {
+     "material": "gear"
+    },
+    "reward": {
+     "cells": 300,
+     "gp": 10
+    }
+   }
+  ]
+ }
 }

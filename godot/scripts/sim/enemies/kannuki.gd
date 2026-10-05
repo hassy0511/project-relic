@@ -270,7 +270,7 @@ func _on_killed() -> void:
 	game.emit_event({"type": "bossDefeated", "at": axis_center()})
 	game.emit_event({"type": "shake", "strength": 0.8})
 	game.hitstop = maxf(game.hitstop, 0.3)
-	game.story.flags["ch1.boss_defeated"] = true
+	game.set_flag("ch1.boss_defeated")
 	_say("defeat")
 	# 閂のコア（ブレイクドリルの素）：セルを多めに落とす
 	for i in 12:

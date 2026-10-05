@@ -1,23 +1,26 @@
 {
-  "start": {
-    "room": "ch1.opening",
-    "spawn": "start"
-  },
-  "areas": [
-    "areas/mvp.json",
-    "areas/sample.json",
-    "areas/ch1_town.json"
-  ],
-  "dialogue": [
-    "dialogue/mvp.json",
-    "dialogue/sample.json",
-    "dialogue/ch1_town.json"
-  ],
-  "events": [
-    "events/mvp.json",
-    "events/sample.json",
-    "events/ch1_town.json"
-  ],
-  "items": "items.json",
-  "economy": "economy.json"
+ "start": {
+  "room": "ch1.opening",
+  "spawn": "start"
+ },
+ "areas": [
+  "areas/mvp.json",
+  "areas/sample.json",
+  "areas/ch1_town.json",
+  "areas/ch1_ruins.json"
+ ],
+ "dialogue": [
+  "dialogue/mvp.json",
+  "dialogue/sample.json",
+  "dialogue/ch1_town.json",
+  "dialogue/ch1_ruins.json"
+ ],
+ "events": [
+  "events/mvp.json",
+  "events/sample.json",
+  "events/ch1_town.json",
+  "events/ch1_ruins.json"
+ ],
+ "items": "items.json",
+ "economy": "economy.json"
 }

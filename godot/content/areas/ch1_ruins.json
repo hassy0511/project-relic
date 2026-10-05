@@ -1,0 +1,6913 @@
+{
+ "id": "ch1",
+ "name": "第 1 章（遺構 B1〜B4）",
+ "rooms": {
+  "r02": {
+   "name": "ジャンク溜まり",
+   "mood": "ruin_b1",
+   "map": {
+    "floor": "遺構 B1",
+    "x": 1,
+    "y": 0,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      26,
+      8,
+      26
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#6e6559"
+    },
+    {
+     "t": "box",
+     "pos": [
+      12.7,
+      0,
+      0
+     ],
+     "size": [
+      0.6,
+      4,
+      6
+     ],
+     "tint": "#3a3d44"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -8,
+      0,
+      -4
+     ],
+     "size": [
+      4,
+      1.0,
+      4
+     ],
+     "tint": "#7c6f5c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -8.5,
+      1.0,
+      -4.5
+     ],
+     "size": [
+      2.5,
+      0.8,
+      2.5
+     ],
+     "tint": "#8d7f69"
+    },
+    {
+     "t": "box",
+     "pos": [
+      7,
+      0,
+      5
+     ],
+     "size": [
+      3.4,
+      1.2,
+      3.4
+     ],
+     "tint": "#7c6f5c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      7.2,
+      1.2,
+      5.2
+     ],
+     "size": [
+      2.0,
+      0.6,
+      2.0
+     ],
+     "tint": "#8d7f69"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -4,
+      0,
+      6
+     ],
+     "size": [
+      5,
+      0.7,
+      3
+     ],
+     "tint": "#6a5f4f"
+    },
+    {
+     "t": "box",
+     "pos": [
+      3,
+      0,
+      -5
+     ],
+     "size": [
+      2,
+      1.6,
+      2
+     ],
+     "tint": "#7c6f5c"
+    },
+    {
+     "t": "box",
+     "pos": [
+      9,
+      0,
+      -8
+     ],
+     "size": [
+      3,
+      0.9,
+      3
+     ],
+     "tint": "#6a5f4f"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -9,
+      0,
+      7
+     ],
+     "size": [
+      3,
+      1.4,
+      3
+     ],
+     "tint": "#6a5f4f"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5,
+      0,
+      -1
+     ],
+     "size": [
+      1.4,
+      3.2,
+      1.4
+     ],
+     "tint": "#59606a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      5.5,
+      0,
+      -2
+     ],
+     "size": [
+      1.2,
+      2.4,
+      1.2
+     ],
+     "tint": "#59606a"
+    }
+   ],
+   "markers": {
+    "from_r01": {
+     "pos": [
+      0,
+      0,
+      -10
+     ],
+     "yaw": 0
+    },
+    "start": {
+     "pos": [
+      0,
+      0,
+      -10
+     ],
+     "yaw": 0
+    },
+    "from_r03": {
+     "pos": [
+      0,
+      0,
+      10
+     ],
+     "yaw": 180
+    },
+    "from_elevator": {
+     "pos": [
+      8.5,
+      0,
+      0
+     ],
+     "yaw": 270
+    }
+   },
+   "playerStart": "from_r01",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      -6,
+      7,
+      -3
+     ],
+     "color": "#ffe3a8",
+     "range": 16,
+     "energy": 1.5
+    },
+    {
+     "pos": [
+      6,
+      7,
+      4
+     ],
+     "color": "#ffe3a8",
+     "range": 16,
+     "energy": 1.5
+    },
+    {
+     "pos": [
+      0,
+      3,
+      10
+     ],
+     "color": "#ffd28a",
+     "range": 12,
+     "energy": 1.0
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r02.to_r01",
+     "to": "r01",
+     "spawn": "from_r02",
+     "pos": [
+      0,
+      0,
+      -12
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r02.to_r03",
+     "to": "r03",
+     "spawn": "from_r02",
+     "pos": [
+      0,
+      0,
+      12
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r02.to_r17",
+     "to": "r17",
+     "spawn": "from_r02",
+     "pos": [
+      12,
+      0,
+      0
+     ],
+     "size": [
+      2,
+      4,
+      6
+     ],
+     "lock": "ch1.shortcut_open",
+     "text": "エレベーターの扉は閉まっている。内側から開けないと動かない。"
+    },
+    {
+     "type": "sign",
+     "text": "近道エレベーター",
+     "pos": [
+      12.3,
+      4.3,
+      0
+     ],
+     "size": 28,
+     "color": "#9ad0ff"
+    },
+    {
+     "type": "chest",
+     "id": "ch1.r02.chest1",
+     "pos": [
+      -8.5,
+      1.8,
+      -4.5
+     ],
+     "yaw": 45,
+     "contents": {
+      "cells": 50
+     }
+    },
+    {
+     "type": "loot",
+     "id": "ch1.r02.relic1",
+     "pos": [
+      7.2,
+      1.8,
+      5.2
+     ],
+     "contents": {
+      "relics": [
+       "relic.old_gear"
+      ]
+     }
+    },
+    {
+     "type": "loot",
+     "id": "ch1.r02.marble",
+     "pos": [
+      -9,
+      1.4,
+      7
+     ],
+     "contents": {
+      "item": "quest.marble"
+     },
+     "when": "ch1.ordo_restarted"
+    },
+    {
+     "type": "sign",
+     "text": "外殻層 B1",
+     "pos": [
+      0,
+      4.4,
+      12.6
+     ],
+     "size": 40,
+     "color": "#ffe3a8"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [
+    {
+     "id": "ch1.r02.cp",
+     "pos": [
+      0,
+      0,
+      -10
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.r02.enter",
+     "pos": [
+      0,
+      0,
+      -8
+     ],
+     "size": [
+      12,
+      3,
+      3
+     ],
+     "event": "ch1.r02.enter"
+    }
+   ]
+  },
+  "r03": {
+   "name": "整備通路",
+   "mood": "ruin_b1",
+   "map": {
+    "floor": "遺構 B1",
+    "x": 2,
+    "y": 0,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2.5,
+      -19.5
+     ],
+     "size": [
+      8,
+      7.5,
+      1
+     ],
+     "tint": "#6e6559"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2.5,
+      19.5
+     ],
+     "size": [
+      8,
+      7.5,
+      1
+     ],
+     "tint": "#6e6559"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -3.5,
+      -2.5,
+      0
+     ],
+     "size": [
+      1,
+      7.5,
+      38
+     ],
+     "tint": "#6e6559"
+    },
+    {
+     "t": "box",
+     "pos": [
+      3.5,
+      -2.5,
+      0
+     ],
+     "size": [
+      1,
+      7.5,
+      38
+     ],
+     "tint": "#6e6559"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      5.0,
+      0
+     ],
+     "size": [
+      8,
+      1,
+      40
+     ],
+     "tint": "#6e6559"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2.5,
+      -16.0
+     ],
+     "size": [
+      6,
+      2.5,
+      6
+     ],
+     "tint": "#7a6e5d"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2.5,
+      -9.25
+     ],
+     "size": [
+      6,
+      2.5,
+      4.5
+     ],
+     "tint": "#7a6e5d"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2.5,
+      -2.5
+     ],
+     "size": [
+      6,
+      2.5,
+      4.0
+     ],
+     "tint": "#7a6e5d"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2.5,
+      5.25
+     ],
+     "size": [
+      6,
+      2.5,
+      4.5
+     ],
+     "tint": "#7a6e5d"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2.5,
+      12.0
+     ],
+     "size": [
+      6,
+      3.5,
+      3.0
+     ],
+     "tint": "#7a6e5d"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -2.5,
+      17.5
+     ],
+     "size": [
+      6,
+      2.5,
+      3
+     ],
+     "tint": "#7a6e5d"
+    },
+    {
+     "t": "box",
+     "pos": [
+      1.8,
+      0,
+      -8.2
+     ],
+     "size": [
+      2.2,
+      1.3,
+      2.2
+     ],
+     "tint": "#8d7f69"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -1.8,
+      0,
+      -8.2
+     ],
+     "size": [
+      2.2,
+      2.6,
+      2.2
+     ],
+     "tint": "#8d7f69"
+    }
+   ],
+   "markers": {
+    "from_r02": {
+     "pos": [
+      0,
+      0,
+      -16
+     ],
+     "yaw": 0
+    },
+    "start": {
+     "pos": [
+      0,
+      0,
+      -16
+     ],
+     "yaw": 0
+    },
+    "from_r04": {
+     "pos": [
+      0,
+      0,
+      16.5
+     ],
+     "yaw": 180
+    }
+   },
+   "playerStart": "from_r02",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      4.2,
+      -14
+     ],
+     "color": "#ffe3a8",
+     "range": 14,
+     "energy": 1.4
+    },
+    {
+     "pos": [
+      0,
+      4.2,
+      -2
+     ],
+     "color": "#ffe3a8",
+     "range": 14,
+     "energy": 1.4
+    },
+    {
+     "pos": [
+      0,
+      4.2,
+      10
+     ],
+     "color": "#ffe3a8",
+     "range": 14,
+     "energy": 1.4
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r03.to_r02",
+     "to": "r02",
+     "spawn": "from_r03",
+     "pos": [
+      0,
+      0,
+      -18.4
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r03.to_r04",
+     "to": "r04",
+     "spawn": "from_r03",
+     "pos": [
+      0,
+      0,
+      18.4
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "loot",
+     "id": "ch1.r03.relic1",
+     "pos": [
+      -1.8,
+      2.6,
+      -8.2
+     ],
+     "contents": {
+      "relics": [
+       "relic.rusty_valve"
+      ]
+     }
+    },
+    {
+     "type": "sign",
+     "text": "跳ぶ長さで、高さが変わる",
+     "pos": [
+      0,
+      3.4,
+      -18.2
+     ],
+     "size": 28,
+     "color": "#ffe3a8"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [
+    {
+     "id": "ch1.r03.cp",
+     "pos": [
+      0,
+      0,
+      -16
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.r03.enter",
+     "pos": [
+      0,
+      0,
+      -15
+     ],
+     "size": [
+      6,
+      3,
+      2
+     ],
+     "event": "ch1.r03.enter"
+    }
+   ]
+  },
+  "r04": {
+   "name": "換気室",
+   "mood": "ruin_b1",
+   "map": {
+    "floor": "遺構 B1",
+    "x": 3,
+    "y": 0,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      24,
+      9,
+      24
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#6e6559"
+    },
+    {
+     "t": "box",
+     "pos": [
+      11.2,
+      1,
+      0
+     ],
+     "size": [
+      0.6,
+      7,
+      7
+     ],
+     "tint": "#3a3d44"
+    },
+    {
+     "t": "box",
+     "pos": [
+      10.6,
+      4.5,
+      0
+     ],
+     "size": [
+      0.3,
+      0.5,
+      8
+     ],
+     "tint": "#59606a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      10.6,
+      4.5,
+      0
+     ],
+     "size": [
+      0.3,
+      0.5,
+      8
+     ],
+     "tint": "#59606a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      10.6,
+      4.5,
+      0
+     ],
+     "size": [
+      0.3,
+      0.5,
+      8
+     ],
+     "tint": "#59606a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      10.6,
+      4.5,
+      0
+     ],
+     "size": [
+      0.3,
+      0.5,
+      8
+     ],
+     "tint": "#59606a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      10.6,
+      1.0,
+      0
+     ],
+     "size": [
+      0.3,
+      7.0,
+      0.5
+     ],
+     "tint": "#59606a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -7,
+      0,
+      3
+     ],
+     "size": [
+      1.4,
+      1.6,
+      1.4
+     ],
+     "tint": "#59606a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      7,
+      0,
+      3
+     ],
+     "size": [
+      1.4,
+      1.6,
+      1.4
+     ],
+     "tint": "#59606a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -4,
+      0,
+      -3
+     ],
+     "size": [
+      1.5,
+      3,
+      1.5
+     ],
+     "tint": "#59606a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      4,
+      0,
+      -3
+     ],
+     "size": [
+      1.5,
+      3,
+      1.5
+     ],
+     "tint": "#59606a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -9,
+      0,
+      6
+     ],
+     "size": [
+      3,
+      1.0,
+      1.5
+     ],
+     "tint": "#7c6f5c"
+    }
+   ],
+   "markers": {
+    "from_r03": {
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0
+    },
+    "start": {
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0
+    },
+    "from_r05": {
+     "pos": [
+      0,
+      0,
+      7.5
+     ],
+     "yaw": 180
+    }
+   },
+   "playerStart": "from_r03",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      8,
+      0
+     ],
+     "color": "#ffe3a8",
+     "range": 18,
+     "energy": 1.4
+    },
+    {
+     "pos": [
+      -8,
+      3,
+      8
+     ],
+     "color": "#ffd28a",
+     "range": 10,
+     "energy": 0.9
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r04.to_r03",
+     "to": "r03",
+     "spawn": "from_r04",
+     "pos": [
+      0,
+      0,
+      -11
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r04.to_r05",
+     "to": "r05",
+     "spawn": "from_r04",
+     "pos": [
+      0,
+      0,
+      11
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "door",
+     "id": "ch1.r04.door",
+     "pos": [
+      0,
+      0,
+      9.5
+     ],
+     "yaw": 0,
+     "size": [
+      6,
+      4,
+      0.6
+     ],
+     "opens": "auto",
+     "lock": {
+      "all": [
+       "switch.ch1.r04.v1",
+       "switch.ch1.r04.v2"
+      ]
+     },
+     "text": "換気の弁が詰まっていて、扉が動かない。"
+    },
+    {
+     "type": "switch",
+     "id": "ch1.r04.v1",
+     "pos": [
+      -7,
+      2.1,
+      3
+     ],
+     "mode": "shoot",
+     "radius": 0.6
+    },
+    {
+     "type": "switch",
+     "id": "ch1.r04.v2",
+     "pos": [
+      7,
+      2.1,
+      3
+     ],
+     "mode": "shoot",
+     "radius": 0.6
+    },
+    {
+     "type": "sign",
+     "text": "弁",
+     "pos": [
+      -7,
+      3.2,
+      3
+     ],
+     "size": 28,
+     "color": "#ffd28a"
+    },
+    {
+     "type": "sign",
+     "text": "弁",
+     "pos": [
+      7,
+      3.2,
+      3
+     ],
+     "size": 28,
+     "color": "#ffd28a"
+    },
+    {
+     "type": "loot",
+     "id": "ch1.r04.cells",
+     "pos": [
+      -10,
+      0,
+      9
+     ],
+     "contents": {
+      "cells": 40
+     }
+    }
+   ],
+   "enemies": [
+    {
+     "type": "mini",
+     "pos": [
+      -6,
+      0,
+      6
+     ],
+     "yaw": 180,
+     "group": "r04_mini"
+    },
+    {
+     "type": "mini",
+     "pos": [
+      6,
+      0,
+      7
+     ],
+     "yaw": 180,
+     "group": "r04_mini"
+    }
+   ],
+   "checkpoints": [
+    {
+     "id": "ch1.r04.cp",
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.r04.enter",
+     "pos": [
+      0,
+      0,
+      -7
+     ],
+     "size": [
+      14,
+      3,
+      3
+     ],
+     "event": "ch1.r04.enter"
+    }
+   ]
+  },
+  "r05": {
+   "name": "崩落床",
+   "mood": "ruin_b1",
+   "map": {
+    "floor": "遺構 B1",
+    "x": 4,
+    "y": 0,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      20,
+      8,
+      24
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#6e6559"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      3
+     ],
+     "size": [
+      8,
+      0.05,
+      9
+     ],
+     "tint": "#3b3631"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -3,
+      0,
+      1
+     ],
+     "size": [
+      0.1,
+      0.07,
+      6
+     ],
+     "tint": "#241f1b"
+    },
+    {
+     "t": "box",
+     "pos": [
+      2,
+      0,
+      4
+     ],
+     "size": [
+      0.1,
+      0.07,
+      6
+     ],
+     "tint": "#241f1b"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      11.2
+     ],
+     "size": [
+      6,
+      4,
+      0.6
+     ],
+     "tint": "#3a3d44"
+    }
+   ],
+   "markers": {
+    "from_r04": {
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0
+    },
+    "start": {
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0
+    }
+   },
+   "playerStart": "from_r04",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      7,
+      0
+     ],
+     "color": "#ffe3a8",
+     "range": 16,
+     "energy": 1.4
+    },
+    {
+     "pos": [
+      0,
+      3,
+      9
+     ],
+     "color": "#ffd28a",
+     "range": 10,
+     "energy": 1.0
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r05.to_r04",
+     "to": "r04",
+     "spawn": "from_r05",
+     "pos": [
+      0,
+      0,
+      -11
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "sign",
+     "text": "この先は崩れている？",
+     "pos": [
+      0,
+      4.4,
+      11.6
+     ],
+     "size": 28,
+     "color": "#ffd28a"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [
+    {
+     "id": "ch1.r05.cp",
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.r05.collapse",
+     "pos": [
+      0,
+      0,
+      3
+     ],
+     "size": [
+      8,
+      3,
+      6
+     ],
+     "event": "ch1.collapse"
+    }
+   ]
+  },
+  "r06": {
+   "name": "落下地点",
+   "mood": "ruin_b2",
+   "map": {
+    "floor": "遺構 B2",
+    "x": 0,
+    "y": 1,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      22,
+      7,
+      30
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#454c57"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -9.5,
+      3.0,
+      0
+     ],
+     "size": [
+      1.2,
+      1.2,
+      28
+     ],
+     "tint": "#7a4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -9.5,
+      5.2,
+      0
+     ],
+     "size": [
+      0.8,
+      0.8,
+      28
+     ],
+     "tint": "#5b3b30"
+    },
+    {
+     "t": "box",
+     "pos": [
+      9.5,
+      3.0,
+      0
+     ],
+     "size": [
+      1.2,
+      1.2,
+      28
+     ],
+     "tint": "#7a4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      9.5,
+      5.2,
+      0
+     ],
+     "size": [
+      0.8,
+      0.8,
+      28
+     ],
+     "tint": "#5b3b30"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5,
+      0,
+      -4
+     ],
+     "size": [
+      3,
+      1.4,
+      2.5
+     ],
+     "tint": "#35404f"
+    },
+    {
+     "t": "box",
+     "pos": [
+      6,
+      0,
+      2
+     ],
+     "size": [
+      2.5,
+      2.0,
+      2.5
+     ],
+     "tint": "#35404f"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -7,
+      0,
+      9
+     ],
+     "size": [
+      4,
+      1.0,
+      2.5
+     ],
+     "tint": "#35404f"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      6.6,
+      -8
+     ],
+     "size": [
+      0.5,
+      0.3,
+      0.5
+     ],
+     "tint": "#ff4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      6.6,
+      -2
+     ],
+     "size": [
+      0.5,
+      0.3,
+      0.5
+     ],
+     "tint": "#ff4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      6.6,
+      4
+     ],
+     "size": [
+      0.5,
+      0.3,
+      0.5
+     ],
+     "tint": "#ff4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      6.6,
+      10
+     ],
+     "size": [
+      0.5,
+      0.3,
+      0.5
+     ],
+     "tint": "#ff4a3a"
+    }
+   ],
+   "markers": {
+    "fall": {
+     "pos": [
+      0,
+      0,
+      -12
+     ],
+     "yaw": 0
+    },
+    "start": {
+     "pos": [
+      0,
+      0,
+      -12
+     ],
+     "yaw": 0
+    },
+    "from_r07": {
+     "pos": [
+      0,
+      0,
+      11
+     ],
+     "yaw": 180
+    }
+   },
+   "playerStart": "fall",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      3.2,
+      -8
+     ],
+     "color": "#ff4a3a",
+     "range": 6,
+     "energy": 1.0
+    },
+    {
+     "pos": [
+      0,
+      3.2,
+      -2
+     ],
+     "color": "#ff4a3a",
+     "range": 6,
+     "energy": 1.1
+    },
+    {
+     "pos": [
+      0,
+      3.2,
+      4
+     ],
+     "color": "#ff4a3a",
+     "range": 6,
+     "energy": 1.2
+    },
+    {
+     "pos": [
+      0,
+      3.2,
+      10
+     ],
+     "color": "#ff4a3a",
+     "range": 6,
+     "energy": 1.3
+    },
+    {
+     "pos": [
+      0,
+      6,
+      -12
+     ],
+     "color": "#7fb0ff",
+     "range": 10,
+     "energy": 0.3
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r06.to_r07",
+     "to": "r07",
+     "spawn": "from_r06",
+     "pos": [
+      0,
+      0,
+      14
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "chest",
+     "id": "ch1.r06.chest1",
+     "pos": [
+      -8,
+      0,
+      11
+     ],
+     "yaw": 120,
+     "contents": {
+      "heals": 1
+     }
+    },
+    {
+     "type": "sign",
+     "text": "非常口 →",
+     "pos": [
+      0,
+      3.6,
+      13
+     ],
+     "size": 30,
+     "color": "#ff4a3a"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [
+    {
+     "id": "ch1.r06.cp",
+     "pos": [
+      0,
+      0,
+      -12
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": []
+  },
+  "r07": {
+   "name": "追跡通路",
+   "mood": "ruin_b2",
+   "map": {
+    "floor": "遺構 B2",
+    "x": 1,
+    "y": 1,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      6,
+      5,
+      40
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#454c57"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -1.1,
+      0,
+      -8
+     ],
+     "size": [
+      3.8,
+      5,
+      1.2
+     ],
+     "tint": "#7a4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      1.1,
+      0,
+      -1
+     ],
+     "size": [
+      3.8,
+      5,
+      1.2
+     ],
+     "tint": "#7a4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -1.1,
+      0,
+      6
+     ],
+     "size": [
+      3.8,
+      5,
+      1.2
+     ],
+     "tint": "#7a4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      1.1,
+      0,
+      12
+     ],
+     "size": [
+      3.8,
+      5,
+      1.2
+     ],
+     "tint": "#7a4a3a"
+    }
+   ],
+   "markers": {
+    "from_r06": {
+     "pos": [
+      0,
+      0,
+      -16
+     ],
+     "yaw": 0
+    },
+    "start": {
+     "pos": [
+      0,
+      0,
+      -16
+     ],
+     "yaw": 0
+    },
+    "from_r08": {
+     "pos": [
+      0,
+      0,
+      14
+     ],
+     "yaw": 180
+    }
+   },
+   "playerStart": "from_r06",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      3.8,
+      -12
+     ],
+     "color": "#ff4a3a",
+     "range": 7,
+     "energy": 0.9
+    },
+    {
+     "pos": [
+      0,
+      3.8,
+      -4
+     ],
+     "color": "#ff4a3a",
+     "range": 7,
+     "energy": 0.9
+    },
+    {
+     "pos": [
+      0,
+      3.8,
+      4
+     ],
+     "color": "#ff4a3a",
+     "range": 7,
+     "energy": 0.9
+    },
+    {
+     "pos": [
+      0,
+      3.8,
+      12
+     ],
+     "color": "#ff4a3a",
+     "range": 7,
+     "energy": 0.9
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r07.to_r06",
+     "to": "r06",
+     "spawn": "from_r07",
+     "pos": [
+      0,
+      0,
+      -19
+     ],
+     "size": [
+      4,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r07.to_r08",
+     "to": "r08",
+     "spawn": "from_r07",
+     "pos": [
+      0,
+      0,
+      18.6
+     ],
+     "size": [
+      4,
+      4,
+      1.6
+     ],
+     "lock": "ch1.r07.seal_open"
+    },
+    {
+     "type": "door",
+     "id": "ch1.r07.seal",
+     "pos": [
+      0,
+      0,
+      17.4
+     ],
+     "yaw": 0,
+     "size": [
+      4,
+      4.2,
+      0.6
+     ],
+     "opens": "auto",
+     "lock": "ch1.r07.seal_open",
+     "text": "行き止まりだ。"
+    },
+    {
+     "type": "sign",
+     "text": "封",
+     "pos": [
+      0,
+      4.3,
+      16.9
+     ],
+     "size": 36,
+     "color": "#6fe3d6"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [
+    {
+     "id": "ch1.r07.cp",
+     "pos": [
+      0,
+      0,
+      -16
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.r07.chase",
+     "pos": [
+      0,
+      0,
+      -12
+     ],
+     "size": [
+      6,
+      3,
+      2
+     ],
+     "event": "ch1.chase"
+    },
+    {
+     "id": "ch1.r07.dead",
+     "pos": [
+      0,
+      0,
+      14
+     ],
+     "size": [
+      6,
+      3,
+      2
+     ],
+     "event": "ch1.r07.dead"
+    }
+   ]
+  },
+  "r08": {
+   "name": "封印室",
+   "mood": "ruin_b2",
+   "map": {
+    "floor": "遺構 B2",
+    "x": 2,
+    "y": 1,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      22,
+      8,
+      22
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#454c57"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      5,
+      0.4,
+      5
+     ],
+     "tint": "#3b5a60"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0.4,
+      0
+     ],
+     "size": [
+      1.4,
+      0.2,
+      1.4
+     ],
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      1.838,
+      1.4,
+      1.838
+     ],
+     "size": [
+      0.7,
+      1.4,
+      0.7
+     ],
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      1.838,
+      1.4,
+      -1.838
+     ],
+     "size": [
+      0.7,
+      1.4,
+      0.7
+     ],
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -1.838,
+      1.4,
+      -1.838
+     ],
+     "size": [
+      0.7,
+      1.4,
+      0.7
+     ],
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -1.838,
+      1.4,
+      1.838
+     ],
+     "size": [
+      0.7,
+      1.4,
+      0.7
+     ],
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0.0,
+      0,
+      8.5
+     ],
+     "size": [
+      1.2,
+      4.5,
+      1.2
+     ],
+     "tint": "#2f4a50"
+    },
+    {
+     "t": "box",
+     "pos": [
+      6.01,
+      0,
+      6.01
+     ],
+     "size": [
+      1.2,
+      4.5,
+      1.2
+     ],
+     "tint": "#2f4a50"
+    },
+    {
+     "t": "box",
+     "pos": [
+      8.5,
+      0,
+      0.0
+     ],
+     "size": [
+      1.2,
+      4.5,
+      1.2
+     ],
+     "tint": "#2f4a50"
+    },
+    {
+     "t": "box",
+     "pos": [
+      6.01,
+      0,
+      -6.01
+     ],
+     "size": [
+      1.2,
+      4.5,
+      1.2
+     ],
+     "tint": "#2f4a50"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0.0,
+      0,
+      -8.5
+     ],
+     "size": [
+      1.2,
+      4.5,
+      1.2
+     ],
+     "tint": "#2f4a50"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -6.01,
+      0,
+      -6.01
+     ],
+     "size": [
+      1.2,
+      4.5,
+      1.2
+     ],
+     "tint": "#2f4a50"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -8.5,
+      0,
+      -0.0
+     ],
+     "size": [
+      1.2,
+      4.5,
+      1.2
+     ],
+     "tint": "#2f4a50"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -6.01,
+      0,
+      6.01
+     ],
+     "size": [
+      1.2,
+      4.5,
+      1.2
+     ],
+     "tint": "#2f4a50"
+    }
+   ],
+   "markers": {
+    "from_r07": {
+     "pos": [
+      0,
+      0,
+      -8.5
+     ],
+     "yaw": 0
+    },
+    "start": {
+     "pos": [
+      0,
+      0,
+      -8.5
+     ],
+     "yaw": 0
+    },
+    "from_r09": {
+     "pos": [
+      0,
+      0,
+      8
+     ],
+     "yaw": 180
+    }
+   },
+   "playerStart": "from_r07",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      3,
+      0
+     ],
+     "color": "#6fe3d6",
+     "range": 14,
+     "energy": 1.8
+    },
+    {
+     "pos": [
+      0,
+      7,
+      0
+     ],
+     "color": "#7fb0ff",
+     "range": 18,
+     "energy": 0.8
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r08.to_r07",
+     "to": "r07",
+     "spawn": "from_r08",
+     "pos": [
+      0,
+      0,
+      -10
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ],
+     "lock": "ch1.frame_fitted"
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r08.to_r09",
+     "to": "r09",
+     "spawn": "from_r08",
+     "pos": [
+      0,
+      0,
+      10
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ],
+     "lock": "ch1.r08.trained",
+     "text": "まだ何か、呼ばれている気がする。"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [
+    {
+     "id": "ch1.r08.cp",
+     "pos": [
+      0,
+      0,
+      -8.5
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.r08.fit",
+     "pos": [
+      0,
+      0,
+      -4
+     ],
+     "size": [
+      10,
+      3,
+      3
+     ],
+     "event": "ch1.frame_fit"
+    }
+   ]
+  },
+  "r09": {
+   "name": "配管広間",
+   "mood": "ruin_b2",
+   "map": {
+    "floor": "遺構 B2",
+    "x": 3,
+    "y": 1,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      20,
+      8,
+      24
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#454c57"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5,
+      0,
+      -2
+     ],
+     "size": [
+      1.4,
+      8,
+      1.4
+     ],
+     "tint": "#7a4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      5,
+      0,
+      -2
+     ],
+     "size": [
+      1.4,
+      8,
+      1.4
+     ],
+     "tint": "#7a4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5,
+      0,
+      5
+     ],
+     "size": [
+      1.4,
+      8,
+      1.4
+     ],
+     "tint": "#7a4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      5,
+      0,
+      5
+     ],
+     "size": [
+      1.4,
+      8,
+      1.4
+     ],
+     "tint": "#7a4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      1.5
+     ],
+     "size": [
+      1.4,
+      8,
+      1.4
+     ],
+     "tint": "#7a4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -3,
+      0,
+      -6
+     ],
+     "size": [
+      3.5,
+      1.3,
+      1.0
+     ],
+     "tint": "#35404f"
+    },
+    {
+     "t": "box",
+     "pos": [
+      3,
+      0,
+      8
+     ],
+     "size": [
+      3.5,
+      1.3,
+      1.0
+     ],
+     "tint": "#35404f"
+    }
+   ],
+   "markers": {
+    "from_r08": {
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0
+    },
+    "start": {
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0
+    },
+    "from_r10": {
+     "pos": [
+      0,
+      0,
+      7.5
+     ],
+     "yaw": 180
+    }
+   },
+   "playerStart": "from_r08",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      6.5,
+      -8
+     ],
+     "color": "#7fb0ff",
+     "range": 12,
+     "energy": 1.0
+    },
+    {
+     "pos": [
+      -8,
+      2.5,
+      -8
+     ],
+     "color": "#ff4a3a",
+     "range": 6,
+     "energy": 0.7
+    },
+    {
+     "pos": [
+      0,
+      6.5,
+      0
+     ],
+     "color": "#7fb0ff",
+     "range": 12,
+     "energy": 1.0
+    },
+    {
+     "pos": [
+      -8,
+      2.5,
+      0
+     ],
+     "color": "#ff4a3a",
+     "range": 6,
+     "energy": 0.7
+    },
+    {
+     "pos": [
+      0,
+      6.5,
+      8
+     ],
+     "color": "#7fb0ff",
+     "range": 12,
+     "energy": 1.0
+    },
+    {
+     "pos": [
+      -8,
+      2.5,
+      8
+     ],
+     "color": "#ff4a3a",
+     "range": 6,
+     "energy": 0.7
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r09.to_r08",
+     "to": "r08",
+     "spawn": "from_r09",
+     "pos": [
+      0,
+      0,
+      -11
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r09.to_r10",
+     "to": "r10",
+     "spawn": "from_r09",
+     "pos": [
+      0,
+      0,
+      11
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "door",
+     "id": "ch1.r09.door",
+     "pos": [
+      0,
+      0,
+      9.5
+     ],
+     "yaw": 0,
+     "size": [
+      6,
+      4,
+      0.6
+     ],
+     "opens": "auto",
+     "lock": "ch1.r09.cleared",
+     "text": "扉が閉じている。敵を片づけないと開かない。"
+    },
+    {
+     "type": "loot",
+     "id": "ch1.r09.cells",
+     "pos": [
+      -8.5,
+      0,
+      -9
+     ],
+     "contents": {
+      "cells": 60
+     }
+    }
+   ],
+   "enemies": [
+    {
+     "type": "sentry",
+     "pos": [
+      -6,
+      0,
+      7
+     ],
+     "yaw": 180,
+     "group": "r09_w1",
+     "unless": "ch1.r09.cleared"
+    },
+    {
+     "type": "sentry",
+     "pos": [
+      6,
+      0,
+      8
+     ],
+     "yaw": 180,
+     "group": "r09_w1",
+     "unless": "ch1.r09.cleared"
+    },
+    {
+     "type": "sentry",
+     "pos": [
+      0,
+      0,
+      6
+     ],
+     "yaw": 180,
+     "group": "r09_w1",
+     "unless": "ch1.r09.cleared"
+    }
+   ],
+   "checkpoints": [
+    {
+     "id": "ch1.r09.cp",
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.r09.w2",
+     "on": "flag",
+     "cond": {
+      "all": [
+       {
+        "cleared": "r09_w1"
+       },
+       {
+        "not": "ch1.r09.cleared"
+       }
+      ]
+     },
+     "event": "ch1.r09.wave2",
+     "persist": false
+    }
+   ]
+  },
+  "r10": {
+   "name": "弁の間",
+   "mood": "ruin_b2",
+   "map": {
+    "floor": "遺構 B2",
+    "x": 4,
+    "y": 1,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      20,
+      8,
+      24
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#454c57"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      6.2,
+      11.2
+     ],
+     "size": [
+      4,
+      0.5,
+      0.5
+     ],
+     "tint": "#7a4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -6,
+      0,
+      0
+     ],
+     "size": [
+      1.6,
+      2.4,
+      1.6
+     ],
+     "tint": "#35404f"
+    },
+    {
+     "t": "box",
+     "pos": [
+      6,
+      0,
+      0
+     ],
+     "size": [
+      1.6,
+      2.4,
+      1.6
+     ],
+     "tint": "#35404f"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      4
+     ],
+     "size": [
+      5,
+      1.2,
+      1.0
+     ],
+     "tint": "#35404f"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -8,
+      0,
+      -4
+     ],
+     "size": [
+      1.6,
+      8,
+      1.6
+     ],
+     "tint": "#7a4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      8,
+      0,
+      -4
+     ],
+     "size": [
+      1.6,
+      8,
+      1.6
+     ],
+     "tint": "#7a4a3a"
+    }
+   ],
+   "markers": {
+    "from_r09": {
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0
+    },
+    "start": {
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0
+    },
+    "from_r11": {
+     "pos": [
+      0,
+      0,
+      7.5
+     ],
+     "yaw": 180
+    }
+   },
+   "playerStart": "from_r09",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      6.5,
+      -7
+     ],
+     "color": "#7fb0ff",
+     "range": 12,
+     "energy": 1.0
+    },
+    {
+     "pos": [
+      0,
+      6.5,
+      2
+     ],
+     "color": "#7fb0ff",
+     "range": 12,
+     "energy": 1.0
+    },
+    {
+     "pos": [
+      0,
+      6.5,
+      8
+     ],
+     "color": "#7fb0ff",
+     "range": 12,
+     "energy": 1.0
+    },
+    {
+     "pos": [
+      0,
+      4,
+      10
+     ],
+     "color": "#ff4a3a",
+     "range": 8,
+     "energy": 1.0
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r10.to_r09",
+     "to": "r09",
+     "spawn": "from_r10",
+     "pos": [
+      0,
+      0,
+      -11
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r10.to_r11",
+     "to": "r11",
+     "spawn": "from_r10",
+     "pos": [
+      0,
+      0,
+      11
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "door",
+     "id": "ch1.r10.door",
+     "pos": [
+      0,
+      0,
+      9.5
+     ],
+     "yaw": 0,
+     "size": [
+      6,
+      4,
+      0.6
+     ],
+     "opens": "auto",
+     "lock": {
+      "all": [
+       {
+        "cleared": "r10_w1"
+       },
+       "switch.ch1.r10.valve"
+      ]
+     },
+     "text": "扉が閉じている。弁の輪を回して、敵を片づけよう。"
+    },
+    {
+     "type": "switch",
+     "id": "ch1.r10.valve",
+     "pos": [
+      0,
+      5.0,
+      10.6
+     ],
+     "mode": "shoot",
+     "radius": 0.9
+    },
+    {
+     "type": "sign",
+     "text": "弁の輪（撃って回す）",
+     "pos": [
+      0,
+      6.8,
+      10.9
+     ],
+     "size": 30,
+     "color": "#ffd28a"
+    },
+    {
+     "type": "chest",
+     "id": "ch1.r10.chest1",
+     "pos": [
+      9,
+      0,
+      -9
+     ],
+     "yaw": -45,
+     "contents": {
+      "cells": 120,
+      "relics": [
+       "relic.valve_ring"
+      ]
+     }
+    }
+   ],
+   "enemies": [
+    {
+     "type": "shield",
+     "pos": [
+      0,
+      0,
+      5
+     ],
+     "yaw": 180,
+     "group": "r10_w1"
+    },
+    {
+     "type": "sentry",
+     "pos": [
+      -6,
+      0,
+      7
+     ],
+     "yaw": 180,
+     "group": "r10_w1"
+    },
+    {
+     "type": "sentry",
+     "pos": [
+      6,
+      0,
+      7
+     ],
+     "yaw": 180,
+     "group": "r10_w1"
+    }
+   ],
+   "checkpoints": [
+    {
+     "id": "ch1.r10.cp",
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.r10.enter",
+     "pos": [
+      0,
+      0,
+      -7
+     ],
+     "size": [
+      14,
+      3,
+      3
+     ],
+     "event": "ch1.r10.enter"
+    }
+   ]
+  },
+  "r11": {
+   "name": "縦坑",
+   "mood": "ruin_b2",
+   "map": {
+    "floor": "遺構 B2",
+    "x": 5,
+    "y": 1,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      12,
+      24,
+      12
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#454c57"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -4,
+      20.0,
+      -4
+     ],
+     "size": [
+      3.0,
+      1.0,
+      3.0
+     ],
+     "tint": "#7a6e5d"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0.5,
+      17.6,
+      -4.5
+     ],
+     "size": [
+      3.0,
+      1.0,
+      3.0
+     ],
+     "tint": "#7a6e5d"
+    },
+    {
+     "t": "box",
+     "pos": [
+      4.2,
+      15.2,
+      -1.5
+     ],
+     "size": [
+      3.0,
+      1.0,
+      3.0
+     ],
+     "tint": "#7a6e5d"
+    },
+    {
+     "t": "box",
+     "pos": [
+      3.5,
+      12.8,
+      3.5
+     ],
+     "size": [
+      3.0,
+      1.0,
+      3.0
+     ],
+     "tint": "#7a6e5d"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -0.5,
+      10.4,
+      4.5
+     ],
+     "size": [
+      3.0,
+      1.0,
+      3.0
+     ],
+     "tint": "#7a6e5d"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -4.2,
+      8.0,
+      1.5
+     ],
+     "size": [
+      3.0,
+      1.0,
+      3.0
+     ],
+     "tint": "#7a6e5d"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -3.8,
+      5.6,
+      -3.5
+     ],
+     "size": [
+      3.0,
+      1.0,
+      3.0
+     ],
+     "tint": "#7a6e5d"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0.5,
+      3.2,
+      -4.0
+     ],
+     "size": [
+      3.0,
+      1.0,
+      3.0
+     ],
+     "tint": "#7a6e5d"
+    },
+    {
+     "t": "box",
+     "pos": [
+      3.8,
+      1.0,
+      -2.0
+     ],
+     "size": [
+      3.0,
+      1.0,
+      3.0
+     ],
+     "tint": "#7a6e5d"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -4.5,
+      20.0,
+      -4.5
+     ],
+     "size": [
+      3.0,
+      1.0,
+      3.0
+     ],
+     "tint": "#8d7f69"
+    }
+   ],
+   "markers": {
+    "from_r10": {
+     "pos": [
+      -3,
+      21.0,
+      -3.5
+     ],
+     "yaw": 135
+    },
+    "start": {
+     "pos": [
+      -3,
+      21.0,
+      -3.5
+     ],
+     "yaw": 135
+    },
+    "from_r12": {
+     "pos": [
+      0,
+      0,
+      2.5
+     ],
+     "yaw": 180
+    }
+   },
+   "playerStart": "from_r10",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      20,
+      0
+     ],
+     "color": "#7fb0ff",
+     "range": 10,
+     "energy": 1.0
+    },
+    {
+     "pos": [
+      0,
+      14,
+      0
+     ],
+     "color": "#7fb0ff",
+     "range": 10,
+     "energy": 1.0
+    },
+    {
+     "pos": [
+      0,
+      8,
+      0
+     ],
+     "color": "#7fb0ff",
+     "range": 10,
+     "energy": 1.0
+    },
+    {
+     "pos": [
+      0,
+      2,
+      0
+     ],
+     "color": "#7fb0ff",
+     "range": 10,
+     "energy": 1.0
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r11.to_r10",
+     "to": "r10",
+     "spawn": "from_r11",
+     "pos": [
+      -5.0,
+      21.0,
+      -5.0
+     ],
+     "size": [
+      2,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r11.to_r12",
+     "to": "r12",
+     "spawn": "from_r11",
+     "pos": [
+      0,
+      0,
+      5
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "beacon",
+     "id": "ch1.r11.bc",
+     "pos": [
+      0,
+      0,
+      -1
+     ],
+     "flag": "ch1.first_beacon",
+     "event": "ch1.beacon"
+    },
+    {
+     "type": "loot",
+     "id": "ch1.r11.relic1",
+     "pos": [
+      -4.2,
+      9.0,
+      1.5
+     ],
+     "contents": {
+      "relics": [
+       "relic.pipe_gauge"
+      ]
+     }
+    },
+    {
+     "type": "sign",
+     "text": "遺構 B2 の底",
+     "pos": [
+      0,
+      3.8,
+      5.6
+     ],
+     "size": 30,
+     "color": "#7fb0ff"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [
+    {
+     "id": "ch1.r11.cp",
+     "pos": [
+      -3,
+      21.0,
+      -3.5
+     ],
+     "yaw": 135,
+     "radius": 4
+    }
+   ],
+   "triggers": []
+  },
+  "r12": {
+   "name": "駆動回廊",
+   "mood": "ruin_b3",
+   "map": {
+    "floor": "遺構 B3",
+    "x": 1,
+    "y": 2,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      -6,
+      0
+     ],
+     "size": [
+      16,
+      18,
+      38
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#5e5446",
+     "openings": [
+      {
+       "side": "w",
+       "at": -14,
+       "w": 4,
+       "h": 4,
+       "y": 6
+      }
+     ]
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -6,
+      -14
+     ],
+     "size": [
+      16,
+      6,
+      8
+     ],
+     "tint": "#6a5a48"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -6,
+      17
+     ],
+     "size": [
+      16,
+      6,
+      4
+     ],
+     "tint": "#6a5a48"
+    },
+    {
+     "t": "ramp",
+     "pos": [
+      -6,
+      -6,
+      0
+     ],
+     "size": [
+      4,
+      6,
+      20
+     ],
+     "tint": "#5a4a3a",
+     "yaw": 180
+    },
+    {
+     "t": "box",
+     "pos": [
+      7.7,
+      0,
+      -14
+     ],
+     "size": [
+      0.6,
+      4,
+      4
+     ],
+     "tint": "#3a3d44"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -7.4,
+      0,
+      -6
+     ],
+     "size": [
+      1.0,
+      12,
+      1.4
+     ],
+     "tint": "#3d3429"
+    },
+    {
+     "t": "box",
+     "pos": [
+      7.4,
+      0,
+      -6
+     ],
+     "size": [
+      1.0,
+      12,
+      1.4
+     ],
+     "tint": "#3d3429"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -7.4,
+      0,
+      0
+     ],
+     "size": [
+      1.0,
+      12,
+      1.4
+     ],
+     "tint": "#3d3429"
+    },
+    {
+     "t": "box",
+     "pos": [
+      7.4,
+      0,
+      0
+     ],
+     "size": [
+      1.0,
+      12,
+      1.4
+     ],
+     "tint": "#3d3429"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -7.4,
+      0,
+      6
+     ],
+     "size": [
+      1.0,
+      12,
+      1.4
+     ],
+     "tint": "#3d3429"
+    },
+    {
+     "t": "box",
+     "pos": [
+      7.4,
+      0,
+      6
+     ],
+     "size": [
+      1.0,
+      12,
+      1.4
+     ],
+     "tint": "#3d3429"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -7.4,
+      0,
+      12
+     ],
+     "size": [
+      1.0,
+      12,
+      1.4
+     ],
+     "tint": "#3d3429"
+    },
+    {
+     "t": "box",
+     "pos": [
+      7.4,
+      0,
+      12
+     ],
+     "size": [
+      1.0,
+      12,
+      1.4
+     ],
+     "tint": "#3d3429"
+    }
+   ],
+   "markers": {
+    "from_r11": {
+     "pos": [
+      0,
+      0,
+      -16
+     ],
+     "yaw": 0
+    },
+    "start": {
+     "pos": [
+      0,
+      0,
+      -16
+     ],
+     "yaw": 0
+    },
+    "from_r13": {
+     "pos": [
+      0,
+      0,
+      14.5
+     ],
+     "yaw": 180
+    },
+    "from_r17": {
+     "pos": [
+      5.5,
+      0,
+      -14
+     ],
+     "yaw": 270
+    },
+    "from_r14": {
+     "pos": [
+      -5.5,
+      0,
+      -14
+     ],
+     "yaw": 90
+    }
+   },
+   "playerStart": "from_r11",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      8,
+      -12
+     ],
+     "color": "#ffb050",
+     "range": 18,
+     "energy": 1.4
+    },
+    {
+     "pos": [
+      0,
+      8,
+      2
+     ],
+     "color": "#ffa24a",
+     "range": 18,
+     "energy": 1.2
+    },
+    {
+     "pos": [
+      0,
+      8,
+      14
+     ],
+     "color": "#ffa24a",
+     "range": 18,
+     "energy": 1.2
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r12.to_r11",
+     "to": "r11",
+     "spawn": "from_r12",
+     "pos": [
+      0,
+      0,
+      -18
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r12.to_r13",
+     "to": "r13",
+     "spawn": "from_r12",
+     "pos": [
+      0,
+      0,
+      18
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r12.to_r17",
+     "to": "r17",
+     "spawn": "from_r12",
+     "pos": [
+      7.2,
+      0,
+      -14
+     ],
+     "size": [
+      1.6,
+      4,
+      4
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r12.to_r14",
+     "to": "r14",
+     "spawn": "from_r12",
+     "pos": [
+      -7.2,
+      0,
+      -14
+     ],
+     "size": [
+      1.6,
+      4,
+      4
+     ],
+     "lock": "broken.ch1.r12.crack",
+     "text": "壁にひびが入っている。普通の弾では壊せそうにない。"
+    },
+    {
+     "type": "breakable",
+     "id": "ch1.r12.crack",
+     "pos": [
+      -8.5,
+      0,
+      -14
+     ],
+     "size": [
+      1.0,
+      4,
+      4
+     ],
+     "toughness": 1.0
+    },
+    {
+     "type": "sign",
+     "text": "近道エレベーター",
+     "pos": [
+      7.4,
+      4.3,
+      -14
+     ],
+     "size": 26,
+     "color": "#9ad0ff"
+    },
+    {
+     "type": "switch",
+     "id": "ch1.r12.s1",
+     "pos": [
+      -5,
+      1.6,
+      -17
+     ],
+     "mode": "shoot",
+     "radius": 0.7
+    },
+    {
+     "type": "switch",
+     "id": "ch1.r12.s2",
+     "pos": [
+      5,
+      1.6,
+      -17
+     ],
+     "mode": "shoot",
+     "radius": 0.7
+    },
+    {
+     "type": "sign",
+     "text": "動力の球（撃つ）",
+     "pos": [
+      -5,
+      2.9,
+      -17.5
+     ],
+     "size": 26,
+     "color": "#ffb050"
+    },
+    {
+     "type": "sign",
+     "text": "動力の球（撃つ）",
+     "pos": [
+      5,
+      2.9,
+      -17.5
+     ],
+     "size": 26,
+     "color": "#ffb050"
+    },
+    {
+     "type": "mover",
+     "id": "ch1.r12.p1",
+     "pos": [
+      0,
+      -2.6,
+      -5.5
+     ],
+     "size": [
+      5,
+      0.5,
+      5
+     ],
+     "move": [
+      0,
+      3.6,
+      0
+     ],
+     "speed": 2.2,
+     "mode": "pingpong",
+     "wait": 1.0,
+     "cond": "ch1.drive_powered"
+    },
+    {
+     "type": "mover",
+     "id": "ch1.r12.p2",
+     "pos": [
+      0,
+      -2.6,
+      0.5
+     ],
+     "size": [
+      5,
+      0.5,
+      5
+     ],
+     "move": [
+      0,
+      3.6,
+      0
+     ],
+     "speed": 2.8,
+     "mode": "pingpong",
+     "wait": 1.6,
+     "cond": "ch1.drive_powered"
+    },
+    {
+     "type": "mover",
+     "id": "ch1.r12.p3",
+     "pos": [
+      0,
+      -2.6,
+      6.5
+     ],
+     "size": [
+      5,
+      0.5,
+      5
+     ],
+     "move": [
+      0,
+      3.6,
+      0
+     ],
+     "speed": 2.0,
+     "mode": "pingpong",
+     "wait": 0.8,
+     "cond": "ch1.drive_powered"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [
+    {
+     "id": "ch1.r12.cp",
+     "pos": [
+      0,
+      0,
+      -16
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.r12.powered",
+     "on": "flag",
+     "cond": [
+      "switch.ch1.r12.s1",
+      "switch.ch1.r12.s2"
+     ],
+     "event": "ch1.r12.powered"
+    },
+    {
+     "id": "ch1.r12.enter",
+     "pos": [
+      0,
+      0,
+      -15
+     ],
+     "size": [
+      14,
+      3,
+      2
+     ],
+     "event": "ch1.r12.enter"
+    }
+   ]
+  },
+  "r13": {
+   "name": "歯車の間",
+   "mood": "ruin_b3",
+   "map": {
+    "floor": "遺構 B3",
+    "x": 2,
+    "y": 2,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      20,
+      12,
+      30
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#5e5446"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      11
+     ],
+     "size": [
+      8,
+      4.0,
+      5
+     ],
+     "tint": "#8c6a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -7,
+      0,
+      -4
+     ],
+     "size": [
+      2.4,
+      3.0,
+      2.4
+     ],
+     "tint": "#5a4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      7,
+      0,
+      -4
+     ],
+     "size": [
+      2.4,
+      3.0,
+      2.4
+     ],
+     "tint": "#5a4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -9.6,
+      3,
+      -6
+     ],
+     "size": [
+      0.8,
+      2.4,
+      2.4
+     ],
+     "tint": "#3d3429"
+    },
+    {
+     "t": "box",
+     "pos": [
+      9.6,
+      3,
+      -2
+     ],
+     "size": [
+      0.8,
+      2.4,
+      2.4
+     ],
+     "tint": "#3d3429"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -9.6,
+      6,
+      0
+     ],
+     "size": [
+      0.8,
+      2.4,
+      2.4
+     ],
+     "tint": "#3d3429"
+    },
+    {
+     "t": "box",
+     "pos": [
+      9.6,
+      6,
+      4
+     ],
+     "size": [
+      0.8,
+      2.4,
+      2.4
+     ],
+     "tint": "#3d3429"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -9.6,
+      9,
+      6
+     ],
+     "size": [
+      0.8,
+      2.4,
+      2.4
+     ],
+     "tint": "#3d3429"
+    },
+    {
+     "t": "box",
+     "pos": [
+      9.6,
+      9,
+      10
+     ],
+     "size": [
+      0.8,
+      2.4,
+      2.4
+     ],
+     "tint": "#3d3429"
+    }
+   ],
+   "markers": {
+    "from_r12": {
+     "pos": [
+      0,
+      0,
+      -12.5
+     ],
+     "yaw": 0
+    },
+    "start": {
+     "pos": [
+      0,
+      0,
+      -12.5
+     ],
+     "yaw": 0
+    },
+    "from_r15": {
+     "pos": [
+      0,
+      0,
+      12.5
+     ],
+     "yaw": 180
+    }
+   },
+   "playerStart": "from_r12",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      10,
+      -6
+     ],
+     "color": "#ffa24a",
+     "range": 16,
+     "energy": 1.5
+    },
+    {
+     "pos": [
+      0,
+      10,
+      8
+     ],
+     "color": "#ffb050",
+     "range": 16,
+     "energy": 1.5
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r13.to_r12",
+     "to": "r12",
+     "spawn": "from_r13",
+     "pos": [
+      0,
+      0,
+      -14
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r13.to_r15",
+     "to": "r15",
+     "spawn": "from_r13",
+     "pos": [
+      0,
+      0,
+      14
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "mover",
+     "id": "ch1.r13.lift1",
+     "pos": [
+      -5.5,
+      0.1,
+      5.0
+     ],
+     "size": [
+      3.5,
+      0.4,
+      3.5
+     ],
+     "move": [
+      0,
+      3.9,
+      0
+     ],
+     "speed": 2.0,
+     "mode": "pingpong",
+     "wait": 1.2,
+     "cond": "ch1.drive_powered"
+    },
+    {
+     "type": "mover",
+     "id": "ch1.r13.lift2",
+     "pos": [
+      5.5,
+      2.0,
+      3.0
+     ],
+     "size": [
+      3.5,
+      0.4,
+      3.5
+     ],
+     "move": [
+      0,
+      2.0,
+      0
+     ],
+     "speed": 1.6,
+     "mode": "pingpong",
+     "wait": 0.8,
+     "cond": "ch1.drive_powered"
+    },
+    {
+     "type": "chest",
+     "id": "ch1.r13.chest1",
+     "pos": [
+      0,
+      4.0,
+      11.5
+     ],
+     "yaw": 180,
+     "contents": {
+      "cells": 150,
+      "relics": [
+       "relic.big_gear"
+      ]
+     }
+    }
+   ],
+   "enemies": [
+    {
+     "type": "floater",
+     "pos": [
+      -5,
+      4.5,
+      -2
+     ],
+     "yaw": 0,
+     "group": "r13_w1",
+     "unless": "ch1.r13.cleared"
+    },
+    {
+     "type": "floater",
+     "pos": [
+      5,
+      5.0,
+      0
+     ],
+     "yaw": 0,
+     "group": "r13_w1",
+     "unless": "ch1.r13.cleared"
+    },
+    {
+     "type": "floater",
+     "pos": [
+      0,
+      5.5,
+      4
+     ],
+     "yaw": 180,
+     "group": "r13_w1",
+     "unless": "ch1.r13.cleared"
+    }
+   ],
+   "checkpoints": [
+    {
+     "id": "ch1.r13.cp",
+     "pos": [
+      0,
+      0,
+      -12.5
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.r13.done",
+     "on": "flag",
+     "cond": {
+      "cleared": "r13_w1"
+     },
+     "event": "ch1.r13.done"
+    },
+    {
+     "id": "ch1.r13.enter",
+     "pos": [
+      0,
+      0,
+      -10
+     ],
+     "size": [
+      14,
+      3,
+      2
+     ],
+     "event": "ch1.r13.enter"
+    }
+   ]
+  },
+  "r14": {
+   "name": "隠し部屋",
+   "mood": "ruin_b3",
+   "map": {
+    "floor": "遺構 B3",
+    "x": 1,
+    "y": 3,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      10,
+      6,
+      10
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#5e5446"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      2.4,
+      0.8,
+      2.4
+     ],
+     "tint": "#8c6a3a"
+    }
+   ],
+   "markers": {
+    "from_r12": {
+     "pos": [
+      3,
+      0,
+      0
+     ],
+     "yaw": 90
+    },
+    "start": {
+     "pos": [
+      3,
+      0,
+      0
+     ],
+     "yaw": 90
+    }
+   },
+   "playerStart": "from_r12",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      4,
+      0
+     ],
+     "color": "#ffb050",
+     "range": 12,
+     "energy": 1.6
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r14.to_r12",
+     "to": "r12",
+     "spawn": "from_r14",
+     "pos": [
+      4.2,
+      0,
+      0
+     ],
+     "size": [
+      1.6,
+      4,
+      4
+     ]
+    },
+    {
+     "type": "loot",
+     "id": "ch1.r14.lifecore",
+     "pos": [
+      0,
+      0.8,
+      0
+     ],
+     "contents": {
+      "lifecore": true
+     }
+    },
+    {
+     "type": "chest",
+     "id": "ch1.r14.chest1",
+     "pos": [
+      -3.5,
+      0,
+      -3.5
+     ],
+     "yaw": 45,
+     "contents": {
+      "cells": 100
+     }
+    },
+    {
+     "type": "sign",
+     "text": "誰かの隠した物",
+     "pos": [
+      0,
+      3.4,
+      4.6
+     ],
+     "size": 28,
+     "color": "#ffb050"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [
+    {
+     "id": "ch1.r14.cp",
+     "pos": [
+      3,
+      0,
+      0
+     ],
+     "yaw": 90,
+     "radius": 4
+    }
+   ],
+   "triggers": []
+  },
+  "r15": {
+   "name": "伝導路",
+   "mood": "ruin_b3",
+   "map": {
+    "floor": "遺構 B3",
+    "x": 3,
+    "y": 2,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      20,
+      9,
+      24
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#5e5446"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -8,
+      0,
+      5
+     ],
+     "size": [
+      1.6,
+      9,
+      1.6
+     ],
+     "tint": "#8c6a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      8,
+      0,
+      -5
+     ],
+     "size": [
+      1.6,
+      9,
+      1.6
+     ],
+     "tint": "#8c6a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      1.6,
+      9,
+      1.6
+     ],
+     "tint": "#8c6a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      7
+     ],
+     "size": [
+      5,
+      1.2,
+      1.0
+     ],
+     "tint": "#5a4a3a"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      -6
+     ],
+     "size": [
+      5,
+      1.2,
+      1.0
+     ],
+     "tint": "#5a4a3a"
+    }
+   ],
+   "markers": {
+    "from_r13": {
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0
+    },
+    "start": {
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0
+    },
+    "from_r16": {
+     "pos": [
+      0,
+      0,
+      9.5
+     ],
+     "yaw": 180
+    }
+   },
+   "playerStart": "from_r13",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      8,
+      -8
+     ],
+     "color": "#ffa24a",
+     "range": 14,
+     "energy": 1.3
+    },
+    {
+     "pos": [
+      0,
+      8,
+      0
+     ],
+     "color": "#ffa24a",
+     "range": 14,
+     "energy": 1.3
+    },
+    {
+     "pos": [
+      0,
+      8,
+      8
+     ],
+     "color": "#ffa24a",
+     "range": 14,
+     "energy": 1.3
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r15.to_r13",
+     "to": "r13",
+     "spawn": "from_r15",
+     "pos": [
+      0,
+      0,
+      -11
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r15.to_r16",
+     "to": "r16",
+     "spawn": "from_r15",
+     "pos": [
+      0,
+      0,
+      11
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "mover",
+     "id": "ch1.r15.p1",
+     "pos": [
+      -5,
+      1.9,
+      -2
+     ],
+     "size": [
+      4,
+      0.5,
+      4
+     ],
+     "move": [
+      0,
+      2.8,
+      0
+     ],
+     "speed": 1.8,
+     "mode": "pingpong",
+     "wait": 0.6,
+     "cond": null
+    },
+    {
+     "type": "mover",
+     "id": "ch1.r15.p2",
+     "pos": [
+      5,
+      1.9,
+      4
+     ],
+     "size": [
+      4,
+      0.5,
+      4
+     ],
+     "move": [
+      0,
+      2.8,
+      0
+     ],
+     "speed": 1.8,
+     "mode": "pingpong",
+     "wait": 0.9,
+     "cond": null
+    },
+    {
+     "type": "chest",
+     "id": "ch1.r15.chest1",
+     "pos": [
+      9,
+      0,
+      10
+     ],
+     "yaw": -90,
+     "contents": {
+      "items": [
+       "chip.charge"
+      ],
+      "cells": 80
+     }
+    }
+   ],
+   "enemies": [
+    {
+     "type": "sentry",
+     "pos": [
+      -6,
+      0,
+      6
+     ],
+     "yaw": 180,
+     "group": "r15_w1",
+     "unless": "ch1.r15.cleared"
+    },
+    {
+     "type": "sentry",
+     "pos": [
+      6,
+      0,
+      7
+     ],
+     "yaw": 180,
+     "group": "r15_w1",
+     "unless": "ch1.r15.cleared"
+    },
+    {
+     "type": "shield",
+     "pos": [
+      0,
+      0,
+      4
+     ],
+     "yaw": 180,
+     "group": "r15_w1",
+     "unless": "ch1.r15.cleared"
+    }
+   ],
+   "checkpoints": [
+    {
+     "id": "ch1.r15.cp",
+     "pos": [
+      0,
+      0,
+      -9.5
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.r15.w2",
+     "on": "flag",
+     "cond": {
+      "all": [
+       {
+        "cleared": "r15_w1"
+       },
+       {
+        "not": "ch1.r15.cleared"
+       }
+      ]
+     },
+     "event": "ch1.r15.wave2",
+     "persist": false
+    }
+   ]
+  },
+  "r16": {
+   "name": "中央縦坑",
+   "mood": "ruin_b3",
+   "map": {
+    "floor": "遺構 B3",
+    "x": 4,
+    "y": 2,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      12,
+      26,
+      12
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#5e5446"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      -4.2
+     ],
+     "size": [
+      10,
+      20.0,
+      3.6
+     ],
+     "tint": "#5a4a3a"
+    }
+   ],
+   "markers": {
+    "from_r15": {
+     "pos": [
+      0,
+      20.0,
+      -3.0
+     ],
+     "yaw": 0
+    },
+    "start": {
+     "pos": [
+      0,
+      20.0,
+      -3.0
+     ],
+     "yaw": 0
+    },
+    "from_r18": {
+     "pos": [
+      0,
+      0,
+      -3.5
+     ],
+     "yaw": 0
+    }
+   },
+   "playerStart": "from_r15",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      22,
+      0
+     ],
+     "color": "#ffa24a",
+     "range": 12,
+     "energy": 1.2
+    },
+    {
+     "pos": [
+      0,
+      15,
+      0
+     ],
+     "color": "#ffa24a",
+     "range": 12,
+     "energy": 1.2
+    },
+    {
+     "pos": [
+      0,
+      8,
+      0
+     ],
+     "color": "#ffa24a",
+     "range": 12,
+     "energy": 1.2
+    },
+    {
+     "pos": [
+      0,
+      2,
+      0
+     ],
+     "color": "#ffa24a",
+     "range": 12,
+     "energy": 1.2
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r16.to_r15",
+     "to": "r15",
+     "spawn": "from_r16",
+     "pos": [
+      0,
+      20.0,
+      -5.0
+     ],
+     "size": [
+      5,
+      4,
+      1.4
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r16.to_r18",
+     "to": "r18",
+     "spawn": "from_r16",
+     "pos": [
+      0,
+      0,
+      5
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ]
+    },
+    {
+     "type": "mover",
+     "id": "ch1.r16.lift",
+     "pos": [
+      0,
+      19.6,
+      0.4
+     ],
+     "size": [
+      5,
+      0.4,
+      4
+     ],
+     "move": [
+      0,
+      -19.6,
+      0
+     ],
+     "speed": 4.5,
+     "mode": "ride"
+    },
+    {
+     "type": "sign",
+     "text": "リフト（乗ると降りる）",
+     "pos": [
+      0,
+      22.2,
+      -2.4
+     ],
+     "size": 30,
+     "color": "#ffb050"
+    }
+   ],
+   "enemies": [
+    {
+     "type": "charger",
+     "pos": [
+      -4,
+      0,
+      3
+     ],
+     "yaw": 180,
+     "group": "r16_w1",
+     "unless": "ch1.r16.cleared"
+    },
+    {
+     "type": "charger",
+     "pos": [
+      4,
+      0,
+      3.5
+     ],
+     "yaw": 180,
+     "group": "r16_w1",
+     "unless": "ch1.r16.cleared"
+    }
+   ],
+   "checkpoints": [
+    {
+     "id": "ch1.r16.cp",
+     "pos": [
+      0,
+      20.0,
+      -3.0
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.r16.done",
+     "on": "flag",
+     "cond": {
+      "cleared": "r16_w1"
+     },
+     "event": "ch1.r16.done"
+    }
+   ]
+  },
+  "r17": {
+   "name": "近道",
+   "mood": "ruin_b3",
+   "map": {
+    "floor": "遺構 B3",
+    "x": 0,
+    "y": 2,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      12,
+      6,
+      12
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#5e5446"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5.6,
+      0,
+      -3
+     ],
+     "size": [
+      0.6,
+      3.6,
+      3
+     ],
+     "tint": "#3a3d44"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      -4.8
+     ],
+     "size": [
+      0.6,
+      1.3,
+      0.6
+     ],
+     "tint": "#6a5a48"
+    }
+   ],
+   "markers": {
+    "from_r12": {
+     "pos": [
+      3,
+      0,
+      0
+     ],
+     "yaw": 90
+    },
+    "start": {
+     "pos": [
+      3,
+      0,
+      0
+     ],
+     "yaw": 90
+    },
+    "from_r02": {
+     "pos": [
+      3,
+      0,
+      0
+     ],
+     "yaw": 90
+    }
+   },
+   "playerStart": "from_r12",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      4.5,
+      0
+     ],
+     "color": "#ffb050",
+     "range": 12,
+     "energy": 1.4
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r17.to_r12",
+     "to": "r12",
+     "spawn": "from_r17",
+     "pos": [
+      4.6,
+      0,
+      3
+     ],
+     "size": [
+      1.6,
+      4,
+      3
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r17.to_r02",
+     "to": "r02",
+     "spawn": "from_elevator",
+     "pos": [
+      -4.6,
+      0,
+      -3
+     ],
+     "size": [
+      1.6,
+      4,
+      3
+     ],
+     "lock": "ch1.shortcut_open",
+     "text": "エレベーターはまだ動かない。レバーを引こう。"
+    },
+    {
+     "type": "terminal",
+     "id": "ch1.r17.lever",
+     "pos": [
+      0,
+      0,
+      -4.2
+     ],
+     "event": "ch1.r17.lever",
+     "prompt": "レバーを引く"
+    },
+    {
+     "type": "sign",
+     "text": "近道エレベーター（外殻層へ）",
+     "pos": [
+      -5.2,
+      4.4,
+      -3
+     ],
+     "size": 26,
+     "color": "#9ad0ff"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [
+    {
+     "id": "ch1.r17.cp",
+     "pos": [
+      3,
+      0,
+      0
+     ],
+     "yaw": 90,
+     "radius": 4
+    }
+   ],
+   "triggers": []
+  },
+  "r18": {
+   "name": "心臓部前室",
+   "mood": "ruin_b4",
+   "map": {
+    "floor": "遺構 B4",
+    "x": 4,
+    "y": 3,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      20,
+      8,
+      24
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      3,
+      0.5,
+      3
+     ],
+     "tint": "#5a5272"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0.5,
+      0
+     ],
+     "size": [
+      0.8,
+      1.6,
+      0.8
+     ],
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -8.5,
+      0,
+      2
+     ],
+     "size": [
+      1.4,
+      8,
+      1.4
+     ],
+     "tint": "#2b2740"
+    },
+    {
+     "t": "box",
+     "pos": [
+      8.5,
+      0,
+      2
+     ],
+     "size": [
+      1.4,
+      8,
+      1.4
+     ],
+     "tint": "#2b2740"
+    }
+   ],
+   "markers": {
+    "from_r16": {
+     "pos": [
+      0,
+      0,
+      -10
+     ],
+     "yaw": 0
+    },
+    "start": {
+     "pos": [
+      0,
+      0,
+      -10
+     ],
+     "yaw": 0
+    },
+    "from_r19": {
+     "pos": [
+      0,
+      0,
+      8
+     ],
+     "yaw": 180
+    }
+   },
+   "playerStart": "from_r16",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      5,
+      0
+     ],
+     "color": "#6fe3d6",
+     "range": 16,
+     "energy": 1.2
+    },
+    {
+     "pos": [
+      0,
+      4,
+      9
+     ],
+     "color": "#9a7cff",
+     "range": 10,
+     "energy": 1.0
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r18.to_r19",
+     "to": "r19",
+     "spawn": "from_r18",
+     "pos": [
+      0,
+      0,
+      11
+     ],
+     "size": [
+      6,
+      4,
+      2
+     ],
+     "lock": "ch1.diagnosis",
+     "text": "大きな扉は閉ざされている。……ナゴミが何か言いたそうだ。"
+    },
+    {
+     "type": "door",
+     "id": "ch1.r18.door",
+     "pos": [
+      0,
+      0,
+      9.6
+     ],
+     "yaw": 0,
+     "size": [
+      6,
+      5,
+      0.6
+     ],
+     "opens": "auto",
+     "lock": "ch1.diagnosis"
+    },
+    {
+     "type": "beacon",
+     "id": "ch1.r18.bc",
+     "pos": [
+      -5,
+      0,
+      3
+     ],
+     "flag": "ch1.r18_beacon",
+     "event": "ch1.beacon"
+    },
+    {
+     "type": "chest",
+     "id": "ch1.r18.chest1",
+     "pos": [
+      7,
+      0,
+      -6
+     ],
+     "yaw": -60,
+     "contents": {
+      "heals": 2
+     }
+    },
+    {
+     "type": "sign",
+     "text": "心臓部",
+     "pos": [
+      0,
+      5.4,
+      10.4
+     ],
+     "size": 40,
+     "color": "#6fe3d6"
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [
+    {
+     "id": "ch1.r18.cp",
+     "pos": [
+      0,
+      0,
+      -10
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.r18.diagnosis",
+     "pos": [
+      0,
+      0,
+      -3
+     ],
+     "size": [
+      14,
+      3,
+      3
+     ],
+     "event": "ch1.diagnosis"
+    }
+   ]
+  },
+  "r19": {
+   "name": "心臓部",
+   "mood": "ruin_b4",
+   "map": {
+    "floor": "遺構 B4",
+    "x": 5,
+    "y": 3,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "box",
+     "pos": [
+      0,
+      -1,
+      0
+     ],
+     "size": [
+      40,
+      1,
+      40
+     ],
+     "tint": "#2b2740"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0.0,
+      0,
+      16.5
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 0.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      2.865,
+      0,
+      16.249
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 10.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      5.643,
+      0,
+      15.505
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 20.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      8.25,
+      0,
+      14.289
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 30.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      10.606,
+      0,
+      12.64
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 40.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      12.64,
+      0,
+      10.606
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 50.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      14.289,
+      0,
+      8.25
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 60.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      15.505,
+      0,
+      5.643
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 70.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      16.249,
+      0,
+      2.865
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 80.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      16.5,
+      0,
+      0.0
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 90.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      16.249,
+      0,
+      -2.865
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 100.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      15.505,
+      0,
+      -5.643
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 110.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      14.289,
+      0,
+      -8.25
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 120.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      12.64,
+      0,
+      -10.606
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 130.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      10.606,
+      0,
+      -12.64
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 140.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      8.25,
+      0,
+      -14.289
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 150.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      5.643,
+      0,
+      -15.505
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 160.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      2.865,
+      0,
+      -16.249
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 170.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -2.865,
+      0,
+      -16.249
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 190.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5.643,
+      0,
+      -15.505
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 200.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -8.25,
+      0,
+      -14.289
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 210.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -10.606,
+      0,
+      -12.64
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 220.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -12.64,
+      0,
+      -10.606
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 230.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -14.289,
+      0,
+      -8.25
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 240.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -15.505,
+      0,
+      -5.643
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 250.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -16.249,
+      0,
+      -2.865
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 260.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -16.5,
+      0,
+      -0.0
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 270.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -16.249,
+      0,
+      2.865
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 280.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -15.505,
+      0,
+      5.643
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 290.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -14.289,
+      0,
+      8.25
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 300.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -12.64,
+      0,
+      10.606
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 310.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -10.606,
+      0,
+      12.64
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 320.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -8.25,
+      0,
+      14.289
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 330.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5.643,
+      0,
+      15.505
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 340.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -2.865,
+      0,
+      16.249
+     ],
+     "size": [
+      3.28,
+      16,
+      1.0
+     ],
+     "yaw": 350.0,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      -19.5
+     ],
+     "size": [
+      8,
+      16,
+      1
+     ],
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -3.8,
+      0,
+      -18
+     ],
+     "size": [
+      0.6,
+      16,
+      4
+     ],
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      3.8,
+      0,
+      -18
+     ],
+     "size": [
+      0.6,
+      16,
+      4
+     ],
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0.0,
+      0,
+      10.5
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 90.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      1.823,
+      0,
+      10.34
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 100.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      3.591,
+      0,
+      9.867
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 110.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      5.25,
+      0,
+      9.093
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 120.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      6.749,
+      0,
+      8.043
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 130.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      8.043,
+      0,
+      6.749
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 140.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      9.093,
+      0,
+      5.25
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 150.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      9.867,
+      0,
+      3.591
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 160.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      10.34,
+      0,
+      1.823
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 170.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      10.5,
+      0,
+      0.0
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 180.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      10.34,
+      0,
+      -1.823
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 190.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      9.867,
+      0,
+      -3.591
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 200.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      9.093,
+      0,
+      -5.25
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 210.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      8.043,
+      0,
+      -6.749
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 220.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      6.749,
+      0,
+      -8.043
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 230.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      5.25,
+      0,
+      -9.093
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 240.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      3.591,
+      0,
+      -9.867
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 250.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      1.823,
+      0,
+      -10.34
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 260.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0.0,
+      0,
+      -10.5
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 270.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -1.823,
+      0,
+      -10.34
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 280.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -3.591,
+      0,
+      -9.867
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 290.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5.25,
+      0,
+      -9.093
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 300.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -6.749,
+      0,
+      -8.043
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 310.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -8.043,
+      0,
+      -6.749
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 320.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -9.093,
+      0,
+      -5.25
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 330.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -9.867,
+      0,
+      -3.591
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 340.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -10.34,
+      0,
+      -1.823
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 350.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -10.5,
+      0,
+      -0.0
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 360.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -10.34,
+      0,
+      1.823
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 370.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -9.867,
+      0,
+      3.591
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 380.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -9.093,
+      0,
+      5.25
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 390.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -8.043,
+      0,
+      6.749
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 400.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -6.749,
+      0,
+      8.043
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 410.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5.25,
+      0,
+      9.093
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 420.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -3.591,
+      0,
+      9.867
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 430.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -1.823,
+      0,
+      10.34
+     ],
+     "size": [
+      2.1,
+      0.06,
+      0.5
+     ],
+     "yaw": 440.0,
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      15.5
+     ],
+     "size": [
+      7,
+      9,
+      0.6
+     ],
+     "tint": "#5a5272"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      15.2
+     ],
+     "size": [
+      2,
+      9,
+      0.3
+     ],
+     "tint": "#6fe3d6"
+    }
+   ],
+   "markers": {
+    "from_r18": {
+     "pos": [
+      0,
+      0,
+      -14.9
+     ],
+     "yaw": 0
+    },
+    "start": {
+     "pos": [
+      0,
+      0,
+      -14.9
+     ],
+     "yaw": 0
+    },
+    "from_r20": {
+     "pos": [
+      0,
+      0,
+      12
+     ],
+     "yaw": 180
+    }
+   },
+   "playerStart": "from_r18",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      12,
+      0
+     ],
+     "color": "#6fe3d6",
+     "range": 30,
+     "energy": 1.6
+    },
+    {
+     "pos": [
+      0,
+      8,
+      12
+     ],
+     "color": "#9a7cff",
+     "range": 16,
+     "energy": 1.0
+    },
+    {
+     "pos": [
+      0,
+      8,
+      -12
+     ],
+     "color": "#9a7cff",
+     "range": 16,
+     "energy": 1.0
+    }
+   ],
+   "props": [
+    {
+     "type": "door",
+     "id": "ch1.r19.furnace",
+     "pos": [
+      0,
+      0,
+      15.0
+     ],
+     "yaw": 0,
+     "size": [
+      6,
+      4.5,
+      0.4
+     ],
+     "opens": "auto",
+     "lock": "ch1.boss_defeated",
+     "text": "炉心の扉は固く閉ざされている。"
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r19.to_r18",
+     "to": "r18",
+     "spawn": "from_r19",
+     "pos": [
+      0,
+      0,
+      -17.6
+     ],
+     "size": [
+      4,
+      4,
+      1.2
+     ]
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r19.to_r20",
+     "to": "r20",
+     "spawn": "from_r19",
+     "pos": [
+      0,
+      0,
+      14.3
+     ],
+     "size": [
+      5,
+      4.5,
+      1.6
+     ],
+     "lock": "ch1.boss_defeated"
+    },
+    {
+     "type": "breakable",
+     "id": "ch1.r19.pillar_0",
+     "pos": [
+      4.596,
+      0,
+      4.596
+     ],
+     "size": [
+      1.6,
+      6,
+      1.6
+     ],
+     "toughness": 9999.0,
+     "persist": false
+    },
+    {
+     "type": "breakable",
+     "id": "ch1.r19.pillar_1",
+     "pos": [
+      4.596,
+      0,
+      -4.596
+     ],
+     "size": [
+      1.6,
+      6,
+      1.6
+     ],
+     "toughness": 9999.0,
+     "persist": false
+    },
+    {
+     "type": "breakable",
+     "id": "ch1.r19.pillar_2",
+     "pos": [
+      -4.596,
+      0,
+      -4.596
+     ],
+     "size": [
+      1.6,
+      6,
+      1.6
+     ],
+     "toughness": 9999.0,
+     "persist": false
+    },
+    {
+     "type": "breakable",
+     "id": "ch1.r19.pillar_3",
+     "pos": [
+      -4.596,
+      0,
+      4.596
+     ],
+     "size": [
+      1.6,
+      6,
+      1.6
+     ],
+     "toughness": 9999.0,
+     "persist": false
+    }
+   ],
+   "enemies": [
+    {
+     "type": "kannuki",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "yaw": 0,
+     "id": "kannuki",
+     "unless": "ch1.boss_defeated"
+    }
+   ],
+   "checkpoints": [
+    {
+     "id": "ch1.r19.cp",
+     "pos": [
+      0,
+      0,
+      -14.9
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.r19.intro",
+     "pos": [
+      0,
+      0,
+      -15.6
+     ],
+     "size": [
+      8,
+      3,
+      2.4
+     ],
+     "event": "ch1.r19.enter",
+     "persist": false,
+     "cond": {
+      "not": "ch1.boss_defeated"
+     }
+    },
+    {
+     "id": "ch1.r19.down",
+     "on": "flag",
+     "cond": "ch1.boss_defeated",
+     "event": "ch1.boss_down"
+    }
+   ]
+  },
+  "r20": {
+   "name": "炉心",
+   "mood": "ruin_b4",
+   "map": {
+    "floor": "遺構 B4",
+    "x": 6,
+    "y": 3,
+    "w": 1,
+    "h": 1
+   },
+   "geometry": [
+    {
+     "t": "shell",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "size": [
+      20,
+      10,
+      20
+     ],
+     "thick": 1,
+     "ceiling": true,
+     "tint": "#3f3a52"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0,
+      2
+     ],
+     "size": [
+      5,
+      0.6,
+      5
+     ],
+     "tint": "#5a5272"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      0.6,
+      2
+     ],
+     "size": [
+      2.4,
+      3.4,
+      2.4
+     ],
+     "tint": "#6fe3d6"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      4.0,
+      2
+     ],
+     "size": [
+      3.2,
+      0.4,
+      3.2
+     ],
+     "tint": "#5a5272"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0.0,
+      0,
+      10.0
+     ],
+     "size": [
+      1.0,
+      9,
+      1.0
+     ],
+     "tint": "#2b2740"
+    },
+    {
+     "t": "box",
+     "pos": [
+      5.657,
+      0,
+      7.657
+     ],
+     "size": [
+      1.0,
+      9,
+      1.0
+     ],
+     "tint": "#2b2740"
+    },
+    {
+     "t": "box",
+     "pos": [
+      8.0,
+      0,
+      2.0
+     ],
+     "size": [
+      1.0,
+      9,
+      1.0
+     ],
+     "tint": "#2b2740"
+    },
+    {
+     "t": "box",
+     "pos": [
+      5.657,
+      0,
+      -3.657
+     ],
+     "size": [
+      1.0,
+      9,
+      1.0
+     ],
+     "tint": "#2b2740"
+    },
+    {
+     "t": "box",
+     "pos": [
+      0.0,
+      0,
+      -6.0
+     ],
+     "size": [
+      1.0,
+      9,
+      1.0
+     ],
+     "tint": "#2b2740"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5.657,
+      0,
+      -3.657
+     ],
+     "size": [
+      1.0,
+      9,
+      1.0
+     ],
+     "tint": "#2b2740"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -8.0,
+      0,
+      2.0
+     ],
+     "size": [
+      1.0,
+      9,
+      1.0
+     ],
+     "tint": "#2b2740"
+    },
+    {
+     "t": "box",
+     "pos": [
+      -5.657,
+      0,
+      7.657
+     ],
+     "size": [
+      1.0,
+      9,
+      1.0
+     ],
+     "tint": "#2b2740"
+    }
+   ],
+   "markers": {
+    "from_r19": {
+     "pos": [
+      0,
+      0,
+      -8
+     ],
+     "yaw": 0
+    },
+    "start": {
+     "pos": [
+      0,
+      0,
+      -8
+     ],
+     "yaw": 0
+    }
+   },
+   "playerStart": "from_r19",
+   "objective": "",
+   "lights": [
+    {
+     "pos": [
+      0,
+      3,
+      2
+     ],
+     "color": "#6fe3d6",
+     "range": 16,
+     "energy": 1.8
+    },
+    {
+     "pos": [
+      0,
+      9,
+      0
+     ],
+     "color": "#9a7cff",
+     "range": 18,
+     "energy": 0.8
+    }
+   ],
+   "props": [
+    {
+     "type": "exit",
+     "id": "ch1.r20.to_r19",
+     "to": "r19",
+     "spawn": "from_r20",
+     "pos": [
+      0,
+      0,
+      -9.4
+     ],
+     "size": [
+      5,
+      4,
+      1.2
+     ]
+    }
+   ],
+   "enemies": [],
+   "checkpoints": [
+    {
+     "id": "ch1.r20.cp",
+     "pos": [
+      0,
+      0,
+      -8
+     ],
+     "yaw": 0,
+     "radius": 4
+    }
+   ],
+   "triggers": [
+    {
+     "id": "ch1.r20.enter",
+     "pos": [
+      0,
+      0,
+      -5
+     ],
+     "size": [
+      14,
+      3,
+      3
+     ],
+     "event": "ch1.restart",
+     "cond": {
+      "not": "ch1.ordo_restarted"
+     }
+    }
+   ]
+  }
+ }
+}
