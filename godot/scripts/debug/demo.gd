@@ -264,7 +264,7 @@ func _ch1b_steps() -> Array:
 			if main.game.story.blocking():
 				main.game.story.confirm()
 	var late := ["ch1.got_spark", "ch1.ordo_stopped", "ch1.night"]
-	return [
+	var all := [
 		{"ticks": 230, "input": {}},
 		{"ticks": 2, "setup": func(): skip.call(30)},
 		{"ticks": 60, "input": {}},
@@ -310,6 +310,10 @@ func _ch1b_steps() -> Array:
 		{"ticks": 60, "input": {}},
 		{"ticks": 1, "check": func(): return _check(main.game.flag("ch1.complete"), "章末のフラグが立つ")},
 	]
+	# --only8：章末の場面だけ（撮り直し用）
+	if main.args.has("only8"):
+		return [{"ticks": 20, "input": {}}] + all.slice(all.size() - 8)
+	return all
 
 
 func _alive_count(kind: String) -> int:

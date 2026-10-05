@@ -713,6 +713,13 @@
     "message": "……やがて、夜が明けた"
    },
    {
+    "event": "ch1.dawn"
+   }
+  ]
+ },
+ "ch1.dawn": {
+  "steps": [
+   {
     "clear": "ch1.night"
    },
    {
@@ -846,8 +853,8 @@
     "camera": {
      "pos": [
       0,
-      16,
-      150
+      8,
+      30
      ],
      "height": 0,
      "time": 40.0,

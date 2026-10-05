@@ -380,7 +380,26 @@
     "if": "ch1.night",
     "then": [
      {
-      "message": "外が騒がしい。今は眠れそうにない。"
+      "if": "ch1.ordo_restarted",
+      "then": [
+       {
+        "freeze": true
+       },
+       {
+        "message": "ハルはベッドに倒れ込んで、そのまま眠った……"
+       },
+       {
+        "wait": 2.0
+       },
+       {
+        "event": "ch1.dawn"
+       }
+      ],
+      "else": [
+       {
+        "message": "外が騒がしい。今は眠れそうにない。"
+       }
+      ]
      }
     ],
     "else": [

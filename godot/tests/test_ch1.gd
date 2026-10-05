@@ -545,3 +545,30 @@ func test_chapter1_full_run() -> void:
 		h.expect(g.flag(n), "フラグ %s が立っている" % n)
 	h.expect(_in_order(names), "第 1 章のフラグ 17 個が決まった順に立つ（%s）" % str(order.filter(func(n): return names.has(n))))
 	h.free_game(g)
+
+
+## 再始動のあとの夜（セーブして中断した場合など）でも、ハルの家のベッドで休めば夜が明ける
+func test_sleep_after_restart_brings_morning() -> void:
+	var g := _new_game()
+	await h.settle()
+	for f in ["ch1.night", "ch1.ordo_stopped", "ch1.ordo_restarted", "ch1.debt_scene"]:
+		g.set_flag(f)
+	g.load_room("ch1.home", "from_lower")
+	await _pump(g, 6)
+	_warp(g, Vector3(-3, 0, 3.5))
+	await _use(g)
+	h.expect(await _pump(g, 3000, func(): return g.flag("ch1.morning") and not g.story.running_event()), "再始動のあとの夜は、ベッドで休むと朝になる")
+	h.expect(not g.flag("ch1.night") and g.room_id == "ch1.home", "夜が明けてハルの家で目覚める")
+	# 再始動の前の夜は、まだ眠れない
+	var g2 := _new_game()
+	await h.settle()
+	for f in ["ch1.night", "ch1.ordo_stopped", "ch1.debt_scene"]:
+		g2.set_flag(f)
+	g2.load_room("ch1.home", "from_lower")
+	await _pump(g2, 6)
+	_warp(g2, Vector3(-3, 0, 3.5))
+	await _use(g2)
+	await _pump(g2, 120)
+	h.expect(g2.flag("ch1.night") and not g2.flag("ch1.morning"), "再始動の前は眠れない")
+	h.free_game(g)
+	h.free_game(g2)
