@@ -133,6 +133,8 @@ LOCKS_AS_PARTS = CH.p('hair.LOCKS_AS_PARTS', False)
 FRINGE = CH.p('hair.FRINGE', ())
 # 耳のまわりの房を避ける範囲（耳の中心からの楕円体の半径の倍率）。房の点が入ると先を縮める
 EAR_CLEAR = CH.p('hair.EAR_CLEAR', 1.6)
+# 房の部品の断面：厚み / 幅、幅の下限（細い房は紙の切れ端のように見えた）
+LOCK_PART = CH.p('hair.LOCK_PART', {'thick': 0.34, 'w_min': 0.0})
 
 
 def lift_min(name: str) -> float:
@@ -1013,6 +1015,17 @@ def ears_field(lo, vox, shape) -> np.ndarray:
     return out
 
 
+def cap_cover(Cf: np.ndarray, S: np.ndarray, cut: np.ndarray, lo_b, vox: float, shp) -> np.ndarray:
+    """帽子が頭の骨を必ず覆う（CAP.cover_z より上、顔の範囲の外）：頭の面の 6mm 外までを帽子に足す。
+    寸法の表から作った頭（head.py）は外形から作った帽子と別なので、頭頂の前で頭の面が帽子の外へ出て肌の色の斑点になった（ヤーナ）"""
+    cz = CAP.get('cover_z')
+    if cz is None:
+        return Cf
+    _, _, zs = _grid(lo_b, vox, shp)
+    above = np.broadcast_to((zs - cz).astype(np.float32)[:, None, None], S.shape)
+    return np.maximum(Cf, smooth_min(smooth_min(S + 0.006, -cut, 0.01), above, 0.01))
+
+
 def skin_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo_b, vox: float, shp) -> tuple[Stack, np.ndarray]:
     """頭（顔・あご・頭の骨）＋鼻＋首の場と、その断面の表。chars/<id>.json に "head.HEAD" があれば、測った寸法の表から
     作る左右対称の解析的な頭（head.py。ヤーナ）。無ければ今までの絵の肌の幅を読む頭（skin_stack、ハル・バートン）"""
@@ -1057,6 +1070,7 @@ def build_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.ndar
     allowed = smooth_max(S - 0.002, -cut, 0.012)
     Cf = smooth_min(stack_field(cs, lo_b, vox, shp, 0), allowed, 0.012)
     del allowed
+    Cf = cap_cover(Cf, S, cut, lo_b, vox, shp)
     # 耳のまわりは帽子を 5mm 離す（耳が髪の中にうまらず見える）
     Cf = smooth_min(Cf, -(ears + 0.005), 0.004)
     log('髪の帽子', ci)
@@ -1166,7 +1180,7 @@ def lock_mesh(L: Lock, rtab: RadialTable, thick: float = 0.34, n: int = 22, root
     N = dirs - (dirs * T).sum(1, keepdims=True) * T
     N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-12)
     B = np.cross(T, N)
-    ring = [(0.0, 1.0), (1.0, 0.0), (0.0, -0.45), (-1.0, 0.0)]     # (B の向きの幅の比, N の向きの厚みの比)
+    ring = [(0.0, 1.0), (1.0, 0.0), (0.0, -0.6), (-1.0, 0.0)]     # (B の向きの幅の比, N の向きの厚みの比)
     k = len(ring)
     rings = np.stack([P + B * (w * cb)[:, None] + N * (h * cn)[:, None] for cb, cn in ring], 1)   # (n, k, 3)
     V = np.concatenate([rings[:-1].reshape(-1, 3), P[-1:], P[:1] - T[:1] * 0.002])
@@ -1207,7 +1221,7 @@ def ear_clear(L: Lock, rtab: RadialTable, thick: float = 0.34) -> Lock | None:
     return None
 
 
-def lock_parts(phi: np.ndarray, lo: np.ndarray, vox: float, thick: float = 0.34) -> list[tuple[str, np.ndarray, np.ndarray]]:
+def lock_parts(phi: np.ndarray, lo: np.ndarray, vox: float, thick: float | None = None) -> list[tuple[str, np.ndarray, np.ndarray]]:
     """LOCKS_AS_PARTS：形の段が当てはめた房（recon_report.json）と前髪の表 FRINGE を、面の部品にする。
     phi は形の段の場（hull.npz。房を含まない帽子＋頭）。返り値：[(名前, V, F)]"""
     with open(os.path.join(V.WORK, 'recon_report.json')) as fp:
@@ -1217,7 +1231,9 @@ def lock_parts(phi: np.ndarray, lo: np.ndarray, vox: float, thick: float = 0.34)
         r0, r1, lift, w = e[:4]
         locks.append(Lock(tuple(_unit(np.array(r0) - HEAD_C)), tuple(_unit(np.array(r1) - HEAD_C)), lift, w,
                           e[4] if len(e) > 4 else 'fringe'))
-    rtab = RadialTable(phi, lo, vox)
+    rtab = RadialTable(np.asarray(phi, np.float32), lo, vox)
+    thick = LOCK_PART['thick'] if thick is None else thick
+    locks = [Lock(L.root, L.tip, L.lift, max(L.width, LOCK_PART['w_min']), L.name) for L in locks]
     out = []
     for L in locks:
         L2 = L if L.name.startswith('fringe') else ear_clear(L, rtab, thick)
@@ -1253,6 +1269,7 @@ def part_fields_at(P: np.ndarray, x_half: float = 0.26, z0: float = 1.12) -> dic
     cs, _ = cap_stack(cams, masks, p, sk)
     cut = face_cut(lo_b, vox, shp, 0)
     Cf = smooth_min(stack_field(cs, lo_b, vox, shp, 0), smooth_max(Se - 0.002, -cut, 0.012), 0.012)
+    Cf = cap_cover(Cf, S, cut, lo_b, vox, shp)
     Cf = smooth_min(Cf, -(ears + 0.005), 0.004)
     base = smooth_max(Se, Cf, p['union_k'])
     gz = np.full(S.shape, -0.05, np.float32)

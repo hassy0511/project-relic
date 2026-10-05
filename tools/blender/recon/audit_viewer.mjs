@@ -54,10 +54,10 @@ const ZONES = {
   hips: { y: 0.66, dist: 1.25, fov: 30, el: [['level', 88], ['above', 62]] },
   legs: { y: 0.27, dist: 1.35, fov: 30, el: [['level', 88], ['above', 62]] },
   // 顔の確認（SKILL 7 の顔の表）：ユーザーの画面の正面の近写と ±30・±90 度、上から・下から
-  face: { y: 1.37, dist: 0.5, fov: 24, az: [0, 30, 330, 90, 270], el: [['level', 88], ['above', 65], ['below', 112]] },
+  face: { y: 1.36, dist: 0.75, fov: 26, az: [0, 30, 330, 90, 270], el: [['level', 88], ['above', 65], ['below', 112]] },
 };
 // 頭の高さはキャラクターごと（--head-y、身長 1.55m の座標の m。バートンは頭が小さく高い：1.43）
-if (args['head-y']) { ZONES.head.y = parseFloat(args['head-y']); ZONES.face.y = ZONES.head.y + 0.01; }
+if (args['head-y']) { ZONES.head.y = parseFloat(args['head-y']); ZONES.face.y = ZONES.head.y; }
 for (const z of Object.values(ZONES)) { z.y *= HS; z.dist *= HS; }
 const zones = (args.zones || 'full,head,torso,hips,legs').split(',');
 const AZ_NAME = { 0: 'front', 45: 'front-left', 90: 'left', 135: 'back-left', 180: 'back', 225: 'back-right',
