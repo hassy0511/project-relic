@@ -209,8 +209,12 @@ def island_merge(p, ns, rg, res, mesh, sel, cov, names) -> int:
     ukey, cell = np.unique(key, return_inverse=True)
     nc = len(ukey)
     carea = np.bincount(cell, area, nc)
-    cpos = np.stack([np.bincount(cell, p[:, i] * area, nc) for i in range(3)], 1) / carea[:, None]
-    cn = np.stack([np.bincount(cell, ns[:, i] * area, nc) for i in range(3)], 1)
+    # 面積 0 のテクセルだけの箱（ヤーナ：つぶれた三角形）は重みなしの平均（無いキャラクターでは今までどおり）
+    zero = carea <= 0
+    wa = np.where(zero[cell], 1.0, area) if zero.any() else area
+    carea_w = np.bincount(cell, wa, nc) if zero.any() else carea
+    cpos = np.stack([np.bincount(cell, p[:, i] * wa, nc) for i in range(3)], 1) / carea_w[:, None]
+    cn = np.stack([np.bincount(cell, ns[:, i] * wa, nc) for i in range(3)], 1)
     cn /= np.maximum(np.linalg.norm(cn, axis=1, keepdims=True), 1e-12)
     hist = np.zeros((nc, L))
     np.add.at(hist, (cell, lab), area)

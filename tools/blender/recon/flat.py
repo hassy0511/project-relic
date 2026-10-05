@@ -266,6 +266,16 @@ def paint_body(res: dict, mesh: dict, cams: dict | None = None) -> dict:
     ta = 0.5 * np.linalg.norm(np.cross(verts[tris[:, 1]] - verts[tris[:, 0]], verts[tris[:, 2]] - verts[tris[:, 0]]), axis=1)
     cnt = np.bincount(res['tri'], minlength=len(tris))
     area = (ta / np.maximum(cnt, 1))[res['tri']]
+    # 値の無いテクセル（ヤーナ：つぶれた三角形の位置・法線が nan）は、三角形の重心・上向きにして面積 0 に
+    # （無いキャラクターでは何もしない）
+    bad = ~(np.isfinite(pos).all(1) & np.isfinite(nrm).all(1) & np.isfinite(area))
+    if bad.any():
+        pos, nrm, area = pos.copy(), nrm.copy(), area.copy()
+        pos[bad] = verts[tris[res['tri'][bad]]].mean(1)
+        nrm[bad] = (0.0, 0.0, 1.0)
+        area[bad] = 0.0
+        res['pos'], res['nrm'] = pos, nrm         # 後の段（cover_body の近さの木）も nan で止まらないように
+        log(f'値の無いテクセル {int(bad.sum())} を直した')
     forbid = np.zeros((len(col), L), bool)
     for r, bad in FORBID.items():
         for k in bad:
@@ -293,10 +303,14 @@ def paint_body(res: dict, mesh: dict, cams: dict | None = None) -> dict:
     ukey, cell = np.unique(key, return_inverse=True)
     nc = len(ukey)
     carea = np.bincount(cell, area, nc)
-    cpos = np.stack([np.bincount(cell, pos[:, i] * area, nc) for i in range(3)], 1) / carea[:, None]
-    cnrm = np.stack([np.bincount(cell, nrm[:, i] * area, nc) for i in range(3)], 1)
+    # 面積 0 のテクセルだけの箱（ヤーナ：つぶれた三角形）は重みなしの平均（無いキャラクターでは area のまま）
+    zero = carea <= 0
+    wa = np.where(zero[cell], 1.0, area) if zero.any() else area
+    carea_w = np.bincount(cell, wa, nc) if zero.any() else carea
+    cpos = np.stack([np.bincount(cell, pos[:, i] * wa, nc) for i in range(3)], 1) / carea_w[:, None]
+    cnrm = np.stack([np.bincount(cell, nrm[:, i] * wa, nc) for i in range(3)], 1)
     cnrm /= np.maximum(np.linalg.norm(cnrm, axis=1, keepdims=True), 1e-12)
-    creg = np.bincount(cell, reg.astype(np.float64) * area, nc) / carea   # 箱は部位を鍵に含むので一つの値
+    creg = np.bincount(cell, reg.astype(np.float64) * wa, nc) / carea_w   # 箱は部位を鍵に含むので一つの値
     creg = np.rint(creg).astype(int)
     hist = np.zeros((nc, L))
     np.add.at(hist, (cell, lbl), area)
