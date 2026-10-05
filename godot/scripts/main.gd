@@ -7,6 +7,7 @@ extends Node
 ##       -- --arena=<型>            試しの部屋（直径 32 m の円形）から始める。型：mini（子番機）| shield（盾型）| floater（浮遊型）|
 ##                                 kannuki（ボス「閂」と壊れる柱 4 本）| all（3 種）。タイトルを飛ばし、HP 無限にはしない
 ##                                 （--god を足すと、やられない）。例：tools/godot.sh shot -- --arena=kannuki --god
+## ブラウザ版では URL の引数で同じことができる：…/project-relic/?arena=kannuki&god（demo 以外）
 
 const SAVE_PATH := "user://save_slot1.json"
 const AREA_ID := "area.mvp"
@@ -40,6 +41,13 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		var kv := a.trim_prefix("--").split("=", true, 1)
 		args[kv[0]] = kv[1] if kv.size() > 1 else "1"
+	# ブラウザ版：URL の ?arena=kannuki&god のような引数も同じに扱う（コマンドラインの引数が渡せないため）
+	if OS.has_feature("web"):
+		var q = JavaScriptBridge.eval("window.location.search", true)
+		if q is String:
+			for a in q.trim_prefix("?").split("&", false):
+				var kv := a.uri_decode().split("=", true, 1)
+				args[kv[0]] = kv[1] if kv.size() > 1 else "1"
 	InputSource.setup_actions()
 	input = InputSource.new()
 	add_child(input)

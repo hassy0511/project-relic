@@ -4,6 +4,7 @@
 > 詳しい経過は `progress.md`、発注書の一覧は `art_orders/README.md`。Codex に出す依頼文は 7 章。
 > ブラウザで見る：https://hassy0511.github.io/project-relic/dashboard/ （push のたびに自動で更新）
 > **テストプレイ**：https://hassy0511.github.io/project-relic/ （ブラウザで遊べる最新版。スマホでは画面の操作が自動で出る。push のたびに更新）
+> 試しの部屋（CP2 の段階 A）：ボス https://hassy0511.github.io/project-relic/?arena=kannuki ・ 番機 3 種 https://hassy0511.github.io/project-relic/?arena=all （`&god` を足すとやられない）
 > 3D モデルを回して見る：https://hassy0511.github.io/project-relic/models/ （4 章の「見る」から各モデルへ）
 > 最終更新：2026-10-06
 
