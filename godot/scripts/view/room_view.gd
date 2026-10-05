@@ -15,6 +15,14 @@ static func build(world: World, room_id: String) -> Node3D:
 		root = Node3D.new()
 		root.add_child(mesh_node(world.geometry(room_id)))
 	root.name = "Room"
+	# 部屋の明かり（街灯・窓・室内灯）：{ "lights": [ { "pos": [x,y,z], "color": "#ffb060", "range": 10, "energy": 1.5 } ] }
+	for l in r.get("lights", []):
+		var o := OmniLight3D.new()
+		o.position = RoomGeo.v3(l.pos)
+		o.light_color = Color(l.get("color", "#ffc87a"))
+		o.light_energy = float(l.get("energy", 1.5))
+		o.omni_range = float(l.get("range", 10.0))
+		root.add_child(o)
 	return root
 
 

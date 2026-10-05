@@ -2,11 +2,16 @@ class_name Hud
 extends CanvasLayer
 ## HUD（プレイ中の表示）と会話ウィンドウ。見た目は仮。Codex の UI デザイン（W2-08）が届いたら差し替える。
 
-const FACE_COLORS := {"ヤーナ": Color("#b5452f"), "ナゴミ": Color("#ffb23e"), "ハル": Color("#c9a46a")}
+const FACE_COLORS := {
+	"ヤーナ": Color("#b5452f"), "ナゴミ": Color("#ffb23e"), "ハル": Color("#c9a46a"), "バートン": Color("#4d6a8a"),
+	"トルーデ": Color("#7a5a8a"), "ニコ": Color("#3f9a8a"),
+}
 const AMBER := Color("#ffb23e")
 const PAPER := Color("#f3e9d2")
 
 var device := "keyboard"
+var _hint_data = ""
+var _hint: Label
 var _hp_fill: ColorRect
 var _hp_text: Label
 var _we_fill: ColorRect
@@ -131,6 +136,15 @@ func _ready() -> void:
 	_charge.add_theme_stylebox_override("fill", fill)
 	root.add_child(_charge)
 
+	_hint = make_label("", 24, Color("#ffe7b8"), true)
+	_hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_hint.position += Vector2(-520, 215)
+	_hint.custom_minimum_size = Vector2(1040, 0)
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hint.add_theme_stylebox_override("normal", panel_style(Color(0.05, 0.04, 0.03, 0.6), 8))
+	root.add_child(_hint)
+
 	_toast = make_label("", 26, PAPER, true)
 	_toast.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	_toast.position += Vector2(-500, 150)
@@ -216,6 +230,19 @@ func fade_in(seconds := 0.5) -> void:
 	_fade_time = seconds
 
 
+## 操作の案内（消すまで出し続ける）。hint：文字列、または { kb, pad, touch }。"" で消す
+func set_hint(hint) -> void:
+	_hint_data = hint
+
+
+func _hint_text() -> String:
+	if _hint_data is Dictionary:
+		var d: Dictionary = _hint_data
+		var key := "kb" if device == "keyboard" else device
+		return String(d.get(key, d.get("kb", "")))
+	return String(_hint_data)
+
+
 func show_toast(text: String) -> void:
 	_toast.text = text
 	_toast_time = 3.0
@@ -277,6 +304,11 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 	_charge.visible = ch > 0.15
 	var cfg: Dictionary = game.tuning.gun
 	_charge.value = minf(1.0, ch / cfg.chargeLv2Time) * 100.0
+
+	# 操作の案内（会話中は隠す）
+	var ht := _hint_text()
+	_hint.text = ht
+	_hint.visible = ht != "" and game.story.dialogue.is_empty()
 
 	# 会話
 	var d: Dictionary = game.story.dialogue

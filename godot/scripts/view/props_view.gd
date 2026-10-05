@@ -16,7 +16,7 @@ var _loot := {}
 var _door_amt := {}
 
 ## 住人の 3D モデル（絵から起こした GLB。tools/blender/recon/build_char.py）。無ければ従来の簡単な形で描く
-const NPC_MODELS := {"npc_yana": "res://assets/models/yana.glb"}
+const NPC_MODELS := {"npc_yana": "res://assets/models/yana.glb", "npc_burton": "res://assets/models/burton.glb"}
 ## 会話の行の顔（dialogue の face）→ 顔のテクスチャの 2×2 の区画（ヤーナ：0 通常、1 豪快に笑う、2 驚き、3 怒る）。
 ## 区画の無い顔は近いものか通常にする
 const NPC_FACES := {"normal": 0, "smile": 0, "smirk": 0, "serious": 0, "sad": 0, "laugh": 1, "surprised": 2, "angry": 3}
@@ -77,6 +77,14 @@ func build(game: GameSim) -> void:
 		cyl.cap_bottom = false
 		MeshKit.add(self, cyl, beam, b.pos + Vector3(0, 6.2, 0))
 		_beams.append(beam)
+	# 看板・名札（見た目だけ）：{ "type": "sign", "text": "ハルの家", "pos": [x,y,z], "size": 48 }。pos の高さに文字を浮かべる
+	for p in game.room.get("props", []):
+		if p.type == "sign":
+			var m := game.place(p)
+			var lb := MeshKit.label(String(p.text), 0.0, Color(p.get("color", "#ffe7b8")), int(p.get("size", 64)))
+			lb.position = m.pos
+			lb.no_depth_test = false
+			add_child(lb)
 	_build_world_objects(game)
 
 
@@ -158,7 +166,8 @@ func sync(game: GameSim, dt: float) -> void:
 			# 話している行の顔（この住人のセリフのときだけ。ほかは通常）
 			var d: Dictionary = game.story.dialogue
 			var face := 0
-			if not d.is_empty() and d.get("who", "") == n.name:
+			# 顔の区画（2×2）があるのはヤーナだけ。バートンは顔が 1 枚なので通常のまま
+			if n.id == "npc_yana" and not d.is_empty() and d.get("who", "") == n.name:
 				face = int(NPC_FACES.get(String(d.get("face", "normal")), 0))
 			_set_npc_face(info, face)
 	for beam in _beams:
@@ -204,6 +213,13 @@ func _add_npc_model(root: Node3D, path: String) -> Dictionary:
 		# 何人いても同じ動きにそろわないように、始めの時刻をずらす
 		anim.seek(fmod(absf(root.position.x * 0.37 + root.position.z * 0.23), 1.0) * anim.current_animation_length, true)
 	return {"anim": anim, "face_mats": face_mats, "expr": 0}
+
+
+## イベントで住人が去ったとき
+func hide_npc(id: String) -> void:
+	var r: Node3D = _npcs.get(id)
+	if r != null:
+		r.visible = false
 
 
 func _set_npc_face(info: Dictionary, i: int) -> void:

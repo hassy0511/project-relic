@@ -1,19 +1,22 @@
 {
   "start": {
-    "room": "mvp.main",
+    "room": "ch1.opening",
     "spawn": "start"
   },
   "areas": [
     "areas/mvp.json",
-    "areas/sample.json"
+    "areas/sample.json",
+    "areas/ch1_town.json"
   ],
   "dialogue": [
     "dialogue/mvp.json",
-    "dialogue/sample.json"
+    "dialogue/sample.json",
+    "dialogue/ch1_town.json"
   ],
   "events": [
     "events/mvp.json",
-    "events/sample.json"
+    "events/sample.json",
+    "events/ch1_town.json"
   ],
   "items": "items.json",
   "economy": "economy.json"

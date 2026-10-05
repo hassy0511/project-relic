@@ -62,6 +62,7 @@ class Npc:
 	var event := ""
 	var range_m := 2.2
 	var prompt := "話す"
+	var body = null
 
 	func _init(i: String, p: Vector3, y: float, n: String, t: String) -> void:
 		id = i

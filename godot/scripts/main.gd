@@ -8,6 +8,7 @@ extends Node
 ##                                 kannuki（ボス「閂」と壊れる柱 4 本）| all（3 種）。タイトルを飛ばし、HP 無限にはしない
 ##                                 （--god を足すと、やられない）。例：tools/godot.sh shot -- --arena=kannuki --god
 ##       -- --room=<部屋 id>[:<目印>]  その部屋から始める（例：--room=sample.gym  --room=sample.hub:from_gym）。タイトルを飛ばす
+##       -- --mvp                  第 1 章ではなく、古い試験場（mvp.main）から始める（開発用）
 ##       -- --flags=a,b             始めにフラグを立てておく（扉の条件などの確認用）
 ##       -- --items=a,b             始めにアイテムを持っておく（例：--items=special.drill,key.sample）
 ## ブラウザ版では URL の引数で同じことができる：…/project-relic/?arena=kannuki&god や ?room=sample.gym（demo 以外）
@@ -105,6 +106,7 @@ func _rebuild_room_views() -> void:
 	else:
 		level = RoomView.build(game.world, game.room_id)
 	add_child(level)
+	_apply_mood()
 	if enemy_view != null and is_instance_valid(enemy_view):
 		enemy_view.queue_free()
 	enemy_view = EnemyView.new()
@@ -114,6 +116,17 @@ func _rebuild_room_views() -> void:
 	props_view = PropsView.new()
 	views.add_child(props_view)
 	props_view.build(game)
+
+
+## 空と光の雰囲気：屋内の部屋は interior、屋外の部屋の mood（dawn など）、停電の夜（フラグ ch1.night）は night
+func _apply_mood() -> void:
+	var mood := "day"
+	if arena_kind == "":
+		var r: Dictionary = game.room
+		mood = String(r.get("mood", "day"))
+		if mood == "outdoor" or mood == "day":
+			mood = "night" if game.flag("ch1.night") else "day"
+	EnvironmentSetup.apply_mood(sun, mood)
 
 
 ## 試しの部屋に切り替えて始め直す（見本・確認用）
@@ -172,6 +185,8 @@ func start_game(save) -> void:
 		if args.has("room") and save == null:
 			var kv := String(args.room).split(":", true, 1)
 			init["start"] = {"room": kv[0], "spawn": kv[1] if kv.size() > 1 else "start"}
+		elif args.has("mvp") and save == null:
+			init["start"] = {"room": "mvp.main", "spawn": "start"}
 	game.setup(init)
 	if save == null:
 		for f in String(args.get("flags", "")).split(",", false):
@@ -191,6 +206,7 @@ func start_game(save) -> void:
 	fx = Fx.new()
 	views.add_child(fx)
 	menu.hide_menu()
+	hud.set_hint("")
 	hud.visible = true
 	state = "playing"
 	audio.play_music("bgm_trial")
@@ -321,6 +337,14 @@ func _handle_events() -> void:
 					hud.fade_in(0.6)
 			"snap":
 				snap_views()
+			"hint":
+				hud.set_hint(e.text)
+			"npcRemoved":
+				if props_view != null:
+					props_view.hide_npc(e.id)
+			"flagSet":
+				if e.name == "ch1.night":
+					_apply_mood()
 			"ui":
 				open_economy_ui(e.kind, e.id)
 			"music":

@@ -233,7 +233,7 @@ func _build_room() -> void:
 				var n := Props.Npc.new(p.id, m.pos, m.yaw, p.name, p.get("talk", ""))
 				n.event = p.get("event", "")
 				npcs.append(n)
-				phys.add_box(m.pos + Vector3(0, 0.8, 0), Vector3(0.3, 0.8, 0.3), Phys.TERRAIN)
+				n.body = phys.add_box(m.pos + Vector3(0, 0.8, 0), Vector3(0.3, 0.8, 0.3), Phys.TERRAIN)
 			"beacon":
 				var bc := Props.Beacon.new(p.id, m.pos)
 				bc.flag = p.get("flag", "")
@@ -379,6 +379,16 @@ func close_door(id: String) -> void:
 	set_flag("door." + id, false)
 	_door_body(d)
 	emit_event({"type": "doorClosed", "id": id})
+
+
+## 住人を今の部屋から消す（イベントで「走り去る」演出に使う。部屋に入り直すと when・unless どおりに戻る）
+func remove_npc(id: String) -> void:
+	for n in npcs.duplicate():
+		if n.id == id:
+			npcs.erase(n)
+			if n.body != null:
+				phys.remove(n.body)
+			emit_event({"type": "npcRemoved", "id": id})
 
 
 func group_cleared(g: String) -> bool:

@@ -45,4 +45,49 @@ static func build(parent: Node) -> DirectionalLight3D:
 	sun.shadow_normal_bias = 1.0
 	sun.directional_shadow_max_distance = 60.0
 	parent.add_child(sun)
+	sun.set_meta("env", env)
 	return sun
+
+
+## 時間帯・場所の雰囲気：day（既定）| dawn（夜明け）| night（停電の夜）| interior（屋内）
+static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
+	var env: Environment = sun.get_meta("env")
+	var sky: ProceduralSkyMaterial = env.sky.sky_material
+	match mood:
+		"dawn":
+			sky.sky_top_color = Color("#4f5f86")
+			sky.sky_horizon_color = Color("#f0a679")
+			sky.ground_horizon_color = Color("#b98a6a")
+			sun.light_color = Color("#ffc08a")
+			sun.light_energy = 1.1
+			sun.rotation_degrees = Vector3(-14, -150, 0)
+			env.ambient_light_energy = 0.7
+			env.fog_light_color = Color("#e5a782")
+		"night":
+			sky.sky_top_color = Color("#070b1c")
+			sky.sky_horizon_color = Color("#1e2748")
+			sky.ground_bottom_color = Color("#0a0a12")
+			sky.ground_horizon_color = Color("#1e2238")
+			sun.light_color = Color("#8fa6ff")
+			sun.light_energy = 0.28
+			sun.rotation_degrees = Vector3(-60, -150, 0)
+			env.ambient_light_energy = 0.4
+			env.fog_light_color = Color("#1c2340")
+		"interior":
+			sky.sky_top_color = Color("#6d6358")
+			sky.sky_horizon_color = Color("#a08a6c")
+			sun.light_color = Color("#ffe2b8")
+			sun.light_energy = 0.8
+			sun.rotation_degrees = Vector3(-60, -150, 0)
+			env.ambient_light_energy = 0.8
+			env.fog_light_color = Color("#8a7660")
+		_:
+			sky.sky_top_color = Color("#8fa6c4")
+			sky.sky_horizon_color = Color("#e7c29a")
+			sky.ground_bottom_color = Color("#5a4636")
+			sky.ground_horizon_color = Color("#c9a27e")
+			sun.light_color = Color("#fff1d6")
+			sun.light_energy = 1.6
+			sun.rotation_degrees = Vector3(-52, -150, 0)
+			env.ambient_light_energy = 0.9
+			env.fog_light_color = Color("#d9b58f")

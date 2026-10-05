@@ -289,6 +289,7 @@ func _process(_dt: float) -> void:
 		for i in 10:
 			await get_tree().process_frame
 		await _shoot("00_title")
+		main.args["mvp"] = "1"   # 見本の前半は古い試験場（mvp.main）で進める
 		main.start_game(null)
 		main.game.god_mode = true
 		for i in 30:

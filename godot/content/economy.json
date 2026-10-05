@@ -14,6 +14,11 @@
           "count": 3
         }
       ]
+    },
+    "junk": {
+      "name": "ジャンク屋",
+      "buys_relics": true,
+      "stock": []
     }
   },
   "workshops": {
