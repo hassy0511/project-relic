@@ -1237,7 +1237,14 @@ def lock_parts(phi: np.ndarray, lo: np.ndarray, vox: float, thick: float | None 
     out = []
     for L in locks:
         L2 = L if L.name.startswith('fringe') else ear_clear(L, rtab, thick)
-        if L2 is None:
+        # 刈り上げのえり足より下へ下がる房（下の輪の房が首の後ろへ尾のように垂れた）は先を縮める
+        zmin = LOCK_PART.get('z_min')
+        for _ in range(14):
+            if L2 is None or zmin is None or lock_samples(L2, rtab, thick)[0][:, 2].min() >= zmin:
+                break
+            L3 = perturb(L2, 'len', -5.0)
+            L2 = None if L3 is L2 else Lock(L3.root, L3.tip, L3.lift * 0.9, L3.width, L3.name)
+        if L2 is None or (zmin is not None and lock_samples(L2, rtab, thick)[0][:, 2].min() < zmin):
             continue
         Vm, Fm = lock_mesh(L2, rtab, thick)
         out.append((L2.name, Vm, Fm))
