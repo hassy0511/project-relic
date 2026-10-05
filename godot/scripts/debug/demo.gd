@@ -69,6 +69,7 @@ func _ready() -> void:
 	if main.args.has("arena_only"):
 		_steps.clear()
 	_steps.append_array(_arena_steps())
+	_steps.append_array(_world_steps())
 	_steps.append({"ticks": 1, "done": true})
 
 
@@ -77,6 +78,50 @@ func _arena_start(kind: String) -> void:
 	main.load_arena(kind)
 	main.game.god_mode = true
 	_seen.clear()
+
+
+## 世界と進行の見本（動作確認用の小エリア sample）：鍵つきの扉・宝箱・動力の仕掛け・部屋の移動・セーブからの復帰
+func _world_steps() -> Array:
+	var shoot := func(target: Vector3):
+		main.game.spawn_player_shot({"origin": target + Vector3(0, 0, -6), "dir": Vector3(0, 0, 1), "speed": 40.0, "range": 30.0, "damage": 5.0, "radius": 0.2, "pierce": false, "kind": "normal"})
+	return [
+		{"ticks": 2, "setup": func():
+			main.arena_kind = ""
+			main.args["room"] = "sample.hub"
+			main.start_game(null)
+			main.game.god_mode = true
+			_stand(Vector3(-6.4, 0, 8), Vector3(-8, 0, 8))},
+		{"ticks": 20, "input": {}},
+		{"ticks": 1, "shot": "20_world_hub", "input": {}},
+		{"ticks": 2, "input": {"jump": true}},
+		{"ticks": 2, "input": {}},
+		{"ticks": 1, "check": func(): return _check(main.game.has_item("key.sample") and main.game.flag("chest.sample.key_chest"), "宝箱から鍵が手に入る（開けたことが記録される）")},
+		{"ticks": 2, "setup": func(): _stand(Vector3(0, 0, 10.4), Vector3(0, 0, 13))},
+		{"ticks": 20, "input": {}},
+		{"ticks": 2, "input": {"jump": true}},
+		{"ticks": 40, "input": {}},
+		{"ticks": 1, "shot": "21_world_door", "check": func(): return _check(main.game.doors[0].is_open, "鍵で施錠された扉が開く")},
+		{"ticks": 150, "input": {"move_y": 1.0}},
+		{"ticks": 20, "input": {}},
+		{"ticks": 1, "shot": "22_world_vault", "check": func(): return _check(main.game.room_id == "sample.vault", "開いた扉の奥の部屋に移る")},
+		{"ticks": 2, "setup": func(): main.game.go_to("gym", "from_hub")},
+		{"ticks": 30, "input": {}},
+		{"ticks": 1, "shot": "23_world_gym", "check": func(): return _check(main.game.room_id == "sample.gym", "別の部屋へ移れる")},
+		{"ticks": 2, "setup": func():
+			shoot.call(Vector3(-6, 1.5, 12))
+			shoot.call(Vector3(6, 1.5, 12))},
+		{"ticks": 20, "input": {}},
+		{"ticks": 1, "check": func(): return _check(main.game.flag("switch.s1") and main.game.flag("switch.s2"), "動力の球を撃つと動力が通る")},
+		{"ticks": 2, "setup": func(): _stand(Vector3(0, 0.5, 9), Vector3(0, 0, 16))},
+		{"ticks": 150, "input": {}},
+		{"ticks": 1, "shot": "24_world_lift", "check": func(): return _check(main.game.player.pos.y > 3.5, "上がる足場がハルを運ぶ")},
+		{"ticks": 2, "setup": func():
+			var save = JSON.parse_string(JSON.stringify(main.game.to_save()))
+			main.start_game(save)},
+		{"ticks": 20, "input": {}},
+		{"ticks": 1, "check": func():
+			return _check(main.game.room_id == "sample.gym" and main.game.flag("switch.s1") and main.game.movers[0].pos.y > 3.9, "セーブから復帰すると部屋・フラグ・足場の状態が戻る")},
+	]
 
 
 func _alive_count(kind: String) -> int:

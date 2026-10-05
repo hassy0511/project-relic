@@ -107,7 +107,7 @@ func setup(init: Dictionary) -> void:
 	if save != null:
 		_restore_flags(save)
 		var rid := String(save.get("room", ""))
-		load_room(rid if world.has_room(rid) else world.start.room, "")
+		load_room(rid if world.has_room(rid) else world.start.room, "", Vector3(save.pos[0], save.pos[1], save.pos[2]), float(save.yaw))
 		_apply_save(save)
 	else:
 		var st: Dictionary = init.get("start", world.start)
