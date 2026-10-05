@@ -177,22 +177,23 @@ def prosthetic() -> list[dict]:
     P.append(dict(name='pros_shoulder', bone='upper_arm.R', color='ivory', frame=fsp,
                   outline=octagon(-0.068, 0.062, -0.066, 0.066, 0.026), off=0.010, thick=0.010, bevel=0.004,
                   under='graphite', rmax=0.13, rmin=0.03, h=0.006))
+    # 1 周目は暗い輪が太く高く、白い板と同じ高さで縞の筒に見えた → 暗い輪は細く、板より奥（板の縁の下へ少し入る）
     rings = [  # (名前, 色, 軸, t0, t1, 浮き, 厚み, 面の数)
-        ('pros_ring_u', 'graphite', fu, 0.028, 0.072, 0.003, 0.009, 16),
-        ('pros_upper', 'ivory', fu, 0.078, Lu - 0.030, 0.004, 0.010, 8),
-        ('pros_elbow', 'graphite', ff, -0.026, 0.030, 0.004, 0.012, 16),
-        ('pros_fore', 'ivory', ff, 0.036, Lf - 0.034, 0.004, 0.010, 8),
-        ('pros_wrist', 'graphite', ff, Lf - 0.030, Lf + 0.008, 0.003, 0.008, 16),
+        ('pros_ring_u', 'graphite', fu, 0.034, 0.066, 0.000, 0.007, 16),
+        ('pros_upper', 'ivory', fu, 0.064, Lu - 0.020, 0.004, 0.012, 8),
+        ('pros_elbow', 'graphite', ff, -0.024, 0.024, 0.000, 0.008, 16),
+        ('pros_fore', 'ivory', ff, 0.022, Lf - 0.026, 0.004, 0.012, 8),
+        ('pros_wrist', 'graphite', ff, Lf - 0.028, Lf + 0.008, 0.000, 0.007, 16),
     ]
     for nm, col, fr, t0, t1, off, th, n in rings:
         P.append(dict(name=nm, bone='upper_arm.R' if fr is fu else 'forearm.R', color=col, frame=fr, ring=True,
                       t0=t0, t1=t1, off=off, thick=th, bevel=0.003, under='graphite', rmax=0.10, n_ring=n,
                       sink=0.006))
     # 琥珀の円（関節の外の前）：肩の下の輪・肘
-    for nm, fr, tc, rr, ang in (('pros_amber_u', fu, 0.050, 0.014, -25.0), ('pros_amber_e', ff, 0.002, 0.015, -10.0)):
+    for nm, fr, tc, rr, ang in (('pros_amber_u', fu, 0.050, 0.012, -25.0), ('pros_amber_e', ff, 0.0, 0.013, -10.0)):
         sc = math.radians(ang) * fr['RN']
         P.append(dict(name=nm, bone='upper_arm.R' if fr is fu else 'forearm.R', color='amber', frame=fr,
-                      outline=octagon(sc - rr, sc + rr, tc - rr, tc + rr, rr * 0.3), off=0.014, thick=0.004,
+                      outline=octagon(sc - rr, sc + rr, tc - rr, tc + rr, rr * 0.3), off=0.008, thick=0.004,
                       bevel=0.002, rmax=0.10, h=0.004))
     return P
 
@@ -203,10 +204,11 @@ def apron() -> list[dict]:
     P = []
     front = np.array([0.0, -1.0, 0.0])
     back = np.array([0.0, 1.0, 0.0])
+    # RN は胴の半径（s ≈ x）。1 周目の 0.13 では s が x より小さく、背当てが肩ひもの外まで横へ回り込んだ
     fw = frame((0.0, 0.0, 0.0), (0.0, 0.0, 1.0), front)
-    fw['RN'] = 0.13
+    fw['RN'] = 0.155
     fb = frame((0.0, 0.0, 0.0), (0.0, 0.0, 1.0), back)
-    fb['RN'] = 0.13
+    fb['RN'] = 0.155
     b = BIB
     # 胸当て（前、s ≈ x）
     P.append(dict(name='bib', bone='chest', color='brick', frame=fw,
@@ -489,7 +491,8 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
     dr = (Er - Sr) / np.linalg.norm(Er - Sr)
     tr = (pos - Sr) @ dr
     rrr = np.linalg.norm((pos - Sr) - np.outer(tr, dr), axis=1)
-    rarm = free & (x < -0.17) & (z < 1.16) & ((rrr < 0.09) | (z < 0.96)) & (z > 0.70)
+    # 1 周目は肩の板の外の胸・わきまで暗くなった → 肩の板の下の縁（z 1.08）より下の腕だけ
+    rarm = free & (x < -0.19) & (z < 1.08) & ((rrr < 0.07) | (z < 0.96)) & (z > 0.70)
     under[rarm] = NAMES.index('graphite')
     # 首（シャツの首の縁より上）：肌
     neck = free & ~head & (z > 1.205) & (r_neck < 0.09)
@@ -509,7 +512,8 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
         lab_h[zh < 1.205] = NAMES.index('ivory')
         th_f = np.degrees(np.arctan2(np.abs(xh + 0.012), -(yh - 0.01)))
         zb = np.interp(th_f, HAIR_LOW[0], HAIR_LOW[1])
-        low = (th_f > 50.0) & (zh > zb) & ~ear & (f['skin'] < 0.004)
+        # 角度の表の髪は耳より後ろ（えり足）だけ。1 周目は 50 度から使い、ほおの横が髪の色になった
+        low = (th_f > 100.0) & (zh > zb) & ~ear
         lab_h[hair | low] = NAMES.index('hair')
         lab_h[ear] = NAMES.index('skin')
         keep = under[hi] >= 0
