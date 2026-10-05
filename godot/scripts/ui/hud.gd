@@ -352,7 +352,7 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 	_cells.text = "セル %d" % game.cells
 	_cells.modulate.a = 1.0 if _cells_time > 0.0 else 0.4
 	_objective.text = "目的：%s" % game.objective if game.objective != "" else ""
-	_objective.visible = game.objective != ""
+	_objective.visible = game.objective != "" and bs.is_empty()
 
 	# 調べる・話すの案内
 	var f = game.focus

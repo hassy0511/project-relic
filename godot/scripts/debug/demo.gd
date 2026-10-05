@@ -17,6 +17,17 @@ var _started := false
 var _shooting := false
 var failures: Array = []
 var _seen := {}
+## 通しの自動操作（--ch1_full）：Ch1Run が tick() で 1 刻みずつ入力を渡す
+var _bot_active := false
+var _bot_frame := {}
+var _bot_consumed := false
+var bot_ticks := 0
+var shots_taken := 0
+var _ui_shots := 0
+## 何刻みごとに撮るか（1800 刻み = ゲーム内の 30 秒）
+var bot_shot_every := 1800
+signal bot_ticked
+signal bot_shot_done
 
 
 func _init(m, dir: String) -> void:
@@ -26,6 +37,9 @@ func _init(m, dir: String) -> void:
 
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(out_dir)
+	# 画面あり（xvfb など）のときは、撮る間だけ描く（描かない刻みは速く進む。通しの自動操作が現実的な時間で終わる）
+	if DisplayServer.get_name() != "headless":
+		RenderingServer.render_loop_enabled = false
 	_steps = [
 		# F2 の見た目の切り替え（行って戻る）
 		{"ticks": 2, "setup": func(): main.toggle_haru()},
@@ -66,9 +80,14 @@ func _ready() -> void:
 		{"ticks": 1, "shot": "07_after_drill", "check": func(): return _check(main.game.breakables[0].broken, "ドリルで壁を壊せる")},
 	]
 	# 引数 --arena_only：試しの部屋の場面だけ（画面の確認を早く撮るため）
-	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots"):
+	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("cp2d_shots"):
 		_steps.clear()
-	if main.args.has("ch1_shots"):
+	if main.args.has("ch1_full"):
+		_steps.clear()
+	elif main.args.has("cp2d_shots"):
+		_steps.clear()
+		_steps.append_array(_cp2d_steps())
+	elif main.args.has("ch1_shots"):
 		_steps.append_array(_ch1_steps())
 	elif main.args.has("ruins_shots"):
 		_steps.append_array(_ruins_survey_steps())
@@ -78,7 +97,9 @@ func _ready() -> void:
 		if not main.args.has("world_only"):
 			_steps.append_array(_arena_steps())
 		_steps.append_array(_world_steps())
-	_steps.append({"ticks": 1, "done": true})
+		_steps.append_array(_cp2d_steps())
+	if not main.args.has("ch1_full"):
+		_steps.append({"ticks": 1, "done": true})
 
 
 ## 試しの部屋の見本：新しい試合を始め、決まった場面を作って確かめる（やられないように god_mode）
@@ -425,6 +446,68 @@ func _arena_steps() -> Array:
 	return steps
 
 
+## 段階 D（音と UI）の画面の確認：ポーズ（地図）・持ち物・店・工房・顔のアイコンつきの会話・ボス戦の字幕
+func _cp2d_steps() -> Array:
+	var prep := func(room: String):
+		main.arena_kind = ""
+		main.args["room"] = room
+		main.start_game(null)
+		var g: GameSim = main.game
+		g.god_mode = true
+		for f in ["ch1.chores_started", "ch1.nico_rescued", "ch1.scolded", "ch1.debt_scene", "ch1.got_spark",
+				"visited.ch1.training", "visited.ch1.lower", "visited.ch1.mid", "visited.ch1.upper", "visited.ch1.r01", "visited.ch1.r02", "visited.ch1.r03"]:
+			g.set_flag(f)
+		g.give_cells(340)
+		g.give_item("weapon.spark")
+		g.give_item("chip.charge")
+		g.give_item("frame.vestige")
+		g.add_material("scrap", 1)
+		g.relics["relic.old_gear"] = true
+		g.relics["relic.broken_lens"] = true
+		g.guild_points = 20
+		g.objective = "遺構の奥へ進み、動力の中継器を探す"
+		g.drain_events()
+	return [
+		{"ticks": 2, "setup": func(): prep.call("ch1.mid")},
+		{"ticks": 30, "input": {}},
+		{"ticks": 1, "check": func(): return _check(main.audio.current_music == "bgm_town_day", "昼の町では昼の町の曲が鳴る（%s）" % main.audio.current_music)},
+		{"ticks": 1, "shot": "01_pause_map", "setup": func():
+			main.pause()
+			main.menu.show_pause(main, 3),
+			"check": func(): return _check(main.menu.is_open() and main.state == "paused", "ポーズ画面が開く"),
+			"after": func(): main.resume()},
+		{"ticks": 1, "shot": "02_inventory", "setup": func():
+			main.pause()
+			main.menu.show_pause(main, 2),
+			"after": func(): main.resume()},
+		{"ticks": 1, "shot": "03_shop", "setup": func(): main.open_economy_ui("shop", "zakka"),
+			"after": func(): main.resume()},
+		{"ticks": 1, "shot": "04_workshop", "setup": func(): main.open_economy_ui("workshop", "yana", 1),
+			"after": func(): main.resume()},
+		{"ticks": 1, "check": func(): return _check(not main.menu.is_open() and main.state == "playing", "画面を閉じるとゲームに戻る")},
+		{"ticks": 2, "setup": func(): main.game.story.start_dialogue("ch1.debt")},
+		{"ticks": 100, "input": {}},
+		{"ticks": 1, "shot": "05_dialogue", "input": {}, "check": func():
+			return _check(main.hud._dlg_icon.visible and main.hud._dlg_icon.texture != null, "ヤーナの会話に顔のアイコンが出る")},
+		{"ticks": 2, "setup": func():
+			prep.call("ch1.r19")
+			pass},
+		{"ticks": 400, "input_fn": func(i): return {"jump": i % 20 < 2 and not main.game.story.dialogue.is_empty()}},
+		{"ticks": 2, "setup": func():
+			main.game.player.teleport(Vector3(0, 0, 6), PI)
+			main.game.cam.yaw = PI
+			main.snap_views()},
+		{"ticks": 240, "input": {}},
+		{"ticks": 2, "setup": func():
+			main._lines.clear()
+			main._line_time = 0.0
+			main.game.emit_event({"type": "bossLine", "who": "閂", "text": "……侵入者……回収屋の印を確認……排除する……"})},
+		{"ticks": 40, "input": {}},
+		{"ticks": 1, "shot": "06_boss_subtitle", "input": {}, "check": func():
+			return _check(main.hud.subtitle_text().contains("排除") and main.audio.current_music == "bgm_boss", "ボス戦の字幕と、ボスの曲（%s）" % main.audio.current_music)},
+	]
+
+
 func _check(cond: bool, what: String) -> bool:
 	print(("✓ " if cond else "✗ ") + what)
 	if not cond:
@@ -448,6 +531,8 @@ func holding() -> bool:
 
 ## 1 刻み分の入力（main の _physics_process から呼ばれる）
 func next_input() -> InputFrame:
+	if _bot_active:
+		return _bot_input()
 	if _step >= _steps.size():
 		return InputFrame.new()
 	var s: Dictionary = _steps[_step]
@@ -473,6 +558,69 @@ func next_input() -> InputFrame:
 	return InputFrame.of(d)
 
 
+## 通しの自動操作：前の刻みの入力が使われたら、操作役（Ch1Run）を 1 刻み進めて次の入力をもらう
+func _bot_input() -> InputFrame:
+	if _bot_consumed:
+		_bot_consumed = false
+		bot_ticks += 1
+		if bot_shot_every > 0 and bot_ticks % bot_shot_every == 0 and _pending_shot == "":
+			_pending_shot = "auto_%04d" % (bot_ticks / bot_shot_every)
+		bot_ticked.emit()
+	_bot_consumed = true
+	var f := InputFrame.of(_bot_frame)
+	_bot_frame = {}
+	return f
+
+
+## --- Ch1Run の運転役の窓口 ---
+func tick(f: Dictionary) -> void:
+	_bot_frame = f
+	await bot_ticked
+
+
+func shot(shot_name: String) -> void:
+	_pending_shot = shot_name
+	await bot_shot_done
+
+
+func milestone(shot_name: String) -> void:
+	await shot(shot_name)
+
+
+func after_warp() -> void:
+	main.snap_views()
+
+
+## 「はじめから」から「第 1 章 クリア」までを、実際のゲームの進行（画面・音・UI つき）の中で自動で遊ぶ
+func _run_bot() -> void:
+	var t0 := Time.get_ticks_msec()
+	var g: GameSim = main.game
+	g.god_mode = true
+	_bot_active = true
+	var run := Ch1Run.new(self, self)
+	await run.play_all(g)
+	_bot_active = false
+	var secs := Time.get_ticks_msec() - t0
+	var game_secs: float = g.play_time
+	print("通し：ゲーム内 %d 分 %d 秒（%d 刻み）、実時間 %.1f 秒、撮影 %d 枚、フラグ ch1.complete=%s" % [
+		int(game_secs / 60.0), int(game_secs) % 60, bot_ticks, secs / 1000.0, shots_taken, str(g.flag("ch1.complete"))])
+	_check(g.flag("ch1.complete"), "自動操作が第 1 章をクリアまで遊びきる")
+	_finish()
+
+
+## Ch1Run の確認用（TestHelpers と同じ形）
+func expect(cond: bool, msg: String) -> void:
+	_check(cond, msg)
+
+
+func near(a: float, b: float, tol: float, msg: String) -> void:
+	_check(absf(a - b) <= tol, "%s（%.3f、期待 %.3f±%.3f）" % [msg, a, b, tol])
+
+
+func between(v: float, lo: float, hi: float, msg: String) -> void:
+	_check(v > lo and v < hi, "%s（%.3f、期待 %.3f〜%.3f）" % [msg, v, lo, hi])
+
+
 func _process(_dt: float) -> void:
 	if not _started:
 		_started = true
@@ -480,6 +628,12 @@ func _process(_dt: float) -> void:
 		for i in 10:
 			await get_tree().process_frame
 		await _shoot("00_title")
+		if main.args.has("ch1_full"):
+			main.start_game(null)
+			for i in 30:
+				await get_tree().physics_frame
+			_run_bot()
+			return
 		if not (main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots")):
 			main.args["mvp"] = "1"   # 見本の前半は古い試験場（mvp.main）で進める
 		main.start_game(null)
@@ -487,12 +641,20 @@ func _process(_dt: float) -> void:
 		for i in 30:
 			await get_tree().physics_frame
 		_pending_shot = "01_start"
+	# 通しの自動操作：店・工房・ギルドの画面が開いたら、撮ってから閉じる（プレイヤーなら選んで閉じる）
+	if _bot_active and main.state == "paused" and main.menu.is_open() and _pending_shot == "" and not _shooting:
+		_ui_shots += 1
+		_cur = {"after": func(): main.resume()}
+		_pending_shot = "ui_%02d" % _ui_shots
 	if _pending_shot != "" and not _shooting:
 		_shooting = true
 		var name := _pending_shot
 		await _shoot(name)
+		if _cur.has("after"):
+			_cur.after.call()
 		_pending_shot = ""
 		_shooting = false
+		bot_shot_done.emit()
 
 
 func _shoot(name: String) -> void:
@@ -500,9 +662,11 @@ func _shoot(name: String) -> void:
 	if DisplayServer.get_name() == "headless":
 		await get_tree().process_frame
 		return
+	RenderingServer.render_loop_enabled = true
 	await RenderingServer.frame_post_draw
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
+	RenderingServer.render_loop_enabled = false
 	var path := "%s/%s.png" % [out_dir, name]
 	if main.args.has("jpg"):
 		# 小さな JPEG（docs/progress_shots 用）
@@ -511,9 +675,11 @@ func _shoot(name: String) -> void:
 		img.save_jpg(path, 0.82)
 	else:
 		img.save_png(path)
+	shots_taken += 1
 	print("撮影：", path)
 
 
 func _finish() -> void:
+	RenderingServer.render_loop_enabled = true
 	print("見本の完了（失敗 %d 件）" % failures.size())
 	get_tree().quit(1 if failures.size() > 0 else 0)

@@ -164,7 +164,7 @@ func _screen(title: String, sub: String, rows: Array, focus := 0, back := Callab
 	_root.add_child(center)
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", Hud.panel_style(Color(0.11, 0.09, 0.07, 0.96), 14))
-	panel.custom_minimum_size = Vector2(1560, 880)
+	panel.custom_minimum_size = Vector2(1560, 940)
 	center.add_child(panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 12)
@@ -182,7 +182,7 @@ func _screen(title: String, sub: String, rows: Array, focus := 0, back := Callab
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(body)
 	var left := ScrollContainer.new()
-	left.custom_minimum_size = Vector2(640, 640)
+	left.custom_minimum_size = Vector2(640, 730)
 	left.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	left.follow_focus = true
 	body.add_child(left)
