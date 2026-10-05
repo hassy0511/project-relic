@@ -86,6 +86,24 @@ func make_game(opts: Dictionary = {}) -> GameSim:
 	return g
 
 
+## 世界のデータ（World.from_dict の形）から、部屋の移動つきのゲームを作る。opts：{ save?, start? }
+func make_world_game(world_dict: Dictionary, opts: Dictionary = {}) -> GameSim:
+	var g := GameSim.new()
+	var vp := SubViewport.new()
+	vp.own_world_3d = true
+	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	vp.size = Vector2i(2, 2)
+	tree.root.add_child(vp)
+	vp.add_child(g)
+	var init := {
+		"world": World.from_dict(world_dict), "tuning": default_tuning(), "seed": 1, "save": opts.get("save"),
+	}
+	if opts.has("start"):
+		init["start"] = opts.start
+	g.setup(init)
+	return g
+
+
 ## 物理の世界に反映させるため、1 刻み待つ（作った直後に呼ぶ）
 func settle() -> void:
 	await tree.physics_frame
@@ -97,6 +115,17 @@ func run(g: GameSim, ticks: int, input) -> void:
 		await tree.physics_frame
 		var d: Dictionary = input.call(i) if input is Callable else input
 		g.step(InputFrame.of(d))
+
+
+## cond が真になるか max_ticks に達するまで進める。返り値：真になったか
+func run_until(g: GameSim, max_ticks: int, input, cond: Callable) -> bool:
+	for i in max_ticks:
+		await tree.physics_frame
+		var d: Dictionary = input.call(i) if input is Callable else input
+		g.step(InputFrame.of(d))
+		if cond.call():
+			return true
+	return false
 
 
 func free_game(g: GameSim) -> void:

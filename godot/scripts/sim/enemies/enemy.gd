@@ -5,6 +5,10 @@ extends RefCounted
 
 var game
 var kind := "enemy"
+## 部屋のデータで付ける名前・グループ・「倒したら二度と出ない」
+var id := ""
+var group := ""
+var once := false
 var pos := Vector3.ZERO
 var home := Vector3.ZERO
 var vel := Vector3.ZERO
