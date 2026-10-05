@@ -528,6 +528,57 @@ def strap_push(co: np.ndarray, hair: np.ndarray | None = None) -> tuple[np.ndarr
     return out, int((over > 1e-4).sum())
 
 
+def build_tube(spec: dict, bvh) -> tuple[np.ndarray, np.ndarray, dict]:
+    """房の形の部品（白髪の房など）：頭の縦の軸のまわりの (正面からの角度, 高さ) の道に沿って、外の面（体の面＝髪の外側）の上に
+    葉の形の断面（根元の 30% で最も広く、先がとがる）を並べた管。spec['tube'] = {axis: (x, y), side: ±1, path: [(角度, z), ...],
+    width, thick, lift: (根, 先)}。色は部品ごとの 1 色なので、房全体が 1 色になる（塗りの縁が無い）"""
+    tb = spec['tube']
+    ax = np.array(tb['axis'], float)
+    side = float(tb.get('side', 1.0))
+    path = np.array(tb['path'], float)
+    n = int(tb.get('n', 28))
+    t = np.linspace(0.0, 1.0, n)
+    kp = np.linspace(0.0, 1.0, len(path))
+    th = np.radians(np.interp(t, kp, path[:, 0]))
+    zz = np.interp(t, kp, path[:, 1])
+    dirs = np.stack([side * np.sin(th), -np.cos(th), np.zeros(n)], 1)
+    R0 = 0.30
+    org = np.stack([ax[0] + R0 * dirs[:, 0], ax[1] + R0 * dirs[:, 1], zz], 1)
+    d = cast(bvh, org, -dirs, R0)
+    rs = R0 - np.where(np.isfinite(d), d, R0 - 0.08)
+    rs = np.convolve(np.pad(rs, 2, mode='edge'), np.ones(5) / 5, mode='valid')     # 面の凸凹で波打たないように
+    lift = tb['lift'][0] + (tb['lift'][1] - tb['lift'][0]) * t ** 2
+    w = tb['width'] * 0.5 * (1 - t) ** 0.8 * (0.75 + 0.8 * t) + 0.0012
+    h = np.maximum(w * tb.get('thick', 0.35), 0.0015)
+    C = np.stack([ax[0] + (rs + lift + 0.25 * h) * dirs[:, 0], ax[1] + (rs + lift + 0.25 * h) * dirs[:, 1], zz], 1)
+    T = np.gradient(C, axis=0)
+    T /= np.maximum(np.linalg.norm(T, axis=1, keepdims=True), 1e-12)
+    N = dirs - (dirs * T).sum(1, keepdims=True) * T
+    N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-12)
+    B = np.cross(T, N)
+    k = 12
+    a = np.linspace(0, 2 * np.pi, k, endpoint=False)
+    rings = C[:, None] + B[:, None] * (w[:, None, None] * np.cos(a)[None, :, None]) \
+        + N[:, None] * (h[:, None, None] * np.sin(a)[None, :, None])
+    V = np.concatenate([rings.reshape(-1, 3), C[:1], C[-1:]])
+    F = []
+    for i in range(n - 1):
+        for j in range(k):
+            a0, a1 = i * k + j, i * k + (j + 1) % k
+            b0, b1 = a0 + k, a1 + k
+            F += [(a0, b0, b1), (a0, b1, a1)]
+    c0, c1 = n * k, n * k + 1
+    for j in range(k):
+        F.append((c0, (j + 1) % k, j))
+        F.append((c1, (n - 1) * k + j, (n - 1) * k + (j + 1) % k))
+    F = np.array(F, np.int64)
+    # 面の向きを外へ（閉じた形の符号つきの体積が正）
+    vol = np.einsum('ij,ij->i', V[F[:, 0]], np.cross(V[F[:, 1]], V[F[:, 2]])).sum()
+    if vol < 0:
+        F = F[:, ::-1]
+    return V, F, {'hit': int(np.isfinite(d).sum()), 'n': n}
+
+
 def build_all(verts: np.ndarray, tris: np.ndarray, out_npz: str | None = None, skip: tuple = ()) -> dict:
     """部品の形をすべて作る（skip の名前の部品は作らない：右手を部品にしたときの右の手袋のカフ）。
     返り値：{V, F, color（面ごとの色の番号）, bone（頂点ごとの骨の名前の番号）, bones, names}"""
@@ -542,6 +593,8 @@ def build_all(verts: np.ndarray, tris: np.ndarray, out_npz: str | None = None, s
             continue
         if spec.get('loft'):
             V, F, _ = build_loft(spec)
+        elif spec.get('tube'):
+            V, F, FIT[spec['name']] = build_tube(spec, bvh)
         elif spec.get('goggle_strap'):
             V, F, ginfo = build_goggle_strap(spec, bvh)
             FIT['goggle_strap'] = ginfo

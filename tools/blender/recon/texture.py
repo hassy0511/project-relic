@@ -140,7 +140,11 @@ INPAINT_K = 16             # 塗り足しで引く近いテクセルの数
 FACE_FEATHER = 0.030       # 顔の材質の縁から、体のテクスチャを正面の色へ寄せる距離（m）
 FACE_NDV_MIN = 0.45        # 顔の材質にする面の、正面への向きの下限（n・(-Y)）。横を向いたほお・あごは
                            # 正面の投影が引き伸ばされるので体の材質（複数の視点の色）にする
-FACE_SKIN_ONLY = CH.p('texture.FACE_SKIN_ONLY', False)   # 顔の材質を肌の形の上の三角形だけにする
+FACE_SKIN_ONLY = CH.p('texture.FACE_SKIN_ONLY', False)
+# 一色の区域（首の後ろなど）：区域の中の UV のつぶれた三角形（テクセルが少ない）は、隣の島の色を拾って斑点になる。
+# その三角形の UV を、3D で一番近いテクセルの多い三角形の UV の重心 1 点に付け替える（その一色になる）。
+# [{th_min: 正面からの角度の下限（度）, z: [下, 上], r_max: 縦の軸からの距離の上限, axis_y}]。既定は無し
+SOLID_ZONES = CH.p('texture.SOLID_ZONES', [])   # 顔の材質を肌の形の上の三角形だけにする
 FACE_CHIN_PX = CH.p('texture.FACE_CHIN_PX', 540)        # 顔の材質にする三角形の重心の下限（正面の絵の画素の y。あごの先は約 535）
 HEAD_CLEAN_Z = CH.p('texture.HEAD_CLEAN_Z', (1.215, 1.47))  # 頭の肌と髪の塗り分けをする高さ（あごの下の首・えりより上）
 SKIN_CLEAN_ZMIN = CH.p('texture.SKIN_CLEAN_ZMIN', 1.20)    # 肌の側の下端（あごの下の首の横まで。フードの襟は約 1.19 より下）
@@ -1226,6 +1230,27 @@ def save_png(path: str, rgb: np.ndarray) -> None:
 
 # ---------------------------------------------------------------- 書き出し（bpy）
 
+def solid_zone_uv(mesh: dict, res: dict, sel: np.ndarray) -> dict:
+    """SOLID_ZONES の中の、テクセルが少ない三角形の UV を近くのテクセルの多い三角形の UV の重心へ（mesh['uv'] を書き換える）"""
+    from scipy.spatial import cKDTree
+    verts, tris = mesh['verts'], mesh['tris']
+    cen = verts[tris].mean(1)
+    cnt = np.bincount(res['tri'], minlength=len(tris))
+    out = {}
+    for zc in SOLID_ZONES:
+        th = np.degrees(np.arctan2(np.abs(cen[:, 0]), -(cen[:, 1] - zc.get('axis_y', 0.0))))
+        r = np.hypot(cen[:, 0], cen[:, 1] - zc.get('axis_y', 0.0))
+        zone = (th > zc['th_min']) & (cen[:, 2] > zc['z'][0]) & (cen[:, 2] < zc['z'][1]) & (r < zc['r_max']) & ~sel
+        good = np.nonzero(zone & (cnt >= zc.get('good', 20)))[0]
+        bad = np.nonzero(zone & (cnt < zc.get('bad', 8)))[0]
+        if not len(good) or not len(bad):
+            continue
+        _, nb = cKDTree(cen[good]).query(cen[bad], k=1)
+        mesh['uv'][bad] = mesh['uv'][good[nb]].mean(1)[:, None, :]
+        out[f"{zc['th_min']}"] = int(len(bad))
+    return out
+
+
 def build_materials_and_export(obj, mesh: dict, sel: np.ndarray, fuv: np.ndarray, base_p: str, emit_p: str,
                                atlas_p: str, out: str) -> None:
     import bpy
@@ -1590,6 +1615,8 @@ def main() -> None:
                    for n in REAL_VIEWS]
             save_png(os.path.join(TEX_DIR, 'debug_winner.png'), np.concatenate(row, 1))
         fuv = face_uv(mesh['verts'], cams, atlas_meta)
+        if SOLID_ZONES:
+            log(f'UV のつぶれた三角形の付け替え {solid_zone_uv(mesh, res, sel)}')
         build_materials_and_export(obj, mesh, sel, fuv, base_p, emit_p, atlas_p, args.out)
         log(f'書き出し {args.out}（{time.time() - t0:.0f}s）')
         report = {

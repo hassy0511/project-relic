@@ -17,10 +17,10 @@ import numpy as np
 
 # 色は絵（burton_3d_front・burton_shoes）の平らに照らされた所の中央値で測った（2026-10-02。spec の hex より絵に合わせる）：
 # 上着 #AA472C（胸・腕・裾）、カフ・襟 #FBE1BF、留め具 #C98C3D、ズボン #5A3C30、靴の胴・筒の帯 #413834（暗い茶）、
-# 靴の底・かかと・爪先 #6E4E3C（茶）、白髪 #B5ABA3（burton_head_side_right の明るい所と陰の間）
+# 靴の底・かかと・爪先 #6E4E3C（茶）、白髪 #9A928C（burton_head_side_right の灰の陰の側。明るい側 #D2C7BD は確認ページで白に見えた）
 PALETTE = {
     'brick': '#AA472C', 'ivory': '#FBE1BF', 'graphite': '#444641', 'brass': '#C98C3D',
-    'umber': '#5A3C30', 'skin': '#E7B58D', 'grey': '#B5ABA3', 'leather': '#6E4E3C', 'hair': '#453630',
+    'umber': '#5A3C30', 'skin': '#E7B58D', 'grey': '#9A928C', 'leather': '#6E4E3C', 'hair': '#453630',
     'boot': '#413834',
 }
 NAMES = list(PALETTE)
@@ -48,7 +48,7 @@ JACKET_Z = 0.80                 # これより上の胴・腕は上着の赤錆�
 HAIR_LOW = ([50, 60, 72, 95, 100, 180], [1.44, 1.41, 1.378, 1.375, 1.25, 1.25])
 NECK_TOP = 1.345                # 内着の首（石墨）の上の端（あごの下）
 CUFF_T = (0.112, 0.207)         # カフ：前腕の軸に沿った肘からの長さ（生成りの上の端・黒線の上）。黒線は手首 +4mm まで
-# 側頭の白髪（灰）は白髪の房（chars/burton.json の hair.LOCK_TABLE の grey_*）の形で塗る（多角形で塗ると平らなシールに見えた）
+# 側頭の白髪（灰）は房の形の部品（pieces() の grey_*、costume.build_tube）。塗りで描くと平らなシール・ぎざぎざの縁に見えた
 BOOT_CUT = 0.165        # この高さより下の脚の体は消して、靴の部品に置き換える（足首の帯の中で切る）
 BOOT_RAMP = (0.07, 0.14)
 BOOT_CUT_X = (0.03, 0.40)   # 靴底が |x| 0.334 まで広い（0.32 では体の爪先の端が残った）
@@ -129,6 +129,12 @@ def pieces() -> list[dict]:
                       outline=octagon(st - 0.014, st + 0.014, 0.170, 0.214, 0.003), off=0.012, thick=0.007,
                       bevel=0.002, rmax=0.14, h=0.004))
         P += boot_pieces(side, sx)
+        # 側頭の白髪：房の形の部品 2 本（上・下）。こめかみから耳の上を通って後ろへ流れ、先がとがる（絵 burton_head_side_right・
+        # burton_face_front・burton_head_back。左右対称）。房全体が 1 色（灰）。耳（θ 96〜118 度、上の端 z 1.427）の上を通す
+        for nm, path, wd in (('grey_hi', [(66, 1.458), (108, 1.452), (140, 1.432)], 0.026),
+                             ('grey_lo', [(70, 1.440), (108, 1.437), (136, 1.418)], 0.024)):
+            P.append(dict(name=nm + sx, bone='head', color='grey',
+                          tube=dict(axis=(0.0, 0.01), side=side, path=path, width=wd, thick=0.35, lift=(0.002, 0.010))))
     return P
 
 
@@ -228,11 +234,6 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
         zb = np.interp(th_f, HAIR_LOW[0], HAIR_LOW[1])
         low = (th_f > 50.0) & (zh > zb) & ~ear
         lab_h[hair | low] = NAMES.index('hair')
-        # 白髪：白髪の房（hair.LOCK_TABLE の名前 grey_*）の形の上だけ。縁は房の縁
-        if 'grey' in f:
-            gm = (f['grey'] > -0.005) & (lab_h == NAMES.index('hair'))
-            lab_h[gm] = NAMES.index('grey')
-            stats['grey_locks'] = int(gm.sum())
         lab_h[ear] = NAMES.index('skin')
         keep = under[hi] >= 0          # 部品の下（襟）はそのまま
         # ただし後ろ（耳より後ろ）の髪の下の縁より上は、襟の下の内着より髪を優先する（襟の上の縁から見える首の後ろが
