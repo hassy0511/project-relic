@@ -568,6 +568,16 @@ func _update_dialogue_input(frame: InputFrame) -> void:
 
 # ---------------------------------------------------------------- フラグ
 
+## ナゴミが仲間になるフラグ（第 1 章の封印室で、フレームとの適合と一緒に起動する）
+const NAGOMI_JOIN_FLAG := "ch1.frame_fitted"
+
+
+## ナゴミがハルについて来ているか。第 1 章の部屋（ch1.*）では、適合の前はまだいない。
+## 試しの部屋・見本の部屋（arena・sample・mvp）では最初からいる。
+func nagomi_present() -> bool:
+	return not room_id.begins_with("ch1.") or flag(NAGOMI_JOIN_FLAG)
+
+
 func flag(name: String) -> bool:
 	return bool(story.flags.get(name, false))
 

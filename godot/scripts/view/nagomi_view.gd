@@ -1,6 +1,7 @@
 class_name NagomiView
 extends Node3D
 ## ナゴミ（相棒の AI ドローン、直径 25cm）の見た目。ハルの右肩の横に少し遅れてついて行き、ふわふわ上下する。
+## 仲間になる前（GameSim.nagomi_present() が偽：第 1 章の適合の前）は隠す。
 ## 感情（spec.md の 8 種）ごとに、種子光（核）の色・明るさ・明滅の速さと、殻 4 枚の開き具合を変える。
 ## 感情の決め方（pick_emotion）：ナゴミの会話が出ている間はその行の face → ロックオン中は analyzing →
 ## HP が少ないときは warning → それ以外は normal。
@@ -106,6 +107,14 @@ static func pick_emotion(game) -> String:
 ## 1 刻みごと：位置・向き・感情を進める
 func sync(game, cam_pos: Vector3, dt: float) -> void:
 	_time += dt
+	# 仲間になる前は出さない（第 1 章の適合の前）。出てきた刻みはハルの横へすぐに置く
+	var present: bool = game.nagomi_present()
+	if present != visible:
+		visible = present
+		if present:
+			snap(game.player)
+	if not present:
+		return
 	emotion = pick_emotion(game)
 	var p = game.player
 	global_position = global_position.lerp(_target(p), 1.0 - exp(-FOLLOW * dt))

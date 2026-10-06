@@ -185,6 +185,34 @@ func test_chapter1_full_run() -> void:
 
 
 
+## ナゴミは封印室のフレームとの適合で仲間になる。それまでの第 1 章の部屋ではハルについて来ない（見た目も隠れる）
+func test_nagomi_joins_at_frame_fit() -> void:
+	var g := _new_game()
+	await h.settle()
+	var view := NagomiView.new()
+	h.tree.root.add_child(view)
+	view.sync(g, Vector3(0, 2, 4), 1.0 / 60.0)
+	h.expect(not g.nagomi_present() and not view.visible, "はじめから（オープニング）ではナゴミはいない")
+	for id in ["ch1.training", "ch1.mid", "ch1.r01", "ch1.r08"]:
+		g.load_room(id)
+		await _pump(g, 2)
+		view.sync(g, Vector3(0, 2, 4), 1.0 / 60.0)
+		h.expect(not g.nagomi_present() and not view.visible, "適合の前の %s ではナゴミはいない" % id)
+	g.set_flag(GameSim.NAGOMI_JOIN_FLAG)
+	view.sync(g, Vector3(0, 2, 4), 1.0 / 60.0)
+	h.expect(g.nagomi_present() and view.visible, "適合のあとはナゴミがいる")
+	h.expect(view.global_position.distance_to(g.player.pos) < 2.0, "出てきたナゴミはハルのそばにいる（%.2f m）" % view.global_position.distance_to(g.player.pos))
+	g.load_room("ch1.mid")
+	await _pump(g, 2)
+	h.expect(g.nagomi_present(), "適合のあとは町に戻ってもナゴミがいる")
+	g.set_flag(GameSim.NAGOMI_JOIN_FLAG, false)
+	g.load_room("sample.hub")
+	await _pump(g, 2)
+	h.expect(g.nagomi_present(), "見本の部屋では最初からナゴミがいる")
+	view.queue_free()
+	h.free_game(g)
+
+
 ## 再始動のあとの夜（セーブして中断した場合など）でも、ハルの家のベッドで休めば夜が明ける
 func test_sleep_after_restart_brings_morning() -> void:
 	var g := _new_game()
