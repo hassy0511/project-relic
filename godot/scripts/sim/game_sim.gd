@@ -141,6 +141,21 @@ func marker(name: String) -> Dictionary:
 
 ## 部屋を読み込む（今の部屋を片付けて、id の部屋を作る）。
 ## spawn：目印の名前（空なら部屋の playerStart か "start"）。at を渡せばその位置（やられた後の復帰・セーブからの復帰）
+## 位置 p に立つと、部屋の箱に体が埋まるか（古いセーブ・戻り先が壁の中を指していたときに、始まりの目印へ逃がす）
+func _buried(p) -> bool:
+	if not (p is Vector3):
+		return false
+	for gd in room.get("geometry", []):
+		if gd.get("t", "") != "box":
+			continue
+		var bp := RoomGeo.v3(gd.pos)
+		var bs := RoomGeo.v3(gd.size)
+		if absf(p.x - bp.x) < bs.x / 2 + 0.3 and absf(p.z - bp.z) < bs.z / 2 + 0.3 \
+				and p.y < bp.y + bs.y - 0.45 and p.y + 1.8 > bp.y + 0.05:
+			return true
+	return false
+
+
 func load_room(id: String, spawn := "", at = null, at_yaw := 0.0) -> void:
 	_unload_room()
 	room_id = id
@@ -151,7 +166,7 @@ func load_room(id: String, spawn := "", at = null, at_yaw := 0.0) -> void:
 		phys.add_trimesh(faces, Phys.TERRAIN)
 	_build_room()
 	var sp: Dictionary
-	if at != null:
+	if at != null and not _buried(at):
 		sp = {"pos": at, "yaw": at_yaw}
 	else:
 		var nm := spawn if spawn != "" else String(room.get("playerStart", "start"))

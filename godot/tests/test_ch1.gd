@@ -106,6 +106,19 @@ func test_all_rooms_load() -> void:
 				if absf(mp.x - ex.x) <= sz.x / 2 and absf(mp.z - ex.z) <= sz.z / 2 and mp.y >= ex.y - 0.1 and mp.y <= ex.y + sz.y:
 					bad += 1
 					printerr("  目印が出口の範囲の中: %s %s / %s" % [id, mk, p.id])
+		# 目印（出てくる位置）が箱の中に埋まっていない（埋まると動けずに詰む。2026-10-06 封印室で起きた）
+		for mk in geo.markers:
+			var mp: Vector3 = geo.markers[mk].pos
+			for gd in r.get("geometry", []):
+				if gd.get("t", "") != "box":
+					continue
+				var bp := RoomGeo.v3(gd.pos)
+				var bs := RoomGeo.v3(gd.size)
+				var top := bp.y + bs.y
+				if absf(mp.x - bp.x) < bs.x / 2 + 0.45 and absf(mp.z - bp.z) < bs.z / 2 + 0.45 \
+						and mp.y < top - 0.45 and mp.y + 1.8 > bp.y + 0.05:
+					bad += 1
+					printerr("  目印が箱に埋まっている: %s %s %s" % [id, mk, mp])
 		if not geo.markers.has(r.get("playerStart", "start")):
 			bad += 1
 			printerr("  始まりの目印が無い: ", id)
