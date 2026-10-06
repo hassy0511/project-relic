@@ -12,6 +12,7 @@
 - アイコン（256×256）は 128×128 に縮める（画面では 40〜128px で使う。ミップマップなしでも粗くならないように）。
 - そのほか（ゲージ・照準・顔の枠・スマホの操作の部品）は元の大きさのまま。画面では Control の縮尺で小さく描く。
 - 取り込みの設定（.import）は UI 向け：圧縮なし、ミップマップなし、3D で使っても圧縮しない。
+  ただし 3D の板として遠くからも見る部品（番機の頭上の「！」）はミップマップを作る（遠くで縮めてもちらつかない）。
 """
 import sys
 from pathlib import Path
@@ -50,6 +51,9 @@ AS_IS = [
     "ui_parts_touch_symbol_lock", "ui_parts_touch_symbol_behind", "ui_parts_touch_symbol_pause",
 ]
 
+# 3D で使う部品（Sprite3D。遠くでは小さく描かれる）
+MIPMAPPED = ["ui_parts_lockon_alert"]
+
 IMPORT = """[remap]
 
 importer="texture"
@@ -82,7 +86,10 @@ def main() -> None:
         im.save(dst, optimize=True)
         imp = dst.with_suffix(".png.import")
         if not imp.exists():
-            imp.write_text(IMPORT)
+            text = IMPORT
+            if name in MIPMAPPED:
+                text = text.replace("mipmaps/generate=false", "mipmaps/generate=true")
+            imp.write_text(text)
         print(f"{name}.png {im.width}x{im.height}")
 
 

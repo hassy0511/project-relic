@@ -34,6 +34,15 @@ const HELP_TOUCH := [
 	["ロックオン", "「ロック」で入り切り。ロック中に右半分を左右に払うと対象の切り替え"],
 	["ポーズ・カメラを背後へ", "右上の「ポーズ」「背後」"],
 ]
+## タイトル画面のスマホ用の短い説明（低い画面でも 360px の高さで 14px 以上の文字で、ロゴと選択肢の横に収まるように。全文はポーズの「操作の説明」）
+const HELP_TOUCH_TITLE := [
+	["移動・カメラ", "左半分で移動、右半分をなぞってカメラ"],
+	["ボタン", "右下：ジャンプ・撃つ・斬るなど"],
+	["ロックオン", "「ロック」で入り切り、払って切り替え"],
+	["ポーズ・背後", "右上のボタン"],
+]
+## スマホの画面の操作のときの補助の文字の大きさ（UI を大きく描いたあとで 360px の高さで 14px 以上。spec）
+const AUX_TOUCH := 26
 
 ## スマホの画面の操作が有効か（main が設定する）
 var touch_mode := false
@@ -186,16 +195,18 @@ func show_title(has_save: bool, new_game: Callable, cont: Callable, quit_game: C
 	logo.position = Vector2(left, maxf(36.0, vs.y * 0.08))
 	logo.add_theme_constant_override("separation", 0)
 	_root.add_child(logo)
-	var en := Hud.make_label("A R K W A L K E R", 40, UiArt.PAPER, true)
+	# 低い画面（スマホでは UI を大きく描くので、仮想の高さが 640〜750 になる）では、ロゴを小さくして下の選択肢と重ならないように
+	var low := vs.y < 900.0
+	var en := Hud.make_label("A R K W A L K E R", 32 if low else 40, UiArt.PAPER, true)
 	logo.add_child(en)
-	var ja := Hud.make_label("アークウォーカー", 112, UiArt.PAPER, true)
-	ja.add_theme_constant_override("outline_size", 14)
+	var ja := Hud.make_label("アークウォーカー", 88 if low else 112, UiArt.PAPER, true)
+	ja.add_theme_constant_override("outline_size", 11 if low else 14)
 	ja.add_theme_color_override("font_outline_color", Color(0.12, 0.08, 0.05, 0.85))
 	logo.add_child(ja)
 	var line := HBoxContainer.new()
 	line.add_theme_constant_override("separation", 14)
 	logo.add_child(line)
-	line.add_child(Hud.make_label("―　方舟は夜明けを歩く　―", 36, Color("#f6d9a8")))
+	line.add_child(Hud.make_label("―　方舟は夜明けを歩く　―", 30 if low else 36, Color("#f6d9a8")))
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 10)
 	box.anchor_top = 1.0
@@ -219,10 +230,18 @@ func show_title(has_save: bool, new_game: Callable, cont: Callable, quit_game: C
 	help.add_theme_constant_override("h_separation", 24)
 	help.add_theme_constant_override("v_separation", 2)
 	help_panel.add_child(help)
+	var rows: Array = HELP_TOUCH_TITLE if touch_mode else help_rows()
+	var fs := AUX_TOUCH if touch_mode else 19
 	var value_w := minf(560.0, vs.x * 0.42 - 260.0)
-	for h in (HELP_TOUCH if touch_mode else help_rows()):
-		help.add_child(Hud.make_label(h[0], 19, UiArt.AMBER, true))
-		var v := Hud.make_label(h[1], 19, Color("#e8dcc4"))
+	if touch_mode:
+		# スマホ：選択肢の右から画面の右端までを使う
+		var label_w := 0.0
+		for h in rows:
+			label_w = maxf(label_w, UiArt.bold().get_string_size(h[0], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x)
+		value_w = clampf(vs.x - (left + 540.0) - maxf(32.0, vs.x * 0.03) - 60.0 - 24.0 - label_w - 8.0, 280.0, 640.0)
+	for h in rows:
+		help.add_child(Hud.make_label(h[0], fs, UiArt.AMBER, true))
+		var v := Hud.make_label(h[1], fs, Color("#e8dcc4"))
 		v.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		v.custom_minimum_size = Vector2(value_w, 0)
 		help.add_child(v)
@@ -323,7 +342,7 @@ func _screen(title: String, sub: String, rows: Array, focus := 0, back := Callab
 	foot.add_theme_stylebox_override("panel", UiArt.strip(0.7, Vector4(24, 6, 24, 6)))
 	box.add_child(foot)
 	var foot_text := footer if footer != "" else ("上下：選ぶ　決定：%s ／ %s ／ タップ　戻る：%s ／ %s" % [PadConfig.keys_text("confirm").get_slice(" / ", 0), PadConfig.pad_short("confirm"), PadConfig.keys_text("back").get_slice(" / ", 0), PadConfig.pad_short("back")] if not touch_mode else "タップで選ぶ")
-	var fl := Hud.make_label(foot_text, 20, Color("#d6cab2"))
+	var fl := Hud.make_label(foot_text, AUX_TOUCH if touch_mode else 20, Color("#d6cab2"))
 	fl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	foot.add_child(fl)
 	# 行に絵が 1 つでもあれば、絵の無い行にも同じ幅の空きを置いて文字の頭をそろえる
@@ -344,7 +363,7 @@ func _screen(title: String, sub: String, rows: Array, focus := 0, back := Callab
 		if row.get("dim", false):
 			btn.modulate = Color(1, 1, 1, 0.55)
 		if String(row.get("right", "")) != "":
-			var rl := Hud.make_label(String(row.right), 24, UiArt.AMBER, true)
+			var rl := Hud.make_label(String(row.right), AUX_TOUCH if touch_mode else 24, UiArt.AMBER, true)
 			rl.set_anchors_preset(Control.PRESET_FULL_RECT)
 			rl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 			rl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -610,7 +629,7 @@ func show_retry(has_save: bool, retry: Callable, load_save: Callable, to_title: 
 	var t := Hud.make_label("やられた……", 64, UiArt.PAPER, true)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(t)
-	var s := Hud.make_label("倒したボス・開けた宝箱・立てたフラグはそのまま残っている", 24, UiArt.AMBER)
+	var s := Hud.make_label("倒したボス・開けた宝箱・立てたフラグはそのまま残っている", AUX_TOUCH if touch_mode else 24, UiArt.AMBER)
 	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(s)
 	var panel := PanelContainer.new()

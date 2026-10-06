@@ -349,6 +349,20 @@ func test_hud_states() -> void:
 	for i in 120:
 		hud.sync(g, cam, 0.05)
 	h.near(hud._hp.lag, hud._hp.value, 0.01, "減った分はしばらくすると追いつく")
+	# 「HP」の文字は中身に重ならない（危険の色の文字が赤い中身に溶けない）
+	h.expect(hud._hp_label.position.x + hud._hp_label.get_minimum_size().x < hud._hp.fill_rect().position.x * Hud.GAUGE_SCALE,
+		"「HP」の文字の右から中身が始まる")
+	# スマホの配置：補助の文字は 360px の高さで 14px 以上（spec）。360px の高さでの UI の縮尺は main._update_ui_scale で 360/640
+	hud.compact = true
+	hud.sync(g, cam, 0.016)
+	var k := 360.0 / 640.0
+	for l in [hud._hp_label, hud._hp_text, hud._objective, hud._boss_phase, hud._sub_who, hud._prompt_key]:
+		h.expect(l.get_theme_font_size("font_size") * k >= 14.0, "スマホの補助の文字が 14px 以上（%s：%d）" % [l.text, l.get_theme_font_size("font_size")])
+	h.expect(hud._reticle.text_size * k >= 14.0 and hud._reticle.scan_size * k >= 14.0, "スマホの照準の説明の文字が 14px 以上")
+	h.expect(hud._hp_label.position.x + hud._hp_label.get_minimum_size().x < hud._hp.fill_rect().position.x * Hud.GAUGE_SCALE,
+		"スマホでも「HP」の文字の右から中身が始まる")
+	hud.compact = false
+	hud.sync(g, cam, 0.016)
 	g.story.start_dialogue("ch1.debt")
 	for i in 1200:
 		var d: Dictionary = g.story.dialogue

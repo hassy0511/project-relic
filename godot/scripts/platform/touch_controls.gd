@@ -250,12 +250,15 @@ func _on_draw() -> void:
 			_draw.draw_circle(knob, STICK_RADIUS * 0.42, Color(1, 1, 1, 0.45))
 	elif stick_hint:
 		# 触れる前の案内（薄く）
-		var c := Vector2(h * 0.26, h * 0.74)
+		var c := Vector2(h * 0.26, h * 0.72)
 		if _tex_at("ui_parts_touch_joystick_base", c, base_d, Color(1, 1, 1, 0.4)):
 			_tex_at("ui_parts_touch_joystick_knob", c, knob_d, Color(1, 1, 1, 0.4))
 		else:
 			_draw.draw_arc(c, STICK_RADIUS, 0, TAU, 48, Color(1, 1, 1, 0.18), 3.0)
-		_draw.draw_string(font, c + Vector2(-80, base_d * 0.5 + int(h * 0.03)), "移動", HORIZONTAL_ALIGNMENT_CENTER, 160, int(h * 0.03), Color(1, 1, 1, 0.55))
+		# 文字は 360px の高さで 14px 以上（spec の補助の文字）。台座の下、画面の下端に掛からないように
+		var fs := int(ceilf(h * 0.04))
+		var y := minf(c.y + base_d * 0.5 + fs, h - fs * 0.4)
+		_draw.draw_string(font, Vector2(c.x - 80, y), "移動", HORIZONTAL_ALIGNMENT_CENTER, 160, fs, Color(1, 1, 1, 0.7))
 	for b in _layout(BUTTONS) + _layout(TOP_BUTTONS):
 		var on: bool = button(b[0])
 		var d: float = b[3] * 2.25

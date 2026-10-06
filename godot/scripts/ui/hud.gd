@@ -26,6 +26,9 @@ const PAPER := Color("#f3e9d2")
 const EDGE := 28.0
 ## ゲージの縮尺（元の画像 1024×96 → 画面で約 530×50）
 const GAUGE_SCALE := 0.52
+## スマホの配置での補助の文字（HP の数・目的・ボスの段階・話し手・ボタンの名前・照準の文字など）の大きさ。
+## UI を大きく描いても（main._update_ui_scale：360px の高さで約 0.56 倍）、360px の高さで 14px 以上になるように（spec）
+const AUX_TOUCH := 26
 
 var device := "keyboard"
 ## スマホの画面の操作が出ているとき（main が設定する）。右下のボタンの弧と左下のスティックを避けて並べる
@@ -40,6 +43,7 @@ var _hp_label: Label
 var _hp_text: Label
 var _hp_lag := 1.0
 var _hp_lag_wait := 0.0
+var _hp_danger := false
 var _we_row: Control
 var _we_icon: TextureRect
 var _we: UiArt.Gauge
@@ -84,6 +88,7 @@ var _dlg_memory := false
 var _mem_box: PanelContainer
 var _mem: UiArt.Gauge
 var _mem_pct: Label
+var _mem_sub: Label
 var _sub: PanelContainer
 var _sub_face: Control
 var _sub_icon: TextureRect
@@ -237,7 +242,8 @@ func _ready() -> void:
 	var hp_made := _gauge("hp", "ui_parts_gauge_hp_fill_full", 1024, GAUGE_SCALE)
 	_hp = hp_made[1]
 	_hp.lag_fill = UiArt.tex("ui_parts_gauge_hp_fill_damaged")
-	_hp.fill_left = 64
+	# 中身は「HP」の文字の右から（文字と中身が重ならないように。危険の色の文字が赤い中身に溶けない）
+	_hp.fill_left = 104
 	hp_row.add_child(hp_made[0])
 	_hp_label = make_label("HP", 22, PAPER, true)
 	_hp_label.position = Vector2(60 * GAUGE_SCALE + 2, 6)
@@ -414,7 +420,8 @@ func _ready() -> void:
 	mem_titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mem_head.add_child(mem_titles)
 	mem_titles.add_child(make_label("ノードの記憶", 32, PAPER, true))
-	mem_titles.add_child(make_label("ナゴミがこの場所の記録を取り込んでいる", 20, Color("#d8c9a8")))
+	_mem_sub = make_label("ナゴミがこの場所の記録を取り込んでいる", 20, Color("#d8c9a8"))
+	mem_titles.add_child(_mem_sub)
 	_mem_pct = make_label("0%", 30, PAPER, true)
 	_mem_pct.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	mem_head.add_child(_mem_pct)
@@ -575,7 +582,9 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 	# 危険の中身の絵は満タンの色とほぼ同じなので、ゲーム側で明るく脈打たせて見分ける（絵の描き直しを頼んでいる）
 	var pulse := 0.5 + 0.5 * sin(_time * 9.0)
 	_hp.fill_modulate = Color(1.0 + 0.9 * pulse, 1.0 + 0.25 * pulse, 1.0 + 0.2 * pulse) if danger else Color.WHITE
-	_hp_label.add_theme_color_override("font_color", Color("#ff8a6a") if danger else PAPER)
+	if danger != _hp_danger:
+		_hp_danger = danger
+		_hp_label.add_theme_color_override("font_color", Color("#ff8a6a") if danger else PAPER)
 	_hp.queue_redraw()
 	_hp_text.text = str(ceili(p.hp))
 	var has_drill := game.has_item("special.drill")
@@ -602,8 +611,9 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 		_boss.fill_modulate = Color(1.3 + 0.3 * pulse, 1.05, 0.8) if bs.overheat else Color.WHITE
 		_boss.queue_redraw()
 		_boss_phase.text = "第 %d 段階%s" % [bs.phase, "　過熱" if bs.overheat else ""]
-		_boss_phase.position = Vector2(bw * 0.62 - 300, -30)
-		_boss_phase.size = Vector2(290, 30)
+		var phase_h := float(_boss_phase.get_theme_font_size("font_size")) + 10.0
+		_boss_phase.position = Vector2(bw * 0.62 - 300, -phase_h)
+		_boss_phase.size = Vector2(290, phase_h)
 
 	if game.cells != _last_cells:
 		_last_cells = game.cells
@@ -614,7 +624,7 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 	if compact != _compact_now:
 		_set_compact(compact)
 	_objective.text = game.objective
-	_objective.custom_minimum_size.x = minf(_objective.get_theme_font("font").get_string_size(game.objective, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x + 4.0, minf(720.0, vs.x * 0.36))
+	_objective.custom_minimum_size.x = minf(_objective.get_theme_font("font").get_string_size(game.objective, HORIZONTAL_ALIGNMENT_LEFT, -1, _objective.get_theme_font_size("font_size")).x + 4.0, minf(720.0, vs.x * 0.36))
 	_objective_box.visible = game.objective != "" and bs.is_empty()
 	_fit(_objective_box)
 
@@ -800,6 +810,14 @@ func _set_compact(on: bool) -> void:
 	slot.slot.scale = Vector2(k, k)
 	_dlg_face.custom_minimum_size = Vector2(220, 220) * k
 	_dlg_choices.custom_minimum_size.x = 400.0 if on else 620.0
+	for it in [[_hp_label, 22], [_hp_text, 22], [_objective, 24], [_boss_phase, 22], [_sub_who, 24], [_prompt_key, 22]]:
+		it[0].add_theme_font_size_override("font_size", AUX_TOUCH if on else it[1])
+	# ノードの記憶の枠：スマホでは左上の表示と会話の枠の間に収まるよう、説明の 1 行を省いて余白を詰める
+	_mem_sub.visible = not on
+	_mem_box.add_theme_stylebox_override("panel", UiArt.box("small", Vector4(24, 12, 24, 14) if on else Vector4(30, 22, 30, 24)))
+	_reticle.text_size = AUX_TOUCH if on else 22
+	_reticle.scan_size = AUX_TOUCH if on else 20
+	_reticle.reserve_right = 0.3 if on else 0.0
 	if on:
 		_pin(_mem_box, 0, 0, EDGE, 160)
 	else:
@@ -843,6 +861,30 @@ class Reticle:
 	var weak := false
 	var weak_text := ""
 	var time := 0.0
+	## 文字の大きさ（弱点の説明・解析中の進み）。スマホの配置では大きく（Hud._set_compact）
+	var text_size := 22
+	var scan_size := 20
+	## 画面の右端に空けておく幅（画面の高さに対する割合。スマホの配置では右上・右下のボタンの列）
+	var reserve_right := 0.0
+
+	## 照準の横の説明（弱点・解析の進み）を暗い下地の上に描く：照準の右 → 画面の右端からはみ出すなら左。
+	## どちらにも 1 行で入らない（スマホで文字が大きいとき）は、右で折り返す（左に回すと左上の HP などに掛かるので。右がごく狭いときだけ左）
+	func _note(font: Font, text: String, fs: int, gap: float, s: float, color: Color) -> void:
+		var vr := get_viewport_rect().size
+		var vw := vr.x - vr.y * reserve_right
+		var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var room_r := vw - 24.0 - (position.x + s * 0.5 + gap)
+		var room_l := position.x - s * 0.5 - gap - 24.0
+		var right := w <= room_r or (w > room_l and room_r >= minf(room_l, fs * 8.0))
+		var width := minf(w, maxf(room_r if right else room_l, fs * 6.0))
+		var box := font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, width, fs) if width < w else Vector2(w, font.get_height(fs))
+		var x := s * 0.5 + gap if right else -s * 0.5 - gap - box.x
+		var top := 8.0 - font.get_ascent(fs)
+		draw_rect(Rect2(Vector2(x - 8, top - 4), Vector2(box.x + 16, box.y + 8)), Color(0.06, 0.05, 0.05, 0.7))
+		if width < w:
+			draw_multiline_string(font, Vector2(x, 8), text, HORIZONTAL_ALIGNMENT_LEFT, width, fs, -1, color)
+		else:
+			draw_string(font, Vector2(x, 8), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, color)
 
 	func _draw() -> void:
 		var amber := UiArt.AMBER
@@ -863,27 +905,14 @@ class Reticle:
 			var inner := Rect2(bar.position + Vector2(8, 3.5), Vector2(116 * clampf(hp, 0.0, 1.0), 7))
 			draw_texture_rect_region(fl, inner, Rect2(0, 0, 960 * clampf(hp, 0.0, 1.0), 36))
 			draw_texture_rect(fr, bar, false)
-		var vw := get_viewport_rect().size.x
 		if scanned:
 			if weak_text != "":
-				var w := font.get_string_size(weak_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
-				var pos := Vector2(s * 0.5 + 10, 8)
-				# 画面の右端からはみ出すなら照準の左に
-				if position.x + pos.x + w + 16.0 > vw - 16.0:
-					pos.x = -s * 0.5 - 10.0 - w
-				draw_rect(Rect2(pos + Vector2(-8, -24), Vector2(w + 16, 34)), Color(0.06, 0.05, 0.05, 0.7))
-				draw_string(font, pos, weak_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UiArt.PAPER if not weak else amber)
+				_note(font, weak_text, text_size, 10.0, s, UiArt.PAPER if not weak else amber)
 		else:
 			# 解析の進み（絵の弧は固定なので、進み具合はゲーム側の平らな色の弧で仮に出す。輪と中身の絵を頼んでいる）
 			draw_arc(Vector2.ZERO, s * 0.5 + 6, -PI / 2, -PI / 2 + TAU, 48, Color(0, 0, 0, 0.45), 5.0, true)
 			draw_arc(Vector2.ZERO, s * 0.5 + 6, -PI / 2, -PI / 2 + TAU * scan, 48, amber, 5.0, true)
-			var label := "解析中 %d%%" % int(scan * 100.0)
-			var w := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
-			var pos := Vector2(s * 0.5 + 14, 8)
-			if position.x + pos.x + w + 16.0 > vw - 16.0:
-				pos.x = -s * 0.5 - 14.0 - w
-			draw_rect(Rect2(pos + Vector2(-8, -22), Vector2(w + 16, 30)), Color(0.06, 0.05, 0.05, 0.7))
-			draw_string(font, pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, amber)
+			_note(font, "解析中 %d%%" % int(scan * 100.0), scan_size, 14.0, s, amber)
 
 
 ## チャージの溜まり具合：1 段目（半円）・2 段目（輪）の絵。途中の進み具合は、絵が枠と中身に分かれていないので平らな色の弧で仮に出す
