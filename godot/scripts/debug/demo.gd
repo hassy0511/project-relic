@@ -80,12 +80,14 @@ func _ready() -> void:
 		{"ticks": 1, "shot": "07_after_drill", "check": func(): return _check(main.game.breakables[0].broken, "ドリルで壁を壊せる")},
 	]
 	# 引数 --arena_only：試しの部屋の場面だけ（画面の確認を早く撮るため）
-	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("cp2d_shots") or main.args.has("pad_shots"):
+	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("cp2d_shots") or main.args.has("pad_shots") or main.args.has("ui_shots"):
 		_steps.clear()
 	if main.args.has("ch1_full"):
 		_steps.clear()
 	elif main.args.has("pad_shots"):
 		_steps.append_array(_pad_steps())
+	elif main.args.has("ui_shots"):
+		_steps.append_array(_ui_steps())
 	elif main.args.has("cp2d_shots"):
 		_steps.clear()
 		_steps.append_array(_cp2d_steps())
@@ -101,6 +103,7 @@ func _ready() -> void:
 		_steps.append_array(_world_steps())
 		_steps.append_array(_cp2d_steps())
 		_steps.append_array(_pad_steps())
+		_steps.append_array(_ui_steps())
 	if not main.args.has("ch1_full"):
 		_steps.append({"ticks": 1, "done": true})
 
@@ -509,6 +512,119 @@ func _cp2d_steps() -> Array:
 		{"ticks": 1, "shot": "06_boss_subtitle", "input": {}, "check": func():
 			return _check(main.hud.subtitle_text().contains("排除") and main.audio.current_music == "bgm_boss", "ボス戦の字幕と、ボスの曲（%s）" % main.audio.current_music)},
 	]
+
+
+## UI の部品（Codex の W2-08）の画面の確認（--ui_shots。見本の通しでも走る）：町の HUD・ボス戦の HUD（ロックオン・解析・弱点・
+## チャージ・危険の HP・字幕）・会話（顔と選択肢）・ノードの記憶・ポーズ・状態・持ち物・店・工房・ギルド・セーブ・操作の設定・やられた画面
+func _ui_steps() -> Array:
+	var prep := func(room: String):
+		main.arena_kind = ""
+		main.args["room"] = room
+		main.start_game(null)
+		var g: GameSim = main.game
+		g.god_mode = true
+		for f in ["ch1.chores_started", "ch1.nico_rescued", "ch1.scolded", "ch1.debt_scene", "ch1.got_spark",
+				"visited.ch1.training", "visited.ch1.lower", "visited.ch1.mid", "visited.ch1.upper"]:
+			g.set_flag(f)
+		g.give_cells(1240)
+		g.give_item("weapon.spark")
+		g.give_item("special.drill")
+		g.add_material("scrap", 2)
+		g.relics["relic.old_gear"] = true
+		g.guild_points = 20
+		g.objective = "遺構の奥へ進み、動力の中継器を探す"
+		g.drain_events()
+	return [
+		# 町の HUD：HP・特殊武器・補修パック・主武器・セル・目的・調べるの案内・拾った知らせ
+		{"ticks": 2, "setup": func():
+			prep.call("sample.hub")
+			_stand(Vector3(-6.4, 0, 8), Vector3(-8, 0, 8))},
+		{"ticks": 30, "input": {}},
+		{"ticks": 1, "setup": func(): main.hud.show_toast("錆鉄 ×1 を手に入れた")},
+		{"ticks": 10, "input": {}},
+		{"ticks": 1, "shot": "ui_01_hud", "input": {}, "check": func():
+			return _check(main.hud._we_row.visible and main.hud._objective_box.visible and main.hud._prompt_box.visible, "HUD：特殊武器のゲージ・目的・調べるの案内が出る")},
+		# ボス戦：ロックオン（解析中）→ 解析済み・弱点があいている、チャージ 1 段目、危険の HP、字幕
+		{"ticks": 2, "setup": func():
+			_arena_start("kannuki")
+			main.game.give_item("special.drill")
+			main.game.give_item("weapon.spark")},
+		{"ticks": 150, "input": {}},
+		{"ticks": 40, "input": {"lock_on": true}},
+		{"ticks": 1, "shot": "ui_02_boss_scan", "input": {"lock_on": true}, "check": func():
+			return _check(main.hud._boss_box.visible and main.hud._reticle.visible and not main.hud._reticle.scanned, "ボスの体力の枠と、解析中の照準が出る")},
+		{"ticks": 200, "input": {"lock_on": true}},
+		{"ticks": 2, "setup": func():
+			var g: GameSim = main.game
+			g.give_item("chip.charge")
+			if not g.charge_type():
+				g.toggle_chip("chip.charge")
+			var b = g.boss
+			b.set_state("stuck")
+			b.core_open = true
+			g.player.hp = g.player.max_hp * 0.22
+			main._lines.clear()
+			main._line_time = 0.0
+			g.emit_event({"type": "bossLine", "who": "閂", "text": "……侵入者……排除する……"}),
+			"input": {"lock_on": true}},
+		{"ticks": 44, "input": {"lock_on": true, "fire": true}},
+		{"ticks": 1, "shot": "ui_03_boss_weak", "input": {"lock_on": true, "fire": true}, "check": func():
+			var h: Hud = main.hud
+			h.sync(main.game, main.camera, 0.0)
+			return _check(h._reticle.scanned and h._reticle.weak and h._charge.visible and h._charge.stage == 1 and h._hp.lag > h._hp.value, "解析済みで弱点の照準・チャージ 1 段目・HP の減った分が出る")},
+		{"ticks": 2, "setup": func():
+			main.game.player.hurt_time = 0.0
+			main.game.player.gun_charge = 1.3,
+			"input": {"lock_on": true, "fire": true}},
+		{"ticks": 1, "shot": "ui_03b_charge2", "input": {"lock_on": true, "fire": true}, "check": func():
+			main.hud.sync(main.game, main.camera, 0.0)
+			return _check(main.hud._charge.stage == 2, "チャージ 2 段目")},
+		# 会話：顔の枠・名前の札・選択肢
+		{"ticks": 2, "setup": func():
+			prep.call("ch1.mid")
+			main.game.story.start_dialogue("ch1.debt")},
+		{"ticks": 400, "input_fn": func(i):
+			var d: Dictionary = main.game.story.dialogue
+			return {"jump": i % 20 < 2 and not d.is_empty() and not d.has("choices")}},
+		{"ticks": 60, "input": {}},
+		{"ticks": 1, "shot": "ui_04_dialogue_choice", "input": {}, "check": func():
+			var h: Hud = main.hud
+			return _check(h._dlg.visible and h._dlg_choices.visible and h._dlg_icon.visible, "会話の枠に顔と選択肢が出る")},
+		{"ticks": 2, "setup": func():
+			main.game.story.dialogue = {}
+			main.game.story.start_dialogue("ch1.node")},
+		{"ticks": 160, "input_fn": func(i): return {"jump": i % 40 < 2 and i < 120}},
+		{"ticks": 1, "shot": "ui_05_node_memory", "input": {}, "check": func():
+			return _check(main.hud._mem_box.visible, "ノードの記憶の取り込みの枠が出る")},
+		{"ticks": 2, "setup": func(): main.game.story.dialogue = {}},
+		{"ticks": 2, "setup": func():
+			prep.call("ch1.mid")
+			main.game.give_item("chip.charge")},
+		{"ticks": 20, "input": {}},
+		_menu_shot("ui_06_pause", func(): main.menu.show_pause(main, 0), func():
+			return _check(main.menu.buttons.size() == 11 and main.menu.buttons[1].icon != null, "ポーズの行に絵（回収屋の印など）が付く")),
+		_menu_shot("ui_07_status", func(): main.menu.show_pause(main, 1)),
+		_menu_shot("ui_08_items", func(): main.menu.show_pause(main, 2)),
+		{"ticks": 1, "shot": "ui_09_shop", "setup": func(): main.open_economy_ui("shop", "zakka"), "after": func(): main.resume()},
+		{"ticks": 1, "shot": "ui_10_workshop", "setup": func(): main.open_economy_ui("workshop", "yana", 0), "after": func(): main.resume()},
+		{"ticks": 1, "shot": "ui_11_guild", "setup": func(): main.open_economy_ui("guild", "main"), "after": func(): main.resume()},
+		_menu_shot("ui_12_save", func(): main.menu.show_save(main, true)),
+		_menu_shot("ui_13_controls", func(): main.menu.show_controls(func(): main.resume())),
+		{"ticks": 1, "shot": "ui_14_retry", "setup": func(): main._open_retry(), "after": func(): main.resume(), "check": func():
+			return _check(main.menu.is_open() and main.menu.buttons.size() == 3, "やられた画面：3 つの選択肢")},
+		{"ticks": 2, "input": {}},
+	]
+
+
+## ポーズから開くメニューの画面を撮る手順（撮ったあとゲームに戻る）
+func _menu_shot(name: String, open: Callable, check := Callable()) -> Dictionary:
+	var d := {"ticks": 1, "shot": name, "setup": func():
+		main.pause()
+		open.call(),
+		"after": func(): main.resume()}
+	if check.is_valid():
+		d["check"] = check
+	return d
 
 
 ## ゲームパッドの操作の設定画面（--pad_shots）：ポーズから開く・割り当て待ち・割り当て・入れ替え・初期に戻す

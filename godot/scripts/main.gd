@@ -66,7 +66,10 @@ func _ready() -> void:
 	input.touch = touch
 	if args.has("touch") or (DisplayServer.is_touchscreen_available() and OS.has_feature("web")):
 		touch.activate()
-	touch.activated.connect(func(): menu.touch_mode = true)
+	touch.activated.connect(func():
+		menu.touch_mode = true
+		_update_ui_scale())
+	get_window().size_changed.connect(_update_ui_scale)
 	audio = GameAudio.new()
 	add_child(audio)
 	# ファンファーレなど、ループしない曲が鳴り終わったら部屋の曲へ戻す
@@ -89,8 +92,9 @@ func _ready() -> void:
 	menu.moved.connect(func(): audio.play("ui_move"))
 	menu.chosen.connect(func(): audio.play("ui_ok"))
 	menu.touch_mode = touch.active
+	_update_ui_scale()
 	perf = Hud.make_label("", 16)
-	perf.position = Vector2(32, 150)
+	perf.position = Vector2(32, 230)
 	perf.visible = false
 	hud.add_child(perf)
 	if args.has("demo"):
@@ -173,7 +177,32 @@ func show_title() -> void:
 	state = "title"
 	hud.visible = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_title_backdrop()
 	menu.show_title(has_save(), func(): start_game(null), func(): start_game(read_save()), func(): get_tree().quit())
+
+
+## タイトルの後ろ：夜明けの空（ui_title.png の空の色）。遊んでいた部屋は隠す（はじめから・つづきからで作り直す）
+func _title_backdrop() -> void:
+	if views != null and is_instance_valid(views):
+		views.visible = false
+	if level != null and is_instance_valid(level):
+		level.visible = false
+	EnvironmentSetup.apply_mood(sun, "title")
+	camera.position = Vector3(0, 3, 0)
+	camera.rotation_degrees = Vector3(7, 50, 0)
+
+
+## スマホ（画面に触れて操作する、低い画面）では、画面の部品を大きく描く。
+## 文字が 1080 の高さの画面で 26px のとき、画面の高さ 390px で約 16px になるように（spec：360px 高で本文 16px 以上）
+func _update_ui_scale() -> void:
+	var f := 1.0
+	if touch.active:
+		var win := get_window()
+		var sc := DisplayServer.screen_get_scale() if OS.has_feature("web") else 1.0
+		var logical_h := float(win.size.y) / maxf(1.0, sc)
+		f = 1080.0 / clampf(logical_h * 1.75, 640.0, 1080.0)
+	if not is_equal_approx(get_window().content_scale_factor, f):
+		get_window().content_scale_factor = f
 
 
 func start_game(save) -> void:
@@ -342,7 +371,11 @@ func _physics_process(dt: float) -> void:
 
 
 func _process(dt: float) -> void:
+	if game != null:
+		var dlg: Dictionary = game.story.dialogue
+		touch.stick_hint = dlg.is_empty()
 	touch.set_shown(state == "playing" and demo == null or (demo != null and args.has("touch") and state == "playing"))
+	hud.compact = touch.active
 	if game and state == "playing":
 		hud.sync(game, camera, dt)
 	if perf.visible:
@@ -482,7 +515,7 @@ func open_economy_ui(kind: String, id: String, focus := 0) -> void:
 			title = shop.get("name", "店")
 			for s in shop.get("stock", []):
 				var idx := rows.size()
-				rows.append({"label": g.world.item_name(s.item), "right": "%d セル" % int(s.price), "dim": g.cells < int(s.price),
+				rows.append({"label": g.world.item_name(s.item), "right": "%d セル" % int(s.price), "dim": g.cells < int(s.price), "icon": UiArt.item_icon(String(s.item)),
 					"detail": PauseInfo.shop_detail(g, id, s),
 					"cb": func():
 						Economy.buy(g, id, s.item)
@@ -491,7 +524,7 @@ func open_economy_ui(kind: String, id: String, focus := 0) -> void:
 				for r in g.relics.keys():
 					var idx := rows.size()
 					var price := int(g.world.items.get(r, {}).get("sell", 20))
-					rows.append({"label": "売る：%s" % g.world.item_name(r), "right": "+%d セル" % price,
+					rows.append({"label": "売る：%s" % g.world.item_name(r), "right": "+%d セル" % price, "icon": UiArt.item_icon(String(r)),
 						"detail": "%s\n\n遺物を売る。\n買い取り価格　%d セル" % [g.world.item_name(r), price],
 						"cb": func():
 							Economy.sell_relic(g, id, r)
@@ -511,7 +544,7 @@ func open_economy_ui(kind: String, id: String, focus := 0) -> void:
 						if g.material_count(m) < int(r.needs[m]):
 							ok = false
 					ok = ok and g.cells >= int(r.get("cost", 0))
-				rows.append({"label": ("（開発済み）" if crafted else "") + String(r.name), "right": "%d セル" % int(r.get("cost", 0)),
+				rows.append({"label": ("（開発済み）" if crafted else "") + String(r.name), "right": "%d セル" % int(r.get("cost", 0)), "icon": UiArt.item_icon(String(r.get("gives", {}).get("item", "consumable.repair"))),
 					"dim": not ok, "detail": PauseInfo.recipe_detail(g, r),
 					"cb": func():
 						Economy.craft(g, id, r.id)
@@ -523,17 +556,17 @@ func open_economy_ui(kind: String, id: String, focus := 0) -> void:
 				var st: String = g.requests.get(r.id, "")
 				var idx := rows.size()
 				if st == "done":
-					rows.append({"label": "（達成済み）%s" % r.name, "dim": true, "detail": PauseInfo.request_detail(g, r), "cb": func(): pass})
+					rows.append({"label": "（達成済み）%s" % r.name, "dim": true, "icon": UiArt.tex("icon_map_quest"), "detail": PauseInfo.request_detail(g, r), "cb": func(): pass})
 				elif st == "":
 					if not Cond.eval(r.get("cond"), g):
 						continue
-					rows.append({"label": "受ける：%s" % r.name, "right": PauseInfo.reward_text(r), "detail": PauseInfo.request_detail(g, r),
+					rows.append({"label": "受ける：%s" % r.name, "right": PauseInfo.reward_text(r), "icon": UiArt.tex("icon_map_quest"), "detail": PauseInfo.request_detail(g, r),
 						"cb": func():
 							Economy.accept_request(g, r.id)
 							again.call(idx)})
 				else:
 					var done: bool = Cond.eval(r.get("done"), g)
-					rows.append({"label": "報告する：%s" % r.name, "right": "報告できる" if done else "進行中", "dim": not done,
+					rows.append({"label": "報告する：%s" % r.name, "right": "報告できる" if done else "進行中", "dim": not done, "icon": UiArt.tex("icon_map_quest"),
 						"detail": PauseInfo.request_detail(g, r),
 						"cb": func():
 							Economy.complete_request(g, r.id)

@@ -58,6 +58,22 @@ static func sphere(r: float, segs: int = 12) -> SphereMesh:
 	return s
 
 
+## 番機の警戒の合図（頭上の「！」）：Codex の部品 ui_parts_lockon_alert を、いつも正面を向く板にして出す（絵が無ければ文字）
+static func alert_mark(height: float) -> Node3D:
+	var t := UiArt.tex("ui_parts_lockon_alert")
+	if t == null:
+		return label("!", height)
+	var s := Sprite3D.new()
+	s.texture = t
+	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	s.no_depth_test = true
+	s.shaded = false
+	s.pixel_size = 0.0032
+	s.render_priority = 10
+	s.position.y = height
+	return s
+
+
 static func label(text: String, height: float, color: Color = Color("#ffcc33"), size: int = 64) -> Label3D:
 	var l := Label3D.new()
 	l.text = text

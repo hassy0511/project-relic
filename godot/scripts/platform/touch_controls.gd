@@ -23,8 +23,8 @@ const BUTTONS := [
 ]
 ## 上の段（右上の「目的」の表示の下）
 const TOP_BUTTONS := [
-	["pause", "ポーズ", Vector2(-0.09, 0.21), 0.05],
-	["camera_reset", "背後", Vector2(-0.22, 0.21), 0.05],
+	["pause", "ポーズ", Vector2(-0.09, 0.27), 0.05],
+	["camera_reset", "背後", Vector2(-0.22, 0.27), 0.05],
 ]
 
 signal activated
@@ -33,6 +33,8 @@ var active := false
 ## ロックオンの入り切り（押すたびに切り替え）
 var lock_toggled := false
 var move := Vector2.ZERO
+## 触れる前のスティックの案内を出すか（会話中は隠す。main が設定する）
+var stick_hint := true
 
 var _draw: Control
 var _held := {}          # ボタン名 → 押している指の番号
@@ -203,31 +205,62 @@ func end_frame() -> void:
 		_draw.queue_redraw()
 
 
+## ボタンの中の記号（ui_parts_touch_symbol_*）
+const SYMBOLS := {
+	"jump": "jump", "fire": "fire", "sword": "slash", "dash": "dash", "special": "special", "lock_on": "lock",
+	"heal": "heal", "pause": "pause", "camera_reset": "behind",
+}
+
+
+func _tex_at(name: String, c: Vector2, d: float, mod := Color.WHITE) -> bool:
+	var t := UiArt.tex(name)
+	if t == null:
+		return false
+	_draw.draw_texture_rect(t, Rect2(c - Vector2(d, d) * 0.5, Vector2(d, d)), false, mod)
+	return true
+
+
+## 見た目は Codex の部品（ui_hud_touch.png）：スティックの台座とつまみ、丸いボタン（通常・押している・ロック中）と中の記号
 func _on_draw() -> void:
 	var font := ThemeDB.fallback_font
 	var vs := _draw.get_viewport_rect().size
 	var h := vs.y
 	if vs.x < vs.y:
-		_draw.draw_rect(Rect2(Vector2.ZERO, vs), Color(0, 0, 0, 0.6))
-		_draw.draw_string(font, Vector2(0, vs.y * 0.5), "スマホを横向きにしてください", HORIZONTAL_ALIGNMENT_CENTER, vs.x, int(vs.x * 0.06), Color.WHITE)
+		_draw.draw_rect(Rect2(Vector2.ZERO, vs), Color(0.05, 0.045, 0.04, 0.85))
+		_tex_at("ui_parts_touch_symbol_behind", Vector2(vs.x * 0.5, vs.y * 0.42), vs.x * 0.22)
+		_draw.draw_string(font, Vector2(0, vs.y * 0.55), "スマホを横向きにしてください", HORIZONTAL_ALIGNMENT_CENTER, vs.x, int(vs.x * 0.06), UiArt.PAPER)
 		return
+	# 台座の絵の輪の内側をつまみが動く（台座は STICK_RADIUS の約 1.25 倍）
+	var base_d := STICK_RADIUS * 2.5
+	var knob_d := STICK_RADIUS * 1.05
 	if _stick_finger >= 0:
-		_draw.draw_circle(_stick_origin, STICK_RADIUS, Color(1, 1, 1, 0.12))
-		_draw.draw_arc(_stick_origin, STICK_RADIUS, 0, TAU, 48, Color(1, 1, 1, 0.35), 3.0)
+		if not _tex_at("ui_parts_touch_joystick_base", _stick_origin, base_d, Color(1, 1, 1, 0.9)):
+			_draw.draw_arc(_stick_origin, STICK_RADIUS, 0, TAU, 48, Color(1, 1, 1, 0.35), 3.0)
 		var knob := _stick_origin + Vector2(move.x, -move.y) * STICK_RADIUS
-		_draw.draw_circle(knob, STICK_RADIUS * 0.42, Color(1, 1, 1, 0.45))
-	else:
-		# 触れる前の案内
+		if not _tex_at("ui_parts_touch_joystick_knob", knob, knob_d):
+			_draw.draw_circle(knob, STICK_RADIUS * 0.42, Color(1, 1, 1, 0.45))
+	elif stick_hint:
+		# 触れる前の案内（薄く）
 		var c := Vector2(h * 0.26, h * 0.74)
-		_draw.draw_arc(c, STICK_RADIUS, 0, TAU, 48, Color(1, 1, 1, 0.18), 3.0)
-		_draw.draw_string(font, c + Vector2(-60, 8), "移動", HORIZONTAL_ALIGNMENT_CENTER, 120, int(h * 0.028), Color(1, 1, 1, 0.4))
+		if _tex_at("ui_parts_touch_joystick_base", c, base_d, Color(1, 1, 1, 0.4)):
+			_tex_at("ui_parts_touch_joystick_knob", c, knob_d, Color(1, 1, 1, 0.4))
+		else:
+			_draw.draw_arc(c, STICK_RADIUS, 0, TAU, 48, Color(1, 1, 1, 0.18), 3.0)
+		_draw.draw_string(font, c + Vector2(-80, base_d * 0.5 + int(h * 0.03)), "移動", HORIZONTAL_ALIGNMENT_CENTER, 160, int(h * 0.03), Color(1, 1, 1, 0.55))
 	for b in _layout(BUTTONS) + _layout(TOP_BUTTONS):
 		var on: bool = button(b[0])
-		var col := Color(AMBER, 0.55) if on else Color(0.08, 0.06, 0.05, 0.45)
-		_draw.draw_circle(b[2], b[3], col)
-		_draw.draw_arc(b[2], b[3], 0, TAU, 40, Color(1, 1, 1, 0.5), 2.0)
-		var lines: PackedStringArray = String(b[1]).split("\n")
-		var fs := int(b[3] * (0.42 if lines.size() == 1 else 0.36))
-		for i in lines.size():
-			var y: float = b[2].y + fs * 0.35 + (i - (lines.size() - 1) * 0.5) * fs * 1.1
-			_draw.draw_string(font, Vector2(b[2].x - b[3], y), lines[i], HORIZONTAL_ALIGNMENT_CENTER, b[3] * 2.0, fs, Color(1, 1, 1, 0.9))
+		var d: float = b[3] * 2.25
+		var base := "ui_parts_touch_button_pressed" if on else "ui_parts_touch_button_normal"
+		if b[0] == "lock_on" and lock_toggled:
+			base = "ui_parts_touch_button_lock_on"
+		if not _tex_at(base, b[2], d, Color(1, 1, 1, 0.92)):
+			_draw.draw_circle(b[2], b[3], Color(AMBER, 0.55) if on else Color(0.08, 0.06, 0.05, 0.45))
+			var lines: PackedStringArray = String(b[1]).split("\n")
+			var fs := int(b[3] * (0.42 if lines.size() == 1 else 0.36))
+			for i in lines.size():
+				var y: float = b[2].y + fs * 0.35 + (i - (lines.size() - 1) * 0.5) * fs * 1.1
+				_draw.draw_string(font, Vector2(b[2].x - b[3], y), lines[i], HORIZONTAL_ALIGNMENT_CENTER, b[3] * 2.0, fs, Color(1, 1, 1, 0.9))
+			continue
+		# ロック中の台座には照準の記号が入っているので、記号は重ねない
+		if not (b[0] == "lock_on" and lock_toggled):
+			_tex_at("ui_parts_touch_symbol_" + SYMBOLS.get(b[0], "jump"), b[2], b[3] * 1.05)

@@ -99,7 +99,7 @@ class Built:
 	var shell: StandardMaterial3D
 	var sensor: StandardMaterial3D
 	var core: StandardMaterial3D
-	var alert: Label3D
+	var alert: Node3D
 	var legs: Array = []
 	var glb := false
 	var parts := {}         # 名前 → Node3D（GLB の部品）
@@ -158,7 +158,7 @@ func _make_glb(kind: String) -> Built:
 	b.body = b.parts.get("body", model)
 	if b.shell == null:
 		b.shell = PORCELAIN.duplicate()
-	b.alert = MeshKit.label("!", POSE[kind].label_h)
+	b.alert = MeshKit.alert_mark(POSE[kind].label_h)
 	b.root.add_child(b.alert)
 	return b
 
@@ -504,7 +504,7 @@ func _make_sentry() -> Built:
 		var a := i / 3.0 * TAU
 		var leg := MeshKit.add(b.root, MeshKit.box(Vector3(0.09, 0.55, 0.09)), BRASS, Vector3(sin(a) * 0.3, 0.27, cos(a) * 0.3), Vector3(cos(a) * 0.35, 0, -sin(a) * 0.35))
 		b.legs.append(leg)
-	b.alert = MeshKit.label("!", 1.6)
+	b.alert = MeshKit.alert_mark(1.6)
 	b.root.add_child(b.alert)
 	return b
 
@@ -526,7 +526,7 @@ func _make_charger() -> Built:
 	MeshKit.add(b.body, MeshKit.sphere(0.13, 10), b.core, Vector3(-0.56, 0.65, 0))
 	for xz in [[0.45, 0.55], [-0.45, 0.55], [0.45, -0.55], [-0.45, -0.55]]:
 		b.legs.append(MeshKit.add(b.root, MeshKit.box(Vector3(0.16, 0.4, 0.16)), DARK, Vector3(xz[0], 0.2, xz[1])))
-	b.alert = MeshKit.label("!", 1.9)
+	b.alert = MeshKit.alert_mark(1.9)
 	b.root.add_child(b.alert)
 	return b
 
@@ -563,7 +563,7 @@ func _make_simple(kind: String) -> Built:
 				MeshKit.add(b.body, MeshKit.box(Vector3(0.6, 0.6, 3.0)), BRASS, Vector3(xz[0], 3.0, xz[1]))
 			MeshKit.add(b.body, MeshKit.sphere(0.45, 10), b.core, Vector3(0, 4.3, 0))
 			label_h = 5.6
-	b.alert = MeshKit.label("!", label_h)
+	b.alert = MeshKit.alert_mark(label_h)
 	b.root.add_child(b.alert)
 	return b
 

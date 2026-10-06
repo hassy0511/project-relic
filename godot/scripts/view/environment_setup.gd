@@ -54,8 +54,22 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 	var env: Environment = sun.get_meta("env")
 	var sky: ProceduralSkyMaterial = env.sky.sky_material
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.fog_sky_affect = 1.0
 	match mood:
+		"title":
+			# タイトルの後ろの夜明けの空（霞を空にかけない）
+			sky.sky_top_color = Color("#3e4a74")
+			sky.sky_horizon_color = Color("#f2a272")
+			sky.ground_horizon_color = Color("#c98a62")
+			sky.ground_bottom_color = Color("#3a2a24")
+			sun.light_color = Color("#ffc08a")
+			sun.light_energy = 1.4
+			sun.rotation_degrees = Vector3(-9, -150, 0)
+			env.ambient_light_energy = 0.7
+			env.fog_light_color = Color("#e5a782")
+			env.fog_sky_affect = 0.15
 		"dawn":
+			sky.ground_bottom_color = Color("#5a4636")
 			sky.sky_top_color = Color("#4f5f86")
 			sky.sky_horizon_color = Color("#f0a679")
 			sky.ground_horizon_color = Color("#b98a6a")

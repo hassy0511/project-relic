@@ -61,6 +61,7 @@ func _ready() -> void:
 	layer = 10
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root.theme = UiArt.theme()
 	add_child(_root)
 	hide_menu()
 
@@ -87,41 +88,55 @@ func hide_menu() -> void:
 		c.queue_free()
 
 
-func _build(title: String, sub: String, badge: String, items: Array, dark: bool, show_help := true) -> void:
+func _clear() -> void:
 	for c in _root.get_children():
 		c.queue_free()
+	buttons.clear()
 	_root.visible = true
+
+
+## 後ろのゲームの画面をぼかして暗くする（shader が使えないときは暗い幕）
+func _backdrop(alpha: float) -> void:
 	var bg := ColorRect.new()
-	bg.color = Color(0.06, 0.05, 0.04, 0.55 if dark else 0.35)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var sh = load("res://assets/shaders/menu_backdrop.gdshader")
+	if sh != null:
+		var mat := ShaderMaterial.new()
+		mat.shader = sh
+		mat.set_shader_parameter("tint", Color(0.05, 0.045, 0.04, alpha))
+		bg.material = mat
+	else:
+		bg.color = Color(0.05, 0.045, 0.04, alpha)
 	_root.add_child(bg)
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_root.add_child(center)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 14)
-	center.add_child(box)
-	var t := Hud.make_label(title, 96 if show_help else 56, Color("#f3e9d2"), true)
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(t)
-	if sub != "":
-		var s := Hud.make_label(sub, 30, Color("#ffb23e"))
-		s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		box.add_child(s)
-	if badge != "":
-		var b := Hud.make_label(badge, 20, Color("#c8bca8"))
-		b.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		box.add_child(b)
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 20)
-	box.add_child(spacer)
+
+
+## 画面の大きさ（仮想の画面。スマホでは content_scale_factor で小さくなる）
+func _view() -> Vector2:
+	var v := _root.get_viewport_rect().size
+	return v if v.x > 0.0 else Vector2(1920, 1080)
+
+
+## 行のボタン（見た目は UiArt.theme()：ボタンの 4 状態の部品、選んでいる行は煉瓦色の札＋左にカーソル）
+func _row_button(text: String, h: float, font_size: int) -> Button:
+	var btn := Button.new()
+	btn.text = text
+	btn.custom_minimum_size = Vector2(0, h)
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.clip_text = true
+	btn.add_theme_font_size_override("font_size", font_size)
+	btn.add_theme_constant_override("icon_max_width", 44)
+	btn.expand_icon = true
+	UiArt.add_cursor(btn)
+	return btn
+
+
+## タイトル画面とやられた画面の、縦に並ぶ選択肢
+func _menu_buttons(box: Container, items: Array, width: float) -> Button:
 	var first: Button = null
 	for it in items:
-		var btn := Button.new()
-		btn.text = it[0]
+		var btn := _row_button(String(it[0]), 64, 28)
 		btn.disabled = it.size() > 2 and it[2]
-		btn.custom_minimum_size = Vector2(480, 56)
-		btn.add_theme_font_size_override("font_size", 26)
+		btn.custom_minimum_size.x = width
 		btn.pressed.connect(func():
 			chosen.emit()
 			it[1].call())
@@ -130,33 +145,87 @@ func _build(title: String, sub: String, badge: String, items: Array, dark: bool,
 			if not btn.disabled:
 				btn.grab_focus())
 		box.add_child(btn)
+		buttons.append(btn)
 		if first == null and not btn.disabled:
 			first = btn
-	if not show_help:
-		if first:
-			first.call_deferred("grab_focus")
-		return
-	var help := GridContainer.new()
-	help.columns = 2
-	help.add_theme_constant_override("h_separation", 24)
-	var spacer2 := Control.new()
-	spacer2.custom_minimum_size = Vector2(0, 16)
-	box.add_child(spacer2)
-	box.add_child(help)
-	for h in (HELP_TOUCH if touch_mode else help_rows()):
-		help.add_child(Hud.make_label(h[0], 18, Color("#ffb23e"), true))
-		help.add_child(Hud.make_label(h[1], 18, Color("#e8dcc4")))
-	if first:
-		first.call_deferred("grab_focus")
+	return first
 
 
+## タイトル画面（ui_title.png）：左上にロゴ、左下に選択肢、右に操作の説明。後ろは夜明けの空（main が用意する）
 func show_title(has_save: bool, new_game: Callable, cont: Callable, quit_game: Callable) -> void:
 	_title_args = [has_save, new_game, cont, quit_game]
 	var items := [["はじめから", new_game], ["つづきから", cont, not has_save],
 		["操作の設定", func(): show_controls(func(): show_title(has_save, new_game, cont, quit_game))]]
 	if not OS.has_feature("web"):
 		items.append(["終了", quit_game])
-	_build("ARKWALKER", "アークウォーカー", "試遊版（Godot 版・仮の見た目）", items, true)
+	_clear()
+	_back = Callable()
+	_controls_open = false
+	_listen = ""
+	var vs := _view()
+	# 左側を暗くして、ロゴと文字を読みやすく
+	var shade := TextureRect.new()
+	var grad := Gradient.new()
+	grad.set_color(0, Color(0.04, 0.035, 0.03, 0.88))
+	grad.set_color(1, Color(0.04, 0.035, 0.03, 0.0))
+	var gt := GradientTexture2D.new()
+	gt.gradient = grad
+	gt.fill_to = Vector2(1, 0)
+	gt.width = 256
+	gt.height = 4
+	shade.texture = gt
+	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shade.stretch_mode = TextureRect.STRETCH_SCALE
+	shade.anchor_bottom = 1.0
+	shade.anchor_right = 0.62
+	_root.add_child(shade)
+	var left := maxf(48.0, vs.x * 0.055)
+	var logo := VBoxContainer.new()
+	logo.position = Vector2(left, maxf(36.0, vs.y * 0.08))
+	logo.add_theme_constant_override("separation", 0)
+	_root.add_child(logo)
+	var en := Hud.make_label("A R K W A L K E R", 40, UiArt.PAPER, true)
+	logo.add_child(en)
+	var ja := Hud.make_label("アークウォーカー", 112, UiArt.PAPER, true)
+	ja.add_theme_constant_override("outline_size", 14)
+	ja.add_theme_color_override("font_outline_color", Color(0.12, 0.08, 0.05, 0.85))
+	logo.add_child(ja)
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 14)
+	logo.add_child(line)
+	line.add_child(Hud.make_label("―　方舟は夜明けを歩く　―", 36, Color("#f6d9a8")))
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	box.anchor_top = 1.0
+	box.anchor_bottom = 1.0
+	box.offset_left = left
+	box.offset_top = -40
+	box.offset_bottom = -40
+	box.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_root.add_child(box)
+	var first := _menu_buttons(box, items, 500)
+	var badge := Hud.make_label("試遊版（Godot 版）", 20, UiArt.DIM_TEXT)
+	Hud._pin(badge, 1, 1, -32, -24)
+	_root.add_child(badge)
+	# 操作の説明（右の枠）
+	var help_panel := PanelContainer.new()
+	help_panel.add_theme_stylebox_override("panel", UiArt.box("small", Vector4(30, 24, 30, 24), Color(1, 1, 1, 0.92)))
+	Hud._pin(help_panel, 1, 1, -maxf(32.0, vs.x * 0.03), -64)
+	_root.add_child(help_panel)
+	var help := GridContainer.new()
+	help.columns = 2
+	help.add_theme_constant_override("h_separation", 24)
+	help.add_theme_constant_override("v_separation", 2)
+	help_panel.add_child(help)
+	var value_w := minf(560.0, vs.x * 0.42 - 260.0)
+	for h in (HELP_TOUCH if touch_mode else help_rows()):
+		help.add_child(Hud.make_label(h[0], 19, UiArt.AMBER, true))
+		var v := Hud.make_label(h[1], 19, Color("#e8dcc4"))
+		v.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		v.custom_minimum_size = Vector2(value_w, 0)
+		help.add_child(v)
+	if first:
+		_grab_later(first)
 
 
 
@@ -166,90 +235,124 @@ func set_note(text: String) -> void:
 		_note.text = text
 
 
-## 2 つに分けた画面：左に押せる行（上下で選ぶ）、右に選んでいる行の説明。パッド・キーボード・タッチで同じに使える。
-## rows：[{ label, right?, detail?, dim?（薄く表示。押すと callback は呼ばれる）, cb }]
+## 2 つに分けた画面（ui_menu_pause.png などの枠と札）：左に押せる行（上下で選ぶ）、右に選んでいる行の説明。
+## パッド・キーボード・タッチで同じに使える。
+## rows：[{ label, right?, detail?, icon?（行の左と説明の上に出す絵）, dim?（薄く表示。押すと callback は呼ばれる）, cb }]
 func _screen(title: String, sub: String, rows: Array, focus := 0, back := Callable(), footer := "") -> void:
-	for c in _root.get_children():
-		c.queue_free()
-	buttons.clear()
-	_root.visible = true
+	_clear()
 	_back = back
 	_controls_open = false
 	_listen = ""
-	var bg := ColorRect.new()
-	bg.color = Color(0.04, 0.03, 0.03, 0.72)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_root.add_child(bg)
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_root.add_child(center)
-	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", Hud.panel_style(Color(0.11, 0.09, 0.07, 0.96), 14))
-	panel.custom_minimum_size = Vector2(1560, 940)
-	center.add_child(panel)
+	_backdrop(0.62)
+	var vs := _view()
+	var side := clampf(vs.x * 0.04, 24.0, 80.0)
+	var frame := MarginContainer.new()
+	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+	frame.add_theme_constant_override("margin_left", int(side))
+	frame.add_theme_constant_override("margin_right", int(side))
+	frame.add_theme_constant_override("margin_top", 26)
+	frame.add_theme_constant_override("margin_bottom", 18)
+	_root.add_child(frame)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 12)
-	panel.add_child(box)
+	frame.add_child(box)
+	# 見出し：選んでいるタブの札（煉瓦色）に画面の名前、右に所持セルなど
 	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 16)
 	box.add_child(head)
-	head.add_child(Hud.make_label(title, 44, Color("#f3e9d2"), true))
+	var tab := PanelContainer.new()
+	tab.add_theme_stylebox_override("panel", UiArt.box("tab_selected", Vector4(40, 6, 48, 6)))
+	head.add_child(tab)
+	var tl := Hud.make_label(title, 36, UiArt.PAPER, true)
+	tl.custom_minimum_size = Vector2(200, 0)
+	tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tab.add_child(tl)
 	var gap := Control.new()
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(gap)
-	head.add_child(Hud.make_label(sub, 26, Color("#ffb23e")))
-	box.add_child(HSeparator.new())
+	if sub != "":
+		var sb := PanelContainer.new()
+		sb.add_theme_stylebox_override("panel", UiArt.box("tab_idle", Vector4(30, 6, 34, 6)))
+		sb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		head.add_child(sb)
+		sb.add_child(Hud.make_label(sub, 26, UiArt.AMBER, true))
 	var body := HBoxContainer.new()
-	body.add_theme_constant_override("separation", 24)
+	body.add_theme_constant_override("separation", 20)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(body)
+	var lp := PanelContainer.new()
+	lp.add_theme_stylebox_override("panel", UiArt.box("small", Vector4(16, 18, 14, 18)))
+	lp.custom_minimum_size = Vector2(clampf(vs.x * 0.37, 460.0, 700.0), 0)
+	body.add_child(lp)
 	var left := ScrollContainer.new()
-	left.custom_minimum_size = Vector2(640, 730)
 	left.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	left.follow_focus = true
-	body.add_child(left)
+	lp.add_child(left)
 	var list := VBoxContainer.new()
-	list.add_theme_constant_override("separation", 8)
+	list.add_theme_constant_override("separation", 6)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left.add_child(list)
 	var right := PanelContainer.new()
-	right.add_theme_stylebox_override("panel", Hud.panel_style(Color(0.05, 0.04, 0.03, 0.7), 10))
+	right.add_theme_stylebox_override("panel", UiArt.box("small", Vector4(34, 26, 30, 26)))
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(right)
+	var rcol := VBoxContainer.new()
+	rcol.add_theme_constant_override("separation", 12)
+	right.add_child(rcol)
+	var dicon := UiArt.icon_rect(null, 112)
+	dicon.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	dicon.visible = false
+	rcol.add_child(dicon)
 	var rscroll := ScrollContainer.new()
 	rscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	right.add_child(rscroll)
-	_detail = Hud.make_label("", 26, Color("#e8dcc4"))
-	_detail.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	rscroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	rcol.add_child(rscroll)
+	_detail = Hud.make_label("", 28, Color("#ece1c8"))
+	_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_detail.custom_minimum_size = Vector2(780, 0)
+	_detail.add_theme_constant_override("line_spacing", 4)
 	rscroll.add_child(_detail)
 	_note = Hud.make_label("", 26, Color("#fff3b0"), true)
 	box.add_child(_note)
+	# 画面の下の帯：操作の案内
+	var foot := PanelContainer.new()
+	foot.add_theme_stylebox_override("panel", UiArt.strip(0.7, Vector4(24, 6, 24, 6)))
+	box.add_child(foot)
 	var foot_text := footer if footer != "" else ("上下：選ぶ　決定：%s ／ %s ／ タップ　戻る：%s ／ %s" % [PadConfig.keys_text("confirm").get_slice(" / ", 0), PadConfig.pad_short("confirm"), PadConfig.keys_text("back").get_slice(" / ", 0), PadConfig.pad_short("back")] if not touch_mode else "タップで選ぶ")
-	box.add_child(Hud.make_label(foot_text, 18, Color("#a89c88")))
+	var fl := Hud.make_label(foot_text, 20, Color("#d6cab2"))
+	fl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	foot.add_child(fl)
+	# 行に絵が 1 つでもあれば、絵の無い行にも同じ幅の空きを置いて文字の頭をそろえる
+	var any_icon := false
+	for row in rows:
+		if row.get("icon") != null:
+			any_icon = true
 	var first: Button = null
 	for i in rows.size():
 		var row: Dictionary = rows[i]
-		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(0, 64)
-		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.text = " " + String(row.label)
-		btn.clip_text = true
-		btn.add_theme_font_size_override("font_size", 26)
+		var btn := _row_button(String(row.label), 64, 28)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var icon = row.get("icon")
+		if icon != null:
+			btn.icon = icon
+		elif any_icon:
+			btn.icon = _blank_icon()
 		if row.get("dim", false):
 			btn.modulate = Color(1, 1, 1, 0.55)
 		if String(row.get("right", "")) != "":
-			var rl := Hud.make_label(String(row.right), 24, Color("#ffb23e"))
+			var rl := Hud.make_label(String(row.right), 24, UiArt.AMBER, true)
 			rl.set_anchors_preset(Control.PRESET_FULL_RECT)
 			rl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 			rl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-			rl.offset_right = -16
+			rl.offset_right = -22
 			rl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			btn.add_child(rl)
+			_reserve_right(btn, rl.get_minimum_size().x + 40.0)
 		var detail := String(row.get("detail", ""))
 		btn.focus_entered.connect(func():
 			_detail.text = detail
+			dicon.texture = icon
+			dicon.visible = icon != null
 			moved.emit())
 		btn.mouse_entered.connect(func(): btn.grab_focus())
 		btn.pressed.connect(func():
@@ -260,9 +363,40 @@ func _screen(title: String, sub: String, rows: Array, focus := 0, back := Callab
 		if i == clampi(focus, 0, rows.size() - 1):
 			first = btn
 			_detail.text = detail
+			dicon.texture = icon
+			dicon.visible = icon != null
 	if first:
-		first.call_deferred("grab_focus")
+		_grab_later(first)
 
+
+## ボタンの右に値段などを出すとき、行の名前が下に潜らないよう、右の余白を広げる
+func _reserve_right(btn: Button, px: float) -> void:
+	for st in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
+		var sb: StyleBox = UiArt.theme().get_stylebox(st, "Button").duplicate()
+		sb.content_margin_right = px
+		btn.add_theme_stylebox_override(st, sb)
+
+
+## 画面ができてから（大きさが決まってから）最初の行を選ぶ。スクロールの位置がずれないように。
+## その間に別の行が選ばれていたら（テストなど）そのまま
+func _grab_later(b: Button) -> void:
+	await get_tree().process_frame
+	if is_instance_valid(b) and b.is_inside_tree() and b.is_visible_in_tree():
+		var cur := get_viewport().gui_get_focus_owner()
+		if cur == null or not buttons.has(cur):
+			b.grab_focus()
+
+
+static var _blank: Texture2D = null
+
+
+## 透明な絵（行の頭をそろえるための空き）
+static func _blank_icon() -> Texture2D:
+	if _blank == null:
+		var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
+		img.fill(Color(0, 0, 0, 0))
+		_blank = ImageTexture.create_from_image(img)
+	return _blank
 
 ## ポーズ画面。main：game・resume()・toggle_chip()・save_slot(path)・load_slot(path)・read_slot(path)・to_title()・can_save()・
 ## SAVE_PATH・AUTOSAVE_PATH を持つ（main.gd）。右側に、選んでいる項目の内容がそのまま出る
@@ -275,15 +409,15 @@ func show_pause(main, focus := 0) -> void:
 		chip_label = "チップ「チャージ化」：%s" % ("装着中（外す）" if game.charge_type() else "外している（付ける）")
 	var rows := [
 		{"label": "ゲームに戻る", "detail": "今の目的\n　%s" % (game.objective if game.objective != "" else "（なし）"), "cb": main.resume},
-		{"label": "ステータス", "detail": PauseInfo.status_text(game), "cb": func(): pass},
-		{"label": "持ち物", "detail": PauseInfo.items_text(game), "cb": func(): pass},
-		{"label": "地図（入った部屋）", "detail": PauseInfo.map_text(game), "cb": func(): pass},
-		{"label": "ギルドの依頼", "detail": PauseInfo.requests_text(game), "cb": func(): pass},
-		{"label": chip_label, "detail": "チャージ化：主武器が「長押しで溜める」型になる。押すと付け外しできる。", "dim": not has_chip, "cb": func():
+		{"label": "ステータス", "detail": PauseInfo.status_text(game), "icon": UiArt.rank_icon(game.mark), "cb": func(): pass},
+		{"label": "持ち物", "detail": PauseInfo.items_text(game), "icon": UiArt.tex("icon_item_repair_small"), "cb": func(): pass},
+		{"label": "地図（入った部屋）", "detail": PauseInfo.map_text(game), "icon": UiArt.tex("icon_map_current"), "cb": func(): pass},
+		{"label": "ギルドの依頼", "detail": PauseInfo.requests_text(game), "icon": UiArt.tex("icon_map_quest"), "cb": func(): pass},
+		{"label": chip_label, "detail": "チャージ化：主武器が「長押しで溜める」型になる。押すと付け外しできる。", "dim": not has_chip, "icon": UiArt.tex("icon_item_chip"), "cb": func():
 			if has_chip:
 				main.toggle_chip()
 				again.call(5)},
-		{"label": "セーブ", "detail": "手動のセーブ（スロット 1）。ビーコンでは自動でも保存される。", "cb": func(): show_save(main, true)},
+		{"label": "セーブ", "detail": "手動のセーブ（スロット 1）。ビーコンでは自動でも保存される。", "icon": UiArt.tex("icon_map_save_beacon"), "cb": func(): show_save(main, true)},
 		{"label": "ロード", "detail": "保存したところから再開する。", "cb": func(): show_save(main, false)},
 		{"label": "操作の説明", "detail": PauseInfo.help_text(touch_mode), "cb": func(): pass},
 		{"label": "操作の設定", "detail": "ボタン・キーの割り当てを変える。コントローラーの名前と、押したボタンの番号も見られる。", "cb": func(): show_controls(func(): show_pause(main, 9))},
@@ -334,8 +468,7 @@ func show_controls(back: Callable, focus := 0, note := "") -> void:
 	_controls_open = true
 	_controls_row = focus
 	_pad_info = Hud.make_label("", 20, Color("#9fd4c0"))
-	_pad_info.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
-	_pad_info.custom_minimum_size = Vector2(1400, 0)
+	_pad_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_note.get_parent().add_child(_pad_info)
 	_note.get_parent().move_child(_pad_info, _note.get_index())
 	_refresh_pad_info()
@@ -458,4 +591,31 @@ func show_trade(title: String, sub: String, rows: Array, close: Callable, focus 
 ## やられたときの画面
 func show_retry(has_save: bool, retry: Callable, load_save: Callable, to_title: Callable) -> void:
 	var items := [["中継地点から再開する", retry], ["最後のセーブから再開", load_save, not has_save], ["タイトルへ", to_title]]
-	_build("やられた……", "倒したボス・開けた宝箱・立てたフラグはそのまま残っている", "", items, true, false)
+	_clear()
+	_back = Callable()
+	_controls_open = false
+	_listen = ""
+	_backdrop(0.5)
+	# ui_retry.png：画面の真ん中に小さな枠、選んでいる行は煉瓦色の札
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root.add_child(center)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 14)
+	center.add_child(col)
+	var t := Hud.make_label("やられた……", 64, UiArt.PAPER, true)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(t)
+	var s := Hud.make_label("倒したボス・開けた宝箱・立てたフラグはそのまま残っている", 24, UiArt.AMBER)
+	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(s)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UiArt.box("small", Vector4(30, 26, 30, 26)))
+	panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	col.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+	var first := _menu_buttons(box, items, 600)
+	if first:
+		_grab_later(first)
