@@ -544,6 +544,17 @@ func _ui_steps() -> Array:
 		{"ticks": 10, "input": {}},
 		{"ticks": 1, "shot": "ui_01_hud", "input": {}, "check": func():
 			return _check(main.hud._we_row.visible and main.hud._objective_box.visible and main.hud._prompt_box.visible, "HUD：特殊武器のゲージ・目的・調べるの案内が出る")},
+		# 番機の警戒の合図（頭上の「！」の部品）
+		{"ticks": 2, "setup": func():
+			_arena_start("shield")
+			_stand(Vector3(0, 0, 3), Vector3(0, 0, -9))},
+		{"ticks": 20, "input": {}},
+		{"ticks": 2, "setup": func():
+			for e in main.game.enemies:
+				e.set_state("idle")
+				e.become_alert()},
+		{"ticks": 1, "shot": "ui_01b_alert", "input": {}, "check": func():
+			return _check(main.game.enemies.any(func(e): return e.alerting()), "番機が警戒すると頭上に「！」が出る")},
 		# ボス戦：ロックオン（解析中）→ 解析済み・弱点があいている、チャージ 1 段目、危険の HP、字幕
 		{"ticks": 2, "setup": func():
 			_arena_start("kannuki")

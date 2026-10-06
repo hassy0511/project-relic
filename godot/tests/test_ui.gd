@@ -284,3 +284,71 @@ func test_practice_dummy_for_lock_on() -> void:
 	h.expect(g.lock_on.target == d, "練習用の番機をロックオンできる")
 	h.near(d.pos.x, 8.0, 0.2, "練習用の番機は動かない")
 	h.free_game(g)
+
+
+## UI の部品（Codex の W2-08）：使っている絵がすべて assets/ui にあり、ボタン・パネルが 9 分割の絵になっている
+func test_ui_art_parts() -> void:
+	var missing := []
+	var names := []
+	for part in UiArt.SLICE:
+		names.append("ui_parts_panel_" + part)
+	for k in UiArt.GAUGE:
+		names.append(UiArt.GAUGE[k].frame)
+	for n in UiArt.ITEM_ICONS.values() + UiArt.RANK_ICONS.values():
+		names.append(n)
+	for sym in TouchControls.SYMBOLS.values():
+		names.append("ui_parts_touch_symbol_" + sym)
+	for n in ["ui_parts_gauge_hp_fill_full", "ui_parts_gauge_hp_fill_damaged", "ui_parts_gauge_hp_fill_danger",
+			"ui_parts_gauge_energy_fill", "ui_parts_gauge_boss_fill", "ui_parts_gauge_boss_divider",
+			"ui_parts_gauge_charge_stage1", "ui_parts_gauge_charge_stage2", "ui_parts_lockon_normal",
+			"ui_parts_lockon_analyzing", "ui_parts_lockon_weakpoint", "ui_parts_lockon_alert", "ui_parts_face_frame",
+			"ui_parts_face_frame_wait", "ui_parts_cursor", "ui_parts_advance", "ui_parts_touch_joystick_base",
+			"ui_parts_touch_joystick_knob", "ui_parts_touch_button_normal", "ui_parts_touch_button_pressed",
+			"ui_parts_touch_button_lock_on", "icon_spark_rapid", "icon_spark_charge", "icon_blade",
+			"icon_map_current", "icon_map_quest", "icon_map_save_beacon", "icon_map_destination", "icon_item_relic"]:
+		names.append(n)
+	for n in names:
+		if UiArt.tex(n) == null:
+			missing.append(n)
+	h.expect(missing.is_empty(), "UI の部品の絵がそろっている（足りない：%s）" % str(missing))
+	for m in Cond.MARKS:
+		h.expect(UiArt.RANK_ICONS.has(m), "回収屋の印「%s」にバッジの絵がある" % m)
+	var th := UiArt.theme()
+	h.expect(th.get_stylebox("normal", "Button") is StyleBoxTexture and th.get_stylebox("focus", "Button") is StyleBoxTexture, "ボタンの見た目が部品の絵（9 分割）")
+	var sb: StyleBoxTexture = UiArt.box("choice")
+	h.expect(sb.texture_margin_top * 2 < sb.texture.get_height(), "選択肢の札の角が、縦に伸ばせる余地を残している")
+	h.expect(UiArt.item_icon("relic.big_gear") != null and UiArt.item_icon("scrap") == null, "遺物は汎用の遺物の絵、素材は絵なし")
+
+
+## HUD：HP の危険の色・減った分、ボスの区切り、会話の選択肢の札
+func test_hud_states() -> void:
+	var g := _new_game()
+	await h.settle()
+	g.load_room("ch1.mid", "start")
+	await _pump(g, 6)
+	var hud := Hud.new()
+	h.tree.root.add_child(hud)
+	var cam := Camera3D.new()
+	h.tree.root.add_child(cam)
+	await h.tree.process_frame
+	hud.sync(g, cam, 0.016)
+	h.expect(hud._hp.fill == UiArt.tex("ui_parts_gauge_hp_fill_full"), "満タンの中身")
+	g.player.hp = g.player.max_hp * 0.2
+	hud.sync(g, cam, 0.016)
+	h.expect(hud._hp.fill == UiArt.tex("ui_parts_gauge_hp_fill_danger") and hud._hp.lag > hud._hp.value, "3 割を切ると危険の中身、減った分は遅れて縮む")
+	for i in 120:
+		hud.sync(g, cam, 0.05)
+	h.near(hud._hp.lag, hud._hp.value, 0.01, "減った分はしばらくすると追いつく")
+	g.story.start_dialogue("ch1.debt")
+	for i in 1200:
+		var d: Dictionary = g.story.dialogue
+		if d.is_empty() or (d.has("choices") and d.shown >= String(d.text).length()):
+			break
+		await h.tree.physics_frame
+		g.step(InputFrame.of({"jump": i % 6 < 3}))
+		g.drain_events()
+	hud.sync(g, cam, 0.016)
+	h.expect(hud._dlg.visible and hud._dlg_choices.visible and hud._dlg_choice_rows.size() >= 2, "選択肢の札が出る")
+	hud.queue_free()
+	cam.queue_free()
+	h.free_game(g)
