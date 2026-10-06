@@ -731,6 +731,10 @@ func _sync_dialogue(d: Dictionary, vs: Vector2) -> void:
 		_mem.value = prog
 		_mem.queue_redraw()
 		_mem_pct.text = "%d%%" % int(round(prog * 100.0))
+	# 顔の枠：16:9 のスマホ（iPhone SE など）では、ボタンの弧を避けた幅に顔・本文・選択肢が並びきらない
+	# （枠が画面の左からはみ出し、本文が 1 行 6 文字ほどになる）ので、顔を省く（名前の札は残る）
+	var narrow := compact and vs.x - 0.58 * vs.y - EDGE < 880.0
+	_dlg_face.visible = who != "" and not narrow
 	if compact:
 		# 右下のボタンの弧に掛からないよう、左に寄せて狭く
 		var right := vs.x - 0.58 * vs.y
@@ -741,11 +745,10 @@ func _sync_dialogue(d: Dictionary, vs: Vector2) -> void:
 		_dlg.custom_minimum_size.x = minf(1760.0, vs.x - 2.0 * 48.0)
 		_dlg.offset_left = -_dlg.custom_minimum_size.x * 0.5
 		_dlg.offset_right = _dlg.custom_minimum_size.x * 0.5
-	_fit(_dlg)
 	_dlg_name.text = who
 	_dlg_name_box.visible = who != ""
 	_dlg_text.text = text.substr(0, d.shown)
-	_dlg_face.visible = who != ""
+	_fit(_dlg)
 	var slot: Dictionary = _dlg_face.get_meta("slot")
 	_fill_face(slot, who, String(d.get("face", "normal")))
 	var done: bool = d.shown >= text.length()
@@ -818,6 +821,9 @@ func _set_compact(on: bool) -> void:
 	_reticle.text_size = AUX_TOUCH if on else 22
 	_reticle.scan_size = AUX_TOUCH if on else 20
 	_reticle.reserve_right = 0.3 if on else 0.0
+	# 目的の帯：文字が大きくなる分、上下の余白を詰めて少し上へ（下の「ポーズ」「背後」のボタンに掛からないように）
+	_objective_box.add_theme_stylebox_override("panel", UiArt.strip(0.62, Vector4(14, 3, 22, 3) if on else Vector4(14, 8, 22, 8)))
+	_pin(_objective_box, 1, 0, -EDGE, EDGE + (54.0 if on else 62.0))
 	if on:
 		_pin(_mem_box, 0, 0, EDGE, 160)
 	else:
