@@ -80,10 +80,12 @@ func _ready() -> void:
 		{"ticks": 1, "shot": "07_after_drill", "check": func(): return _check(main.game.breakables[0].broken, "ドリルで壁を壊せる")},
 	]
 	# 引数 --arena_only：試しの部屋の場面だけ（画面の確認を早く撮るため）
-	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("cp2d_shots"):
+	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("cp2d_shots") or main.args.has("pad_shots"):
 		_steps.clear()
 	if main.args.has("ch1_full"):
 		_steps.clear()
+	elif main.args.has("pad_shots"):
+		_steps.append_array(_pad_steps())
 	elif main.args.has("cp2d_shots"):
 		_steps.clear()
 		_steps.append_array(_cp2d_steps())
@@ -98,6 +100,7 @@ func _ready() -> void:
 			_steps.append_array(_arena_steps())
 		_steps.append_array(_world_steps())
 		_steps.append_array(_cp2d_steps())
+		_steps.append_array(_pad_steps())
 	if not main.args.has("ch1_full"):
 		_steps.append({"ticks": 1, "done": true})
 
@@ -508,6 +511,52 @@ func _cp2d_steps() -> Array:
 	]
 
 
+## ゲームパッドの操作の設定画面（--pad_shots）：ポーズから開く・割り当て待ち・割り当て・入れ替え・初期に戻す
+func _pad_steps() -> Array:
+	var press := func(i: int):
+		var e := InputEventJoypadButton.new()
+		e.button_index = i
+		e.pressed = true
+		main.menu.feed_event(e)
+	var open_controls := func():
+		main.pause()
+		main.menu.show_pause(main, 9)
+		main.menu.buttons[9].pressed.emit()
+	return [
+		{"ticks": 2, "setup": func():
+			PadConfig.path = "user://demo_input.cfg"
+			PadConfig.reset_all()},
+		{"ticks": 1, "shot": "01_controls", "setup": func():
+			open_controls.call()
+			press.call(7),
+			"check": func(): return _check(main.menu.buttons.size() == PadConfig.ACTIONS.size() + 6 and main.menu.pad_info_text().contains("ボタン 7"), "操作の設定の画面が開き、押したボタンの番号が出る"),
+			"after": func(): main.resume()},
+		{"ticks": 1, "shot": "02_listening", "setup": func():
+			open_controls.call()
+			main.menu.buttons[0].pressed.emit(),
+			"check": func(): return _check(main.menu._listen == "jump", "ジャンプの割り当て待ちになる"),
+			"after": func(): main.resume()},
+		{"ticks": 1, "shot": "03_assigned", "setup": func():
+			open_controls.call()
+			main.menu.buttons[0].pressed.emit()
+			press.call(3),
+			"check": func(): return _check(PadConfig.pad.jump == "b3" and PadConfig.pad.special == "b0", "Y を割り当てると、特殊武器と入れ替わる"),
+			"after": func(): main.resume()},
+		{"ticks": 1, "shot": "04_ps_preset", "setup": func():
+			open_controls.call()
+			main.menu.buttons[PadConfig.ACTIONS.size() + 3].pressed.emit(),
+			"check": func(): return _check(PadConfig.pad.jump == "b1" and PadConfig.code_short("b1") == "×", "PS 配置にすると × がジャンプ・決定になる"),
+			"after": func(): main.resume()},
+		{"ticks": 2, "setup": func():
+			PadConfig.reset_all()
+			DirAccess.remove_absolute("user://demo_input.cfg")
+			PadConfig.path = PadConfig.PATH
+			PadConfig.load_file()
+			PadConfig.apply()},
+		{"ticks": 1, "check": func(): return _check(PadConfig.pad.jump == "b0" and main.state == "playing", "初期に戻して、ゲームに戻る")},
+	]
+
+
 func _check(cond: bool, what: String) -> bool:
 	print(("✓ " if cond else "✗ ") + what)
 	if not cond:
@@ -634,7 +683,7 @@ func _process(_dt: float) -> void:
 				await get_tree().physics_frame
 			_run_bot()
 			return
-		if not (main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots")):
+		if not (main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("pad_shots")):
 			main.args["mvp"] = "1"   # 見本の前半は古い試験場（mvp.main）で進める
 		main.start_game(null)
 		main.game.god_mode = true

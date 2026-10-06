@@ -193,7 +193,7 @@ func test_controls_screen_assign() -> void:
 	var backed := [false]
 	menu.show_controls(func(): backed[0] = true)
 	await h.tree.process_frame
-	h.expect(menu.buttons.size() == PadConfig.ACTIONS.size() + 2, "全部の操作＋初期に戻す＋戻る の行がある")
+	h.expect(menu.buttons.size() == PadConfig.ACTIONS.size() + 6, "全部の操作＋表記・遊び 2 つ・PS 配置・初期に戻す・戻る の行がある")
 	h.expect(menu.pad_info_text().contains("押したボタンの番号"), "押したボタンの番号の表示がある")
 	# 割り当て待ちでないときは、押したものを表示するだけ
 	menu.feed_event(_btn(7))
@@ -216,7 +216,7 @@ func test_controls_screen_assign() -> void:
 	await h.tree.process_frame
 	h.expect(PadConfig.pad.jump == "b9" and PadConfig.pad.dash == "b0", "使い済みのボタンなら入れ替わる")
 	# 初期に戻す
-	menu.buttons[PadConfig.ACTIONS.size()].pressed.emit()
+	menu.buttons[PadConfig.ACTIONS.size() + 4].pressed.emit()
 	await h.tree.process_frame
 	h.expect(PadConfig.pad.jump == "b0", "初期に戻す")
 	menu.queue_free()
@@ -230,4 +230,29 @@ func test_help_and_hint_follow_mapping() -> void:
 	h.expect(text.contains("ジャンプ・調べる：Space ／ Y"), "ポーズの操作の説明が割り当てに従う")
 	h.expect(Hud.expand_hint("{jump} ボタン", "pad") == "Y ボタン", "案内の文のボタン名が割り当てに従う")
 	h.expect(Hud.expand_hint("{jump}", "keyboard") == "Space", "キーボードならキー名")
+	_end()
+
+
+func test_style_deadzone_and_preset() -> void:
+	_begin()
+	h.expect(PadConfig.code_short("b0") == "A" and PadConfig.code_short("a5+") == "RT", "表記の初期は Xbox（A、RT）")
+	PadConfig.style = "ps"
+	h.expect(PadConfig.code_short("b0") == "×" and PadConfig.code_short("b2") == "□" and PadConfig.code_short("a5+") == "R2", "PlayStation 表記（×、□、R2）")
+	h.expect(Hud.expand_hint("{jump} で跳ぶ", "pad") == "× で跳ぶ", "案内の文も表記に従う")
+	PadConfig.style = "auto"
+	PadConfig.cycle_style()
+	h.expect(PadConfig.style == "xbox", "表記を切り替えられる")
+	PadConfig.cycle_dead(true)
+	h.near(PadConfig.dead_l, 0.25, 0.0001, "左の遊びを 1 段階大きくする（標準 → 大）")
+	PadConfig.cycle_dead(false)
+	h.near(PadConfig.dead_r, 0.3, 0.0001, "右の遊びも同じ")
+	PadConfig.load_file()
+	h.expect(PadConfig.style == "xbox" and absf(PadConfig.dead_l - 0.25) < 0.0001, "表記と遊びも保存される")
+	h.expect(InputSource.shape_stick(Vector2(0.2, 0.0), PadConfig.dead_l).length() == 0.0, "遊びを大きくすると、小さな倒しは 0")
+	PadConfig.preset_ps_raw()
+	h.expect(PadConfig.pad.jump == "b1" and PadConfig.pad.fire == "b7" and PadConfig.pad.confirm == "b1", "PS 配置：× がジャンプ・決定、R2 が撃つ")
+	h.expect(_pad_events("ui_accept") == ["b1"] and _btn(1).is_action_pressed("ui_accept"), "メニューの決定も × に従う")
+	h.expect(PadConfig.code_short(PadConfig.pad.jump) == "×", "PS 配置では × と表示される")
+	PadConfig.reset_all()
+	h.expect(PadConfig.style == "auto" and PadConfig.dead_l == 0.15 and PadConfig.pad.jump == "b0", "初期に戻す：表記・遊びも戻る")
 	_end()

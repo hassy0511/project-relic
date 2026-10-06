@@ -13,18 +13,36 @@ const ACTIONS := [
 	["jump", "ジャンプ", "game"], ["dash", "ダッシュ", "game"], ["fire", "撃つ", "game"], ["sword", "斬る", "game"],
 	["special", "特殊武器", "game"], ["lock_on", "ロックオン", "game"], ["heal", "回復", "game"],
 	["camera_reset", "カメラを戻す", "game"], ["pause", "ポーズ", "game"], ["map", "地図", "game"],
-	["confirm", "決定（メニュー・会話）", "menu"], ["back", "戻る（メニュー）", "menu"],
+	["confirm", "決定", "menu"], ["back", "戻る", "menu"],
 ]
 ## 名前 → Godot の InputMap の名前（メニューの決定・戻る）
 const MENU_ACTIONS := {"confirm": "ui_accept", "back": "ui_cancel"}
 
-## Xbox 配置：A=0 B=1 X=2 Y=3 Back=4 Start=6 L3=7 R3=8 LB=9 RB=10 十字キー 上=11 下=12 左=13 右=14
-const BUTTON_NAMES := {
+## ボタンの名前。番号は Godot の JoyButton（Xbox 配置：A=0 B=1 X=2 Y=3 Back=4 Start=6 L3=7 R3=8 LB=9 RB=10 十字キー 上=11 下=12 左=13 右=14）。
+## PlayStation のコントローラーでは、標準の割り当てなら A=×、B=○、X=□、Y=△ の位置になる
+const XBOX_NAMES := {
 	0: "A", 1: "B", 2: "X", 3: "Y", 4: "Back", 5: "Guide", 6: "Start", 7: "L3", 8: "R3", 9: "LB", 10: "RB",
 	11: "十字上", 12: "十字下", 13: "十字左", 14: "十字右", 15: "Misc", 16: "パドル1", 17: "パドル2", 18: "パドル3",
 	19: "パドル4", 20: "タッチパッド",
 }
-const AXIS_NAMES := {4: "LT", 5: "RT"}
+const PS_NAMES := {
+	0: "×", 1: "○", 2: "□", 3: "△", 4: "SHARE", 5: "PS", 6: "OPTIONS", 7: "L3", 8: "R3", 9: "L1", 10: "R1",
+	11: "十字上", 12: "十字下", 13: "十字左", 14: "十字右", 15: "Misc", 16: "パドル1", 17: "パドル2", 18: "パドル3",
+	19: "パドル4", 20: "タッチパッド",
+}
+## ボタンが番号順（DirectInput 風）で届く PlayStation 系の機種の名前
+const PS_RAW_NAMES := {
+	0: "□", 1: "×", 2: "○", 3: "△", 4: "L1", 5: "R1", 6: "L2", 7: "R2", 8: "SHARE", 9: "OPTIONS", 10: "L3", 11: "R3",
+	12: "PS", 13: "タッチパッド",
+}
+const XBOX_AXES := {4: "LT", 5: "RT"}
+const PS_AXES := {4: "L2", 5: "R2"}
+## 表記の選び方
+const STYLES := ["auto", "xbox", "ps", "ps_raw"]
+const STYLE_TEXT := {"auto": "自動", "xbox": "Xbox（A B X Y）", "ps": "PlayStation（× ○ □ △）", "ps_raw": "PlayStation（番号順の機種）"}
+## スティックの遊び（デッドゾーン）の段階。左は移動、右はカメラ
+const DEAD_L_STEPS := [0.08, 0.15, 0.25, 0.35]
+const DEAD_R_STEPS := [0.12, 0.2, 0.3, 0.4]
 
 static var path := PATH
 ## 名前 → パッドの割り当て（"b0" など。"" は未割り当て）
@@ -32,6 +50,10 @@ static var pad := {}
 ## 名前 → キー（physical_keycode）の配列
 static var keys := {}
 static var _loaded := false
+## ボタンの表記（"auto" は、つながっているコントローラーの名前で決める）
+static var style := "auto"
+static var dead_l := 0.15
+static var dead_r := 0.2
 
 
 static func defaults() -> Dictionary:
@@ -52,6 +74,9 @@ static func reset() -> void:
 	var d := defaults()
 	pad = d.pad
 	keys = d.keys
+	style = "auto"
+	dead_l = 0.15
+	dead_r = 0.2
 	_loaded = true
 
 
@@ -66,6 +91,10 @@ static func load_file() -> void:
 	var cf := ConfigFile.new()
 	if cf.load(path) != OK:
 		return
+	var st := String(cf.get_value("options", "style", "auto"))
+	style = st if STYLES.has(st) else "auto"
+	dead_l = clampf(float(cf.get_value("options", "dead_l", 0.15)), 0.0, 0.6)
+	dead_r = clampf(float(cf.get_value("options", "dead_r", 0.2)), 0.0, 0.6)
 	for a in ACTIONS:
 		var id: String = a[0]
 		var p = cf.get_value("pad", id, "?")
@@ -83,6 +112,9 @@ static func load_file() -> void:
 
 static func save() -> void:
 	var cf := ConfigFile.new()
+	cf.set_value("options", "style", style)
+	cf.set_value("options", "dead_l", dead_l)
+	cf.set_value("options", "dead_r", dead_r)
 	for a in ACTIONS:
 		var id: String = a[0]
 		cf.set_value("pad", id, pad.get(id, ""))
@@ -117,27 +149,56 @@ static func code_of_event(e: InputEvent) -> String:
 	return ""
 
 
+## 表記を決める："xbox" か "ps"（自動のときは、つながっているコントローラーの名前から）
+static func style_resolved() -> String:
+	ensure_loaded()
+	if style != "auto":
+		return style
+	for d in Input.get_connected_joypads():
+		var n := Input.get_joy_name(d).to_lower()
+		for w in ["ps3", "ps4", "ps5", "dualshock", "dualsense", "playstation", "sony", "wireless controller"]:
+			if n.contains(w):
+				return "ps"
+	return "xbox"
+
+
+static func button_name(i: int) -> String:
+	var st := style_resolved()
+	var names: Dictionary = PS_RAW_NAMES if st == "ps_raw" else (PS_NAMES if st == "ps" else XBOX_NAMES)
+	return String(names.get(i, ""))
+
+
+static func axis_name(ax: int) -> String:
+	var names: Dictionary = PS_AXES if style_resolved().begins_with("ps") else XBOX_AXES
+	return String(names.get(ax, ""))
+
+
 static func code_text(c: String) -> String:
 	if c == "":
 		return "（なし）"
 	if c[0] == "b":
 		var i := int(c.substr(1))
-		return "%s（%d）" % [BUTTON_NAMES[i], i] if BUTTON_NAMES.has(i) else "ボタン %d" % i
+		var n := button_name(i)
+		return "%s（%d）" % [n, i] if n != "" else "ボタン %d" % i
 	var ax := int(c.substr(1, c.length() - 2))
-	var sg := "" if c.ends_with("+") else "−"
-	return "%s（軸 %d）" % [AXIS_NAMES[ax], ax] if AXIS_NAMES.has(ax) and c.ends_with("+") else "軸 %d%s" % [ax, sg if sg != "" else "＋"]
+	var an := axis_name(ax)
+	if an != "" and c.ends_with("+"):
+		return "%s（軸 %d）" % [an, ax]
+	return "軸 %d%s" % [ax, "＋" if c.ends_with("+") else "−"]
 
 
-## 短い名前（案内の文に入れる）："A"、"RT" など
+## 短い名前（案内の文に入れる）："A"、"RT"、"×" など
 static func code_short(c: String) -> String:
 	if c == "":
 		return "（なし）"
 	if c[0] == "b":
 		var i := int(c.substr(1))
-		return BUTTON_NAMES.get(i, "ボタン%d" % i)
+		var n := button_name(i)
+		return n if n != "" else "ボタン%d" % i
 	var ax := int(c.substr(1, c.length() - 2))
-	if AXIS_NAMES.has(ax) and c.ends_with("+"):
-		return AXIS_NAMES[ax]
+	var an := axis_name(ax)
+	if an != "" and c.ends_with("+"):
+		return an
 	return "軸%d%s" % [ax, "＋" if c.ends_with("+") else "−"]
 
 
@@ -146,11 +207,12 @@ static func pad_short(action: String) -> String:
 	return code_short(String(pad.get(action, "")))
 
 
-static func keys_text(action: String) -> String:
+static func keys_text(action: String, limit := 99) -> String:
 	ensure_loaded()
 	var out := []
 	for k in keys.get(action, []):
-		out.append(OS.get_keycode_string(k))
+		if out.size() < limit:
+			out.append(OS.get_keycode_string(k))
 	return " / ".join(out) if not out.is_empty() else "（なし）"
 
 
@@ -197,6 +259,54 @@ static func assign_key(action: String, keycode: int) -> String:
 	apply()
 	save()
 	return swapped
+
+
+## 表記を 自動 → Xbox → PlayStation の順に切り替える
+static func cycle_style() -> void:
+	ensure_loaded()
+	style = STYLES[(STYLES.find(style) + 1) % STYLES.size()]
+	save()
+
+
+## スティックの遊びを 1 段階大きくする（最後まで行くと最初に戻る）
+static func cycle_dead(left: bool) -> void:
+	ensure_loaded()
+	var steps: Array = DEAD_L_STEPS if left else DEAD_R_STEPS
+	var cur: float = dead_l if left else dead_r
+	var best := 0
+	for i in steps.size():
+		if absf(steps[i] - cur) < absf(steps[best] - cur):
+			best = i
+	var v: float = steps[(best + 1) % steps.size()]
+	if left:
+		dead_l = v
+	else:
+		dead_r = v
+	save()
+
+
+static func dead_text(left: bool) -> String:
+	var v: float = dead_l if left else dead_r
+	var steps: Array = DEAD_L_STEPS if left else DEAD_R_STEPS
+	var names := ["小", "標準", "大", "特大"]
+	var best := 0
+	for i in steps.size():
+		if absf(steps[i] - v) < absf(steps[best] - v):
+			best = i
+	return "%s（%.2f）" % [names[best], v]
+
+
+## PlayStation 系で、ブラウザが「標準の割り当て」にしてくれないとき（ボタンが番号順＝ □=0 ×=1 ○=2 △=3 L1=4 R1=5 L2=6 R2=7 SHARE=8 OPTIONS=9 L3=10 R3=11）の割り当て。
+## 標準の割り当てで届くなら「初期に戻す」のままで × がジャンプ・決定になる
+static func preset_ps_raw() -> void:
+	ensure_loaded()
+	pad = {
+		"jump": "b1", "dash": "b2", "sword": "b0", "special": "b3", "heal": "b4", "camera_reset": "b11",
+		"pause": "b9", "map": "b8", "fire": "b7", "lock_on": "b6", "confirm": "b1", "back": "b2",
+	}
+	style = "ps_raw"
+	apply()
+	save()
 
 
 static func reset_all() -> void:

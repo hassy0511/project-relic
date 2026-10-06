@@ -303,11 +303,29 @@ func show_controls(back: Callable, focus := 0, note := "") -> void:
 		var idx: int = rows.size()
 		rows.append({
 			"label": a[1],
-			"right": "%s ／ %s" % [PadConfig.code_text(String(PadConfig.pad.get(id, ""))), PadConfig.keys_text(id)],
-			"detail": "%s\n\nパッド：%s\nキー：%s\n\n決定してから、割り当てたいボタン（またはキー）を押す。\nトリガーが「ボタン」でも「軸」でも、押したものがそのまま割り当たる。\n同じボタンを使っている操作があれば入れ替える。\nやめるときは Esc。" % [a[1], PadConfig.code_text(String(PadConfig.pad.get(id, ""))), PadConfig.keys_text(id)],
+			"right": "%s ／ %s" % [PadConfig.code_text(String(PadConfig.pad.get(id, ""))), PadConfig.keys_text(id, 2)],
+			"detail": "%s\n\nパッド：%s\nキー：%s\n\n決定してから、割り当てたいボタン（またはキー）を押す。\nトリガーが「ボタン」でも「軸」でも、押したものがそのまま割り当たる。\n同じボタンを使っている操作があれば入れ替える。\nやめるときは Esc。" % [a[1] + {"confirm": "（メニューの決定と、会話を送るのに使う）", "back": "（メニューで 1 つ前の画面に戻るのに使う）"}.get(id, ""), PadConfig.code_text(String(PadConfig.pad.get(id, ""))), PadConfig.keys_text(id)],
 			"cb": func(): _begin_listen(id, idx),
 		})
-	rows.append({"label": "初期に戻す", "detail": "ボタン・キーの割り当てをすべて初めの状態に戻す。", "cb": func():
+	rows.append({"label": "ボタンの表記", "right": "%s%s" % [PadConfig.STYLE_TEXT[PadConfig.style], "：" + PadConfig.style_resolved() if PadConfig.style == "auto" else ""],
+		"detail": "画面や案内に出すボタンの名前。Xbox は A B X Y、PlayStation は × ○ □ △（「番号順の機種」は、ボタンが番号順で届く PS 系用）。自動はコントローラーの名前で決める。決定で切り替える。",
+		"cb": func():
+			PadConfig.cycle_style()
+			show_controls(back, PadConfig.ACTIONS.size(), "表記：%s" % PadConfig.STYLE_TEXT[PadConfig.style])})
+	rows.append({"label": "左スティックの遊び", "right": PadConfig.dead_text(true),
+		"detail": "左スティックを離しても勝手に動くときは大きくする（遊びが大きいほど、倒し始めの反応は遅くなる）。決定で小→標準→大→特大と切り替える。下の「左スティック」の値が 0 に近いときが、離した状態。",
+		"cb": func():
+			PadConfig.cycle_dead(true)
+			show_controls(back, PadConfig.ACTIONS.size() + 1, "左スティックの遊び：%s" % PadConfig.dead_text(true))})
+	rows.append({"label": "右スティックの遊び", "right": PadConfig.dead_text(false),
+		"detail": "右スティックを離してもカメラが勝手に回るときは大きくする。決定で切り替える。",
+		"cb": func():
+			PadConfig.cycle_dead(false)
+			show_controls(back, PadConfig.ACTIONS.size() + 2, "右スティックの遊び：%s" % PadConfig.dead_text(false))})
+	rows.append({"label": "PS 配置（× で決定）", "detail": "PlayStation 系のコントローラーで、ブラウザが標準の割り当てにしてくれず、ボタンが番号順（□=0 ×=1 ○=2 △=3 L1=4 R1=5 L2=6 R2=7 SHARE=8 OPTIONS=9 L3=10 R3=11）で届くとき用。× がジャンプ・決定、○ がダッシュ・戻る、□ が斬る、△ が特殊武器、L2 がロックオン、R2 が撃つになる。\n標準の割り当てで届くコントローラーなら「初期に戻す」のままで × が決定になる。うまく合わないときは、各行を選んで 1 つずつ割り当てる。", "cb": func():
+		PadConfig.preset_ps_raw()
+		show_controls(back, PadConfig.ACTIONS.size() + 3, "PS 配置にした（×＝決定）")})
+	rows.append({"label": "初期に戻す", "detail": "ボタン・キーの割り当てと、表記・スティックの遊びをすべて初めの状態に戻す。", "cb": func():
 		PadConfig.reset_all()
 		show_controls(back, 0, "初期の割り当てに戻した")})
 	rows.append({"label": "戻る", "detail": "前の画面へ戻る。", "cb": back})
@@ -330,7 +348,9 @@ func pad_info_text() -> String:
 	for d in Input.get_connected_joypads():
 		names.append("%s（番号 %d）" % [Input.get_joy_name(d), d])
 	var who := "、".join(names) if not names.is_empty() else "見つかりません（ボタンを 1 つ押すと認識されることがあります）"
-	return "コントローラー：%s\n押したボタンの番号：%s" % [who, _last_press]
+	var l := InputSource.read_stick(JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y)
+	var r := InputSource.read_stick(JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y)
+	return "コントローラー：%s\n押したボタンの番号：%s　　左スティック（%.2f, %.2f）　右スティック（%.2f, %.2f）　← 離したときに 0 から離れていたら「遊び」を大きくする" % [who, _last_press, l.x, l.y, r.x, r.y]
 
 
 func _refresh_pad_info() -> void:
@@ -352,7 +372,8 @@ func feed_event(event: InputEvent) -> bool:
 	var code := ""
 	if event is InputEventJoypadButton and event.pressed:
 		code = "b%d" % event.button_index
-		_last_press = "ボタン %d（%s）" % [event.button_index, PadConfig.BUTTON_NAMES.get(event.button_index, "不明")]
+		var bn := PadConfig.button_name(event.button_index)
+		_last_press = "ボタン %d%s" % [event.button_index, "（%s）" % bn if bn != "" else ""]
 	elif event is InputEventJoypadMotion and absf(event.axis_value) >= 0.6 and event.axis >= 4:
 		code = PadConfig.code_of_axis(event.axis, event.axis_value)
 		_last_press = "軸 %d（%s）" % [event.axis, "＋" if event.axis_value > 0.0 else "−"]
@@ -377,6 +398,17 @@ func feed_event(event: InputEvent) -> bool:
 		msg += "（「%s」と入れ替えた）" % PadConfig.label_of(swapped)
 	show_controls(_controls_back, _controls_row, msg)
 	return true
+
+
+var _info_time := 0.0
+
+
+func _process(dt: float) -> void:
+	if _controls_open:
+		_info_time += dt
+		if _info_time > 0.15:
+			_info_time = 0.0
+			_refresh_pad_info()
 
 
 func _input(event: InputEvent) -> void:

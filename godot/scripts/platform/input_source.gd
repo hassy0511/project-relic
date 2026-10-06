@@ -7,9 +7,7 @@ extends Node
 const MOUSE_SENS := 0.0025
 const PAD_SENS := 3.2
 const KEY_LOOK := 2.4
-## スティックの形（shape_stick）：左（移動）と右（カメラ）のデッドゾーン、外側、上下左右に吸い付く角度
-const STICK_INNER := 0.15
-const CAM_INNER := 0.2
+## スティックの形（shape_stick）：外側（デッドゾーンは PadConfig.dead_l / dead_r。設定画面で変えられる）、上下左右に吸い付く角度
 const STICK_OUTER := 0.95
 const STICK_SNAP := 10.0
 const BUTTONS := ["jump", "dash", "fire", "sword", "special", "lock_on", "heal"]
@@ -125,7 +123,7 @@ func sample(dt: float) -> InputFrame:
 		_latched.clear()
 		return f
 	var mv := Input.get_vector("move_left", "move_right", "move_down", "move_up")
-	var stick := shape_stick(read_stick(JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y), STICK_INNER, STICK_OUTER, STICK_SNAP)
+	var stick := shape_stick(read_stick(JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y), PadConfig.dead_l, STICK_OUTER, STICK_SNAP)
 	if stick != Vector2.ZERO:
 		mv = stick
 	if mv.length() > 1.0:
@@ -164,7 +162,7 @@ func sample(dt: float) -> InputFrame:
 	_flick_accum *= 0.9
 
 	# 右スティック：ロックオン中は弾いて対象の切り替え、それ以外はカメラ
-	var rs := shape_stick(read_stick(JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y), CAM_INNER, STICK_OUTER, STICK_SNAP)
+	var rs := shape_stick(read_stick(JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y), PadConfig.dead_r, STICK_OUTER, STICK_SNAP)
 	var rx := rs.x
 	var ry := -rs.y
 	if Input.is_action_pressed("lock_on"):
