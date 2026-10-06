@@ -96,18 +96,6 @@ var _fade_time := 0.0
 var _time := 0.0
 
 
-## 以前の見た目の帯（メニューの古い呼び出し用に残す）
-static func panel_style(bg: Color = Color(0.08, 0.06, 0.05, 0.72), radius: int = 8) -> StyleBoxFlat:
-	var s := StyleBoxFlat.new()
-	s.bg_color = bg
-	s.set_corner_radius_all(radius)
-	s.content_margin_left = 16
-	s.content_margin_right = 16
-	s.content_margin_top = 10
-	s.content_margin_bottom = 10
-	return s
-
-
 ## 顔のアイコン用の絵（無ければ null）。who：話し手、face：表情の名前
 static func face_texture(who: String, face: String) -> Texture2D:
 	if not FACE_ATLAS.has(who):

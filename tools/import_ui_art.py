@@ -41,7 +41,7 @@ AS_IS = [
     "ui_parts_gauge_boss_frame", "ui_parts_gauge_boss_fill", "ui_parts_gauge_boss_divider",
     "ui_parts_gauge_charge_stage1", "ui_parts_gauge_charge_stage2",
     "ui_parts_lockon_normal", "ui_parts_lockon_analyzing", "ui_parts_lockon_weakpoint",
-    "ui_parts_lockon_weakpoint_marker", "ui_parts_lockon_alert",
+    "ui_parts_lockon_alert",
     "ui_parts_face_frame", "ui_parts_face_frame_wait", "ui_parts_cursor", "ui_parts_advance",
     "ui_parts_touch_joystick_base", "ui_parts_touch_joystick_knob", "ui_parts_touch_button_normal",
     "ui_parts_touch_button_pressed", "ui_parts_touch_button_lock_on",
