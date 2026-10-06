@@ -19,6 +19,8 @@ var sword := false
 var special := false
 var lock_on := false
 var heal := false
+## 決定（メニュー・会話を送る）
+var confirm := false
 var switch_left := false
 var switch_right := false
 var camera_reset := false

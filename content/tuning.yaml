@@ -36,6 +36,7 @@ camera:
   defaultPitch: 12
   autoRecenterDelay: 2.0
   autoRecenterSpeed: 1.5
+  autoRecenterDeadzone: 25
   lockOnYawSpeed: 8.0
 
 lockOn:

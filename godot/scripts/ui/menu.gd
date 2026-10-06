@@ -2,22 +2,29 @@ class_name Menu
 extends CanvasLayer
 ## タイトルとポーズのメニュー。キーボード・ゲームパッド・マウスで選べる（Godot のフォーカス移動を使う）
 
-const HELP := [
-	["移動", "WASD ／ 左スティック"],
-	["カメラ", "マウス（画面をクリックで固定）／ 矢印キー ／ 右スティック"],
-	["ジャンプ・調べる", "Space ／ A"],
-	["ダッシュ", "Shift ／ B"],
-	["主武器", "左クリック ／ RT（チャージ型は長押しで溜め）"],
-	["光刃", "E ／ X（連打でコンボ、長押しで溜め斬り）"],
-	["特殊武器", "Q ／ Y（押しっぱなし）"],
-	["ロックオン", "右クリック ／ LT（押している間）"],
-	["対象の切り替え", "ロックオン中にマウスを横に振る ／ 右スティックを弾く"],
-	["回復", "R ／ 十字キー上"],
-	["カメラを背後へ", "C ／ R3"],
-	["ポーズ", "Esc ／ Start"],
-	["性能の表示", "F1"],
-	["ハルの見た目の切り替え", "F2"],
-]
+## 操作の説明（いまの割り当てを反映する。パッドの名前は設定画面で変えた後のもの）
+static func help_rows() -> Array:
+	var pk := func(a: String) -> String: return "%s ／ %s" % [PadConfig.keys_text(a), PadConfig.pad_short(a)]
+	return [
+		["移動", "WASD ／ 左スティック"],
+		["カメラ", "マウス（画面をクリックで固定）／ 矢印キー ／ 右スティック"],
+		["ジャンプ・調べる", pk.call("jump")],
+		["ダッシュ", pk.call("dash")],
+		["主武器", "左クリック ／ %s（チャージ型は長押しで溜め）" % PadConfig.pad_short("fire")],
+		["光刃", "%s（連打でコンボ、長押しで溜め斬り）" % pk.call("sword")],
+		["特殊武器", "%s（押しっぱなし）" % pk.call("special")],
+		["ロックオン", "右クリック ／ %s（押している間）" % PadConfig.pad_short("lock_on")],
+		["対象の切り替え", "ロックオン中にマウスを横に振る ／ 右スティックを弾く"],
+		["回復", pk.call("heal")],
+		["カメラを背後へ", pk.call("camera_reset")],
+		["地図", pk.call("map")],
+		["ポーズ", pk.call("pause")],
+		["メニューの決定・会話を送る", "%s ／ %s" % [PadConfig.keys_text("confirm"), PadConfig.pad_short("confirm")]],
+		["メニューの戻る", "%s ／ %s" % [PadConfig.keys_text("back"), PadConfig.pad_short("back")]],
+		["性能の表示", "F1"],
+		["ハルの見た目の切り替え", "F2"],
+		["ボタンの割り当て", "タイトル／ポーズの「操作の設定」で変えられる"],
+	]
 
 ## スマホの画面の操作のときの説明
 const HELP_TOUCH := [
@@ -38,6 +45,14 @@ var _root: Control
 var _back := Callable()
 var _detail: Label
 var _note: Label
+## 操作の設定画面：割り当て待ちの操作の名前（"" なら待っていない）、画面が開いているか、押したボタンの表示
+var _listen := ""
+var _controls_open := false
+var _pad_info: Label
+var _last_press := "（まだ押していない）"
+var _controls_back := Callable()
+var _controls_row := 0
+var _title_args: Array = []
 ## 今の画面の押せる行（テスト用）
 var buttons: Array[Button] = []
 
@@ -64,6 +79,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func hide_menu() -> void:
 	_back = Callable()
+	_controls_open = false
+	_listen = ""
 	buttons.clear()
 	_root.visible = false
 	for c in _root.get_children():
@@ -126,7 +143,7 @@ func _build(title: String, sub: String, badge: String, items: Array, dark: bool,
 	spacer2.custom_minimum_size = Vector2(0, 16)
 	box.add_child(spacer2)
 	box.add_child(help)
-	for h in (HELP_TOUCH if touch_mode else HELP):
+	for h in (HELP_TOUCH if touch_mode else help_rows()):
 		help.add_child(Hud.make_label(h[0], 18, Color("#ffb23e"), true))
 		help.add_child(Hud.make_label(h[1], 18, Color("#e8dcc4")))
 	if first:
@@ -134,7 +151,9 @@ func _build(title: String, sub: String, badge: String, items: Array, dark: bool,
 
 
 func show_title(has_save: bool, new_game: Callable, cont: Callable, quit_game: Callable) -> void:
-	var items := [["はじめから", new_game], ["つづきから", cont, not has_save]]
+	_title_args = [has_save, new_game, cont, quit_game]
+	var items := [["はじめから", new_game], ["つづきから", cont, not has_save],
+		["操作の設定", func(): show_controls(func(): show_title(has_save, new_game, cont, quit_game))]]
 	if not OS.has_feature("web"):
 		items.append(["終了", quit_game])
 	_build("ARKWALKER", "アークウォーカー", "試遊版（Godot 版・仮の見た目）", items, true)
@@ -155,6 +174,8 @@ func _screen(title: String, sub: String, rows: Array, focus := 0, back := Callab
 	buttons.clear()
 	_root.visible = true
 	_back = back
+	_controls_open = false
+	_listen = ""
 	var bg := ColorRect.new()
 	bg.color = Color(0.04, 0.03, 0.03, 0.72)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -204,7 +225,7 @@ func _screen(title: String, sub: String, rows: Array, focus := 0, back := Callab
 	rscroll.add_child(_detail)
 	_note = Hud.make_label("", 26, Color("#fff3b0"), true)
 	box.add_child(_note)
-	var foot_text := footer if footer != "" else ("上下：選ぶ　決定：Space ／ A ／ タップ　戻る：Esc ／ B" if not touch_mode else "タップで選ぶ")
+	var foot_text := footer if footer != "" else ("上下：選ぶ　決定：%s ／ %s ／ タップ　戻る：%s ／ %s" % [PadConfig.keys_text("confirm").get_slice(" / ", 0), PadConfig.pad_short("confirm"), PadConfig.keys_text("back").get_slice(" / ", 0), PadConfig.pad_short("back")] if not touch_mode else "タップで選ぶ")
 	box.add_child(Hud.make_label(foot_text, 18, Color("#a89c88")))
 	var first: Button = null
 	for i in rows.size():
@@ -265,9 +286,102 @@ func show_pause(main, focus := 0) -> void:
 		{"label": "セーブ", "detail": "手動のセーブ（スロット 1）。ビーコンでは自動でも保存される。", "cb": func(): show_save(main, true)},
 		{"label": "ロード", "detail": "保存したところから再開する。", "cb": func(): show_save(main, false)},
 		{"label": "操作の説明", "detail": PauseInfo.help_text(touch_mode), "cb": func(): pass},
+		{"label": "操作の設定", "detail": "ボタン・キーの割り当てを変える。コントローラーの名前と、押したボタンの番号も見られる。", "cb": func(): show_controls(func(): show_pause(main, 9))},
 		{"label": "タイトルへ", "detail": "タイトル画面に戻る（保存していない進みは失われる）。", "cb": main.to_title},
 	]
 	_screen("PAUSE", "セル %d　／　%s" % [game.cells, PauseInfo.play_time_text(game.play_time)], rows, focus)
+
+
+## 操作の設定の画面。行を決定すると割り当て待ちになり、その状態で押したボタン・キーが割り当たる
+## （どんなコントローラーでも、押したボタンの番号・軸で割り当てる。同じ組で使い済みなら入れ替える）
+func show_controls(back: Callable, focus := 0, note := "") -> void:
+	PadConfig.ensure_loaded()
+	_controls_back = back
+	var rows := []
+	for a in PadConfig.ACTIONS:
+		var id: String = a[0]
+		var idx: int = rows.size()
+		rows.append({
+			"label": a[1],
+			"right": "%s ／ %s" % [PadConfig.code_text(String(PadConfig.pad.get(id, ""))), PadConfig.keys_text(id)],
+			"detail": "%s\n\nパッド：%s\nキー：%s\n\n決定してから、割り当てたいボタン（またはキー）を押す。\nトリガーが「ボタン」でも「軸」でも、押したものがそのまま割り当たる。\n同じボタンを使っている操作があれば入れ替える。\nやめるときは Esc。" % [a[1], PadConfig.code_text(String(PadConfig.pad.get(id, ""))), PadConfig.keys_text(id)],
+			"cb": func(): _begin_listen(id, idx),
+		})
+	rows.append({"label": "初期に戻す", "detail": "ボタン・キーの割り当てをすべて初めの状態に戻す。", "cb": func():
+		PadConfig.reset_all()
+		show_controls(back, 0, "初期の割り当てに戻した")})
+	rows.append({"label": "戻る", "detail": "前の画面へ戻る。", "cb": back})
+	_screen("操作の設定", "ボタンの割り当て", rows, focus, back,
+		"上下：選ぶ　決定：選んで、割り当てたいボタン／キーを押す　戻る：Esc ／ %s" % PadConfig.pad_short("back"))
+	_controls_open = true
+	_controls_row = focus
+	_pad_info = Hud.make_label("", 20, Color("#9fd4c0"))
+	_pad_info.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	_pad_info.custom_minimum_size = Vector2(1400, 0)
+	_note.get_parent().add_child(_pad_info)
+	_note.get_parent().move_child(_pad_info, _note.get_index())
+	_refresh_pad_info()
+	if note != "":
+		set_note(note)
+
+
+func pad_info_text() -> String:
+	var names := []
+	for d in Input.get_connected_joypads():
+		names.append("%s（番号 %d）" % [Input.get_joy_name(d), d])
+	var who := "、".join(names) if not names.is_empty() else "見つかりません（ボタンを 1 つ押すと認識されることがあります）"
+	return "コントローラー：%s\n押したボタンの番号：%s" % [who, _last_press]
+
+
+func _refresh_pad_info() -> void:
+	if _pad_info != null and is_instance_valid(_pad_info):
+		_pad_info.text = pad_info_text() if _listen == "" else "「%s」に割り当てる：ボタン・キーを押してください（Esc でやめる）\n%s" % [PadConfig.label_of(_listen), pad_info_text()]
+
+
+func _begin_listen(id: String, row: int) -> void:
+	_listen = id
+	_controls_row = row
+	set_note("")
+	_refresh_pad_info()
+
+
+## 割り当て待ちのとき、押されたボタン・キーを割り当てる（テストからも呼ぶ）。返り値：受け付けたか
+func feed_event(event: InputEvent) -> bool:
+	if not _controls_open:
+		return false
+	var code := ""
+	if event is InputEventJoypadButton and event.pressed:
+		code = "b%d" % event.button_index
+		_last_press = "ボタン %d（%s）" % [event.button_index, PadConfig.BUTTON_NAMES.get(event.button_index, "不明")]
+	elif event is InputEventJoypadMotion and absf(event.axis_value) >= 0.6 and event.axis >= 4:
+		code = PadConfig.code_of_axis(event.axis, event.axis_value)
+		_last_press = "軸 %d（%s）" % [event.axis, "＋" if event.axis_value > 0.0 else "−"]
+	var key := -1
+	if event is InputEventKey and event.pressed and not event.echo:
+		key = event.physical_keycode
+	if code == "" and key < 0:
+		if _listen == "":
+			_refresh_pad_info()
+		return false
+	if _listen == "":
+		_refresh_pad_info()
+		return false
+	var id := _listen
+	_listen = ""
+	if key == KEY_ESCAPE:
+		show_controls(_controls_back, _controls_row, "割り当てをやめた")
+		return true
+	var swapped := PadConfig.assign_pad(id, code) if code != "" else PadConfig.assign_key(id, key)
+	var msg := "「%s」に %s を割り当てた" % [PadConfig.label_of(id), PadConfig.code_text(code) if code != "" else OS.get_keycode_string(key)]
+	if swapped != "":
+		msg += "（「%s」と入れ替えた）" % PadConfig.label_of(swapped)
+	show_controls(_controls_back, _controls_row, msg)
+	return true
+
+
+func _input(event: InputEvent) -> void:
+	if feed_event(event) or (_controls_open and _listen != "" and (event is InputEventKey or event is InputEventJoypadButton)):
+		get_viewport().set_input_as_handled()
 
 
 ## セーブ・ロードの画面（スロット 1 とオートセーブ）

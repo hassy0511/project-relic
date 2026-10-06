@@ -3,7 +3,7 @@ extends SceneTree
 ## test_*.gd の中の test_ で始まる関数を順に実行し、失敗があれば終了コード 1 で終わる。
 ## 引数に名前の一部を渡すと、その名前を含むテストだけを実行する。
 
-const SUITES := ["res://tests/test_feel.gd", "res://tests/test_combat.gd", "res://tests/test_touch.gd", "res://tests/test_enemies.gd", "res://tests/test_boss.gd", "res://tests/test_world.gd", "res://tests/test_ch1.gd", "res://tests/test_ui.gd"]
+const SUITES := ["res://tests/test_feel.gd", "res://tests/test_combat.gd", "res://tests/test_touch.gd", "res://tests/test_enemies.gd", "res://tests/test_boss.gd", "res://tests/test_world.gd", "res://tests/test_ch1.gd", "res://tests/test_ui.gd", "res://tests/test_pad.gd"]
 
 
 func _initialize() -> void:

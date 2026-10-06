@@ -194,7 +194,7 @@ func test_menu_screens() -> void:
 	h.tree.root.add_child(fm)
 	menu.show_pause(fm)
 	await h.tree.process_frame
-	h.expect(menu.is_open() and menu.buttons.size() == 10, "ポーズ画面に 10 個の項目（%d）" % menu.buttons.size())
+	h.expect(menu.is_open() and menu.buttons.size() == 11, "ポーズ画面に 11 個の項目（%d）" % menu.buttons.size())
 	menu.buttons[2].grab_focus()
 	await h.tree.process_frame
 	h.expect(menu._detail.text.contains("持ち物") == false and menu._detail.text != "", "持ち物を選ぶと右に中身が出る")

@@ -44,6 +44,13 @@ func update(dt: float, player_pos: Vector3, player_yaw: float, player_speed: flo
 		pitch += (c.defaultPitch * U.DEG - pitch) * U.damp(10.0, dt)
 		return
 	if _idle_look > c.autoRecenterDelay and player_speed > 2.0:
-		# 操作がしばらくないときは、移動の向きの背後へゆっくり回る
-		var rate: float = c.autoRecenterSpeed * clampf(player_speed / 7.0, 0.0, 1.0) * dt
-		yaw = U.approach_angle(yaw, player_yaw, rate)
+		# 操作がしばらくないときは、移動の向きの背後へゆっくり回る。
+		# ただしプレイヤーの向きとの差が autoRecenterDeadzone（度）以内なら回らない。
+		# （まっすぐ倒したつもりの数度のずれを追いかけると、向きが少しずれる → カメラが回る → 入力の基準が回る、
+		# という繰り返しで進路が曲がっていく。大きく曲がったときだけ、不感帯の端まで寄せる）
+		var dead: float = float(c.get("autoRecenterDeadzone", 25.0)) * U.DEG
+		var diff := U.wrap_angle(player_yaw - yaw)
+		var excess := absf(diff) - dead
+		if excess > 0.0:
+			var rate: float = c.autoRecenterSpeed * clampf(player_speed / 7.0, 0.0, 1.0) * dt
+			yaw = U.wrap_angle(yaw + signf(diff) * minf(excess, rate))

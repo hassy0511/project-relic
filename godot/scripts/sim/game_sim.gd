@@ -547,7 +547,7 @@ func _update_dialogue_input(frame: InputFrame) -> void:
 		if absf(ax) > 0.6 and absf(_choice_axis) <= 0.6:
 			story.move_choice(-1 if ax > 0.0 else 1)
 		_choice_axis = ax
-	if edges.pressed("jump") or edges.pressed("sword") or edges.pressed("fire"):
+	if edges.pressed("confirm") or edges.pressed("jump") or edges.pressed("sword") or edges.pressed("fire"):
 		story.confirm()
 
 

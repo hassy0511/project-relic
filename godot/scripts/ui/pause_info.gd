@@ -99,7 +99,7 @@ static func requests_text(g) -> String:
 ## 操作の説明（キーボード・パッド・タッチ）
 static func help_text(touch: bool) -> String:
 	var lines := []
-	for h in (Menu.HELP_TOUCH if touch else Menu.HELP):
+	for h in (Menu.HELP_TOUCH if touch else Menu.help_rows()):
 		lines.append("%s：%s" % [h[0], h[1]])
 	return "\n".join(lines)
 

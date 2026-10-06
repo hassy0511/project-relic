@@ -7,6 +7,11 @@ extends Node
 const MOUSE_SENS := 0.0025
 const PAD_SENS := 3.2
 const KEY_LOOK := 2.4
+## スティックの形（shape_stick）：左（移動）と右（カメラ）のデッドゾーン、外側、上下左右に吸い付く角度
+const STICK_INNER := 0.15
+const CAM_INNER := 0.2
+const STICK_OUTER := 0.95
+const STICK_SNAP := 10.0
 const BUTTONS := ["jump", "dash", "fire", "sword", "special", "lock_on", "heal"]
 
 ## 最後に使われた機器（ボタン表示の切り替えに使う）："keyboard" / "pad"
@@ -24,48 +29,63 @@ var touch: TouchControls = null
 
 
 static func setup_actions() -> void:
+	# 移動・カメラのキー（割り当ては変えられない）
 	var keys := {
 		"move_left": [KEY_A], "move_right": [KEY_D], "move_up": [KEY_W], "move_down": [KEY_S],
 		"cam_left": [KEY_LEFT], "cam_right": [KEY_RIGHT], "cam_up": [KEY_UP], "cam_down": [KEY_DOWN],
-		"jump": [KEY_SPACE], "dash": [KEY_SHIFT], "sword": [KEY_E, KEY_K], "special": [KEY_Q],
-		"heal": [KEY_R], "camera_reset": [KEY_C], "lock_on": [KEY_F, KEY_L], "fire": [KEY_J],
-		"pause": [KEY_ESCAPE], "map": [KEY_TAB],
-	}
-	# Xbox 配置：A=0 B=1 X=2 Y=3 Back=4 Start=6 R3=8 十字キー上=11
-	var pads := {
-		"jump": [JOY_BUTTON_A], "dash": [JOY_BUTTON_B], "sword": [JOY_BUTTON_X], "special": [JOY_BUTTON_Y],
-		"heal": [JOY_BUTTON_DPAD_UP], "camera_reset": [JOY_BUTTON_RIGHT_STICK], "pause": [JOY_BUTTON_START],
-		"map": [JOY_BUTTON_BACK],
 	}
 	var mouse := {"fire": [MOUSE_BUTTON_LEFT], "lock_on": [MOUSE_BUTTON_RIGHT], "camera_reset": [MOUSE_BUTTON_MIDDLE]}
-	var axes := {"lock_on": [JOY_AXIS_TRIGGER_LEFT, 1.0], "fire": [JOY_AXIS_TRIGGER_RIGHT, 1.0]}
 	var names := {}
-	for d in [keys, pads, mouse, axes]:
+	for d in [keys, mouse]:
 		for k in d:
 			names[k] = true
 	for a in names:
 		if not InputMap.has_action(a):
 			InputMap.add_action(a, 0.3)
 	for a in keys:
+		InputMap.action_erase_events(a)
 		for k in keys[a]:
 			var e := InputEventKey.new()
 			e.physical_keycode = k
 			InputMap.action_add_event(a, e)
-	for a in pads:
-		for b in pads[a]:
-			var e := InputEventJoypadButton.new()
-			e.button_index = b
-			InputMap.action_add_event(a, e)
 	for a in mouse:
+		for e in InputMap.action_get_events(a):
+			if e is InputEventMouseButton:
+				InputMap.action_erase_event(a, e)
 		for b in mouse[a]:
 			var e := InputEventMouseButton.new()
 			e.button_index = b
 			InputMap.action_add_event(a, e)
-	for a in axes:
-		var e := InputEventJoypadMotion.new()
-		e.axis = axes[a][0]
-		e.axis_value = axes[a][1]
-		InputMap.action_add_event(a, e)
+	# ボタン・キーの割り当て（設定画面で変えたもの。user://input.cfg）を読んで反映する
+	PadConfig.load_file()
+	PadConfig.apply()
+
+
+## スティックの形を整える：円形のデッドゾーン（inner より小さい倒しは 0）、そこから outer までを 0〜1 に引き伸ばす。
+## 上下左右の真上から snap_deg 度以内なら、ぴったり上下左右の向きにする（倒し具合はそのまま）。
+## 「まっすぐ倒したつもり」の数度のずれで、進む向きがふらつかないようにする。
+static func shape_stick(raw: Vector2, inner := 0.15, outer := 0.95, snap_deg := 10.0) -> Vector2:
+	var len := raw.length()
+	if len <= inner + 0.0001:
+		return Vector2.ZERO
+	var m := clampf((len - inner) / (outer - inner), 0.0, 1.0)
+	var dir := raw / len
+	if snap_deg > 0.0:
+		var ang := atan2(dir.y, dir.x)
+		var card := roundf(ang / (PI * 0.5)) * (PI * 0.5)
+		if absf(ang - card) <= deg_to_rad(snap_deg):
+			dir = Vector2(roundf(cos(card)), roundf(sin(card)))
+	return dir * m
+
+
+## つながっているパッドのうち、いちばん大きく倒している 1 台のスティック（生の値。y は上が +）
+static func read_stick(axis_x: int, axis_y: int) -> Vector2:
+	var best := Vector2.ZERO
+	for d in Input.get_connected_joypads():
+		var v := Vector2(Input.get_joy_axis(d, axis_x), -Input.get_joy_axis(d, axis_y))
+		if v.length() > best.length():
+			best = v
+	return best
 
 
 func _input(event: InputEvent) -> void:
@@ -80,6 +100,8 @@ func _input(event: InputEvent) -> void:
 	for a in BUTTONS:
 		if event.is_action_pressed(a):
 			_latched[a] = true
+	if event.is_action_pressed("ui_accept"):
+		_latched["confirm"] = true
 	for a in ["pause", "map", "camera_reset"]:
 		if event.is_action_pressed(a):
 			_one_shot[a] = true
@@ -103,8 +125,8 @@ func sample(dt: float) -> InputFrame:
 		_latched.clear()
 		return f
 	var mv := Input.get_vector("move_left", "move_right", "move_down", "move_up")
-	var stick := Vector2(Input.get_joy_axis(0, JOY_AXIS_LEFT_X), -Input.get_joy_axis(0, JOY_AXIS_LEFT_Y))
-	if stick.length() > 0.18:
+	var stick := shape_stick(read_stick(JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y), STICK_INNER, STICK_OUTER, STICK_SNAP)
+	if stick != Vector2.ZERO:
 		mv = stick
 	if mv.length() > 1.0:
 		mv = mv.normalized()
@@ -124,6 +146,8 @@ func sample(dt: float) -> InputFrame:
 		f.look_active = true
 	for b in BUTTONS:
 		f.set(b, Input.is_action_pressed(b) or _latched.has(b))
+	# 決定（メニュー・会話）：割り当ては設定画面の「決定」（ui_accept）
+	f.confirm = Input.is_action_pressed("ui_accept") or _latched.has("confirm")
 	_latched.clear()
 
 	# マウスを大きく横に振ると、ロックオン対象の切り替え
@@ -140,11 +164,10 @@ func sample(dt: float) -> InputFrame:
 	_flick_accum *= 0.9
 
 	# 右スティック：ロックオン中は弾いて対象の切り替え、それ以外はカメラ
-	var rx := Input.get_joy_axis(0, JOY_AXIS_RIGHT_X)
-	var ry := Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y)
-	rx = 0.0 if absf(rx) < 0.18 else rx
-	ry = 0.0 if absf(ry) < 0.18 else ry
-	if Input.get_joy_axis(0, JOY_AXIS_TRIGGER_LEFT) > 0.3:
+	var rs := shape_stick(read_stick(JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y), CAM_INNER, STICK_OUTER, STICK_SNAP)
+	var rx := rs.x
+	var ry := -rs.y
+	if Input.is_action_pressed("lock_on"):
 		if _pad_flick_ready and absf(rx) > 0.6:
 			if rx > 0.0:
 				f.switch_right = true

@@ -303,8 +303,18 @@ func _hint_text() -> String:
 	if _hint_data is Dictionary:
 		var d: Dictionary = _hint_data
 		var key := "kb" if device == "keyboard" else device
-		return String(d.get(key, d.get("kb", "")))
-	return String(_hint_data)
+		return expand_hint(String(d.get(key, d.get("kb", ""))), device)
+	return expand_hint(String(_hint_data), device)
+
+
+## 案内の文の {jump} {fire} などを、いまの割り当てのボタン名（パッド）／キー名に置き換える
+static func expand_hint(text: String, dev: String) -> String:
+	if not text.contains("{"):
+		return text
+	for a in PadConfig.ACTIONS:
+		var id: String = a[0]
+		text = text.replace("{%s}" % id, PadConfig.pad_short(id) if dev == "pad" else PadConfig.keys_text(id).get_slice(" / ", 0))
+	return text
 
 
 ## 戦闘中の掛け合いの字幕（操作を止めない。画面の下の 1 行）
@@ -356,7 +366,7 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 
 	# 調べる・話すの案内
 	var f = game.focus
-	var btn := "A" if device == "pad" else ("ジャンプ" if device == "touch" else "Space")
+	var btn := PadConfig.pad_short("jump") if device == "pad" else ("ジャンプ" if device == "touch" else "Space")
 	_prompt.text = "[%s] %s" % [btn, f.prompt] if f != null and game.story.dialogue.is_empty() else ""
 
 	# ロックオンの照準
