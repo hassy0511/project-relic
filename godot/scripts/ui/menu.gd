@@ -123,6 +123,8 @@ func _row_button(text: String, h: float, font_size: int) -> Button:
 	btn.custom_minimum_size = Vector2(0, h)
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.clip_text = true
+	# 入りきらない名前は途中で切らず「…」で終える（全文は右の説明に出る）
+	btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	btn.add_theme_font_size_override("font_size", font_size)
 	btn.add_theme_constant_override("icon_max_width", 44)
 	btn.expand_icon = true
@@ -282,7 +284,8 @@ func _screen(title: String, sub: String, rows: Array, focus := 0, back := Callab
 	box.add_child(body)
 	var lp := PanelContainer.new()
 	lp.add_theme_stylebox_override("panel", UiArt.box("small", Vector4(16, 18, 14, 18)))
-	lp.custom_minimum_size = Vector2(clampf(vs.x * 0.37, 460.0, 700.0), 0)
+	# 狭い画面（スマホでは UI を大きく描くので仮想の幅が 1500 前後になる）では、行の名前が切れないよう左を広く
+	lp.custom_minimum_size = Vector2(clampf(vs.x * (0.37 if vs.x >= 1700.0 else 0.45), 460.0, 700.0), 0)
 	body.add_child(lp)
 	var left := ScrollContainer.new()
 	left.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -299,7 +302,8 @@ func _screen(title: String, sub: String, rows: Array, focus := 0, back := Callab
 	var rcol := VBoxContainer.new()
 	rcol.add_theme_constant_override("separation", 12)
 	right.add_child(rcol)
-	var dicon := UiArt.icon_rect(null, 112)
+	# 説明の上の絵（低い画面では小さく。説明の文の場所を残す）
+	var dicon := UiArt.icon_rect(null, 112.0 if vs.y >= 900.0 else 72.0)
 	dicon.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	dicon.visible = false
 	rcol.add_child(dicon)

@@ -318,6 +318,16 @@ func test_ui_art_parts() -> void:
 	var sb: StyleBoxTexture = UiArt.box("choice")
 	h.expect(sb.texture_margin_top * 2 < sb.texture.get_height(), "選択肢の札の角が、縦に伸ばせる余地を残している")
 	h.expect(UiArt.item_icon("relic.big_gear") != null and UiArt.item_icon("scrap") == null, "遺物は汎用の遺物の絵、素材は絵なし")
+	# メニューの行：長い名前は「…」で終わる。押している間は行が暗くなる（フォーカスの札が押した札を隠すため）
+	var m := Menu.new()
+	var row: Button = m._row_button("補修パックを作る（錆鉄 ×2・導線 ×1）", 64, 28)
+	h.expect(row.text_overrun_behavior == TextServer.OVERRUN_TRIM_ELLIPSIS, "入りきらない行の名前は「…」で終わる")
+	row.button_down.emit()
+	var dark := row.self_modulate.v < 0.9
+	row.button_up.emit()
+	h.expect(dark and row.self_modulate == Color.WHITE, "押している間だけ行が暗くなる")
+	row.free()
+	m.free()
 
 
 ## HUD：HP の危険の色・減った分、ボスの区切り、会話の選択肢の札
@@ -349,6 +359,13 @@ func test_hud_states() -> void:
 		g.drain_events()
 	hud.sync(g, cam, 0.016)
 	h.expect(hud._dlg.visible and hud._dlg_choices.visible and hud._dlg_choice_rows.size() >= 2, "選択肢の札が出る")
+	var p0: PanelContainer = hud._dlg_choice_rows[0][0]
+	var p1: PanelContainer = hud._dlg_choice_rows[1][0]
+	var sel := int(g.story.dialogue.sel)
+	var on_style := (p0 if sel == 0 else p1).get_theme_stylebox("panel")
+	var off_style := (p1 if sel == 0 else p0).get_theme_stylebox("panel")
+	hud.sync(g, cam, 0.016)
+	h.expect(on_style != off_style and (p0 if sel == 0 else p1).get_theme_stylebox("panel") == on_style, "選んでいる札は別の見た目で、毎フレーム作り直さない")
 	hud.queue_free()
 	cam.queue_free()
 	h.free_game(g)

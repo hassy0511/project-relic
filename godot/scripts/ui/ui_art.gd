@@ -112,6 +112,7 @@ static func theme() -> Theme:
 	var pad := Vector4(56, 10, 24, 10)
 	th.set_stylebox("normal", "Button", box("button_normal", pad))
 	th.set_stylebox("hover", "Button", box("button_normal", pad, Color(1.18, 1.14, 1.08)))
+	# 押した札（フォーカスの無いとき：タッチで押した行など）。フォーカスのある行は add_cursor が行全体を暗くする
 	th.set_stylebox("pressed", "Button", box("button_pressed", pad, Color(0.82, 0.82, 0.82)))
 	th.set_stylebox("hover_pressed", "Button", box("button_pressed", pad, Color(0.82, 0.82, 0.82)))
 	th.set_stylebox("disabled", "Button", box("button_disabled", pad))
@@ -170,6 +171,10 @@ static func add_cursor(btn: Button, size := 34.0) -> TextureRect:
 	btn.add_child(c)
 	btn.focus_entered.connect(func(): c.visible = true)
 	btn.focus_exited.connect(func(): c.visible = false)
+	# 押している間は暗く。Godot はフォーカスの札を状態の札の上に重ねて描くので、選んでいる行では「押した」札が隠れる。
+	# 押した手応えは行全体を暗くして出す（self_modulate：カーソルの絵には掛けない）
+	btn.button_down.connect(func(): btn.self_modulate = Color(0.78, 0.78, 0.78))
+	btn.button_up.connect(func(): btn.self_modulate = Color.WHITE)
 	return c
 
 

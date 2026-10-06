@@ -88,3 +88,27 @@ func test_touch_stick_look_buttons() -> void:
 	h.expect(src.take_one_shot("pause"), "ポーズのボタン")
 	tc.queue_free()
 	src.queue_free()
+
+
+## ボタンの押せる範囲：360px の高さで直径 48px 以上（spec の下限）、隣のボタンの範囲と重ならない。小さいボタンの縁でも押せる
+func test_touch_hit_areas() -> void:
+	var made: Array = await _make()
+	var tc: TouchControls = made[0]
+	var src: InputSource = made[1]
+	var hgt := tc._draw.get_viewport_rect().size.y
+	var all: Array = tc._layout(TouchControls.BUTTONS) + tc._layout(TouchControls.TOP_BUTTONS)
+	for b in all:
+		h.expect(TouchControls.hit_radius(b[3], hgt) * 2.0 >= hgt * 48.0 / 360.0 - 0.01, "「%s」の押せる範囲が 48px（360px の高さで）以上" % b[0])
+	for i in all.size():
+		for j in range(i + 1, all.size()):
+			var a: Array = all[i]
+			var c: Array = all[j]
+			h.expect(a[2].distance_to(c[2]) > TouchControls.hit_radius(a[3], hgt) + TouchControls.hit_radius(c[3], hgt), "「%s」と「%s」の押せる範囲が重ならない" % [a[0], c[0]])
+	# 回復（小さいボタン）の絵の外側、押せる範囲の縁の近く
+	var hp := _button_pos(tc, "heal") + Vector2(0, -hgt * (TouchControls.MIN_HIT - 0.004))
+	_touch(tc, 5, hp, true)
+	var f := src.sample(1.0 / 60.0)
+	h.expect(f.heal, "小さいボタンは絵より少し外を押しても効く")
+	_touch(tc, 5, hp, false)
+	tc.queue_free()
+	src.queue_free()

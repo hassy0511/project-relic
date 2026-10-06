@@ -24,8 +24,11 @@ const BUTTONS := [
 ## 上の段（右上の「目的」の表示の下）
 const TOP_BUTTONS := [
 	["pause", "ポーズ", Vector2(-0.09, 0.27), 0.05],
-	["camera_reset", "背後", Vector2(-0.22, 0.27), 0.05],
+	["camera_reset", "背後", Vector2(-0.225, 0.27), 0.05],
 ]
+## 触れて押せる範囲の半径の下限（画面の高さに対する割合）。360px の高さで直径 48px（spec：タッチ可能領域 48px 以上）。
+## 小さいボタン（回復・ポーズ・背後）は絵より広く反応する。隣どうしの範囲は重ならない（test_touch で確かめる）
+const MIN_HIT := 24.0 / 360.0
 
 signal activated
 
@@ -164,10 +167,16 @@ func _layout(list: Array) -> Array:
 
 
 func _button_at(pos: Vector2) -> String:
+	var h := _draw.get_viewport_rect().size.y
 	for b in _layout(BUTTONS) + _layout(TOP_BUTTONS):
-		if pos.distance_to(b[2]) <= b[3] * 1.15:
+		if pos.distance_to(b[2]) <= hit_radius(b[3], h):
 			return b[0]
 	return ""
+
+
+## 押せる範囲の半径（r：絵の半径、h：画面の高さ）
+static func hit_radius(r: float, h: float) -> float:
+	return maxf(r * 1.15, h * MIN_HIT)
 
 
 ## ボタンが押されているか（押して離した短い押しも、この刻みでは押したことにする）

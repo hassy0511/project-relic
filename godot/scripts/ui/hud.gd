@@ -78,6 +78,8 @@ var _dlg_text: Label
 var _dlg_next: TextureRect
 var _dlg_choices: VBoxContainer
 var _dlg_choice_rows: Array = []
+## 選択肢の札（選んでいない・選んでいる）。一度だけ作る
+var _choice_style: Array = []
 var _dlg_memory := false
 var _mem_box: PanelContainer
 var _mem: UiArt.Gauge
@@ -198,6 +200,11 @@ static func _face_slot(px: float) -> Dictionary:
 
 ## 顔の枠に話し手の顔（または頭文字の丸）を入れる
 static func _fill_face(f: Dictionary, who: String, face: String) -> void:
+	# 会話の間は毎フレーム呼ばれるので、話し手と表情が同じなら何もしない
+	var key := who + ":" + face
+	if f.get("key", "") == key:
+		return
+	f["key"] = key
 	var tex := face_texture(who, face)
 	f.icon.texture = tex
 	f.icon.visible = tex != null
@@ -760,13 +767,18 @@ func _sync_choices(choices: Array, sel: int) -> void:
 		r.add_child(l)
 		_dlg_choices.add_child(p)
 		_dlg_choice_rows.append([p, cur, l])
+	if _choice_style.is_empty():
+		_choice_style = [UiArt.box("choice", Vector4(18, 10, 24, 10)), UiArt.box("button_focus", Vector4(18, 10, 24, 10))]
 	for i in _dlg_choice_rows.size():
 		var it: Array = _dlg_choice_rows[i]
 		it[0].visible = i < choices.size()
 		if i >= choices.size():
 			continue
 		var on := i == sel
-		it[0].add_theme_stylebox_override("panel", UiArt.box("button_focus" if on else "choice", Vector4(18, 10, 24, 10)))
+		# 札を替えるのは選びが変わったときだけ（毎フレーム差し替えると、そのたびに大きさの計算がやり直しになる）
+		if it[0].get_meta("on", -1) != int(on):
+			it[0].set_meta("on", int(on))
+			it[0].add_theme_stylebox_override("panel", _choice_style[int(on)])
 		it[1].modulate.a = 1.0 if on else 0.0
 		it[2].text = String(choices[i])
 
