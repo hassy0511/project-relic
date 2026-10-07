@@ -55,6 +55,7 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 	var env: Environment = sun.get_meta("env")
 	var sky: ProceduralSkyMaterial = sun.get_meta("proc_sky")
 	env.sky.sky_material = sky
+	env.adjustment_saturation = 1.05
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.fog_sky_affect = 1.0
 	match mood:
@@ -134,7 +135,8 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 ## 遠景の空の絵と、その空に合わせた光（キットの "sky"：{ "day": 絵, "night": 絵, "dawn": 絵 } と "light"：{ "night": { … } }）。
 ## apply_mood のあとに呼ぶ。path が "" なら作った空のまま。絵は正距円筒（tools/blender/kit/town_backdrop.py が bg_desert_* から作る）。
 ## 霞は空にかけない（絵の地平線の霞をそのまま見せる）。light の項目（どれも省略可）：
-##   sky_energy（空の絵の明るさ）, sun_energy, sun_color, ambient_color（指定すると環境光をこの色に）, ambient_energy, fog_color（apply_mood が毎回戻す項目だけ）
+##   sky_energy（空の絵の明るさ）, sun_energy, sun_color, ambient_color（指定すると環境光をこの色に）, ambient_energy, fog_color,
+##   saturation（色の鮮やかさ）。どれも apply_mood が毎回戻す項目だけ
 ## 空の絵が無い（path が ""）ときも、light の上書きは当てる（屋内の遺構のキットは "light" だけを書く）。
 static func apply_sky(sun: DirectionalLight3D, path: String, light: Dictionary = {}) -> void:
 	var env: Environment = sun.get_meta("env")
@@ -160,3 +162,5 @@ static func apply_sky(sun: DirectionalLight3D, path: String, light: Dictionary =
 		env.ambient_light_energy = float(light.ambient_energy)
 	if light.has("fog_color"):
 		env.fog_light_color = Color(light.fog_color)
+	if light.has("saturation"):
+		env.adjustment_saturation = float(light.saturation)

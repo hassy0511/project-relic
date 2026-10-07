@@ -78,12 +78,45 @@ def make_textures(size: int = 1024) -> None:
     print('[town] 表面', os.path.join(out, 'town_shell_soft.jpg'), flush=True)
 
 
+def gallery(cat: dict) -> None:
+    """確認ページ（tools/model_viewer）用：遠景・空・床の板・段の正面を除く部品を格子に並べた 1 つの GLB"""
+    import bpy
+
+    import town_geo as geo
+    skip = {'ordo_far', 'deck_slab', 'plaza_ring'}
+    for ob in list(bpy.data.objects):
+        bpy.data.objects.remove(ob, do_unlink=True)
+    names = [n for n in cat if n not in skip]
+    cols, step = 8, 4.5
+    x = 0
+    row_z, row_h, k = 0.0, 0.0, 0
+    for n in names:
+        part = cat[n]()
+        part.name = n
+        lo, hi = part.bounds()
+        w = float(hi[0] - lo[0])
+        if k % cols == 0 and k:
+            row_z += row_h + 2.0
+            row_h, x = 0.0, 0.0
+        ob = geo.to_object(part)
+        ob.location = (x - float(lo[0]), row_z - float(lo[2]) * 0, 0)
+        x += max(w, 2.0) + 1.5
+        row_h = max(row_h, float(hi[2] - lo[2]))
+        k += 1
+    bpy.ops.object.select_all(action='SELECT')
+    path = os.path.join(REPO, 'tools', 'model_viewer', 'kit_town.glb')
+    bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', export_yup=True, use_selection=True, export_animations=False,
+                              export_apply=True, export_vertex_color='ACTIVE', export_active_vertex_color_when_no_material=True)
+    print('[town] 確認ページ用', path, flush=True)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--only', default='')
     ap.add_argument('--list', action='store_true')
     ap.add_argument('--review', action='store_true')
     ap.add_argument('--sky', action='store_true')
+    ap.add_argument('--gallery', action='store_true', help='確認ページ用に全部の部品を格子に並べた tools/model_viewer/kit_town.glb')
     ap.add_argument('--tex', action='store_true', help='tex_town_*.png → godot/assets/kit/tex/town_*.jpg（1024）')
     a = ap.parse_args()
     cat = catalog()
@@ -110,6 +143,8 @@ def main():
         BD.make_sky(OUT)
     if a.tex:
         make_textures()
+    if a.gallery:
+        gallery(cat)
     if a.review:
         import town_review
         town_review.render(cat, names, WORK)

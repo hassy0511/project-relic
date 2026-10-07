@@ -1,6 +1,6 @@
 """町の遠景：オルドの体（背の外殻・持ち上がった頭と尾・4 対の脚）と砂漠の床（ordo_far）、空の絵（sky_*.jpg）。
 
-ordo_far：W2-04 spec_ordo_3d.md の寸法（全長 400 m・幅 135 m・背の歩行面から地面まで約 120 m・脚 8 本は前から 15・38・62・85 %、
+ordo_far：W2-04 spec_ordo_3d.md の寸法（全長 400 m・幅 135 m（町の部屋の外の縁が近く見えるよう 120 m に詰めた）・背の歩行面から地面まで約 120 m・脚 8 本は前から 15・38・62・85 %、
 肩・膝・足首は真鍮の円板）。遠くから見る影絵なので、形は箱と回転体だけ、材質は白磁・黒鉛・真鍮・琥珀（頭の細い窓）・砂。
 原点 = 町の真ん中の背の面（y=0）。+Z が頭（町の上の段の向き）。中段の部屋では y=-6.5 に置く（下の段の床の下）。
 
@@ -59,16 +59,16 @@ def ordo_far() -> Part:
     hull, under = [], []
     for z in zs:
         r, k = _rise(z), _narrow(z)
-        hull.append((z, [(-55 * k, r), (55 * k, r), (66 * k, r - 8), (66 * k, r - 24), (60 * k, r - 30), (-60 * k, r - 30), (-66 * k, r - 24), (-66 * k, r - 8)]))
-        under.append((z, [(-50 * k, r - 29), (50 * k, r - 29), (46 * k, r - 40), (-46 * k, r - 40)]))
+        hull.append((z, [(-52 * k, r), (52 * k, r), (60 * k, r - 5), (60 * k, r - 22), (55 * k, r - 28), (-55 * k, r - 28), (-60 * k, r - 22), (-60 * k, r - 5)]))
+        under.append((z, [(-48 * k, r - 27), (48 * k, r - 27), (44 * k, r - 38), (-44 * k, r - 38)]))
     p.add('hull', _loft(hull))
     p.add('graphite', _loft(under))
     # 外殻の継ぎ目（側面の黒鉛の帯、40 m ごとの縦の帯）と、背の縁の真鍮の帯
     for sx in (-1, 1):
         for z in np.arange(-180, 181, 40):
             r = _rise(z)
-            p.add('graphite', boxb(sx * 66.2 - 0.8, sx * 66.2 + 0.8, r - 26, r - 7, z - 1.2, z + 1.2))
-        p.add('graphite', boxb(sx * 66.4 - 0.6, sx * 66.4 + 0.6, -17, -15, -140, 140))
+            p.add('graphite', boxb(sx * 60.2 - 0.8, sx * 60.2 + 0.8, r - 22, r - 5, z - 1.2, z + 1.2))
+        p.add('graphite', boxb(sx * 60.4 - 0.6, sx * 60.4 + 0.6, -12, -10, -140, 140))
     # 頭の面（+Z の端）：琥珀の細い窓（航行スリット）
     zf = 200
     p.add('graphite', boxb(-26, 26, _rise(zf) - 22, _rise(zf) - 6, zf - 3, zf + 1.5))
@@ -81,15 +81,14 @@ def ordo_far() -> Part:
     for zc in (140.0, 48.0, -48.0, -140.0):
         for sx in (-1, 1):
             _leg(p, sx, zc)
-    # 砂の床（地面 y=-122）
-    p.add('desert', boxb(-1600, 1600, -123, -122, -1600, 1600))
+    # 砂の床は作らない（霞のかかった平らな面は壁のように見える。下は空の絵の下の帯＝砂丘と遺構が見える）
     return p
 
 
 def _leg(p: Part, sx: float, zc: float):
-    sh = np.array([sx * 64.0, -22.0, zc])
-    kn = np.array([sx * 84.0, -66.0, zc + 6])
-    an = np.array([sx * 80.0, -110.0, zc])
+    sh = np.array([sx * 61.0, -14.0, zc])
+    kn = np.array([sx * 80.0, -62.0, zc + 6])
+    an = np.array([sx * 76.0, -110.0, zc])
     p.add('brass', cyl(sh - [sx * 2, 0, 0], sh + [sx * 3.5, 0, 0], 10.0, 16))
     p.add('graphite', cyl(sh + [sx * 3.5, 0, 0], sh + [sx * 4.5, 0, 0], 5.0, 12))
     p.add('ivory', beam(sh + [sx * 4, 0, 0], kn, 10.0, 11.0, up=(0, 0, 1)))

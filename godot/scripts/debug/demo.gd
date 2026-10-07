@@ -253,6 +253,9 @@ func _town_steps() -> Array:
 		["edge", Vector3(-20, 0, -12.5), Vector3(-34, 0, -30), 22.0],
 		["side", Vector3(-44, 0, -4), Vector3(-70, 0, -14), 16.0],
 		["high", Vector3(0, 5, 29), Vector3(0, 0, 0), 30.0],
+		["stall", Vector3(22, 0, -1.5), Vector3(26, 0, 6), 6.0],
+		["workshop", Vector3(-31, 0, -4.5), Vector3(-35, 0, 6), 4.0],
+		["overlook", Vector3(-46.6, 0, 6), Vector3(-80, 0, 0), 32.0],
 	]
 	if main.args.has("town_view"):
 		views = views.filter(func(v): return v[0] == main.args["town_view"])
