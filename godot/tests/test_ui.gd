@@ -402,6 +402,15 @@ func test_frame_parts_toggle() -> void:
 	h.expect(not v.frame_nodes["core"].visible, "全部隠せる")
 	v.set_frame_parts(true, true, true)
 	h.expect(v.frame_nodes["legs"].visible and v.frame_nodes["arm"].visible, "全部戻せる")
+	# 毎フレームの更新（被弾の点滅の処理）が、隠した部品を見せてしまわない
+	var g := h.make_game({})
+	await h.settle()
+	v.set_frame_parts(true, false, false)
+	for i in 3:
+		v.sync(g.player, g, 1.0 / 60.0, Vector3.FORWARD)
+	h.expect(v.frame_nodes["core"].visible and not v.frame_nodes["arm"].visible and not v.frame_nodes["legs"].visible,
+		"毎フレームの更新のあとも、隠した部品は隠れたまま")
+	h.free_game(g)
 	v.free()
 	# 群の無いモデル（仮のモデル）では何もしない
 	var p := PlayerView.new()

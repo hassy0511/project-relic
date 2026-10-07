@@ -31,6 +31,8 @@ var _lean_pitch := 0.0
 const FRAME_NODES := {"core": "Frame_core", "arm": "Frame_arm", "legs": "Frame_legs"}
 var frame_nodes := {}
 var _frame_state := Vector3i(-1, -1, -1)
+## いま隠しているフレームの部品（点滅の処理が見せてしまわないように）
+var _frame_off := {}
 
 
 func load_model(path: String, shade: String = "soft") -> void:
@@ -67,6 +69,7 @@ func load_model(path: String, shade: String = "soft") -> void:
 			if fi >= 0:
 				mi.set_blend_shape_value(fi, 1.0)
 	frame_nodes.clear()
+	_frame_off.clear()
 	_frame_state = Vector3i(-1, -1, -1)
 	for k in FRAME_NODES:
 		var fn := model.find_child(FRAME_NODES[k], true, false) as Node3D
@@ -136,8 +139,19 @@ func set_frame_parts(core: bool, arm: bool, legs: bool) -> void:
 		return
 	_frame_state = st
 	var on := {"core": core, "arm": arm, "legs": legs}
+	_frame_off.clear()
 	for k in frame_nodes:
-		(frame_nodes[k] as Node3D).visible = on[k]
+		var fn := frame_nodes[k] as Node3D
+		fn.visible = on[k]
+		if not on[k]:
+			_frame_off[fn] = true
+
+
+func _is_frame_off(m: Node) -> bool:
+	for fn in _frame_off:
+		if fn == m or (fn as Node).is_ancestor_of(m):
+			return true
+	return false
 
 
 ## 表情：0 通常、1 笑顔、2 驚き、3 痛み。顔の材質（名前に face）のテクスチャは 2×2 の区画に 4 つの表情が
@@ -230,4 +244,5 @@ func sync(p: Player, game: GameSim, dt: float, aim_dir: Vector3) -> void:
 	_flash_time += dt
 	var blink: bool = p.invuln > 0.0 and not p.dead and int(_flash_time * 20.0) % 2 == 0
 	for m in meshes:
-		m.visible = not blink
+		# 隠したフレームの部品は、点滅の間も隠したまま
+		m.visible = not blink and not _is_frame_off(m)
