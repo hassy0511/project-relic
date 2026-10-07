@@ -44,7 +44,7 @@ jobs:
           cp -r dist site/threejs
           python3 tools/build_dashboard.py site/dashboard
           mkdir -p site/models
-          cp tools/model_viewer/index.html godot/assets/models/*.glb site/models/
+          cp tools/model_viewer/index.html tools/model_viewer/*.glb godot/assets/models/*.glb site/models/
       - uses: actions/configure-pages@v5
         with:
           enablement: true

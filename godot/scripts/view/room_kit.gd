@@ -12,16 +12,22 @@ const PART_PATH := "res://assets/kit/%s.glb"
 const SHADER := preload("res://assets/shaders/kit_surface.gdshader")
 const GLOW := preload("res://assets/shaders/kit_glow.gdshader")
 
-## キットの id → { id, data, surf: { 面の名前: Material }, mats: { 部品の材質の名前: Material } }
-static var _kits := {}
-## "キット id|部品" → Mesh（無い部品は null）
-static var _parts := {}
+## 読んだキットと部品の置き場。終了のときに一緒に消えるよう、static var ではなく木の根（root）のメタに持つ
+##   kits：キットの id → { id, data, surf: { 面の名前: Material }, mats: { 部品の材質の名前: Material } }
+##   parts："キット id|部品" → Mesh（無い部品は null）
+static func _cache(key: String) -> Dictionary:
+	var tree := Engine.get_main_loop() as SceneTree
+	var holder: Object = tree.root if tree != null else Engine
+	if not holder.has_meta("room_kit_cache"):
+		holder.set_meta("room_kit_cache", {"kits": {}, "parts": {}})
+	return holder.get_meta("room_kit_cache")[key]
 
 
 ## キットを読む（1 回だけ）。無いときは {} と警告
 static func load_kit(id: String) -> Dictionary:
 	if id == "":
 		return {}
+	var _kits := _cache("kits")
 	if _kits.has(id):
 		return _kits[id]
 	var path := KIT_PATH % id
@@ -319,6 +325,7 @@ static func _light(l: Dictionary, xf: Transform3D) -> Light3D:
 ## 部品の GLB を 1 つのメッシュにまとめる（材質の名前ごとに 1 面）。キットの "materials" に同じ名前があれば、その共有の材質に替える
 static func part_mesh(part: String, kit: Dictionary) -> Mesh:
 	var key := "%s|%s" % [kit.get("id", ""), part]
+	var _parts := _cache("parts")
 	if _parts.has(key):
 		return _parts[key]
 	var path := PART_PATH % part

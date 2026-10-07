@@ -3,7 +3,7 @@
   .venv-blender/bin/python tools/blender/kit/build.py            全部の部品を作る
   .venv-blender/bin/python tools/blender/kit/build.py --only b1_wall,b1_pillar
 
-できるもの：godot/assets/kit/<キット>/<部品>.glb（例：ruins/b1_wall.glb）。表面の絵は textures.py（godot/assets/kit/tex/）。
+できるもの：godot/assets/kit/<キット>/<部品>.glb（例：ruins/b1_wall.glb）、確認ページ用の一覧 tools/model_viewer/kit_<キット>.glb。表面の絵は textures.py（godot/assets/kit/tex/）。
 部品の一覧の画像（Godot で、キットの材質を付けて描く）：
   tools/godot.sh import && tools/godot.sh shot --resolution 1800x1100 --script $PWD/tools/blender/kit/godot_kit_review.gd -- build/kit/review_ruins_b1.png ruins_b1
 置き方（原点・向き）は各キットのファイル（ruins_b1.py）の冒頭と、docs/design/42_コンテンツの書き方.md 14 章。
@@ -42,6 +42,19 @@ def export(part: geo.Part, path: str) -> int:
     return geo.tri_count(part)
 
 
+def gallery(kit: str, parts: list[geo.Part], path: str) -> None:
+    """確認ページ（tools/model_viewer、https://hassy0511.github.io/project-relic/models/）用に、全部の部品を格子に並べた 1 つの GLB"""
+    import bpy
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    cols = 6
+    for i, p in enumerate(parts):
+        ob = geo.to_blender(p)
+        ob.location = ((i % cols) * 5.0 - 12.5, (i // cols) * 5.0, 0)
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', export_yup=True, use_selection=True,
+                              export_animations=False, export_apply=True)
+
+
 def main() -> int:
     only = None
     for a in sys.argv[1:]:
@@ -58,6 +71,8 @@ def main() -> int:
             tris = export(p, os.path.join(OUT, folder, p.name + '.glb'))
             report[f'{folder}/{p.name}'] = {'triangles': tris, 'note': p.note}
             print(f'[kit] {folder}/{p.name}  {tris} 三角形', flush=True)
+        if not only:
+            gallery(kit, parts, os.path.join(REPO, 'tools', 'model_viewer', f'kit_{kit}.glb'))
     os.makedirs(WORK, exist_ok=True)
     with open(rep_path, 'w', encoding='utf-8') as fh:
         json.dump(report, fh, ensure_ascii=False, indent=1)

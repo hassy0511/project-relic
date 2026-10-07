@@ -4,7 +4,7 @@
  "auto": {"floor": "floor", "wall": "wall", "ceiling": "ceiling", "up": 0.6},
  "trim": {"surface": "trim", "on": ["wall", "plate"], "base": 0.3, "top": 0.25, "out": 0.06},
  "dress_shadows": false,
- "light": {"ruin_b1": {"ambient_color": "#b49a78", "ambient_energy": 0.55}},
+ "light": {"ruin_b1": {"ambient_color": "#c29a66", "ambient_energy": 0.6}},
  "surfaces": {
   "floor": {"albedo": "res://assets/kit/tex/ruins_ancient_floor.jpg", "uv_m": 6.0, "color": "#f4ece0", "roughness": 0.8, "macro": 0.35},
   "wall": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 4.0, "color": "#f3ead8", "roughness": 0.75, "macro": 0.3,

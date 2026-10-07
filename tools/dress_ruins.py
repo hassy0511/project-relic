@@ -107,6 +107,14 @@ def r02(room):
     d.wall_run("e", H, 4.5, 12.5)
     d.wall_run("w", -H, -12.5, -4.5)
     d.wall_run("w", -H, 4.5, 12.5)
+    # 上の段（4〜8 m）も白磁の板と黒鉛の柱で（絵の高い外殻の壁）。割れ目・扉の上・ファンの上は空ける
+    d.along("s", -H, 0.5, 12.5, "b1_wall_plain", y=4.0)
+    d.along("s", -H, -12.5, -10.5, "b1_wall_plain", y=4.0)
+    d.along("s", -H, -2.5, -2.5, "b1_wall_plain", y=4.0)
+    d.along("n", H, -12.5, 4.5, "b1_wall_plain", y=4.0)
+    d.along("n", H, 10.5, 12.5, "b1_wall_plain", y=4.0)
+    d.along("w", -H, -12.5, -4.5, "b1_wall_plain", y=4.0)
+    d.along("w", -H, 4.5, 12.5, "b1_wall_plain", y=4.0)
     # 角
     for (x, z), yaw in (((-H, -H), 0), ((-H, H), 90), ((H, H), 180), ((H, -H), 270)):
         d.put("b1_corner", [x, 0, z], yaw)
@@ -124,17 +132,17 @@ def r02(room):
     d.row("b1_walkway_lamp", [12.0, 5.4, -10.0], [0, 0, 4.0], 6, 270)
     for z in (-9.0, -3.0, 3.0, 9.0):
         d.row("b1_beam_red" if z in (-3.0, 9.0) else "b1_beam", [-12.0, 8.0, z], [2.0, 0, 0], 13)
-    d.along("n", H, -12.0, 12.0, "b1_pipe", y=6.6, off=0.3)
-    d.along("s", -H, -2.0, 12.0, "b1_pipe", y=6.6, off=0.3)
-    d.along("w", -H, -12.0, -6.0, "b1_pipe", y=6.6, off=0.3)
-    d.along("w", -H, 6.0, 12.0, "b1_pipe", y=6.6, off=0.3)
+    d.along("n", H, -12.0, 4.0, "b1_pipe", y=7.1, off=0.62, scale=1.4)
+    d.along("s", -H, 0.0, 12.0, "b1_pipe", y=7.1, off=0.62, scale=1.4)
+    d.along("w", -H, -12.0, -6.0, "b1_pipe", y=7.1, off=0.62, scale=1.4)
+    d.along("w", -H, 6.0, 12.0, "b1_pipe", y=7.1, off=0.62, scale=1.4)
     # 外殻の割れ目（南の壁の上、西寄り）：外の光
-    d.at_wall("s", -H, -7.0, "b1_crack", y=5.85, scale=0.95)
-    d.at_wall("s", -H, -7.0, "b1_shaft", y=6.2, off=0.1, shadow=False,
+    d.at_wall("s", -H, -6.5, "b1_crack", y=6.0, scale=[1.5, 1.0, 0.9])
+    d.at_wall("s", -H, -6.5, "b1_shaft", y=6.2, off=0.1, shadow=False, scale=[1.4, 1.0, 1.0],
               light={"type": "spot", "at": [0, 0, 0.6], "dir": [0, -0.75, 0.66], "angle": 38, "range": 18, "energy": 7.0,
                      "color": "#ffd9a0", "shadow": True})
-    d.at_wall("n", H, 7.0, "b1_crack", y=6.2, scale=0.7)
-    d.at_wall("n", H, 7.0, "b1_shaft", y=6.4, off=0.1, shadow=False, scale=0.9)
+    d.at_wall("n", H, 7.5, "b1_crack", y=6.1, scale=[1.2, 1.0, 0.8])
+    d.at_wall("n", H, 7.5, "b1_shaft", y=6.3, off=0.1, shadow=False, scale=[1.1, 1.0, 0.9])
     # 壁の琥珀の灯（柱の前）
     for side, plane, xs in (("s", -H, (-9.5, 9.5)), ("n", H, (-9.5, 9.5)), ("e", H, (-9.5, 9.5)), ("w", -H, (-9.5, 9.5))):
         for a in xs:
@@ -158,8 +166,8 @@ def r02(room):
     room["dress"] = d.items
     # 明かり：天井の 2 つ（暖かい外光）、割れ目から差す光、入口と出口の扉の灯、エレベーターの赤
     room["lights"] = [
-        light([-6, 7, -3], "#ffe3a8", 18.0, 1.3), light([6, 7, 4], "#ffe3a8", 18.0, 1.3),
-        light([7, 5.5, 10.5], "#ffd9a0", 12.0, 2.4),
+        light([-6, 7, -3], "#ffd596", 18.0, 1.4), light([6, 7, 4], "#ffd596", 18.0, 1.4),
+        light([7.5, 5.5, 10.5], "#ffd9a0", 12.0, 2.4),
         light([0, 3.2, 11.3], "#ffbc52", 9.0, 1.6), light([0, 3.2, -11.3], "#ffbc52", 9.0, 1.6),
         light([11.2, 3.0, 0], "#ff5a40", 7.0, 1.4),
     ]
@@ -211,7 +219,7 @@ def r03(room):
     room["kit"] = "ruins_b1"
     room["dress"] = d.items
     room["lights"] = [
-        light([0, 4.2, -14], "#ffe3a8", 15.0, 2.2), light([0, 4.2, -2], "#ffe3a8", 15.0, 2.2), light([0, 4.2, 10], "#ffe3a8", 15.0, 2.2),
+        light([0, 4.2, -14], "#ffd596", 15.0, 2.0), light([0, 4.2, -2], "#ffd596", 15.0, 2.0), light([0, 4.2, 10], "#ffd596", 15.0, 2.0),
         light([0, -2.0, -5.75], "#ff4a3a", 5.0, 1.5), light([0, -2.0, 9.0], "#ff4a3a", 5.0, 1.5),
     ]
 
