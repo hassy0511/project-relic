@@ -130,7 +130,7 @@ Key = tuple
 # 足の裏の接地点（足首の骨の頭からの、基準の姿勢でのずれ。m）。つま先と、かかと
 FOOT_CONTACTS = ((0.0, -0.22, -0.09), (0.0, 0.06, -0.09))
 TOE_REACH = 0.22        # 足首からつま先までの前後の長さ（かかとを上げる角度の計算に使う）
-FOOT_LIFT_MAX = 40.0    # これより足首を起こさないと床に届かない足は、浮いている足として残す（度）
+FOOT_LIFT_MAX = 55.0    # これより足首を起こさないと床に届かない足は、浮いている足として残す（度）
 
 
 @dataclass
@@ -217,8 +217,12 @@ def bake_clips(arm: bpy.types.Object, clips: list[Clip]) -> None:
                 h = ground_offset(arm, contacts) + bob.get(frame, 0.0)
                 root.location = (0.0, 0.0, h)
                 root.keyframe_insert('location', frame=sf(frame))
-                # 浮いているほうの足は、つま先が床に触れるまでかかとを上げる（足首 X を正へ。上げすぎる足は浮かせたまま）
+                # 浮いているほうの足は、つま先が床に触れるまでかかとを上げる（足首 X を正へ。上げすぎる足は浮かせたまま）。
+                # こまの指定 'lifted' にある足（膝を上げた踏み込みなど）はそのまま
+                lifted = (key[2].get('lifted', ()) if len(key) > 2 and key[2] else ())
                 for bn in ('foot.L', 'foot.R'):
+                    if bn in lifted:
+                        continue
                     for _ in range(2):
                         scene.frame_set(int(round(sf(frame))))
                         low = min((arm.pose.bones[bn].matrix @ c).z for c in contacts[bn]) + h - root.matrix.translation.z
