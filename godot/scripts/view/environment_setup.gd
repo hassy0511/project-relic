@@ -135,20 +135,20 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 ## apply_mood のあとに呼ぶ。path が "" なら作った空のまま。絵は正距円筒（tools/blender/kit/town_backdrop.py が bg_desert_* から作る）。
 ## 霞は空にかけない（絵の地平線の霞をそのまま見せる）。light の項目（どれも省略可）：
 ##   sky_energy（空の絵の明るさ）, sun_energy, sun_color, ambient_color（指定すると環境光をこの色に）, ambient_energy, fog_color（apply_mood が毎回戻す項目だけ）
+## 空の絵が無い（path が ""）ときも、light の上書きは当てる（屋内の遺構のキットは "light" だけを書く）。
 static func apply_sky(sun: DirectionalLight3D, path: String, light: Dictionary = {}) -> void:
-	if path == "" or not ResourceLoader.exists(path):
-		return
 	var env: Environment = sun.get_meta("env")
-	var cache: Dictionary = sun.get_meta("sky_cache", {})
-	if not cache.has(path):
-		var pano := PanoramaSkyMaterial.new()
-		pano.panorama = load(path)
-		cache[path] = pano
-		sun.set_meta("sky_cache", cache)
-	var mat: PanoramaSkyMaterial = cache[path]
-	mat.energy_multiplier = float(light.get("sky_energy", 1.0))
-	env.sky.sky_material = mat
-	env.fog_sky_affect = 0.0
+	if path != "" and ResourceLoader.exists(path):
+		var cache: Dictionary = sun.get_meta("sky_cache", {})
+		if not cache.has(path):
+			var pano := PanoramaSkyMaterial.new()
+			pano.panorama = load(path)
+			cache[path] = pano
+			sun.set_meta("sky_cache", cache)
+		var mat: PanoramaSkyMaterial = cache[path]
+		mat.energy_multiplier = float(light.get("sky_energy", 1.0))
+		env.sky.sky_material = mat
+		env.fog_sky_affect = 0.0
 	if light.has("sun_energy"):
 		sun.light_energy = float(light.sun_energy)
 	if light.has("sun_color"):

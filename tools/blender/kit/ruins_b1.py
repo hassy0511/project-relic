@@ -60,11 +60,11 @@ def lantern(p: Part, c, mount=0.0):
         p.box(G, (x - 0.03, y, z - 0.15), (x + 0.03, y + mount, z - 0.09))
 
 
-def pipe_run(p: Part, x0, x1, r=0.17, y=0.0, z=0.0):
-    p.cyl(I, (x0 + 0.1, y, z), (x1 - 0.1, y, z), r, 16)
+def pipe_run(p: Part, x0, x1, r=0.17, y=0.0, z=0.0, segs=12):
+    p.cyl(I, (x0 + 0.1, y, z), (x1 - 0.1, y, z), r, segs)
     for xe, xi in ((x0, x0 + 0.12), (x1 - 0.12, x1)):
-        p.cyl(B, (xe, y, z), (xi, y, z), r + 0.055, 16)
-        p.cyl(G, ((xe + xi) / 2 - 0.02, y, z), ((xe + xi) / 2 + 0.02, y, z), r + 0.07, 16)
+        p.cyl(B, (xe, y, z), (xi, y, z), r + 0.055, segs)
+        p.cyl(G, ((xe + xi) / 2 - 0.02, y, z), ((xe + xi) / 2 + 0.02, y, z), r + 0.07, segs)
 
 
 # ---------------------------------------------------------------- 部品
@@ -147,7 +147,7 @@ def pipe():
     p = Part('b1_pipe', '直線の管 2×0.5×0.5（白磁、真鍮のフランジ、黒鉛の留め金）。原点：中心線。背面（+Y）へ 0.3 m の金具')
     pipe_run(p, -1, 1)
     for x in (-0.5, 0.5):
-        p.cyl(G, (x - 0.07, 0, 0), (x + 0.07, 0, 0), 0.195, 16)
+        p.cyl(G, (x - 0.07, 0, 0), (x + 0.07, 0, 0), 0.195, 12)
         p.box(G, (x - 0.05, 0.12, -0.06), (x + 0.05, 0.3, 0.06))
     return p
 
@@ -241,7 +241,7 @@ def crate(cloth=False):
 
 def sand():
     p = Part('b1_sand', '砂の吹きだまり 2.4×1.6×0.3（scale で大きさを変える）。原点：底の中央')
-    p.mound('sand', (0, 0, 0), 1.2, 0.8, 0.3)
+    p.mound("sand", (0, 0, 0), 1.2, 0.8, 0.42)
     return p
 
 
@@ -327,10 +327,46 @@ def corner():
     return p
 
 
+def crack():
+    p = Part('b1_crack', '外殻の割れ目（外の光が差す。発光の空 sky と、縁の割れた白磁の板）約 3×4。原点：背面（壁）の中心')
+    outline = [(-0.2, -2.0), (0.35, -1.3), (0.2, -0.8), (0.75, -0.2), (0.55, 0.5), (1.1, 1.1), (0.7, 1.5), (0.9, 2.0),
+               (0.2, 1.6), (-0.15, 1.9), (-0.45, 1.2), (-0.95, 0.9), (-0.6, 0.3), (-1.05, -0.3), (-0.5, -0.8), (-0.7, -1.4)]
+    p.prism('sky', outline, -0.02, 0.0, 'y')
+    rim = [((-0.9, -1.6), 0.5, 0.7, 20), ((0.75, -1.0), 0.6, 0.5, -15), ((1.05, 0.3), 0.45, 0.8, 35), ((1.2, 1.6), 0.5, 0.5, -30),
+           ((0.4, 2.2), 0.7, 0.35, 10), ((-0.6, 1.8), 0.6, 0.45, -25), ((-1.25, 0.55), 0.45, 0.7, 15), ((-1.3, -0.6), 0.5, 0.6, -10),
+           ((0.1, -2.15), 0.6, 0.35, 5)]
+    for (x, z), w, h, a in rim:
+        n0 = len(p.pieces)
+        p.cbox(I, (0, 0, 0), (w, 0.16, h), 0.06, 'y')
+        p.transformed(apply(rot('y', a), (x, -0.08, z)), n0)
+    return p
+
+
+def post_lamp():
+    p = Part('b1_post_lamp', '琥珀の灯の付いた低い柱 0.24×0.24×1.2（穴の縁・通路の曲がり角の目印）。原点：底の中央')
+    p.cbox(B, (0, 0, 0.08), (0.34, 0.34, 0.16), 0.04)
+    p.box(G, (-0.09, -0.09, 0.16), (0.09, 0.09, 1.0))
+    p.cbox(B, (0, 0, 0.55), (0.22, 0.22, 0.08), 0.02)
+    lantern(p, (0, 0, 1.2))
+    return p
+
+
+def shaft():
+    p = Part('b1_shaft', '割れ目から差す光の筋（足し合わせの半透明、長さ 7 m、下へ行くほど広がり、前へ 3 m 傾く）。原点：上の端の中心（割れ目の位置）')
+    def ring(z, w, d, y):
+        pts = []
+        for k in range(8):
+            a = 2 * math.pi * (k + 0.5) / 8
+            pts.append((w * math.cos(a), y + d * math.sin(a), z))
+        return pts
+    p.tube('shaft', [ring(0.0, 0.8, 0.25, 0.0), ring(-3.5, 1.3, 0.8, -1.5), ring(-7.0, 1.8, 1.3, -3.0)])
+    return p
+
+
 PARTS = [
     lambda: wall('b1_wall', True), lambda: wall('b1_wall_plain', False), door, pillar, corner,
     lambda: beam(False), lambda: beam(True), pipe, elbow, tee,
     lambda: rail(False), lambda: rail(True), lantern_part, redlight,
     lambda: grate(False), lambda: grate(True), lambda: crate(False), lambda: crate(True),
-    sand, debris, fan, lambda: walkway(False), lambda: walkway(True),
+    sand, debris, fan, lambda: walkway(False), lambda: walkway(True), crack, shaft, post_lamp,
 ]

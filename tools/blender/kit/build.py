@@ -48,7 +48,8 @@ def main() -> int:
         if a.startswith('--only'):
             only = set(sys.argv[sys.argv.index(a) + 1].split(',')) if a == '--only' else set(a.split('=', 1)[1].split(','))
     t0 = time.time()
-    report = {}
+    rep_path = os.path.join(WORK, 'parts.json')
+    report = json.load(open(rep_path, encoding='utf-8')) if only and os.path.exists(rep_path) else {}
     for kit, (folder, makers) in KITS.items():
         parts = [m() for m in makers]
         for p in parts:
@@ -58,7 +59,7 @@ def main() -> int:
             report[f'{folder}/{p.name}'] = {'triangles': tris, 'note': p.note}
             print(f'[kit] {folder}/{p.name}  {tris} 三角形', flush=True)
     os.makedirs(WORK, exist_ok=True)
-    with open(os.path.join(WORK, 'parts.json'), 'w', encoding='utf-8') as fh:
+    with open(rep_path, 'w', encoding='utf-8') as fh:
         json.dump(report, fh, ensure_ascii=False, indent=1)
     print(f'[kit] {len(report)} 部品（{time.time() - t0:.1f} 秒）')
     return 0

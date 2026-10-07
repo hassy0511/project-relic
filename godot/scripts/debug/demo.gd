@@ -106,6 +106,10 @@ func _ready() -> void:
 		_steps.append_array(_cp2d_steps())
 		_steps.append_array(_pad_steps())
 		_steps.append_array(_ui_steps())
+	# --stage_shots：部屋の見た目（キット・飾り）の確認。--stage_view=<名前> で 1 つだけ（スマホの寸法の撮影用）
+	if main.args.has("stage_shots"):
+		_steps.clear()
+		_steps.append_array(_stage_steps())
 	if not main.args.has("ch1_full"):
 		_steps.append({"ticks": 1, "done": true})
 
@@ -268,7 +272,13 @@ func _town_steps() -> Array:
 				g.cam.pitch = float(v[3]) * U.DEG
 				main.snap_views()})
 			steps.append({"ticks": 40, "input": {}})
-			steps.append({"ticks": 1, "shot": "town_%s_%s" % [state, v[0]], "input": {}})
+			steps.append({"ticks": 1, "shot": "town_%s_%s" % [state, v[0]], "input": {}, "check": func():
+				print("描画 town_%s_%s：draw %d・物 %d・三角形 %d" % [state, v[0],
+					RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+					RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
+					RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])
+				var missing: Array = main.level.get_meta("missing_parts", [])
+				return _check(missing.is_empty(), "町の飾りの部品がそろっている（%s）" % [missing])})
 	return steps
 
 
@@ -895,3 +905,49 @@ func _finish() -> void:
 	RenderingServer.render_loop_enabled = true
 	print("見本の完了（失敗 %d 件）" % failures.size())
 	get_tree().quit(1 if failures.size() > 0 else 0)
+
+
+## 部屋の見た目の確認（--stage_shots）：キットを付けた部屋を、プレイヤーのカメラでいくつかの向きから撮る。イベントは走らせない
+## [名前, 部屋, 目印, 立つ所, 見る所, 見下ろす角度（度）]
+func _stage_steps() -> Array:
+	var views := [
+		["r02_entry", "ch1.r02", "from_r01", Vector3(0, 0, -10), Vector3(0, 0, 5), 10.0],
+		["r02_west", "ch1.r02", "from_r01", Vector3(6, 0, -9), Vector3(-9, 0, 3), 10.0],
+		["r02_east", "ch1.r02", "from_r01", Vector3(-7, 0, 7), Vector3(10, 0, -1), 10.0],
+		["r02_back", "ch1.r02", "from_r03", Vector3(0, 0, 10), Vector3(0, 0, -6), 12.0],
+		["r03_entry", "ch1.r03", "from_r02", Vector3(0, 0, -16), Vector3(0, 0, 10), 8.0],
+		["r03_mid", "ch1.r03", "from_r02", Vector3(0, 0, -2.5), Vector3(0, 0, 12), 14.0],
+		["r03_back", "ch1.r03", "from_r04", Vector3(0, 0, 16.5), Vector3(0, 0, -10), 8.0],
+		["r03_pit", "ch1.r03", "from_r02", Vector3(0.6, 0, -1.2), Vector3(0, 0, 12), 24.0],
+	]
+	if main.args.has("stage_view"):
+		var want: PackedStringArray = String(main.args["stage_view"]).split(",")
+		views = views.filter(func(v): return v[0] in want)
+	var steps := []
+	for v in views:
+		steps.append({"ticks": 2, "setup": func():
+			var g: GameSim = main.game
+			g.god_mode = true
+			# --stage_plain：キットと飾りを外して（灰色の箱のまま）撮る。描画の数の比較用
+			if main.args.has("stage_plain"):
+				var r: Dictionary = g.world.room(v[1])
+				r.erase("kit")
+				r.erase("dress")
+				for s in r.geometry:
+					s.erase("skin")
+					s.erase("hide")
+			g.load_room(v[1], v[2])
+			for t in g.triggers:
+				t.fired = true
+			_stand(v[3], v[4])
+			g.cam.pitch = float(v[5]) * U.DEG
+			main.snap_views()})
+		steps.append({"ticks": 40, "input": {}})
+		steps.append({"ticks": 1, "shot": "stage_" + v[0], "input": {}, "check": func():
+			print("描画 %s：環境光 %.2f・draw %d・物 %d・三角形 %d" % [v[0], (main.sun.get_meta("env") as Environment).ambient_light_energy,
+				RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+				RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
+				RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])
+			var missing: Array = main.level.get_meta("missing_parts", [])
+			return _check(missing.is_empty(), "部屋 %s の飾りの部品がそろっている（%s）" % [v[1], missing])})
+	return steps

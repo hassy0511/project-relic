@@ -6,6 +6,8 @@ shader_type spatial;
 uniform vec4 color : source_color = vec4(1.0);
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable, hint_default_white;
 uniform float uv_m = 2.0;
+// 絵の強さ（0 = 絵を使わず color だけ、1 = 絵のまま）。黒鉛の擦り目など、模様が強すぎる絵を弱める
+uniform float tex_strength = 1.0;
 uniform float roughness_value = 0.85;
 uniform float metallic_value = 0.0;
 // 地形の tint（頂点の色）をどれだけ掛けるか（0 = 使わない）
@@ -28,7 +30,10 @@ float seam(vec2 uvm) {
 }
 
 void fragment() {
-	vec3 c = texture(albedo_tex, UV / uv_m).rgb * color.rgb;
+	vec3 t = texture(albedo_tex, UV / uv_m).rgb;
+	// 絵の平均の明るさは保ったまま、模様だけを弱める（平均 = 縮小の最後の段の色）
+	vec3 avg = textureLod(albedo_tex, vec2(0.5), 12.0).rgb;
+	vec3 c = mix(avg, t, tex_strength) * color.rgb;
 	if (macro > 0.0) {
 		vec3 m = texture(albedo_tex, UV / (uv_m * 3.7) + vec2(0.37, 0.71)).rgb;
 		float l = dot(m, vec3(0.333));

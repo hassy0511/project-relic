@@ -10,6 +10,7 @@ extends RefCounted
 const KIT_PATH := "res://content/kits/%s.json"
 const PART_PATH := "res://assets/kit/%s.glb"
 const SHADER := preload("res://assets/shaders/kit_surface.gdshader")
+const GLOW := preload("res://assets/shaders/kit_glow.gdshader")
 
 ## キットの id → { id, data, surf: { 面の名前: Material }, mats: { 部品の材質の名前: Material } }
 static var _kits := {}
@@ -41,10 +42,17 @@ static func load_kit(id: String) -> Dictionary:
 
 
 ## 材質の定義 → 材質。{ "albedo": "res://…png", "color": "#rrggbb", "uv_m": 2, "roughness": 0.85, "metallic": 0,
-##   "tint_mix": 0, "macro": 0, "seams": { "every": [2, 1.33], "width": 0.04, "color": "#444641" },
+##   "tint_mix": 0, "macro": 0, "tex_strength": 1, "seams": { "every": [2, 1.33], "width": 0.04, "color": "#444641" },
 ##   "emission": { "color": "#ffbc52", "energy": 3 } }
+##   光の筋（"blend": "add"）：{ "blend": "add", "color", "strength": 0.25, "fade_m": 7 }（kit_glow.gdshader）
 static func make_material(def: Dictionary) -> Material:
 	var m := ShaderMaterial.new()
+	if def.get("blend", "") == "add":
+		m.shader = GLOW
+		m.set_shader_parameter("color", Color(def.get("color", "#ffd9a0")))
+		m.set_shader_parameter("strength", float(def.get("strength", 0.25)))
+		m.set_shader_parameter("fade_m", float(def.get("fade_m", 7.0)))
+		return m
 	m.shader = SHADER
 	if def.has("albedo"):
 		var p := String(def.albedo)
@@ -58,6 +66,7 @@ static func make_material(def: Dictionary) -> Material:
 	m.set_shader_parameter("metallic_value", float(def.get("metallic", 0.0)))
 	m.set_shader_parameter("tint_mix", float(def.get("tint_mix", 0.0)))
 	m.set_shader_parameter("macro", float(def.get("macro", 0.0)))
+	m.set_shader_parameter("tex_strength", float(def.get("tex_strength", 1.0)))
 	if def.has("seams"):
 		var s: Dictionary = def.seams
 		var e = s.get("every", [2, 2])
@@ -157,8 +166,9 @@ static func _uv(p: Vector3, n: Vector3, cls: String) -> Vector2:
 	return Vector2(p.dot(t.normalized()), -p.y)
 
 
+## a,b,c は RoomGeo の向き（(b-a)×(c-a) が外向きの法線）。Godot は時計回りが表なので、c と b を入れ替えて足す
 static func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, n: Vector3, cls: String, tint: Color) -> void:
-	for p in [a, b, c]:
+	for p in [a, c, b]:
 		st.set_normal(n)
 		st.set_color(tint)
 		st.set_uv(_uv(p, n, cls))
@@ -252,13 +262,7 @@ static func dress(room: Dictionary, kit: Dictionary, missing: Array) -> Node3D:
 			var xf := Transform3D(basis, pos + step * k)
 			groups[key].append(xf)
 			if d.has("light"):
-				var l: Dictionary = d.light
-				var o := OmniLight3D.new()
-				o.position = xf * RoomGeo.v3(l.get("at", [0, 1, 0]))
-				o.light_color = Color(l.get("color", "#ffbc52"))
-				o.light_energy = float(l.get("energy", 1.0))
-				o.omni_range = float(l.get("range", 6.0))
-				root.add_child(o)
+				root.add_child(_light(d.light, xf))
 	for key in groups:
 		var part: String = key.split("|")[0]
 		var shadow: bool = key.split("|")[1] == "true"
@@ -286,6 +290,30 @@ static func dress(room: Dictionary, kit: Dictionary, missing: Array) -> Node3D:
 	if not missing.is_empty():
 		push_warning("飾りの部品が無い（%s）：%s" % [room.get("id", "?"), ", ".join(missing)])
 	return root
+
+
+## 部品の明かり：{ "at": 部品の中の位置, "color", "range", "energy" }。"type": "spot" なら "dir"（部品の中の向き）・"angle"（度）・
+## "shadow"（影。重いので部屋に 1 つまで）のスポット（割れ目から差す光など）
+static func _light(l: Dictionary, xf: Transform3D) -> Light3D:
+	var o: Light3D
+	if l.get("type", "omni") == "spot":
+		var sp := SpotLight3D.new()
+		sp.spot_range = float(l.get("range", 12.0))
+		sp.spot_angle = float(l.get("angle", 35.0))
+		sp.spot_attenuation = float(l.get("attenuation", 0.6))
+		var dir := (xf.basis * RoomGeo.v3(l.get("dir", [0, -1, 0]))).normalized()
+		var up := Vector3.UP if absf(dir.y) < 0.95 else Vector3.FORWARD
+		sp.basis = Basis.looking_at(dir, up)
+		o = sp
+	else:
+		var om := OmniLight3D.new()
+		om.omni_range = float(l.get("range", 6.0))
+		o = om
+	o.position = xf * RoomGeo.v3(l.get("at", [0, 1, 0]))
+	o.light_color = Color(l.get("color", "#ffbc52"))
+	o.light_energy = float(l.get("energy", 1.0))
+	o.shadow_enabled = bool(l.get("shadow", false))
+	return o
 
 
 ## 部品の GLB を 1 つのメッシュにまとめる（材質の名前ごとに 1 面）。キットの "materials" に同じ名前があれば、その共有の材質に替える

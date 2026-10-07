@@ -24,6 +24,8 @@ PALETTE = {
     'cloth': ('#B75B43', 0.95, 0.0, 0.0),
     'grate': ('#594333', 0.7, 0.2, 0.0),
     'dark': ('#2A2A28', 0.8, 0.0, 0.0),
+    'sky': ('#FFE2B8', 0.9, 0.0, 2.5),
+    'shaft': ('#FFD9A0', 0.9, 0.0, 1.0),
 }
 
 
@@ -154,6 +156,18 @@ class Part:
         v = np.asarray(verts)
         # 管は閉じているが曲がっているので、面の向きは輪の順で決める（orient は凸でない形でも体積の符号で正しく働く）
         return self.add(mat, v, faces, smooth)
+
+    def tube(self, mat, rings):
+        """輪の列（どれも同じ点の数）をつないだ、ふたの無い筒（光の筋など）"""
+        verts, faces = [], []
+        n = len(rings[0])
+        for r in rings:
+            verts.extend(r)
+        for i in range(len(rings) - 1):
+            for k in range(n):
+                faces.append([i * n + k, i * n + (k + 1) % n, (i + 1) * n + (k + 1) % n, (i + 1) * n + k])
+        self.pieces.append((mat, np.asarray(verts, float), faces, True))
+        return self
 
     def mound(self, mat, c, rx, ry, h, segs=14, rings=5):
         """砂の吹きだまり：つぶれた半球（底は平ら）"""
