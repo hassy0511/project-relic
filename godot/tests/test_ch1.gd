@@ -209,21 +209,49 @@ func test_nagomi_joins_at_frame_fit() -> void:
 	h.free_game(g)
 
 
-## 適合の前は、ダッシュ・光刃・ロックオンが使えない（訓練場は移動・ジャンプ・射撃だけ）。適合の後は使える
-func test_frame_powers_after_fitting() -> void:
+## 第 1 章の力は少しずつ使えるようになる：練習銃 → スパーク（夜）→ ロックオン（適合）→ 光刃（弁の間）→ ダッシュ（駆動回廊）
+func test_abilities_unlock_in_stages() -> void:
 	var g := _new_game()
 	await h.settle()
 	g.set_flag("trigger.ch1.training.start")
 	g.load_room("ch1.training", "start")
 	await _pump(g, 6)
-	h.expect(not g.has_frame(), "適合の前")
+	for a in ["spark", "lock_on", "sword", "dash"]:
+		h.expect(not g.has_ability(a), "訓練場では %s はまだ使えない" % a)
+	h.expect(g.gun_cfg().damage < g.tuning.gun.damage and g.gun_cfg().rate < g.tuning.gun.rate, "最初は練習銃（威力・連射がスパークより低い）")
 	await h.run(g, 10, {"dash": true, "sword": true, "lock_on": true, "fire": true})
-	h.expect(not g.input.dash and not g.input.sword and not g.input.lock_on and g.input.fire, "適合の前：ダッシュ・斬る・ロックオンは押していないことになる（撃つは使える）")
-	h.expect(g.player.dash_time <= 0.0 and g.player.attack == null, "適合の前：ダッシュも斬りも出ない")
-	g.set_flag(GameSim.NAGOMI_JOIN_FLAG)
+	h.expect(not g.input.dash and not g.input.sword and not g.input.lock_on and g.input.fire, "解放の前：ダッシュ・斬る・ロックオンは押していないことになる（撃つは使える）")
+	h.expect(g.player.dash_time <= 0.0 and g.player.attack == null, "解放の前：ダッシュも斬りも出ない")
+	g.set_flag("ch1.got_spark")
+	h.expect(g.has_ability("spark") and g.gun_cfg().damage == g.tuning.gun.damage, "スパークを受け取ると普通の銃になる")
+	g.set_flag("ch1.frame_fitted")
+	h.expect(g.has_ability("lock_on") and not g.has_ability("sword") and not g.has_ability("dash"), "適合ではロックオンだけ")
+	g.set_flag("ch1.blade_online")
+	h.expect(g.has_ability("sword") and not g.has_ability("dash"), "籠手が目覚めると光刃")
+	await _pump(g, 30)
+	await h.run(g, 4, func(i): return {"sword": i < 2})
+	h.expect(g.player.attack != null, "光刃が出る")
+	await _pump(g, 60)
+	await h.run(g, 3, {"dash": true, "move_y": 1.0})
+	h.expect(g.player.dash_time <= 0.0, "ダッシュはまだ出ない")
+	g.set_flag("ch1.drive_powered")
 	await _pump(g, 30)
 	await h.run(g, 3, {"dash": true, "move_y": 1.0})
-	h.expect(g.player.dash_time > 0.0, "適合の後：ダッシュが出る")
+	h.expect(g.player.dash_time > 0.0, "駆動回廊に動力が戻るとダッシュが出る")
+	h.free_game(g)
+
+
+## 部屋から始める確認用（後の本筋のフラグだけ立てる）でも、そこまでの力は使える
+func test_abilities_implied_by_later_flags() -> void:
+	var g := _new_game()
+	await h.settle()
+	g.load_room("ch1.r13")
+	g.set_flag("ch1.drive_powered")
+	for a in ["spark", "lock_on", "sword", "dash"]:
+		h.expect(g.has_ability(a), "駆動回廊より後なら %s は使える" % a)
+	g.load_room("sample.hub")
+	g.set_flag("ch1.drive_powered", false)
+	h.expect(g.has_ability("dash") and g.has_ability("sword"), "見本の部屋では最初から全部使える")
 	h.free_game(g)
 
 

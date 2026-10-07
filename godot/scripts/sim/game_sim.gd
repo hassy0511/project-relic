@@ -120,7 +120,7 @@ func setup(init: Dictionary) -> void:
 
 
 func charge_type() -> bool:
-	return equipped_chips.has("chip.charge")
+	return equipped_chips.has("chip.charge") and has_ability("spark")
 
 
 func emit_event(e: Dictionary) -> void:
@@ -481,9 +481,8 @@ func boss_status() -> Dictionary:
 # ---------------------------------------------------------------- 1 刻み
 
 func step(frame: InputFrame) -> void:
-	# 適合の前は、ダッシュ・光刃・ロックオンは使えない（シナリオ：訓練場は移動・ジャンプ・射撃だけ。設計 10 章）
-	if not has_frame():
-		frame = without_frame_powers(frame)
+	# まだ使えない力（ロックオン・光刃・ダッシュ）のボタンは効かない（第 1 章で少しずつ解放する）
+	frame = _mask_locked_abilities(frame)
 	input = frame
 	edges.update(frame)
 	consumed_jump = false
@@ -573,14 +572,44 @@ func _update_dialogue_input(frame: InputFrame) -> void:
 
 ## ナゴミが仲間になるフラグ（第 1 章の封印室で、フレームとの適合と一緒に起動する）
 const NAGOMI_JOIN_FLAG := "ch1.frame_fitted"
-## フレームの力（適合の後に使える操作）。ロックオンと弱点の解析はナゴミ、ダッシュと光刃はフレーム
-const FRAME_BUTTONS := ["dash", "sword", "lock_on", "switch_left", "switch_right"]
+## 第 1 章の本筋のフラグ（立つ順。30_レベルデザイン設計.md 4.6）
+const CH1_ORDER := ["ch1.chores_started", "ch1.nico_rescued", "ch1.scolded", "ch1.debt_scene", "ch1.ordo_stopped", "ch1.got_spark", "ch1.fell_to_b2",
+	"ch1.frame_fitted", "ch1.first_beacon", "ch1.drive_powered", "ch1.shortcut_open", "ch1.diagnosis", "ch1.boss_defeated",
+	"ch1.ordo_restarted", "ch1.descent_permit", "ch1.drill_developed", "ch1.complete"]
+## 第 1 章で少しずつ使えるようになる力（20_ゲームシステム設計.md 2.1）：[解放のフラグ, この本筋のフラグ以降なら解放済みとみなす]
+## spark：夜にヤーナから父の銃を受け取る（それまでは弱い練習銃）
+## lock_on：封印室でフレームの核と適合し、ナゴミが起きる（ロックオンと弱点の解析）
+## sword：弁の間の入口で、左腕の籠手が目覚める（光刃）
+## dash：駆動回廊でオルドの動力が流れ込み、脚のスラスターが目覚める（ダッシュ）
+const ABILITIES := {
+	"spark": ["ch1.got_spark", "ch1.got_spark"],
+	"lock_on": ["ch1.frame_fitted", "ch1.frame_fitted"],
+	"sword": ["ch1.blade_online", "ch1.first_beacon"],
+	"dash": ["ch1.drive_powered", "ch1.drive_powered"],
+}
+## 力ごとに、使えないときは押していないことにするボタン
+const ABILITY_BUTTONS := {"lock_on": ["lock_on", "switch_left", "switch_right"], "sword": ["sword"], "dash": ["dash"]}
 
 
-## フレームと適合したか（＝ナゴミが仲間になったか）。第 1 章の部屋（ch1.*）では適合の前は偽。
-## 試しの部屋・見本の部屋（arena・sample・mvp）では最初から真。
+## その力が使えるか。第 1 章の部屋（ch1.*）では解放のフラグか、それより後の本筋のフラグが立っていれば真。
+## 試しの部屋・見本の部屋（arena・sample・mvp）と第 2 章以降では常に真。
+## （部屋から始める確認用の URL で、後のフラグだけ立てても使えるように、本筋の順で補う）
+func has_ability(a: String) -> bool:
+	if not room_id.begins_with("ch1.") or not ABILITIES.has(a):
+		return true
+	var spec: Array = ABILITIES[a]
+	if flag(spec[0]):
+		return true
+	var i := CH1_ORDER.find(spec[1])
+	for k in range(maxi(i, 0), CH1_ORDER.size()):
+		if flag(CH1_ORDER[k]):
+			return true
+	return false
+
+
+## フレームと適合したか（＝ナゴミが仲間になったか）
 func has_frame() -> bool:
-	return not room_id.begins_with("ch1.") or flag(NAGOMI_JOIN_FLAG)
+	return has_ability("lock_on")
 
 
 ## ナゴミがハルについて来ているか（適合と同時に起動する）
@@ -588,13 +617,28 @@ func nagomi_present() -> bool:
 	return has_frame()
 
 
-## 適合の前：フレームの力のボタン（ダッシュ・光刃・ロックオン・対象の切り替え）を押していないことにした入力
-static func without_frame_powers(f: InputFrame) -> InputFrame:
+## 今の主武器の性能：スパークを受け取る前は練習銃（tuning.practiceGun で上書きした弱い銃。連射だけ）
+func gun_cfg() -> Dictionary:
+	if has_ability("spark"):
+		return tuning.gun
+	var c: Dictionary = tuning.gun.duplicate()
+	c.merge(tuning.get("practiceGun", {}), true)
+	return c
+
+
+## まだ使えない力のボタンを、押していないことにした入力
+func _mask_locked_abilities(f: InputFrame) -> InputFrame:
+	var off := []
+	for a in ABILITY_BUTTONS:
+		if not has_ability(a):
+			off.append_array(ABILITY_BUTTONS[a])
+	if off.is_empty():
+		return f
 	var o := InputFrame.new()
 	for p in f.get_property_list():
 		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
 			o.set(p.name, f.get(p.name))
-	for b in FRAME_BUTTONS:
+	for b in off:
 		o.set(b, false)
 	return o
 
@@ -891,7 +935,7 @@ func soft_aim_target():
 		if not e.alive:
 			continue
 		var c: Vector3 = e.center()
-		if c.distance_to(chest) > tuning.gun.range * 1.2:
+		if c.distance_to(chest) > gun_cfg().range * 1.2:
 			continue
 		var rel := absf(U.wrap_angle(U.dir_to_yaw(c.x - chest.x, c.z - chest.z) - cam.yaw))
 		if rel < best_rel:

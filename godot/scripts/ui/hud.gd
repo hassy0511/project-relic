@@ -49,7 +49,7 @@ var _we_icon: TextureRect
 var _we: UiArt.Gauge
 var _heals: Label
 var _spark_tile: Control
-## 光刃のアイコン（適合の前は隠す）
+## 光刃のアイコン（籠手が目覚める前は隠す）
 var _blade_tile: Control
 var _spark_icon: TextureRect
 var _cells_box: PanelContainer
@@ -567,7 +567,7 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 	_time += dt
 	var vs := _root.size
 	var p := game.player
-	_blade_tile.visible = game.has_frame()
+	_blade_tile.visible = game.has_ability("sword")
 	var ratio := clampf(p.hp / p.max_hp, 0.0, 1.0)
 	# HP：減った分は少し遅れて縮む（ui_parts_gauge_hp_fill_damaged）。3 割を切ると危険の色を明滅させる
 	if ratio < _hp_lag:

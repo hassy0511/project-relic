@@ -403,7 +403,7 @@ func _update_sword(dt: float) -> void:
 
 func _update_gun(dt: float) -> void:
 	var g = game
-	var cfg: Dictionary = g.tuning.gun
+	var cfg: Dictionary = g.gun_cfg()
 	gun_cooldown = maxf(0.0, gun_cooldown - dt)
 	if hurt_time > 0.0 or drilling:
 		gun_charge = 0.0
@@ -432,7 +432,7 @@ func _update_gun(dt: float) -> void:
 
 func _fire(damage: float, kind: String) -> void:
 	var g = game
-	var cfg: Dictionary = g.tuning.gun
+	var cfg: Dictionary = g.gun_cfg()
 	var origin := chest()
 	var right := Vector3(-cos(yaw), 0.0, sin(yaw))
 	origin += right * -0.3 + U.yaw_to_dir(yaw) * 0.4

@@ -375,7 +375,11 @@ func _process(dt: float) -> void:
 	if game != null:
 		var dlg: Dictionary = game.story.dialogue
 		touch.stick_hint = dlg.is_empty()
-	var unavail: Array = [] if game == null or game.has_frame() else ["dash", "sword", "lock_on"]
+	var unavail: Array = []
+	if game != null:
+		for a in ["dash", "sword", "lock_on"]:
+			if not game.has_ability(a):
+				unavail.append(a)
 	if unavail != touch.unavailable:
 		touch.unavailable = unavail
 		touch.lock_toggled = touch.lock_toggled and unavail.is_empty()

@@ -57,6 +57,12 @@
     "chargeMoveScale": 0.8,
     "tapRate": 3.0
   },
+  "practiceGun": {
+    "damage": 2,
+    "rate": 3.0,
+    "range": 10,
+    "speed": 24
+  },
   "sword": {
     "combo": [
       10,
