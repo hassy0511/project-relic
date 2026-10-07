@@ -1753,7 +1753,11 @@
       12
      ],
      "steps": 16,
-     "tint": "#8d8f94"
+     "tint": "#8d8f94",
+     "skin": {
+      "floor": "floor",
+      "wall": "stone2"
+     }
     },
     {
      "t": "box",
@@ -1880,7 +1884,11 @@
       12
      ],
      "steps": 16,
-     "tint": "#8d8f94"
+     "tint": "#8d8f94",
+     "skin": {
+      "floor": "floor",
+      "wall": "stone2"
+     }
     },
     {
      "t": "box",
@@ -1950,7 +1958,11 @@
       0.08,
       18
      ],
-     "tint": "#b8b2a4"
+     "tint": "#b8b2a4",
+     "skin": {
+      "floor": "plaza",
+      "wall": "stone2"
+     }
     },
     {
      "t": "box",
@@ -1964,7 +1976,11 @@
       1.0,
       3.2
      ],
-     "tint": "#8a8a86"
+     "tint": "#8a8a86",
+     "skin": {
+      "floor": "stone2",
+      "wall": "wall"
+     }
     },
     {
      "t": "box",
@@ -1978,7 +1994,8 @@
       2.6,
       1.0
      ],
-     "tint": "#a4a49e"
+     "tint": "#a4a49e",
+     "hide": true
     },
     {
      "t": "box",
@@ -1992,7 +2009,11 @@
       0.8,
       3
      ],
-     "tint": "#8a8a86"
+     "tint": "#8a8a86",
+     "skin": {
+      "floor": "wood",
+      "wall": "stone2"
+     }
     },
     {
      "t": "box",
@@ -2062,7 +2083,12 @@
       0.6,
       9.6
      ],
-     "tint": "#8a5a46"
+     "tint": "#8a5a46",
+     "skin": {
+      "wall": "graphite",
+      "floor": "rust",
+      "ceiling": "graphite"
+     }
     },
     {
      "t": "box",
@@ -2090,7 +2116,12 @@
       0.5,
       9.6
      ],
-     "tint": "#8a5a46"
+     "tint": "#8a5a46",
+     "skin": {
+      "wall": "graphite",
+      "floor": "rust",
+      "ceiling": "graphite"
+     }
     },
     {
      "t": "box",
@@ -2104,7 +2135,8 @@
       1.0,
       1.2
      ],
-     "tint": "#8c6a46"
+     "tint": "#8c6a46",
+     "skin": "wood"
     },
     {
      "t": "box",
@@ -2118,7 +2150,8 @@
       1.1,
       0.8
      ],
-     "tint": "#8c6a46"
+     "tint": "#8c6a46",
+     "skin": "wood"
     },
     {
      "t": "box",
@@ -2132,7 +2165,8 @@
       2.4,
       1.0
      ],
-     "tint": "#6f5a40"
+     "tint": "#6f5a40",
+     "skin": "wood"
     },
     {
      "t": "box",
@@ -2146,7 +2180,8 @@
       0.25,
       5.2
      ],
-     "tint": "#b0503c"
+     "tint": "#b0503c",
+     "hide": true
     },
     {
      "t": "box",
@@ -2160,7 +2195,8 @@
       1.1,
       0.8
      ],
-     "tint": "#8c6a46"
+     "tint": "#8c6a46",
+     "skin": "wood"
     },
     {
      "t": "box",
@@ -2174,7 +2210,8 @@
       2.4,
       1.0
      ],
-     "tint": "#6f5a40"
+     "tint": "#6f5a40",
+     "skin": "wood"
     },
     {
      "t": "box",
@@ -2188,7 +2225,8 @@
       0.25,
       5.2
      ],
-     "tint": "#4a7a8a"
+     "tint": "#4a7a8a",
+     "hide": true
     },
     {
      "t": "box",
@@ -2202,7 +2240,8 @@
       1.0,
       2
      ],
-     "tint": "#6f5a40"
+     "tint": "#6f5a40",
+     "hide": true
     },
     {
      "t": "box",
@@ -2216,7 +2255,8 @@
       1.6,
       2
      ],
-     "tint": "#6f5a40"
+     "tint": "#6f5a40",
+     "hide": true
     },
     {
      "t": "box",
@@ -2230,7 +2270,8 @@
       1.2,
       2
      ],
-     "tint": "#4a463f"
+     "tint": "#4a463f",
+     "hide": true
     }
    ],
    "markers": {
@@ -2282,9 +2323,9 @@
     },
     {
      "pos": [
-      -34,
-      5,
-      -2
+      -36.0,
+      2.9,
+      3.4
      ],
      "color": "#ffc27a",
      "range": 14,
@@ -2292,9 +2333,9 @@
     },
     {
      "pos": [
-      -20,
-      5,
-      -2
+      -21.2,
+      2.6,
+      -1.1
      ],
      "color": "#ffc27a",
      "range": 14,
@@ -2302,9 +2343,9 @@
     },
     {
      "pos": [
-      24,
-      5,
-      2
+      22.0,
+      2.8,
+      3.7
      ],
      "color": "#ffc27a",
      "range": 14,
@@ -2312,9 +2353,9 @@
     },
     {
      "pos": [
-      38,
-      5,
-      2
+      36.0,
+      2.8,
+      3.7
      ],
      "color": "#ffc27a",
      "range": 14,
@@ -2322,9 +2363,9 @@
     },
     {
      "pos": [
-      0,
-      5,
-      -10
+      -4.85,
+      3.92,
+      -13.4
      ],
      "color": "#ffc27a",
      "range": 14,
@@ -2352,7 +2393,10 @@
       3.4
      ],
      "size": 64,
-     "color": "#ffe7b8"
+     "color": "#ffe7b8",
+     "board": "town/sign_wall_3",
+     "yaw": 180,
+     "board_w": 3.0
     },
     {
      "type": "sign",
@@ -2363,7 +2407,10 @@
       2.4
      ],
      "size": 64,
-     "color": "#ffe7b8"
+     "color": "#ffe7b8",
+     "board": "town/sign_roof_2",
+     "yaw": 180,
+     "board_w": 2.2
     },
     {
      "type": "sign",
@@ -2374,7 +2421,10 @@
       4
      ],
      "size": 56,
-     "color": "#ffe7b8"
+     "color": "#ffe7b8",
+     "board": "town/sign_post_2",
+     "yaw": 180,
+     "board_w": 2.2
     },
     {
      "type": "sign",
@@ -2385,7 +2435,10 @@
       4
      ],
      "size": 56,
-     "color": "#ffe7b8"
+     "color": "#ffe7b8",
+     "board": "town/sign_post_3",
+     "yaw": 180,
+     "board_w": 3.0
     },
     {
      "type": "exit",
@@ -2556,6 +2609,1191 @@
       "ch1.ordo_stopped"
      ],
      "event": "ch1.plaza"
+    }
+   ],
+   "kit": "town",
+   "dress": [
+    {
+     "part": "town/terrace_a",
+     "pos": [
+      -44.0,
+      0.0,
+      16.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/terrace_b",
+     "pos": [
+      -36.0,
+      0.0,
+      16.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/terrace_c",
+     "pos": [
+      -28.0,
+      0.0,
+      16.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/terrace_d",
+     "pos": [
+      -20.0,
+      0.0,
+      16.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/terrace_a",
+     "pos": [
+      -12.0,
+      0.0,
+      16.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/terrace_b",
+     "pos": [
+      12.0,
+      0.0,
+      16.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/terrace_c",
+     "pos": [
+      20.0,
+      0.0,
+      16.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/terrace_a",
+     "pos": [
+      28.0,
+      0.0,
+      16.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/terrace_d",
+     "pos": [
+      36.0,
+      0.0,
+      16.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/terrace_b",
+     "pos": [
+      44.0,
+      0.0,
+      16.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/terrace_4",
+     "pos": [
+      -6.25,
+      0.0,
+      16.0
+     ],
+     "yaw": 180,
+     "scale": [
+      0.875,
+      1.0,
+      1.0
+     ]
+    },
+    {
+     "part": "town/terrace_4",
+     "pos": [
+      6.25,
+      0.0,
+      16.0
+     ],
+     "yaw": 180,
+     "scale": [
+      0.875,
+      1.0,
+      1.0
+     ]
+    },
+    {
+     "part": "town/stair_rail_12",
+     "pos": [
+      -4.0,
+      0.0,
+      16.0
+     ]
+    },
+    {
+     "part": "town/stair_rail_12_r",
+     "pos": [
+      4.0,
+      0.0,
+      16.0
+     ]
+    },
+    {
+     "part": "town/planter",
+     "pos": [
+      -5.4,
+      0.0,
+      15.2
+     ]
+    },
+    {
+     "part": "town/planter",
+     "pos": [
+      5.4,
+      0.0,
+      15.2
+     ]
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      -8.5,
+      1.2,
+      -14.5
+     ]
+    },
+    {
+     "part": "town/retaining_a",
+     "pos": [
+      -8.5,
+      -5.0,
+      -15.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      -16.5,
+      1.2,
+      -14.5
+     ]
+    },
+    {
+     "part": "town/retaining_b",
+     "pos": [
+      -16.5,
+      -5.0,
+      -15.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      -24.5,
+      1.2,
+      -14.5
+     ]
+    },
+    {
+     "part": "town/retaining_c",
+     "pos": [
+      -24.5,
+      -5.0,
+      -15.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      -32.5,
+      1.2,
+      -14.5
+     ]
+    },
+    {
+     "part": "town/retaining_a",
+     "pos": [
+      -32.5,
+      -5.0,
+      -15.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      -40.5,
+      1.2,
+      -14.5
+     ]
+    },
+    {
+     "part": "town/retaining_b",
+     "pos": [
+      -40.5,
+      -5.0,
+      -15.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/parapet_rail_4",
+     "pos": [
+      -46.5,
+      1.2,
+      -14.5
+     ]
+    },
+    {
+     "part": "town/retaining_a",
+     "pos": [
+      -46.5,
+      -5.0,
+      -15.0
+     ],
+     "yaw": 180,
+     "scale": [
+      0.5,
+      1.0,
+      1.0
+     ]
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      8.5,
+      1.2,
+      -14.5
+     ]
+    },
+    {
+     "part": "town/retaining_a",
+     "pos": [
+      8.5,
+      -5.0,
+      -15.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      16.5,
+      1.2,
+      -14.5
+     ]
+    },
+    {
+     "part": "town/retaining_b",
+     "pos": [
+      16.5,
+      -5.0,
+      -15.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      24.5,
+      1.2,
+      -14.5
+     ]
+    },
+    {
+     "part": "town/retaining_c",
+     "pos": [
+      24.5,
+      -5.0,
+      -15.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      32.5,
+      1.2,
+      -14.5
+     ]
+    },
+    {
+     "part": "town/retaining_a",
+     "pos": [
+      32.5,
+      -5.0,
+      -15.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      40.5,
+      1.2,
+      -14.5
+     ]
+    },
+    {
+     "part": "town/retaining_b",
+     "pos": [
+      40.5,
+      -5.0,
+      -15.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/parapet_rail_4",
+     "pos": [
+      46.5,
+      1.2,
+      -14.5
+     ]
+    },
+    {
+     "part": "town/retaining_a",
+     "pos": [
+      46.5,
+      -5.0,
+      -15.0
+     ],
+     "yaw": 180,
+     "scale": [
+      0.5,
+      1.0,
+      1.0
+     ]
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      -48.5,
+      1.2,
+      -10.0
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/retaining_a",
+     "pos": [
+      -49.0,
+      -7.0,
+      -10.0
+     ],
+     "yaw": 270
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      -48.5,
+      1.2,
+      -2.0
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/retaining_b",
+     "pos": [
+      -49.0,
+      -7.0,
+      -2.0
+     ],
+     "yaw": 270
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      -48.5,
+      1.2,
+      6.0
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/retaining_a",
+     "pos": [
+      -49.0,
+      -7.0,
+      6.0
+     ],
+     "yaw": 270
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      -48.5,
+      1.2,
+      14.0
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/retaining_b",
+     "pos": [
+      -49.0,
+      -7.0,
+      14.0
+     ],
+     "yaw": 270
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      48.5,
+      1.2,
+      -10.0
+     ],
+     "yaw": 270
+    },
+    {
+     "part": "town/retaining_a",
+     "pos": [
+      49.0,
+      -7.0,
+      -10.0
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      48.5,
+      1.2,
+      -2.0
+     ],
+     "yaw": 270
+    },
+    {
+     "part": "town/retaining_b",
+     "pos": [
+      49.0,
+      -7.0,
+      -2.0
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      48.5,
+      1.2,
+      6.0
+     ],
+     "yaw": 270
+    },
+    {
+     "part": "town/retaining_a",
+     "pos": [
+      49.0,
+      -7.0,
+      6.0
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/parapet_rail_8",
+     "pos": [
+      48.5,
+      1.2,
+      14.0
+     ],
+     "yaw": 270
+    },
+    {
+     "part": "town/retaining_b",
+     "pos": [
+      49.0,
+      -7.0,
+      14.0
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/stair_rail_12",
+     "pos": [
+      -4.0,
+      -5.0,
+      -26.0
+     ]
+    },
+    {
+     "part": "town/stair_rail_12_r",
+     "pos": [
+      4.0,
+      -5.0,
+      -26.0
+     ]
+    },
+    {
+     "part": "town/lamp_tall",
+     "pos": [
+      -5.4,
+      0.0,
+      -13.4
+     ]
+    },
+    {
+     "part": "town/lamp_tall",
+     "pos": [
+      5.4,
+      0.0,
+      -13.4
+     ],
+     "yaw": 180,
+     "light": {
+      "at": [
+       0.55,
+       3.92,
+       0
+      ],
+      "color": "#ffc27a",
+      "range": 14,
+      "energy": 1.6
+     }
+    },
+    {
+     "part": "town/deck_slab",
+     "pos": [
+      0.0,
+      -5.02,
+      -36.0
+     ],
+     "shadow": false
+    },
+    {
+     "part": "town/lower_block_a",
+     "pos": [
+      -40.0,
+      -5.02,
+      -23.0
+     ],
+     "shadow": false
+    },
+    {
+     "part": "town/lower_block_b",
+     "pos": [
+      -26.0,
+      -5.02,
+      -22.0
+     ],
+     "yaw": 180,
+     "shadow": false
+    },
+    {
+     "part": "town/lower_block_c",
+     "pos": [
+      -14.0,
+      -5.02,
+      -24.0
+     ],
+     "shadow": false
+    },
+    {
+     "part": "town/lower_block_a",
+     "pos": [
+      14.0,
+      -5.02,
+      -23.0
+     ],
+     "yaw": 180,
+     "shadow": false
+    },
+    {
+     "part": "town/lower_block_c",
+     "pos": [
+      26.0,
+      -5.02,
+      -24.0
+     ],
+     "shadow": false
+    },
+    {
+     "part": "town/lower_block_b",
+     "pos": [
+      40.0,
+      -5.02,
+      -22.0
+     ],
+     "shadow": false
+    },
+    {
+     "part": "town/lower_block_c",
+     "pos": [
+      -34.0,
+      -5.02,
+      -36.0
+     ],
+     "yaw": 180,
+     "shadow": false
+    },
+    {
+     "part": "town/lower_block_a",
+     "pos": [
+      -18.0,
+      -5.02,
+      -38.0
+     ],
+     "shadow": false
+    },
+    {
+     "part": "town/lower_block_b",
+     "pos": [
+      18.0,
+      -5.02,
+      -36.0
+     ],
+     "yaw": 180,
+     "shadow": false
+    },
+    {
+     "part": "town/lower_block_a",
+     "pos": [
+      34.0,
+      -5.02,
+      -38.0
+     ],
+     "yaw": 180,
+     "shadow": false
+    },
+    {
+     "part": "town/lower_block_b",
+     "pos": [
+      -26.0,
+      -5.02,
+      -50.0
+     ],
+     "shadow": false
+    },
+    {
+     "part": "town/lower_block_c",
+     "pos": [
+      0.0,
+      -5.02,
+      -46.0
+     ],
+     "yaw": 180,
+     "shadow": false
+    },
+    {
+     "part": "town/lower_block_c",
+     "pos": [
+      26.0,
+      -5.02,
+      -50.0
+     ],
+     "shadow": false
+    },
+    {
+     "part": "town/lower_block_a",
+     "pos": [
+      -44.0,
+      -5.02,
+      -48.0
+     ],
+     "yaw": 180,
+     "shadow": false
+    },
+    {
+     "part": "town/lower_block_b",
+     "pos": [
+      44.0,
+      -5.02,
+      -48.0
+     ],
+     "shadow": false
+    },
+    {
+     "part": "town/ordo_far",
+     "pos": [
+      0.0,
+      -6.5,
+      0.0
+     ],
+     "shadow": false
+    },
+    {
+     "part": "town/monument",
+     "pos": [
+      0.0,
+      0.0,
+      2.0
+     ],
+     "scale": [
+      1.0,
+      0.68,
+      1.0
+     ]
+    },
+    {
+     "part": "town/plaza_ring",
+     "pos": [
+      0.0,
+      0.08,
+      2.0
+     ]
+    },
+    {
+     "part": "town/stage",
+     "pos": [
+      0.0,
+      0.0,
+      9.0
+     ]
+    },
+    {
+     "part": "town/lamp_post",
+     "pos": [
+      -12.5,
+      0.0,
+      -7.5
+     ],
+     "scale": 1.4
+    },
+    {
+     "part": "town/lamp_post",
+     "pos": [
+      12.5,
+      0.0,
+      -7.5
+     ],
+     "yaw": 180,
+     "scale": 1.4
+    },
+    {
+     "part": "town/lamp_post",
+     "pos": [
+      -12.5,
+      0.0,
+      9.5
+     ],
+     "scale": 1.4
+    },
+    {
+     "part": "town/lamp_post",
+     "pos": [
+      12.5,
+      0.0,
+      9.5
+     ],
+     "yaw": 180,
+     "scale": 1.4
+    },
+    {
+     "part": "town/bench",
+     "pos": [
+      -9.5,
+      0.0,
+      -2.0
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/bench",
+     "pos": [
+      9.5,
+      0.0,
+      -2.0
+     ],
+     "yaw": 270
+    },
+    {
+     "part": "town/bench",
+     "pos": [
+      -9.5,
+      0.0,
+      5.0
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/bench",
+     "pos": [
+      9.5,
+      0.0,
+      5.0
+     ],
+     "yaw": 270
+    },
+    {
+     "part": "town/planter",
+     "pos": [
+      -10.0,
+      0.0,
+      -13.35
+     ]
+    },
+    {
+     "part": "town/planter",
+     "pos": [
+      -20.0,
+      0.0,
+      -13.35
+     ]
+    },
+    {
+     "part": "town/planter",
+     "pos": [
+      -30.0,
+      0.0,
+      -13.35
+     ]
+    },
+    {
+     "part": "town/planter",
+     "pos": [
+      -40.0,
+      0.0,
+      -13.35
+     ]
+    },
+    {
+     "part": "town/planter",
+     "pos": [
+      10.0,
+      0.0,
+      -13.35
+     ]
+    },
+    {
+     "part": "town/planter",
+     "pos": [
+      20.0,
+      0.0,
+      -13.35
+     ]
+    },
+    {
+     "part": "town/planter",
+     "pos": [
+      34.0,
+      0.0,
+      -13.35
+     ]
+    },
+    {
+     "part": "town/planter",
+     "pos": [
+      44.0,
+      0.0,
+      -13.35
+     ]
+    },
+    {
+     "part": "town/crate",
+     "pos": [
+      29.75,
+      0.0,
+      -6.0
+     ],
+     "scale": [
+      1.65,
+      1.35,
+      2.2
+     ]
+    },
+    {
+     "part": "town/crate",
+     "pos": [
+      31.25,
+      0.0,
+      -6.0
+     ],
+     "scale": [
+      1.65,
+      1.35,
+      2.2
+     ]
+    },
+    {
+     "part": "town/crate",
+     "pos": [
+      42.0,
+      0.0,
+      -7.0
+     ],
+     "scale": [
+      2.2,
+      2.16,
+      2.2
+     ]
+    },
+    {
+     "part": "town/junk_pile",
+     "pos": [
+      -30.0,
+      0.0,
+      -7.0
+     ],
+     "scale": [
+      1.2,
+      1.05,
+      1.3
+     ]
+    },
+    {
+     "part": "town/barrel",
+     "pos": [
+      27.6,
+      0.0,
+      -6.4
+     ]
+    },
+    {
+     "part": "town/barrel",
+     "pos": [
+      40.4,
+      0.0,
+      -7.6
+     ],
+     "scale": 0.9
+    },
+    {
+     "part": "town/workshop_front",
+     "pos": [
+      -34.0,
+      0.0,
+      4.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/diner_front",
+     "pos": [
+      -20.0,
+      0.0,
+      0.5
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/stall_table",
+     "pos": [
+      -24.6,
+      0.0,
+      -3.6
+     ],
+     "yaw": 90,
+     "scale": [
+      1.0,
+      0.82,
+      1.0
+     ]
+    },
+    {
+     "part": "town/bench",
+     "pos": [
+      -25.7,
+      0.0,
+      -3.6
+     ],
+     "yaw": 90,
+     "scale": [
+      1.0,
+      0.9,
+      1.0
+     ]
+    },
+    {
+     "part": "town/bench",
+     "pos": [
+      -23.5,
+      0.0,
+      -3.6
+     ],
+     "yaw": 270,
+     "scale": [
+      1.0,
+      0.9,
+      1.0
+     ]
+    },
+    {
+     "part": "town/stall_table",
+     "pos": [
+      -15.4,
+      0.0,
+      -3.6
+     ],
+     "yaw": 90,
+     "scale": [
+      1.0,
+      0.82,
+      1.0
+     ]
+    },
+    {
+     "part": "town/bench",
+     "pos": [
+      -16.5,
+      0.0,
+      -3.6
+     ],
+     "yaw": 90,
+     "scale": [
+      1.0,
+      0.9,
+      1.0
+     ]
+    },
+    {
+     "part": "town/bench",
+     "pos": [
+      -14.3,
+      0.0,
+      -3.6
+     ],
+     "yaw": 270,
+     "scale": [
+      1.0,
+      0.9,
+      1.0
+     ]
+    },
+    {
+     "part": "town/barrel",
+     "pos": [
+      -14.2,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "part": "town/crate",
+     "pos": [
+      -25.8,
+      0.0,
+      0.0
+     ],
+     "yaw": 15,
+     "scale": 0.8
+    },
+    {
+     "part": "town/stall",
+     "pos": [
+      24.0,
+      0.0,
+      6.3
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/goods_general",
+     "pos": [
+      24.0,
+      1.1,
+      3.8
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/goods_shelf_general",
+     "pos": [
+      24.0,
+      0.0,
+      8.1
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/barrel",
+     "pos": [
+      19.4,
+      0.0,
+      4.4
+     ]
+    },
+    {
+     "part": "town/chest",
+     "pos": [
+      28.6,
+      0.0,
+      4.6
+     ],
+     "yaw": 200
+    },
+    {
+     "part": "town/stall",
+     "pos": [
+      38.0,
+      0.0,
+      6.3
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/goods_junk",
+     "pos": [
+      38.0,
+      1.1,
+      3.8
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/goods_shelf_junk",
+     "pos": [
+      38.0,
+      0.0,
+      8.1
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/barrel",
+     "pos": [
+      33.4,
+      0.0,
+      4.4
+     ]
+    },
+    {
+     "part": "town/chest",
+     "pos": [
+      42.6,
+      0.0,
+      4.6
+     ],
+     "yaw": 200
+    },
+    {
+     "part": "town/tool_rack",
+     "pos": [
+      31.0,
+      0.0,
+      9.0
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/clothesline",
+     "pos": [
+      31.0,
+      0.0,
+      11.5
+     ],
+     "yaw": 180
+    },
+    {
+     "part": "town/water_tower",
+     "pos": [
+      31.0,
+      0.0,
+      13.6
+     ],
+     "scale": 1.3
     }
    ]
   },

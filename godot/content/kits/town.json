@@ -1,0 +1,45 @@
+{
+ "id": "town",
+ "name": "オルド背町（W2-05 town_kit_* / tex_town_* / bg_desert_*）",
+ "auto": {"floor": "floor", "wall": "wall", "ceiling": "ceiling", "up": 0.6},
+ "trim": {"surface": "trim", "on": ["wall"], "base": 0.4, "top": 0.0, "out": 0.05, "min_h": 1.0},
+ "dress_shadows": true,
+ "sky": {
+  "day": "res://assets/kit/town/sky_day.jpg",
+  "night": "res://assets/kit/town/sky_night.jpg",
+  "dawn": "res://assets/kit/town/sky_dusk.jpg"
+ },
+ "light": {
+  "day": {"ambient_color": "#cfc9c0", "ambient_energy": 0.5},
+  "night": {"sky_energy": 0.45, "sun_energy": 0.22, "ambient_color": "#34416a", "ambient_energy": 0.55, "fog_color": "#121830"}
+ },
+ "surfaces": {
+  "floor": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 6.0, "color": "#f4ede2", "roughness": 0.82, "macro": 0.3},
+  "plaza": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 4.0, "color": "#fffaf2", "roughness": 0.8, "macro": 0.2},
+  "wall": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 8.0, "color": "#fbf5ea", "roughness": 0.8, "macro": 0.25},
+  "ceiling": {"albedo": "res://assets/kit/tex/town_rust.jpg", "uv_m": 2.0, "color": "#8a8a84", "roughness": 0.6, "metallic": 0.2},
+  "trim": {"albedo": "res://assets/kit/tex/town_wood.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.85},
+  "wood": {"albedo": "res://assets/kit/tex/town_wood.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.85},
+  "rust": {"albedo": "res://assets/kit/tex/town_rust.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.7, "metallic": 0.2},
+  "canvas": {"albedo": "res://assets/kit/tex/town_canvas.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.95},
+  "stone2": {"color": "#d3c6ac", "roughness": 0.85},
+  "graphite": {"color": "#444641", "roughness": 0.6, "metallic": 0.3}
+ },
+ "materials": {
+  "ivory": {"color": "#e9dfc9", "roughness": 0.8},
+  "ivory2": {"color": "#d3c6ac", "roughness": 0.85},
+  "graphite": {"color": "#444641", "roughness": 0.6, "metallic": 0.3},
+  "brass": {"color": "#a98749", "roughness": 0.42, "metallic": 0.65},
+  "cloth": {"color": "#b75b43", "roughness": 0.95},
+  "cloth2": {"color": "#93432f", "roughness": 0.95},
+  "wood": {"albedo": "res://assets/kit/tex/town_wood.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.85},
+  "wood2": {"albedo": "res://assets/kit/tex/town_wood.jpg", "uv_m": 2.0, "color": "#ffe2c4", "roughness": 0.85},
+  "amber": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 3.0}},
+  "dark": {"color": "#2b2824", "roughness": 0.4},
+  "green": {"color": "#6e7a3c", "roughness": 0.9},
+  "rope": {"color": "#a08a62", "roughness": 0.95},
+  "linen": {"color": "#e2d5ba", "roughness": 0.95},
+  "desert": {"color": "#bc5636", "roughness": 1.0},
+  "hull": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 24.0, "color": "#ece2cf", "roughness": 0.85}
+ }
+}

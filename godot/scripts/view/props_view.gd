@@ -84,6 +84,8 @@ func build(game: GameSim) -> void:
 			var lb := MeshKit.label(String(p.text), 0.0, Color(p.get("color", "#ffe7b8")), int(p.get("size", 64)))
 			lb.position = m.pos
 			lb.no_depth_test = false
+			if p.has("board"):
+				_sign_board(game, p, m, lb)
 			add_child(lb)
 	# 遠景の飾り（当たり判定なし）：{ "type": "decor", "pos": [x,y,z] 底の中心, "size": [幅,高さ,奥行き], "color": "#46506a", "yaw": 度 }
 	for p in game.room.get("props", []):
@@ -96,6 +98,28 @@ func build(game: GameSim) -> void:
 			add_child(node)
 			MeshKit.add(node, MeshKit.box(sz), dm, Vector3(0, sz.y * 0.5, 0))
 	_build_world_objects(game)
+
+
+## 看板の板：{ "type": "sign", "text": "雑貨屋", "pos": 文字の中心, "board": "town/sign_post_2", "yaw": 180, "board_w": 2.2 }
+## 板はキットの部品（原点 = 上の棒、文字の中心は棒の 0.62 m 下・板の表の 0.08 m 前）。文字は浮かべず板の表に貼る（ビルボードにしない）。
+## 文字は板の幅に収まるよう小さくする。灯の無い夜でも読めるよう、文字は光の影響を受けない（Label3D の既定）
+func _sign_board(game: GameSim, p: Dictionary, m: Dictionary, lb: Label3D) -> void:
+	var kit := RoomKit.load_kit(String(game.room.get("kit", "")))
+	var mesh := RoomKit.part_mesh(String(p.board), kit)
+	var basis := Basis(Vector3.UP, m.yaw)
+	if mesh != null:
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		mi.position = m.pos + Vector3(0, 0.62, 0)
+		mi.basis = basis
+		add_child(mi)
+	lb.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	lb.double_sided = false
+	lb.basis = basis
+	lb.position = m.pos + basis * Vector3(0, 0, 0.08)
+	var inner := float(p.get("board_w", 2.2)) - 0.45
+	var chars := maxi(1, String(p.text).length())
+	lb.pixel_size = minf(lb.pixel_size, inner / float(chars * lb.font_size))
 
 
 ## 部屋の仕掛け：扉・出口・スイッチ・動く足場・端末・置いてある物

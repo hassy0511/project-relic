@@ -138,6 +138,10 @@ func _apply_mood() -> void:
 		if mood == "outdoor" or mood == "day":
 			mood = "night" if game.flag("ch1.night") else "day"
 	EnvironmentSetup.apply_mood(sun, mood)
+	# キットの遠景の空（content/kits/<id>.json の "sky"。町は bg_desert_* の砂漠）
+	if arena_kind == "" and game.room.has("kit"):
+		var kd: Dictionary = RoomKit.load_kit(String(game.room.kit)).get("data", {})
+		EnvironmentSetup.apply_sky(sun, String(kd.get("sky", {}).get(mood, "")), kd.get("light", {}).get(mood, {}))
 
 
 ## 試しの部屋に切り替えて始め直す（見本・確認用）

@@ -80,7 +80,7 @@ func _ready() -> void:
 		{"ticks": 1, "shot": "07_after_drill", "check": func(): return _check(main.game.breakables[0].broken, "ドリルで壁を壊せる")},
 	]
 	# 引数 --arena_only：試しの部屋の場面だけ（画面の確認を早く撮るため）
-	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("cp2d_shots") or main.args.has("pad_shots") or main.args.has("ui_shots"):
+	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("cp2d_shots") or main.args.has("pad_shots") or main.args.has("ui_shots") or main.args.has("town_shots"):
 		_steps.clear()
 	if main.args.has("ch1_full"):
 		_steps.clear()
@@ -97,6 +97,8 @@ func _ready() -> void:
 		_steps.append_array(_ruins_survey_steps())
 	elif main.args.has("ch1b_shots"):
 		_steps.append_array(_ch1b_steps())
+	elif main.args.has("town_shots"):
+		_steps.append_array(_town_steps())
 	else:
 		if not main.args.has("world_only"):
 			_steps.append_array(_arena_steps())
@@ -234,6 +236,40 @@ func _ch1_steps() -> Array:
 		{"ticks": 90, "input": {}},
 		{"ticks": 1, "shot": "ch1_11_gate_open", "check": func(): return _check(main.game.flag("ch1.got_spark") and main.game.has_item("weapon.spark"), "ヤーナから父の銃を受け取る")},
 	]
+
+
+## 町の見た目の確認（--town_shots。中段の広場と市場を昼と停止の夜に、いくつかの向きから撮る。イベントは走らせない）
+## --town_view=<名前> で 1 つの向きだけ（スマホの寸法の撮影用）
+func _town_steps() -> Array:
+	# [名前, 立つ所, 見る所, 見下ろす角度（度）]
+	var views := [
+		["plaza", Vector3(0, 0, -9), Vector3(0, 0, 8), 14.0],
+		["market", Vector3(17, 0, -2), Vector3(32, 0, 6), 12.0],
+		["west", Vector3(-6, 0, -5), Vector3(-30, 0, 6), 12.0],
+		["edge", Vector3(-20, 0, -12.5), Vector3(-34, 0, -30), 22.0],
+		["side", Vector3(-44, 0, -4), Vector3(-70, 0, -14), 16.0],
+		["high", Vector3(0, 5, 29), Vector3(0, 0, 0), 30.0],
+	]
+	if main.args.has("town_view"):
+		views = views.filter(func(v): return v[0] == main.args["town_view"])
+	var night := ["ch1.night", "ch1.ordo_stopped", "ch1.scolded", "ch1.debt_scene", "ch1.nico_rescued", "ch1.plaza_done"]
+	var steps := []
+	for state in ["day", "night"]:
+		for v in views:
+			steps.append({"ticks": 2, "setup": func():
+				var g: GameSim = main.game
+				g.god_mode = true
+				for f in night:
+					g.set_flag(f, state == "night")
+				g.load_room("ch1.mid", "start")
+				for t in g.triggers:
+					t.fired = true
+				_stand(v[1], v[2])
+				g.cam.pitch = float(v[3]) * U.DEG
+				main.snap_views()})
+			steps.append({"ticks": 40, "input": {}})
+			steps.append({"ticks": 1, "shot": "town_%s_%s" % [state, v[0]], "input": {}})
+	return steps
 
 
 ## 遺構の全部屋を 1 枚ずつ撮る（--ruins_shots。部屋の形と色の確認用。イベントは走らせない）
@@ -810,7 +846,7 @@ func _process(_dt: float) -> void:
 				await get_tree().physics_frame
 			_run_bot()
 			return
-		if not (main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("pad_shots")):
+		if not (main.args.has("ch1_shots") or main.args.has("town_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("pad_shots")):
 			main.args["mvp"] = "1"   # 見本の前半は古い試験場（mvp.main）で進める
 		main.start_game(null)
 		main.game.god_mode = true

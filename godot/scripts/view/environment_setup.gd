@@ -46,13 +46,15 @@ static func build(parent: Node) -> DirectionalLight3D:
 	sun.directional_shadow_max_distance = 60.0
 	parent.add_child(sun)
 	sun.set_meta("env", env)
+	sun.set_meta("proc_sky", sky_mat)
 	return sun
 
 
 ## 時間帯・場所の雰囲気：day（既定）| dawn（夜明け）| night（停電の夜）| interior（屋内）
 static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 	var env: Environment = sun.get_meta("env")
-	var sky: ProceduralSkyMaterial = env.sky.sky_material
+	var sky: ProceduralSkyMaterial = sun.get_meta("proc_sky")
+	env.sky.sky_material = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.fog_sky_affect = 1.0
 	match mood:
@@ -127,3 +129,34 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 			sun.rotation_degrees = Vector3(-52, -150, 0)
 			env.ambient_light_energy = 0.9
 			env.fog_light_color = Color("#d9b58f")
+
+
+## 遠景の空の絵と、その空に合わせた光（キットの "sky"：{ "day": 絵, "night": 絵, "dawn": 絵 } と "light"：{ "night": { … } }）。
+## apply_mood のあとに呼ぶ。path が "" なら作った空のまま。絵は正距円筒（tools/blender/kit/town_backdrop.py が bg_desert_* から作る）。
+## 霞は空にかけない（絵の地平線の霞をそのまま見せる）。light の項目（どれも省略可）：
+##   sky_energy（空の絵の明るさ）, sun_energy, sun_color, ambient_color（指定すると環境光をこの色に）, ambient_energy, fog_color（apply_mood が毎回戻す項目だけ）
+static func apply_sky(sun: DirectionalLight3D, path: String, light: Dictionary = {}) -> void:
+	if path == "" or not ResourceLoader.exists(path):
+		return
+	var env: Environment = sun.get_meta("env")
+	var cache: Dictionary = sun.get_meta("sky_cache", {})
+	if not cache.has(path):
+		var pano := PanoramaSkyMaterial.new()
+		pano.panorama = load(path)
+		cache[path] = pano
+		sun.set_meta("sky_cache", cache)
+	var mat: PanoramaSkyMaterial = cache[path]
+	mat.energy_multiplier = float(light.get("sky_energy", 1.0))
+	env.sky.sky_material = mat
+	env.fog_sky_affect = 0.0
+	if light.has("sun_energy"):
+		sun.light_energy = float(light.sun_energy)
+	if light.has("sun_color"):
+		sun.light_color = Color(light.sun_color)
+	if light.has("ambient_color"):
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		env.ambient_light_color = Color(light.ambient_color)
+	if light.has("ambient_energy"):
+		env.ambient_light_energy = float(light.ambient_energy)
+	if light.has("fog_color"):
+		env.fog_light_color = Color(light.fog_color)
