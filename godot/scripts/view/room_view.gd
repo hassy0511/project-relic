@@ -5,15 +5,26 @@ extends RefCounted
 
 static func build(world: World, room_id: String) -> Node3D:
 	var r := world.room(room_id)
+	# キット（"kit"）・飾り（"dress"）・形ごとの "skin" / "hide"：RoomKit（docs/design/42_コンテンツの書き方.md 14 章）
+	var kit := RoomKit.load_kit(String(r.get("kit", "")))
+	var custom: bool = r.has("kit") or r.get("geometry", []).any(func(s): return s.get("hide", false))
 	var root: Node3D
 	if r.has("model"):
 		root = LevelLoader.load_level("res://assets/%s" % r.model).node
 		var extra := RoomGeo.build(r)
-		if not extra.faces.is_empty():
+		if custom:
+			root.add_child(RoomKit.surfaces(r, kit))
+		elif not extra.faces.is_empty():
 			root.add_child(mesh_node(extra))
 	else:
 		root = Node3D.new()
-		root.add_child(mesh_node(world.geometry(room_id)))
+		root.add_child(RoomKit.surfaces(r, kit) if custom else mesh_node(world.geometry(room_id)))
+	if r.has("dress"):
+		var missing: Array = []
+		root.add_child(RoomKit.dress(r, kit, missing))
+		root.set_meta("missing_parts", missing)
+	if r.has("kit") and kit.is_empty():
+		root.set_meta("missing_kit", String(r.kit))
 	root.name = "Room"
 	# 部屋の明かり（街灯・窓・室内灯）：{ "lights": [ { "pos": [x,y,z], "color": "#ffb060", "range": 10, "energy": 1.5 } ] }
 	for l in r.get("lights", []):

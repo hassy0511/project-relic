@@ -1,0 +1,33 @@
+{
+ "id": "ruins_b1",
+ "name": "遺構 B1 外殻層（W2-06 ruins_kit_b1）",
+ "auto": {"floor": "floor", "wall": "wall", "ceiling": "ceiling", "up": 0.6},
+ "trim": {"surface": "trim", "on": ["wall", "plate"], "base": 0.3, "top": 0.25, "out": 0.06},
+ "dress_shadows": true,
+ "surfaces": {
+  "floor": {"albedo": "res://assets/kit/tex/ruins_ancient_floor.jpg", "uv_m": 6.0, "color": "#f4ece0", "roughness": 0.8, "macro": 0.35},
+  "wall": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 4.0, "color": "#f3ead8", "roughness": 0.75, "macro": 0.3,
+           "seams": {"every": [2.0, 1.333], "width": 0.06, "color": "#47463f"}},
+  "ceiling": {"albedo": "res://assets/kit/tex/ruins_pipe_metal.jpg", "uv_m": 2.0, "color": "#9a958a", "roughness": 0.6, "metallic": 0.2,
+              "seams": {"every": [2.0, 2.0], "width": 0.12, "color": "#1d1d1b"}},
+  "trim": {"albedo": "res://assets/kit/tex/ruins_pipe_metal.jpg", "uv_m": 2.0, "color": "#8c8a82", "roughness": 0.55, "metallic": 0.3},
+  "plate": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 3.0, "color": "#efe4cf", "roughness": 0.75, "macro": 0.3,
+            "seams": {"every": [1.0, 1.0], "width": 0.05, "color": "#47463f"}},
+  "metal": {"albedo": "res://assets/kit/tex/ruins_pipe_metal.jpg", "uv_m": 2.0, "color": "#a19c90", "roughness": 0.55, "metallic": 0.3,
+            "seams": {"every": [1.0, 1.0], "width": 0.04, "color": "#1d1d1b"}},
+  "grate": {"albedo": "res://assets/kit/tex/ruins_rust_grate.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.7, "metallic": 0.2},
+  "sand": {"albedo": "res://assets/kit/tex/ruins_sandy_floor.jpg", "uv_m": 4.0, "color": "#f2d6b4", "roughness": 0.95},
+  "sandfloor": {"albedo": "res://assets/kit/tex/ruins_ancient_floor.jpg", "uv_m": 6.0, "color": "#e9cfa8", "roughness": 0.85, "macro": 0.6}
+ },
+ "materials": {
+  "ivory": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 3.0, "color": "#f1e7d2", "roughness": 0.72},
+  "graphite": {"albedo": "res://assets/kit/tex/ruins_pipe_metal.jpg", "uv_m": 2.0, "color": "#8d8b84", "roughness": 0.55, "metallic": 0.35},
+  "brass": {"color": "#a98749", "roughness": 0.45, "metallic": 0.7},
+  "amber": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 4.0}},
+  "red": {"color": "#d4433d", "roughness": 0.4, "emission": {"color": "#ff3a30", "energy": 4.0}},
+  "sand": {"albedo": "res://assets/kit/tex/ruins_sandy_floor.jpg", "uv_m": 4.0, "color": "#f2d6b4", "roughness": 0.95},
+  "cloth": {"color": "#a8503c", "roughness": 0.95},
+  "grate": {"albedo": "res://assets/kit/tex/ruins_rust_grate.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.7, "metallic": 0.2},
+  "dark": {"color": "#2a2a28", "roughness": 0.8}
+ }
+}

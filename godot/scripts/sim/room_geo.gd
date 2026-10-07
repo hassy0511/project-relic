@@ -29,6 +29,11 @@ static func build(room: Dictionary) -> Dictionary:
 	return {"faces": faces, "tints": tints, "markers": markers}
 
 
+## 形 1 つ分の面（箱ごとの PackedVector3Array の配列）。見た目の側（RoomKit）が形ごとに材質を分けるのに使う
+static func shape(s: Dictionary) -> Array:
+	return _shape(s)
+
+
 static func v3(a) -> Vector3:
 	return Vector3(float(a[0]), float(a[1]), float(a[2]))
 
