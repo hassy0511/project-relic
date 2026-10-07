@@ -48,6 +48,9 @@ BOOT_CUT_X = (0.03, 0.32)     # 体の足を消す |x| の範囲（手は含め�
 GOGGLE_STRAP = None
 HAND: dict = {}
 body_rules = None
+FRAME_GROUPS: dict = {}     # 外装フレームの段：群の名前 → 部品の名前の頭（ai_character.py が群ごとに別の物体にする）
+FRAME_PAINT: dict = {}
+frame_paint_rule = None
 
 H = 0.011         # 殻の点の間隔（m）
 
@@ -765,13 +768,21 @@ def _load_parts(char_id: str):
     spec.loader.exec_module(mod)
     g = globals()
     for k, v in vars(mod).items():
-        if (k.isupper() and not k.startswith('_')) or k in ('pieces', 'boot_pieces', 'body_rules'):
+        if (k.isupper() and not k.startswith('_')) or k in ('pieces', 'boot_pieces', 'body_rules', 'frame_paint_rule'):
             g[k] = v
     return mod
 
 
 def pieces() -> list[dict]:       # 部品の表が無いキャラクター（読み込みで上書きされる）
     return []
+
+
+def frame_group(name: str) -> str | None:
+    """部品の名前 → 外装フレームの群の名前（FRAME_GROUPS。どの群でもなければ None）"""
+    for g, heads in FRAME_GROUPS.items():
+        if any(name.startswith(h) for h in heads):
+            return g
+    return None
 
 
 PARTS = _load_parts(CH.ID)

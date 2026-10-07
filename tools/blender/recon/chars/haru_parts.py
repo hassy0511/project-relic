@@ -8,6 +8,7 @@ costume.py の道具（frame・octagon・circle・rrect・unit・jp・param_of�
   boot_pieces()      靴の部品（pieces() が呼ぶ）、BOOT_CUT・BOOT_RAMP（体の足を消す高さ・靴の重みの移し方）
   FOLLOW_BODY・FOLLOW_TORSO_ONLY・BOX_RULES・GOGGLE_STRAP（ai_character.py・cover_body が読む）
   body_rules()       決まりの塗り（cover_body の最後：脚・胴・首の色を決まりで決める）
+  FRAME_GROUPS・FRAME_PAINT・frame_paint_rule()  外装フレームの段（群ごとに別の物体にする部品と、その下の塗り。ai_character.py）
   HAND               手の部品の寸法（hand.py）
 値は 2026-10 まで costume.py・hand.py にあったハルの値のまま（移しただけ）。
 """
@@ -390,6 +391,52 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
     stats['neck_side_texels'] = int((up | lo_).sum())
     tb = tb | up | lo_
     stats['torso_rule_texels'] = int(tb.sum())
+
+
+# ---------------------------------------------------------------- 外装フレーム〈ヴェスティージ〉の段（2026-10-07）
+
+# 第 1 章でフレームは段ごとに付く（胴 → 左腕 → 脚）。ここに書いた部品は ai_character.py が群ごとに別の物体
+# （同じ骨・同じ重みの skinned mesh。名前は群の名前）にし、ゲーム（player_view.gd の set_frame_parts）が付いていない群を隠す。
+# 名前の頭が一致する部品がその群（.L/.R・番号つきもまとめて）。ここに無い部品（上着の袖口・帯・ポーチ・手袋とカフ・
+# フードのえり・ゴーグルとヒモ・右の太ももの板・靴とカフ・手・銃）は作業着として 'Haru' に残る
+#   胴（Frame_core）：背中の板（動力部）・右肩の板と下の固定帯・胸の肩ひも（背中から肩を回る 2 本）
+#   腕（Frame_arm）：左の籠手（光刃を出す）
+#   脚（Frame_legs）：膝当て（枠・板・座金・琥珀の継ぎ目）・すねの側板
+FRAME_GROUPS = {
+    'Frame_core': ('back_plate', 'shoulder_pad.R', 'shoulder_strap.R', 'strap.L', 'strap.R'),
+    'Frame_arm': ('gauntlet_',),
+    'Frame_legs': ('knee_frame', 'knee_plate', 'knee_washer', 'knee_bolt', 'shin_plate'),
+}
+# 群の下の体の塗り：フレームを外した作業着に、板の下にしか意味のない色（肩ひもの下の暗い灰・膝の暗い固定帯・すねの中央の
+# 暗い茶＝絵の「暗いフレーム」）が残らないようにする。ai_character.py は、範囲の体の面を元の塗りのまま群の物体に写し
+# （体の面から少し浮かせた殻。群を見せると今までと同じ見た目）、体のテクスチャの範囲の画素を fill の色にする
+#   reach：部品からこの距離（m）以内で、いちばん近い部品がこの群の部品の体（A ポーズ）。rule：frame_paint_rule の範囲
+#   keep：範囲の中で残す色（色見本の名前。この色どうしの混ざった色も残す）。ほかの色（と混ざった縁の色）は fill に。
+#         keep が空なら範囲の画素を全部 fill に
+FRAME_PAINT = {
+    'Frame_core': dict(reach=0.03, keep=['brick', 'ivory', 'skin', 'umber'], fill='brick'),
+    'Frame_arm': dict(reach=0.015, keep=['skin', 'brick'], fill='skin'),
+    'Frame_legs': dict(reach=0.0, rule=True, keep=[], fill='brick', grow=8, smooth=80, radial=('shin', 'foot'),
+                       smooth_zmin=0.235),
+}
+# フレームを外した体の形（ai_character._smooth_bare）：脚の体は絵の膝当て・すね当ての外形から作ったので、ズボンだけにすると
+# 膝のこぶ・すねの波が目立つ。殻の中（群を見せると殻に隠れる所）の体を内側へだけならす。
+#   grow：殻を広げる輪の数（膝の上のこぶまで殻の中に入れる）。smooth：ならす回数。radial：軸の骨（左右）からの半径をならし、
+#   それより外の点だけを内へ（筒に近づく）。smooth_zmin：この高さ（m、靴のカフの上の端 0.212 の少し上）より下は動かさない
+
+
+def frame_paint_rule(pos: np.ndarray) -> dict:
+    """形の距離では決めない塗りの範囲（A ポーズの点 pos → 群の名前 → 印）。
+    脚：膝の帯（暗い灰、LEG_BANDS）・膝当ての横の暗い裏地（knee_hinge_dark）・すねの中央の茶（絵のすね当ての「暗いフレーム」）は、
+    フレームを外すとズボンのれんがにする（膝の帯の上の端の少し上〜靴のカフの中）。body_rules の脚の決まりと同じ範囲"""
+    leg = (pos[:, 2] < LEG_TOP) & (np.abs(pos[:, 0]) < np.where(pos[:, 2] > 0.54, 0.20, 0.30))
+    m = np.zeros(len(pos), bool)
+    for side in (1.0, -1.0):
+        s = leg & (pos[:, 0] * side > 0)
+        k, f = jp('shin', side), jp('foot', side)
+        t = (pos - k) @ unit(f - k)
+        m |= s & (t > LEG_BANDS[0] - 0.015)
+    return {'Frame_legs': m}
 
 
 # ---------------------------------------------------------------- 手の部品（hand.py）

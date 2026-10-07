@@ -27,6 +27,10 @@ var _prev_yaw := 0.0
 var _prev_speed := 0.0
 var _lean_roll := 0.0
 var _lean_pitch := 0.0
+## 外装フレーム〈ヴェスティージ〉の段（haru_r の群ごとの物体。古いモデル・仮のモデルには無い＝空のまま）
+const FRAME_NODES := {"core": "Frame_core", "arm": "Frame_arm", "legs": "Frame_legs"}
+var frame_nodes := {}
+var _frame_state := Vector3i(-1, -1, -1)
 
 
 func load_model(path: String, shade: String = "soft") -> void:
@@ -62,6 +66,12 @@ func load_model(path: String, shade: String = "soft") -> void:
 			var fi := mi.find_blend_shape_by_name("fist")
 			if fi >= 0:
 				mi.set_blend_shape_value(fi, 1.0)
+	frame_nodes.clear()
+	_frame_state = Vector3i(-1, -1, -1)
+	for k in FRAME_NODES:
+		var fn := model.find_child(FRAME_NODES[k], true, false) as Node3D
+		if fn:
+			frame_nodes[k] = fn
 	if blade:
 		blade.visible = false
 		(blade as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -115,6 +125,19 @@ func set_shading(mode: String) -> void:
 		else:
 			m.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
 			m.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
+
+
+## 外装フレームの段：付いている群だけを見せる（core：胴の板と肩ひも、arm：左の籠手、legs：膝当てとすね当て）。
+## 群の下の体の塗り・形はモデルの側で作業着にしてあるので、隠すだけでよい。無い物体（古いモデル）は何もしない。
+## 既定は全部見せる。毎フレーム呼んでも、変わったときだけ切り替える
+func set_frame_parts(core: bool, arm: bool, legs: bool) -> void:
+	var st := Vector3i(int(core), int(arm), int(legs))
+	if st == _frame_state:
+		return
+	_frame_state = st
+	var on := {"core": core, "arm": arm, "legs": legs}
+	for k in frame_nodes:
+		(frame_nodes[k] as Node3D).visible = on[k]
 
 
 ## 表情：0 通常、1 笑顔、2 驚き、3 痛み。顔の材質（名前に face）のテクスチャは 2×2 の区画に 4 つの表情が

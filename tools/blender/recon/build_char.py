@@ -33,6 +33,8 @@
   spark_gun.glb（ハルだけ）：原点 = 握りの中心、銃身 +X、上 +Z、材質 'spark_gun'、空の目印 'muzzle'
   haru_r.glb：標準の 20 本の骨・14 動作・銃（右手は部品 hand.py で、基準の姿勢のまま握っている。シェイプキーなし）・光刃 'LightBlade'（左の籠手のレール）・目印 'muzzle'、
     'blade_socket'。材質 'haru_body'、'haru_face'、'spark_gun'、'haru_blade'、'haru_parts'（服の部品と右手）
+    外装フレームの群は別の物体 'Frame_core'・'Frame_arm'・'Frame_legs'（同じ骨。部品と、元の塗りの殻の材質 'haru_frame_paint'。
+    chars/haru_parts.py の FRAME_GROUPS・FRAME_PAINT。'Haru' の体のテクスチャは板の下を作業着の色にしたもの）
   yana.glb：標準の 20 本の骨・14 動作（持ち物なし）。材質 'yana_body'、'yana_face'。骨の物体を 172/155 倍に拡大（身長 1.72m）
 """
 from __future__ import annotations

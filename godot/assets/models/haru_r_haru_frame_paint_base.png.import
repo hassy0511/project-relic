@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cgaecmccy85hu"
-path="res://.godot/imported/haru_r_haru_body_base.png-285765fa3eb35b7e7346f127712c94bf.ctex"
+uid="uid://bebvc23n7x4pa"
+path="res://.godot/imported/haru_r_haru_frame_paint_base.png-3abb6adb771175c257a7fc40bcf8ff6e.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "8053221424601f65e38ded295d8771f3"
+"md5": "e849b05b987391eaf79383a0ccb8fb3a"
 }
 
 [deps]
 
-source_file="res://assets/models/haru_r_haru_body_base.png"
-dest_files=["res://.godot/imported/haru_r_haru_body_base.png-285765fa3eb35b7e7346f127712c94bf.ctex"]
+source_file="res://assets/models/haru_r_haru_frame_paint_base.png"
+dest_files=["res://.godot/imported/haru_r_haru_frame_paint_base.png-3abb6adb771175c257a7fc40bcf8ff6e.ctex"]
 
 [params]
 

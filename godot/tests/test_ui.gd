@@ -382,3 +382,31 @@ func test_hud_states() -> void:
 	hud.queue_free()
 	cam.queue_free()
 	h.free_game(g)
+
+
+func test_frame_parts_toggle() -> void:
+	# 外装フレームの段：haru_r は胴・腕・脚の群が別の物体。set_frame_parts で付いている群だけ見せる
+	var v := PlayerView.new()
+	h.tree.root.add_child(v)
+	v.load_model("res://assets/models/haru_r.glb")
+	h.expect(v.frame_nodes.size() == 3, "haru_r に Frame_core・Frame_arm・Frame_legs がある")
+	h.expect(v.model.find_child("Haru", true, false) != null, "作業着の体 Haru は残る")
+	var all_on := true
+	for k in v.frame_nodes:
+		all_on = all_on and (v.frame_nodes[k] as Node3D).visible
+	h.expect(all_on, "既定はフレームを全部見せる")
+	v.set_frame_parts(true, false, false)
+	h.expect(v.frame_nodes["core"].visible and not v.frame_nodes["arm"].visible and not v.frame_nodes["legs"].visible,
+		"胴だけ見せる")
+	v.set_frame_parts(false, false, false)
+	h.expect(not v.frame_nodes["core"].visible, "全部隠せる")
+	v.set_frame_parts(true, true, true)
+	h.expect(v.frame_nodes["legs"].visible and v.frame_nodes["arm"].visible, "全部戻せる")
+	v.free()
+	# 群の無いモデル（仮のモデル）では何もしない
+	var p := PlayerView.new()
+	h.tree.root.add_child(p)
+	p.load_model("res://assets/models/haru_proxy.glb")
+	p.set_frame_parts(false, true, false)
+	h.expect(p.frame_nodes.is_empty(), "群の無いモデルでは何もしない")
+	p.free()

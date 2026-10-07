@@ -483,11 +483,11 @@ def rigid_parts(body: bpy.types.Object, J: dict) -> dict:
     return counts
 
 
-def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple[bpy.types.Object, dict]:
+def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple[bpy.types.Object, dict, dict]:
     """服の硬い部品（recon/costume.py）を体の形から作り、1 本の骨に重み 1 で付ける（A ポーズ、自動の重みのあと）。
 
     材質 haru_parts：色見本の画像（8 区画）を UV で指す。部品の面は角度 35 度より鋭い所で折る（板の縁はくっきり、
-    板の面はなめらか）。返り値：(部品の物体, 数値の記録)
+    板の面はなめらか）。返り値：(部品の物体, 数値の記録, 外装フレームの群の名前 → その部品の物体（split_costume_frames）)
     """
     sys.path.insert(0, os.path.join(C.REPO, 'tools', 'blender', 'recon'))
     import costume as CO
@@ -594,6 +594,7 @@ def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple
                 vg = obj.vertex_groups.get(g.name) or obj.vertex_groups.new(name=g.name)
                 for vi, w in zip(fi[m], Wf[m, gi]):
                     vg.add([int(vi)], float(w), 'REPLACE')
+    frame_info = mark_frame(body, co, obj, P, CO)
     bpy.ops.object.select_all(action='DESELECT')
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
@@ -612,18 +613,430 @@ def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple
         bm.free()
         me.update()
         removed_feet = int(gone.sum())
+    frames = split_costume_frames(obj, list(getattr(CO, 'FRAME_GROUPS', {}) or {}))
     return obj, {'tris': int(len(P['F'])), 'pieces': [str(n) for n in P['names']], 'body_feet_removed': removed_feet,
-                 'fit': dict(getattr(CO, 'FIT', {}))}
+                 'fit': dict(getattr(CO, 'FIT', {})), 'frame': frame_info}, frames
+
+
+# ---------------------------------------------------------------- 外装フレームの段（2026-10-07）
+# ゲームは第 1 章でフレーム〈ヴェスティージ〉を段ごとに付ける（胴 → 左腕 → 脚）。部品の表の FRAME_GROUPS の部品を
+# 群ごとに別の物体（Frame_core・Frame_arm・Frame_legs。同じ骨・重み・動作）にし、player_view.gd が付いていない群を隠す。
+# 板の下の体の塗り（FRAME_PAINT）は、元の塗りの殻（体の面の写しを少し浮かせたもの）を群に入れ、体のテクスチャは
+# 作業着の色にする：群を全部見せると今までと同じ見た目、隠すと作業着だけ（板の跡の色が残らない）
+FRAME_ATTR = 'frame_group'        # 面の属性：部品・殻の群の番号（1 から。0 = 'Haru' に残る）
+FRAME_PAINT_ATTR = 'frame_paint'  # 面の属性：体の面が、どの群の下の塗りの範囲か（A ポーズで決める）
+FRAME_SHELL_OFF = 0.002           # 殻を体の面から浮かせる距離（m）。部品の浮き（2〜12mm）より小さく
+FRAME_SHELL_GROW = 3              # 塗りの変わる面のまわりに殻を広げる輪の数（縁は作業着の色どうし）
+FRAME_SHELL_TAPER = 2             # 殻の縁からこの輪の数で浮きを 0 へ（縁に段を作らない。縁は同じ色どうしで重なる）
+FRAME_SMOOTH_RAMP = 4             # フレームを外した体をならす強さを、殻の縁の浮きの輪からこの輪の数で 0 → 1 に
+FRAME_KEEP_TOL = 0.06             # 残す色（とその混ざった色）からの距離（sRGB 0..1）
+
+
+def mark_frame(body: bpy.types.Object, co: np.ndarray, cobj: bpy.types.Object, P: dict, CO) -> dict | None:
+    """部品の面に群の番号（FRAME_ATTR）を、体の面に下の塗りの範囲の群（FRAME_PAINT_ATTR）を付ける（A ポーズ）。
+    範囲：いちばん近い部品がその群の部品で、距離が reach 以内の体の点か、部品の表の frame_paint_rule の範囲。
+    面は、点のどれかが範囲なら範囲"""
+    groups = list(getattr(CO, 'FRAME_GROUPS', {}) or {})
+    if not groups:
+        return None
+    from scipy.spatial import cKDTree
+    names = [str(n) for n in P['names']]
+    pg = np.array([groups.index(g) + 1 if (g := CO.frame_group(n)) else 0 for n in names])
+    fa = cobj.data.attributes.new(FRAME_ATTR, 'INT', 'FACE')
+    fa.data.foreach_set('value', pg[P['piece']].astype(np.int32))
+    vpiece = np.zeros(len(P['V']), np.int64)
+    vpiece[P['F'].ravel()] = np.repeat(P['piece'], 3)
+    d, nn = cKDTree(P['V']).query(co)
+    near = pg[vpiece[nn]]
+    vg = np.zeros(len(co), np.int32)
+    for gi, g in enumerate(groups, 1):
+        spec = CO.FRAME_PAINT.get(g, {})
+        vg[(vg == 0) & (near == gi) & (d < spec.get('reach', 0.0))] = gi
+    rule = getattr(CO, 'frame_paint_rule', None)
+    if rule is not None:
+        for g, m in rule(co).items():
+            vg[(vg == 0) & m] = groups.index(g) + 1
+    me = body.data
+    fg = np.zeros(len(me.polygons), np.int32)
+    for p in me.polygons:
+        g = vg[list(p.vertices)]
+        fg[p.index] = g.max()
+    pa = me.attributes.new(FRAME_PAINT_ATTR, 'INT', 'FACE')
+    pa.data.foreach_set('value', fg)
+    return {'pieces': {g: [n for n, k in zip(names, pg) if k == gi] for gi, g in enumerate(groups, 1)},
+            'paint_region_faces': {g: int((fg == gi).sum()) for gi, g in enumerate(groups, 1)}}
+
+
+
+def split_costume_frames(cobj: bpy.types.Object, groups: list[str]) -> dict:
+    """部品の物体から、外装フレームの群（FRAME_ATTR）の部品を群ごとの物体に分ける（体と同じ道を通す：腕を下ろす・骨を付ける）。
+    体（'Haru'）の面はここでは触らない（体の面を編集すると、読み込んだ法線が少し変わる）"""
+    out = {}
+    me = cobj.data
+    if not groups or FRAME_ATTR not in me.attributes:
+        return out
+    fg = np.zeros(len(me.polygons), np.int32)
+    me.attributes[FRAME_ATTR].data.foreach_get('value', fg)
+    for gi, g in enumerate(groups, 1):
+        if not (fg == gi).any():
+            continue
+        o = cobj.copy()
+        o.data = me.copy()
+        o.name = g
+        o.data.name = g
+        bpy.context.scene.collection.objects.link(o)
+        _keep_faces(o, fg == gi)
+        out[g] = o
+    _keep_faces(cobj, fg == 0)
+    return out
+
+
+def _keep_faces(obj: bpy.types.Object, keep: np.ndarray) -> None:
+    """面の印 keep のほかの面（と浮いた点）を消す"""
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.faces.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[bm.faces[i] for i in np.nonzero(~keep)[0]], context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
+
+
+def _raster(tri: np.ndarray, w: int, h: int, pad: float) -> tuple[np.ndarray, np.ndarray]:
+    """UV の三角形（画素の座標、画素の中心は +0.5）の中の画素（pad 画素だけ外まで）。返り値：(行, 列)"""
+    x0, y0 = np.floor(tri.min(0) - pad).astype(int)
+    x1, y1 = np.ceil(tri.max(0) + pad).astype(int)
+    x0, y0, x1, y1 = max(x0, 0), max(y0, 0), min(x1, w - 1), min(y1, h - 1)
+    if x1 < x0 or y1 < y0:
+        return np.zeros(0, int), np.zeros(0, int)
+    ys, xs = np.mgrid[y0:y1 + 1, x0:x1 + 1]
+    px, py = xs.ravel() + 0.5, ys.ravel() + 0.5
+    a, b, c = tri
+    area = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+    if abs(area) < 1e-9:
+        return np.zeros(0, int), np.zeros(0, int)
+    sgn = 1.0 if area > 0 else -1.0
+    ok = np.ones(len(px), bool)
+    for p, q in ((a, b), (b, c), (c, a)):
+        e = q - p
+        L = math.hypot(e[0], e[1]) or 1.0
+        dist = sgn * (e[0] * (py - p[1]) - e[1] * (px - p[0])) / L     # 内側が正
+        ok &= dist >= -pad
+    return ys.ravel()[ok], xs.ravel()[ok]
+
+
+def _image_of(mat, socket: str = 'Base Color'):
+    bsdf = next((n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+    if bsdf is None or not bsdf.inputs[socket].links:
+        return None, None
+    node = bsdf.inputs[socket].links[0].from_node
+    return (node, node.image) if node.type == 'TEX_IMAGE' else (None, None)
+
+
+def _smooth_bare(me, groups: list, CO, shell_poly: np.ndarray, lpoly: np.ndarray, lv: np.ndarray,
+                 ring: np.ndarray) -> dict:
+    """フレームを外した体の形をならす（FRAME_PAINT の smooth：回数）。脚の体は絵の膝当て・すね当ての外形から作ったので、
+    作業着のズボンだけにすると膝のこぶ・すねの波が目立った。殻の中の点を Taubin でならし、外へ出る向きの動きは捨てる
+    （体は元の面より内側だけに動く＝殻・部品の下に隠れたまま。群を見せた見た目は変わらない）。
+    殻の縁から FRAME_SHELL_TAPER 輪は動かさず、そこから FRAME_SMOOTH_RAMP 輪でなめらかに強める。smooth_zmin より下
+    （靴のカフの中）は動かさない"""
+    out = {}
+    nv = len(me.vertices)
+    co = np.zeros(nv * 3)
+    me.vertices.foreach_get('co', co)
+    co = co.reshape(-1, 3)
+    nrm = np.zeros(nv * 3)
+    me.vertices.foreach_get('normal', nrm)
+    nrm = nrm.reshape(-1, 3)
+    ev = np.zeros(len(me.edges) * 2, np.int64)
+    me.edges.foreach_get('vertices', ev)
+    ev = ev.reshape(-1, 2)
+    deg = np.bincount(ev.ravel(), minlength=nv).astype(float)
+    new = co.copy()
+    st_all = np.zeros(nv)
+    for gi, g in enumerate(groups, 1):
+        spec = CO.FRAME_PAINT.get(g) or {}
+        iters = int(spec.get('smooth', 0))
+        if not iters:
+            continue
+        vin = np.zeros(nv, bool)
+        vin[lv[shell_poly[lpoly] == gi]] = True
+        st = np.where(ring < 0, 1.0, np.clip((ring - FRAME_SHELL_TAPER) / FRAME_SMOOTH_RAMP, 0.0, 1.0)) * vin
+        z0 = spec.get('smooth_zmin')
+        if z0 is not None:
+            st *= np.clip((co[:, 2] - z0) / 0.03, 0.0, 1.0)
+        if spec.get('radial'):
+            # 骨の軸（左右の a → b）からの半径をならし、それより外の点だけを内へ（筒の形に近づく。こぶを削る）
+            ja, jb = spec['radial']
+            ax_a = np.where(co[:, :1] >= 0, CO.jp(ja, 1.0), CO.jp(ja, -1.0))
+            ax_b = np.where(co[:, :1] >= 0, CO.jp(jb, 1.0), CO.jp(jb, -1.0))
+            u = ax_b - ax_a
+            u /= np.linalg.norm(u, axis=1, keepdims=True)
+            rel = co - ax_a
+            rv = rel - (rel * u).sum(1, keepdims=True) * u
+            r = np.linalg.norm(rv, axis=1)
+            rs = r.copy()
+            free = st > 0
+            for _ in range(iters):
+                acc = np.zeros(nv)
+                np.add.at(acc, ev[:, 0], rs[ev[:, 1]])
+                np.add.at(acc, ev[:, 1], rs[ev[:, 0]])
+                avg = acc / np.maximum(deg, 1)
+                # 低い側へ寄せたならし（こぶの値に引っ張られない）：平均と、平均と元の半径の小さい方の中間
+                rs[free] = 0.5 * avg[free] + 0.5 * np.minimum(avg[free], r[free])
+            rn = r - st * np.maximum(r - rs, 0.0)
+            p = co + rv / np.maximum(r, 1e-9)[:, None] * (rn - r)[:, None]
+        else:
+            p = co.copy()
+            for k in range(iters * 2):
+                lam = 0.5 if k % 2 == 0 else -0.53
+                acc = np.zeros_like(p)
+                np.add.at(acc, ev[:, 0], p[ev[:, 1]])
+                np.add.at(acc, ev[:, 1], p[ev[:, 0]])
+                avg = acc / np.maximum(deg, 1)[:, None]
+                p = p + (lam * st)[:, None] * (avg - p)
+        d = p - co
+        dn = (d * nrm).sum(1)
+        d -= np.maximum(dn, 0.0)[:, None] * nrm
+        mv = st > 0
+        new[mv] = co[mv] + d[mv]
+        st_all = np.maximum(st_all, st)
+        mag = np.linalg.norm(d[mv], axis=1)
+        out[g] = {'verts': int(mv.sum()), 'max_mm': round(float(mag.max()) * 1000, 1) if len(mag) else 0.0,
+                  'mean_mm': round(float(mag.mean()) * 1000, 2) if len(mag) else 0.0}
+    if out:
+        # 面の角の法線：読み込んだ法線（元の形のこぶの陰）を、動かした点ではならした形の法線へ（強さ st で混ぜる）
+        cn = np.zeros(len(me.loops) * 3)
+        me.corner_normals.foreach_get('vector', cn)
+        cn = cn.reshape(-1, 3)
+        me.vertices.foreach_set('co', new.ravel())
+        me.update()
+        me.calc_loop_triangles()
+        tv = np.zeros(len(me.loop_triangles) * 3, np.int64)
+        me.loop_triangles.foreach_get('vertices', tv)
+        tv = tv.reshape(-1, 3)
+        fn = np.cross(new[tv[:, 1]] - new[tv[:, 0]], new[tv[:, 2]] - new[tv[:, 0]])
+        vn = np.zeros_like(new)
+        for k in range(3):
+            np.add.at(vn, tv[:, k], fn)
+        vn /= np.maximum(np.linalg.norm(vn, axis=1, keepdims=True), 1e-12)
+        sl = st_all[lv]
+        m = sl > 0
+        mix = cn.copy()
+        mix[m] = (1 - sl[m])[:, None] * cn[m] + sl[m][:, None] * vn[lv[m]]
+        mix /= np.maximum(np.linalg.norm(mix, axis=1, keepdims=True), 1e-12)
+        me.normals_split_custom_set(mix.tolist())
+        me.update()
+    return out
+
+
+def split_frame(body: bpy.types.Object, frames: dict, tex_dir: str) -> dict | None:
+    """外装フレームの群を別の物体にする（基準の姿勢、骨を付けたあと・動作を焼く前）。
+    1. 下の塗り：範囲の面（FRAME_PAINT_ATTR）の UV の画素のうち、残す色でない画素を作業着の色（fill）にした体のテクスチャを作る
+    2. 殻：塗りの変わった面（と FRAME_SHELL_GROW 輪）を写し、元のテクスチャの材質（<id>_frame_paint）で、法線の向きに
+       FRAME_SHELL_OFF 浮かせる（縁の FRAME_SHELL_TAPER 輪で 0 へ）。重みは体と同じ
+    3. 殻を群の部品の物体（frames：split_costume_frames、腕を下ろして骨を付けたもの）につなぐ（物体の名前 = 群の名前）
+    体（'Haru'）の面・法線は変えない（テクスチャの画像だけ替える）"""
+    me = body.data
+    if not frames and FRAME_PAINT_ATTR not in me.attributes:
+        return None
+    sys.path.insert(0, os.path.join(C.REPO, 'tools', 'blender', 'recon'))
+    import costume as CO
+    groups = list(CO.FRAME_GROUPS)
+    body_mat = next(m for m in me.materials if m and m.name.endswith('_body'))
+    base_id = body_mat.name[:-len('_body')]
+    bi = list(me.materials).index(body_mat)
+    node, img = _image_of(body_mat)
+    w, h = img.size
+    px = np.array(img.pixels[:], dtype=np.float32).reshape(h, w, 4)
+    orig = px.copy()
+    npoly = len(me.polygons)
+    pmat = np.zeros(npoly, np.int32)
+    me.polygons.foreach_get('material_index', pmat)
+    preg = np.zeros(npoly, np.int32)
+    if FRAME_PAINT_ATTR in me.attributes:
+        me.attributes[FRAME_PAINT_ATTR].data.foreach_get('value', preg)
+    me.calc_loop_triangles()
+    nt = len(me.loop_triangles)
+    tl = np.zeros(nt * 3, np.int64)
+    me.loop_triangles.foreach_get('loops', tl)
+    tl = tl.reshape(-1, 3)
+    tp = np.zeros(nt, np.int64)
+    me.loop_triangles.foreach_get('polygon_index', tp)
+    uv = np.zeros(len(me.loops) * 2, np.float32)
+    me.uv_layers.active.data.foreach_get('uv', uv)
+    uv = uv.reshape(-1, 2) * np.array([w, h], np.float32)
+    on_body = pmat[tp] == bi
+    # 画素の持ち主（画素の中心を含む三角形の面）：範囲の外の面の画素は替えない
+    owner = np.full((h, w), -1, np.int64)
+    for ti in np.nonzero(on_body)[0]:
+        ys, xs = _raster(uv[tl[ti]], w, h, 0.0)
+        owner[ys, xs] = tp[ti]
+    pal = {n: CO.hex_rgb(CO.PALETTE[n]) for n in CO.NAMES}
+    report = {}
+    shell_poly = np.zeros(npoly, np.int32)
+    for gi, g in enumerate(groups, 1):
+        spec = CO.FRAME_PAINT.get(g)
+        tris = np.nonzero(on_body & (preg[tp] == gi))[0]
+        if spec is None or not len(tris):
+            continue
+        fill = pal[spec['fill']]
+        keep = [pal[n] for n in spec.get('keep', [])]
+        cand = np.zeros((h, w), bool)
+        per_tri = []
+        for ti in tris:
+            ys, xs = _raster(uv[tl[ti]], w, h, 1.5)
+            o = owner[ys, xs]
+            ok = (o < 0) | (preg[np.maximum(o, 0)] == gi)
+            ys, xs = ys[ok], xs[ok]
+            cand[ys, xs] = True
+            per_tri.append((ti, ys, xs))
+        cy, cx = np.nonzero(cand)
+        col = orig[cy, cx, :3]
+        if keep:
+            # 残す色・その 2 つの間の混ざった色（線分）からの距離
+            pts = keep + [fill]
+            dmin = np.full(len(col), np.inf)
+            for i in range(len(pts)):
+                for j in range(i, len(pts)):
+                    a, b = pts[i], pts[j]
+                    ab = b - a
+                    t = np.clip(((col - a) @ ab) / max(float(ab @ ab), 1e-9), 0.0, 1.0)
+                    dmin = np.minimum(dmin, np.linalg.norm(col - (a + t[:, None] * ab), axis=1))
+            ch = dmin > FRAME_KEEP_TOL
+        else:
+            ch = np.linalg.norm(col - fill, axis=1) > 1e-3
+        changed = np.zeros((h, w), bool)
+        changed[cy[ch], cx[ch]] = True
+        px[changed, :3] = fill
+        polys = set()
+        for ti, ys, xs in per_tri:
+            if changed[ys, xs].any():
+                polys.add(int(tp[ti]))
+        sel = np.zeros(npoly, bool)
+        sel[list(polys)] = True
+        report[g] = {'texels_changed': int(changed.sum()), 'faces_with_paint': int(sel.sum())}
+        if sel.any():
+            shell_poly[(shell_poly == 0) & sel] = gi
+    # 殻の面を広げる（体の材質の面だけ、点でつながる面）
+    pv_start = np.zeros(npoly, np.int64)
+    pv_tot = np.zeros(npoly, np.int64)
+    me.polygons.foreach_get('loop_start', pv_start)
+    me.polygons.foreach_get('loop_total', pv_tot)
+    lv = np.zeros(len(me.loops), np.int64)
+    me.loops.foreach_get('vertex_index', lv)
+    lpoly = np.repeat(np.arange(npoly), pv_tot)
+    on_body_p = pmat == bi
+    for it in range(max([FRAME_SHELL_GROW] + [int((CO.FRAME_PAINT.get(g) or {}).get('grow', 0)) for g in groups])):
+        for gi in range(1, len(groups) + 1):
+            if it >= int((CO.FRAME_PAINT.get(groups[gi - 1]) or {}).get('grow', FRAME_SHELL_GROW)):
+                continue
+            vs = np.zeros(len(me.vertices), bool)
+            vs[lv[shell_poly[lpoly] == gi]] = True
+            hit = np.zeros(npoly, bool)
+            hit[lpoly[vs[lv]]] = True
+            shell_poly[hit & on_body_p & (shell_poly == 0)] = gi
+    # 浮きの割合：殻の外の体の面と共有する点 = 0、そこから輪ごとに 1/FRAME_SHELL_TAPER
+    in_shell = shell_poly[lpoly] > 0
+    v_shell = np.zeros(len(me.vertices), bool)
+    v_shell[lv[in_shell]] = True
+    v_out = np.zeros(len(me.vertices), bool)
+    v_out[lv[~in_shell & on_body_p[lpoly]]] = True
+    ring = np.where(v_shell & v_out, 0, -1)
+    for r in range(1, FRAME_SHELL_TAPER + FRAME_SMOOTH_RAMP + 1):
+        cur = ring == r - 1
+        polys_r = np.zeros(npoly, bool)
+        polys_r[lpoly[cur[lv]]] = True
+        nxt = np.zeros(len(me.vertices), bool)
+        nxt[lv[polys_r[lpoly] & in_shell]] = True
+        ring[nxt & (ring < 0)] = r
+    fac = np.where(ring < 0, 1.0, np.clip(ring / FRAME_SHELL_TAPER, 0.0, 1.0))
+    # テクスチャ：体は作業着の色、殻は元の塗り（どちらも PNG にして読み直す。書き出しは画像のファイルの名前を使う）
+    def save_png(name: str, pix: np.ndarray, sub: str) -> bpy.types.Image:
+        im = bpy.data.images.new(name + '_tmp', w, h, alpha=True)
+        im.pixels.foreach_set(pix.ravel())
+        os.makedirs(os.path.join(tex_dir, sub), exist_ok=True)
+        path = os.path.join(tex_dir, sub, f'{name}.png')
+        im.filepath_raw = path
+        im.file_format = 'PNG'
+        im.save()
+        bpy.data.images.remove(im)
+        return bpy.data.images.load(path)
+    old_name = img.name
+    img.name = old_name + '_old'
+    new_body = save_png(old_name, px, 'bare')
+    new_body.name = old_name
+    node.image = new_body
+    bpy.data.images.remove(img)
+    shell_mat = body_mat.copy()
+    shell_mat.name = f'{base_id}_frame_paint'
+    snode, _ = _image_of(shell_mat)
+    shell_img = save_png(f'{base_id}_frame_paint_base', orig, 'shell')
+    shell_img.name = f'{base_id}_frame_paint_base'
+    snode.image = shell_img
+    # 殻：体の写しから、群の殻の面だけを残し、浮かせ、元の塗りの材質にして、群の部品の物体につなぐ
+    #（体そのものの面は編集しない）
+    normals = np.zeros(len(me.vertices) * 3)
+    me.vertices.foreach_get('normal', normals)
+    normals = normals.reshape(-1, 3)
+    # 面の角の法線（読み込んだ法線）：殻にもそのまま写す（面を消すと縁の法線が変わり、陰が少し変わった）
+    cn = np.zeros(len(me.loops) * 3)
+    me.corner_normals.foreach_get('vector', cn)
+    cn = cn.reshape(-1, 3)
+    for gi, g in enumerate(groups, 1):
+        keep = shell_poly == gi
+        if not keep.any():
+            continue
+        sh = body.copy()
+        sh.data = me.copy()
+        bpy.context.scene.collection.objects.link(sh)
+        sm = sh.data
+        co = np.zeros(len(sm.vertices) * 3)
+        sm.vertices.foreach_get('co', co)
+        co = co.reshape(-1, 3) + normals * (FRAME_SHELL_OFF * fac)[:, None]
+        sm.vertices.foreach_set('co', co.ravel())
+        _keep_faces(sh, keep)
+        sm.normals_split_custom_set(cn[keep[lpoly]].tolist())
+        for a in (FRAME_ATTR, FRAME_PAINT_ATTR):
+            if a in sm.attributes:
+                sm.attributes.remove(sm.attributes[a])
+        sm.materials.clear()
+        sm.materials.append(shell_mat)
+        sm.polygons.foreach_set('material_index', np.zeros(len(sm.polygons), np.int32))
+        sm.update()
+        report.setdefault(g, {})['shell_faces'] = int(keep.sum())
+        if g in frames:
+            frames[g] = C.join([frames[g], sh], g)
+        else:
+            sh.name = g
+            frames[g] = sh
+        frames[g].data.name = g
+    # 体の形（殻を写したあと）：フレームを外した脚をならす（内側へだけ）
+    smooth_info = _smooth_bare(me, groups, CO, shell_poly, lpoly, lv, ring)
+    if smooth_info:
+        report['smooth'] = smooth_info
+    for g, o in frames.items():
+        for a in (FRAME_ATTR, FRAME_PAINT_ATTR):
+            if a in o.data.attributes:
+                o.data.attributes.remove(o.data.attributes[a])
+        report.setdefault(g, {})['tris'] = M.tri_count(o)
+    if FRAME_PAINT_ATTR in me.attributes:
+        me.attributes.remove(me.attributes[FRAME_PAINT_ATTR])
+    if FRAME_ATTR in me.attributes:
+        me.attributes.remove(me.attributes[FRAME_ATTR])
+    return report
 
 
 def lower_arms(body: bpy.types.Object, arm: bpy.types.Object,
-               frontal_deg: float | None = None) -> tuple[dict, Quaternion]:
+               frontal_deg: float | None = None, extra: list | None = None) -> tuple[dict, Quaternion]:
     """腕を下ろした姿勢を、メッシュの新しい基準の形にする。下ろしたあとの関節の位置と、左腕の回転を返す。
 
     frontal_deg が無ければ、上腕を標準の向き（REST_ARM_DIR）へ最短の回転で向ける（従来どおり）。
     frontal_deg（度）を渡すと、前後の軸（Y）まわりだけで回し、正面から見た上腕の傾き（真下から外へ）を
     その角度にする。腕の前後の傾き・肘の曲がりはそのまま（最短の回転だと、前へ出た上腕を下ろすときに
     腕全体が後ろへ振れる）。
+    extra：体と同じに下ろすほかの物体（外装フレームの部品。重みの群は骨の名前、骨の変形が無ければ足す）
     """
     bpy.context.view_layer.objects.active = arm
     bpy.ops.object.mode_set(mode='POSE')
@@ -654,6 +1067,17 @@ def lower_arms(body: bpy.types.Object, arm: bpy.types.Object,
     for m in body.modifiers:
         if m.type == 'ARMATURE':
             bpy.ops.object.modifier_apply(modifier=m.name)
+    for o in extra or []:
+        if not any(m.type == 'ARMATURE' for m in o.modifiers):
+            mod = o.modifiers.new('Armature', 'ARMATURE')
+            mod.object = arm
+        bpy.ops.object.select_all(action='DESELECT')
+        o.select_set(True)
+        bpy.context.view_layer.objects.active = o
+        for m in list(o.modifiers):
+            if m.type == 'ARMATURE':
+                bpy.ops.object.modifier_apply(modifier=m.name)
+    bpy.context.view_layer.objects.active = body
     return new, q_left
 
 
@@ -1463,13 +1887,16 @@ def main() -> None:
     method = skin(body, tmp, args.fill_unweighted)
     rigid = rigid_parts(body, J) if args.rigid_parts else None
     costume = None
+    frames = {}
     if args.costume:
-        cobj, costume = add_costume(body, tempfile.mkdtemp(prefix='ai_costume_'),
-                                    skip=('glove_cuff.R',) if args.hand_part else ())
+        cobj, costume, frames = add_costume(body, tempfile.mkdtemp(prefix='ai_costume_'),
+                                            skip=('glove_cuff.R',) if args.hand_part else ())
         body = C.join([body, cobj], 'Body')
-    lowered, q_left = lower_arms(body, tmp, args.rest_arm_deg)
+    lowered, q_left = lower_arms(body, tmp, args.rest_arm_deg, extra=list(frames.values()))
     bpy.data.objects.remove(tmp, do_unlink=True)
     body.parent = None
+    for o in frames.values():
+        o.parent = None
     J2 = dict(J)
     J2.update(lowered)
     blade = None
@@ -1480,6 +1907,8 @@ def main() -> None:
     # 標準の骨を入れ直す（重みは骨の名前で残っている）
     arm = H.build_armature(HEIGHT, f'{args.name}Rig', joints_table(J2))
     H.finalize_skin(body, arm)
+    for o in frames.values():
+        H.finalize_skin(o, arm)
     tex_dir = tempfile.mkdtemp(prefix='ai_char_')
     fix_materials(body, tex_dir)
     grip_info = None
@@ -1528,6 +1957,7 @@ def main() -> None:
     body = C.join([body] + parts, args.name) if parts else body
     body.name = args.name
     name_images(body)
+    frame = split_frame(body, frames, tex_dir) if args.costume else None
     H.bake_clips(arm, A.all_clips())
     final_scale = 1.0
     if args.final_height:
@@ -1554,6 +1984,7 @@ def main() -> None:
         'hand_part': hand_info if (args.gun or args.no_weapon) else None,
         'rigid_parts': rigid,
         'costume': costume,
+        'frame_split': frame,
     }
     with open(args.stats or (os.path.splitext(args.out)[0] + '.stats.json'), 'w') as f:
         json.dump(stats, f, indent=2, ensure_ascii=False)

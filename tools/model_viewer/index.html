@@ -8,6 +8,8 @@
   3D モデルの確認ページ（GitHub Pages の /models/）。
   pages.yml が、このファイルと godot/assets/models/*.glb を site/models/ に置く。
   ?m=<モデルの名前> で、そのモデルを開く（ダッシュボードの 4 章からのリンク）。
+  外装フレームの段（haru_r の Frame_core・Frame_arm・Frame_legs）があるモデルは、「フレーム」の欄で群ごとに出し入れできる。
+  ?frame=none|core|core,arm|core,arm,legs で最初の状態を決める（既定は全部。audit_viewer.mjs --frame も同じ）。
   モデルを足したら、下の MODELS に 1 行足す。
 -->
 <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
@@ -28,6 +30,8 @@ model-viewer { width:100%; height:min(70vh, 640px); background:var(--stage); bor
 .bar { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; margin:8px 0; }
 .bar select, .bar button { font:inherit; font-size:.9em; padding:.25em .5em; border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:4px; }
 .bar label { display:flex; gap:4px; align-items:center; font-size:.9em; }
+#frame { display:flex; gap:8px; align-items:center; font-size:.9em; }
+#frame[hidden] { display:none; }
 .note { color:var(--muted); font-size:.9em; overflow-wrap:anywhere; }
 .note a { color:var(--accent); }
 </style>
@@ -40,6 +44,10 @@ model-viewer { width:100%; height:min(70vh, 640px); background:var(--stage); bor
   <label>動作 <select id="anim"></select></label>
   <label><input type="checkbox" id="rotate"> 回す</label>
   <button id="reset">視点を戻す</button>
+  <span id="frame" hidden>フレーム
+    <label><input type="checkbox" data-g="core" checked> 胴</label>
+    <label><input type="checkbox" data-g="arm" checked> 腕</label>
+    <label><input type="checkbox" data-g="legs" checked> 脚</label></span>
 </div>
 <p class="note" id="note"></p>
 <p class="note">ドラッグで回す、ピンチ・ホイールで寄る、2 本指・右ドラッグで動かす。ゲームの中の見た目（光・塗り方）とは少し違う。</p>
@@ -48,7 +56,7 @@ model-viewer { width:100%; height:min(70vh, 640px); background:var(--stage); bor
 const REPO = 'https://github.com/hassy0511/project-relic/blob/claude/busy-bell-oagnck/docs/art_orders/';
 // [名前, 表示名, 分類, 説明, 結果の文書]
 const MODELS = [
-  ['haru_r', 'ハル', 'キャラクター', '主人公。高さ 155cm。動作 14 種（3 段斬り combo1〜3 は 2026-10-07 に作り直し）', 'W1_ハル3段斬りの結果.md'],
+  ['haru_r', 'ハル', 'キャラクター', '主人公。高さ 155cm。動作 14 種（3 段斬り combo1〜3 は 2026-10-07 に作り直し）。外装フレームは胴・腕・脚ごとに出し入れできる（下の「フレーム」）', 'W1_ハル再構築の結果.md'],
   ['yana', 'ヤーナ', 'キャラクター', '会話の相手（NPC）。高さ 172cm。2026-10-05 に部品で作り直し（義手・エプロン・ハンマー）', 'W1_ヤーナ3D化の結果.md'],
   ['burton', 'バートン', 'キャラクター', '回収屋ギルドの支部長（NPC）。高さ 190cm。部品で作った最初の住人', 'W2_バートン3D化の結果.md'],
   ['nagomi', 'ナゴミ', 'キャラクター', 'ハルの肩のそばに浮く相棒', 'W1_ナゴミ3D化の結果.md'],
@@ -94,7 +102,37 @@ function show(id) {
   history.replaceState(null, '', `?m=${m[0]}`);
 }
 
+// 外装フレームの段：モデルの中の Frame_<群> の物体を出し入れする（three.js の場面を直接さわる）
+const frameBox = document.getElementById('frame');
+const frameChecks = [...frameBox.querySelectorAll('input')];
+const urlFrame = new URLSearchParams(location.search).get('frame');
+if (urlFrame !== null) {
+  const on = urlFrame === 'none' ? [] : urlFrame.split(',');
+  for (const c of frameChecks) c.checked = on.includes(c.dataset.g);
+}
+function frameNodes() {
+  const sym = Object.getOwnPropertySymbols(mv).find((q) => q.description === 'scene');
+  const scene = sym && mv[sym];
+  const found = {};
+  if (scene) scene.traverse((o) => {
+    const m = /^Frame_(core|arm|legs)$/.exec(o.name);
+    if (m && !found[m[1]]) found[m[1]] = o;
+    if (o.name === 'LightBlade' && !found.blade) found.blade = o;
+  });
+  return [scene, found];
+}
+function applyFrame() {
+  const [scene, found] = frameNodes();
+  frameBox.hidden = !(found.core || found.arm || found.legs);
+  for (const c of frameChecks) if (found[c.dataset.g]) found[c.dataset.g].visible = c.checked;
+  // 光刃は左の籠手（腕の群）から出る：籠手を外したら刃も隠す
+  if (found.arm && found.blade) found.blade.visible = frameChecks.find((c) => c.dataset.g === 'arm').checked;
+  if (scene && scene.queueRender) scene.queueRender();
+}
+for (const c of frameChecks) c.onchange = applyFrame;
+
 mv.addEventListener('load', () => {
+  applyFrame();
   const names = mv.availableAnimations || [];
   animSel.innerHTML = names.length ? '' : '<option value="">（動作なし）</option>';
   for (const n of names) animSel.add(new Option(n, n));

@@ -4,6 +4,8 @@
 //   node tools/blender/recon/audit_viewer.mjs [--model haru_r] [--glb godot/assets/models/haru_r.glb] [--out docs/art_orders/haru_r_trial]
 //        [--work build/audit] [--zones full,head,torso,hips,legs] [--anim idle] [--time 0] [--prefix audit]
 //        [--height 1.55] [--head-y 1.36]   （バートン：--model burton --head-y 1.43）
+//        [--frame none|core|core,arm|core,arm,legs]   外装フレームの段（haru_r の Frame_* の群。既定は全部見せる）
+//        [--az 0,90,180,45] [--el level]   方位・高さを絞る（既定は区域の格子。段の見比べ frame_stages.jpg に使った）
 //
 // 格子（固定。比べられるように変えない）：
 //   full（全身）：方位 8 つ（0 = 正面から 45 度ずつ、+ = 本人の左へ回る）× 高さ 3 つ（下から・水平・上から）
@@ -60,6 +62,8 @@ const ZONES = {
 if (args['head-y']) { ZONES.head.y = parseFloat(args['head-y']); ZONES.face.y = ZONES.head.y; }
 for (const z of Object.values(ZONES)) { z.y *= HS; z.dist *= HS; }
 const zones = (args.zones || 'full,head,torso,hips,legs').split(',');
+if (args.az) { const az = args.az.split(',').map(Number); for (const z of Object.values(ZONES)) z.az = az; }
+if (args.el) { const el = args.el.split(','); for (const z of Object.values(ZONES)) z.el = z.el.filter((e) => el.includes(e[0])); }
 const AZ_NAME = { 0: 'front', 45: 'front-left', 90: 'left', 135: 'back-left', 180: 'back', 225: 'back-right',
   270: 'right', 315: 'front-right', 30: 'left 30', 330: 'right 30' };
 
@@ -87,7 +91,8 @@ await page.route('**/*', (route) => {
   if (u.host === 'audit.local') return route.fulfill({ status: 404, body: '' });
   return route.abort();
 });
-await page.goto(`http://audit.local/index.html?m=${name}`);
+const FRAME = args.frame ? `&frame=${encodeURIComponent(args.frame)}` : '';
+await page.goto(`http://audit.local/index.html?m=${name}${FRAME}`);
 await page.waitForFunction(() => { const mv = document.getElementById('mv'); return mv && mv.loaded; }, null,
   { timeout: 180000 });
 // こまを正方形にする（ページの見た目はそのまま、model-viewer の大きさだけ）
