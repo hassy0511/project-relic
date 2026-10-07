@@ -13,6 +13,7 @@ import math
 from dataclasses import dataclass, field
 
 import bpy
+from mathutils import Vector
 
 # 身長 1.0 に正規化した関節の位置（x, y, z）。正面は -Y
 JOINTS_155 = {
@@ -117,15 +118,34 @@ def finalize_skin(mesh: bpy.types.Object, arm: bpy.types.Object) -> None:
 
 Pose = dict[str, tuple[float, float, float]]  # 骨の名前 → (x, y, z) 回転（度、骨のローカル軸）
 
+# 書き出しの標本の間隔（1 秒あたりのこま数）。Godot は 60fps で描くので、速い動作（斬り）のこまを 1/60 秒で置ける。
+# Clip.fps がこれより小さいクリップ（従来の 30fps）は、こまの番号を伸ばして同じ秒数にする（動きは変わらない）
+SCENE_FPS = 60
+
+# こまの指定：(こま, 姿勢) か (こま, 姿勢, つなぎ)。つなぎは次のこままでの補間：
+#   {'interp': 'BEZIER'（既定。なめらか）| 'LINEAR'（等速）| 'SINE' | 'QUAD' | 'CUBIC' | 'EXPO' | 'BACK',
+#    'ease': 'EASE_IN'（ゆっくり始めて速く）| 'EASE_OUT'（速く始めてゆっくり止まる）| 'EASE_IN_OUT'}
+Key = tuple
+
+# 足の裏の接地点（足首の骨の頭からの、基準の姿勢でのずれ。m）。つま先と、かかと
+FOOT_CONTACTS = ((0.0, -0.22, -0.09), (0.0, 0.06, -0.09))
+TOE_REACH = 0.22        # 足首からつま先までの前後の長さ（かかとを上げる角度の計算に使う）
+FOOT_LIFT_MAX = 55.0    # これより足首を起こさないと床に届かない足は、浮いている足として残す（度）
+
 
 @dataclass
 class Clip:
     name: str
-    length: int  # フレーム数（30fps）
-    keys: list[tuple[int, Pose]] = field(default_factory=list)
+    length: int  # こま数（fps 単位。秒数は length / fps）
+    keys: list[Key] = field(default_factory=list)
     loop: bool = True
-    # root の位置の上下（フレーム, 高さ m）
+    # root の位置の上下（こま, 高さ m）
     bob: list[tuple[int, float]] = field(default_factory=list)
+    # keys・length・bob のこまの単位（1 秒あたりのこま数）
+    fps: int = 30
+    # True：各こまで、低いほうの足の裏が床（z=0）に着くように root を下げる（しゃがみ・踏み込みの上下は脚の曲げから決まる）。
+    # bob があれば、それをさらに足す
+    ground: bool = False
 
 
 def mirror(pose: Pose) -> Pose:
@@ -141,30 +161,113 @@ def mirror(pose: Pose) -> Pose:
     return out
 
 
+def _foot_contacts_local(arm: bpy.types.Object) -> dict[str, list]:
+    """足の裏の接地点を、足首の骨のローカル座標にしたもの（姿勢を付けたあと pb.matrix @ 点 で世界の位置になる）"""
+    out = {}
+    for bn in ('foot.L', 'foot.R'):
+        b = arm.data.bones[bn]
+        inv = b.matrix_local.to_3x3().inverted()
+        out[bn] = [inv @ Vector(c) for c in FOOT_CONTACTS]
+    return out
+
+
+def ground_offset(arm: bpy.types.Object, contacts: dict[str, list]) -> float:
+    """今の姿勢（評価済み）で、足の裏の一番低い点が床（z=0）に着く root の高さ。
+    root が今どこにあっても（アクションの補間で動いていても）よいように、root からの相対で測る"""
+    root_z = arm.pose.bones['root'].matrix.translation.z
+    lowest = min((arm.pose.bones[bn].matrix @ c).z for bn, cs in contacts.items() for c in cs)
+    return root_z - lowest
+
+
 def bake_clips(arm: bpy.types.Object, clips: list[Clip]) -> None:
-    """各クリップを別々のアクションとして作り、NLA に積む（glTF で個別のアニメーションになる）"""
+    """各クリップを別々のアクションとして作り、NLA に積む（glTF で個別のアニメーションになる）。
+    標本は SCENE_FPS（60fps）。こまごとのつなぎ（Key の 3 つ目）と、足の接地（Clip.ground）もここで付ける"""
+    scene = bpy.context.scene
+    scene.render.fps = SCENE_FPS
+    scene.render.fps_base = 1.0
     arm.animation_data_create()
     names = bone_names()
     for pb in arm.pose.bones:
         pb.rotation_mode = 'XYZ'
+    contacts = _foot_contacts_local(arm)
+    root = arm.pose.bones['root']
     for clip in clips:
+        scale = SCENE_FPS / clip.fps
+
+        def sf(frame: float) -> float:
+            return 1 + (frame - 1) * scale
+
         action = bpy.data.actions.new(clip.name)
         action.use_fake_user = True
         arm.animation_data.action = action
-        for frame, pose in clip.keys:
+        specs: dict[float, dict] = {}
+        bob = dict(clip.bob)
+        for key in clip.keys:
+            frame, pose = key[0], key[1]
+            if len(key) > 2 and key[2]:
+                specs[round(sf(frame), 3)] = key[2]
             for bn in names:
                 pb = arm.pose.bones[bn]
                 x, y, z = pose.get(bn, (0.0, 0.0, 0.0))
                 pb.rotation_euler = (math.radians(x), math.radians(y), math.radians(z))
-                pb.keyframe_insert('rotation_euler', frame=frame)
-        root = arm.pose.bones['root']
-        bob = clip.bob or [(clip.keys[0][0], 0.0)]
-        for frame, h in bob:
-            # root は後ろ向き（+Y）の骨なので、ローカル Z がワールドの上方向に対応しないことがある。
-            # ここでは location の Y 成分をワールドの上下として扱う（root のローカル Y = ワールド +Y ではなく、
-            # 骨の軸はワールド Y 方向。上下はローカル Z）
-            root.location = (0.0, 0.0, h)
-            root.keyframe_insert('location', frame=frame)
+                pb.keyframe_insert('rotation_euler', frame=sf(frame))
+            if clip.ground:
+                # このこまに置いた回転で姿勢を評価してから、足の裏の高さを測る
+                scene.frame_set(int(round(sf(frame))))
+                h = ground_offset(arm, contacts) + bob.get(frame, 0.0)
+                root.location = (0.0, 0.0, h)
+                root.keyframe_insert('location', frame=sf(frame))
+                # 浮いているほうの足は、つま先が床に触れるまでかかとを上げる（足首 X を正へ。上げすぎる足は浮かせたまま）。
+                # こまの指定 'lifted' にある足（膝を上げた踏み込みなど）はそのまま
+                lifted = (key[2].get('lifted', ()) if len(key) > 2 and key[2] else ())
+                for bn in ('foot.L', 'foot.R'):
+                    if bn in lifted:
+                        continue
+                    for _ in range(2):
+                        scene.frame_set(int(round(sf(frame))))
+                        low = min((arm.pose.bones[bn].matrix @ c).z for c in contacts[bn]) + h - root.matrix.translation.z
+                        if low <= 0.004:
+                            break
+                        lift = math.degrees(math.asin(min(1.0, low / TOE_REACH)))
+                        pb = arm.pose.bones[bn]
+                        if pb.rotation_euler.x + math.radians(lift) > math.radians(FOOT_LIFT_MAX):
+                            break
+                        pb.rotation_euler.x += math.radians(lift)
+                        pb.keyframe_insert('rotation_euler', frame=sf(frame))
+        if not clip.ground:
+            for frame, h in (clip.bob or [(clip.keys[0][0], 0.0)]):
+                # root は後ろ向き（+Y）の骨で、ローカル Z がワールドの上。location の Z が上下になる
+                root.location = (0.0, 0.0, h)
+                root.keyframe_insert('location', frame=sf(frame))
+        root.location = (0.0, 0.0, 0.0)
+        # つなぎ：こまの指定が無ければ従来どおりなめらか（ベジエ）
+        for fc in action.fcurves:
+            for kp in fc.keyframe_points:
+                spec = specs.get(round(kp.co.x, 3), {})
+                kp.interpolation = spec.get('interp', 'BEZIER')
+                if kp.interpolation == 'BEZIER':
+                    kp.handle_left_type = kp.handle_right_type = 'AUTO_CLAMPED'
+                else:
+                    kp.easing = spec.get('ease', 'AUTO')
+            fc.update()
+        if clip.ground:
+            # こまとこまの間（補間）でも足が床にめり込まないように、書き出しの標本ごとに root を測り直して置く
+            bob_keys = sorted((sf(f), h) for f, h in clip.bob) or [(sf(clip.keys[0][0]), 0.0)]
+
+            def bob_at(f: float) -> float:
+                if f <= bob_keys[0][0]:
+                    return bob_keys[0][1]
+                for (f0, h0), (f1, h1) in zip(bob_keys, bob_keys[1:]):
+                    if f0 <= f <= f1:
+                        return h0 + (h1 - h0) * (f - f0) / max(1e-6, f1 - f0)
+                return bob_keys[-1][1]
+
+            first, last = int(round(sf(clip.keys[0][0]))), int(round(sf(clip.keys[-1][0])))
+            for f in range(first, last + 1):
+                scene.frame_set(f)
+                root.location = (0.0, 0.0, ground_offset(arm, contacts) + bob_at(f))
+                root.keyframe_insert('location', frame=f)
+            root.location = (0.0, 0.0, 0.0)
         track = arm.animation_data.nla_tracks.new()
         track.name = clip.name
         strip = track.strips.new(clip.name, 1, action)

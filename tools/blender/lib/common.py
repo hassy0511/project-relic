@@ -128,6 +128,8 @@ def export_glb(path: str, animations: bool = True) -> None:
     if animations:
         kwargs['export_animation_mode'] = 'ACTIONS'
         kwargs['export_force_sampling'] = True
+        # 1 こま目を 0 秒にする（Godot の AnimationPlayer の時間 = 動作の定義の秒数。ゲーム側で攻撃時間に合わせるため）
+        kwargs['export_anim_slide_to_zero'] = True
     bpy.ops.export_scene.gltf(**kwargs)
 
 

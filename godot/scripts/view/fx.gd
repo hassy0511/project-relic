@@ -15,6 +15,8 @@ var _particles: Array = []
 var _slash: MeshInstance3D
 var _slash_mat: StandardMaterial3D
 var _slash_life := 0.0
+## 刃を振り抜く時間（秒）。3 段斬りの動作は当たり判定の始まりから 3 こま（1/60 秒 × 3）で振り抜く
+const SLASH_SWEEP := 0.06
 var _ball := MeshKit.sphere(1.0, 10)
 var _spark := MeshKit.sphere(0.06, 4)
 var _rng := RandomNumberGenerator.new()
@@ -115,14 +117,15 @@ func sync(game: GameSim, dt: float) -> void:
 			p.mesh.queue_free()
 	_particles = keep
 
-	# 斬撃の軌跡
+	# 斬撃の軌跡：刃を振り抜く間（当たり判定の始まりから SLASH_SWEEP 秒。動作の振り抜きと同じ）だけ回して、あとは消える
 	var pl := game.player
 	var a := pl.attack
-	if a != null and a.time >= a.active_from * 0.8 and a.time <= a.active_to:
+	if a != null and a.time >= a.active_from - 0.017 and a.time <= a.active_from + SLASH_SWEEP:
 		_slash_life = 0.12
 		_slash.position = pl.pos + Vector3(0, 1.0 if a.move == "combo3" else 1.05, 0)
 		var sweep := -1.0 if a.move == "combo2" else 1.0
-		_slash.rotation = Vector3(PI / 2.0 if a.move == "combo3" else 0.0, pl.yaw + sweep * (a.time / a.duration - 0.5) * 1.2, 0.0)
+		var k := clampf((a.time - a.active_from) / SLASH_SWEEP, 0.0, 1.0)
+		_slash.rotation = Vector3(PI / 2.0 if a.move == "combo3" else 0.0, pl.yaw + sweep * (k - 0.5) * 1.4, 0.0)
 		_slash.scale = Vector3.ONE * (1.6 if a.move == "charge" else 1.0)
 	_slash_life = maxf(0.0, _slash_life - dt)
 	_slash_mat.albedo_color.a = _slash_life * 6.0
