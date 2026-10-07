@@ -3143,7 +3143,8 @@
       -5.4,
       0.0,
       -13.4
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/lamp_tall",
@@ -3162,7 +3163,8 @@
       "color": "#ffc27a",
       "range": 14,
       "energy": 1.6
-     }
+     },
+     "shadow": true
     },
     {
      "part": "town/deck_slab",
@@ -3335,7 +3337,8 @@
       1.0,
       0.68,
       1.0
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/plaza_ring",
@@ -3351,7 +3354,8 @@
       0.0,
       0.0,
       9.0
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/lamp_post",
@@ -3360,7 +3364,8 @@
       0.0,
       -7.5
      ],
-     "scale": 1.4
+     "scale": 1.4,
+     "shadow": true
     },
     {
      "part": "town/lamp_post",
@@ -3370,7 +3375,8 @@
       -7.5
      ],
      "yaw": 180,
-     "scale": 1.4
+     "scale": 1.4,
+     "shadow": true
     },
     {
      "part": "town/lamp_post",
@@ -3379,7 +3385,8 @@
       0.0,
       9.5
      ],
-     "scale": 1.4
+     "scale": 1.4,
+     "shadow": true
     },
     {
      "part": "town/lamp_post",
@@ -3389,7 +3396,8 @@
       9.5
      ],
      "yaw": 180,
-     "scale": 1.4
+     "scale": 1.4,
+     "shadow": true
     },
     {
      "part": "town/bench",
@@ -3398,7 +3406,8 @@
       0.0,
       -2.0
      ],
-     "yaw": 90
+     "yaw": 90,
+     "shadow": true
     },
     {
      "part": "town/bench",
@@ -3407,7 +3416,8 @@
       0.0,
       -2.0
      ],
-     "yaw": 270
+     "yaw": 270,
+     "shadow": true
     },
     {
      "part": "town/bench",
@@ -3416,7 +3426,8 @@
       0.0,
       5.0
      ],
-     "yaw": 90
+     "yaw": 90,
+     "shadow": true
     },
     {
      "part": "town/bench",
@@ -3425,7 +3436,8 @@
       0.0,
       5.0
      ],
-     "yaw": 270
+     "yaw": 270,
+     "shadow": true
     },
     {
      "part": "town/planter",
@@ -3502,7 +3514,8 @@
       1.65,
       1.35,
       2.2
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/crate",
@@ -3515,7 +3528,8 @@
       1.65,
       1.35,
       2.2
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/crate",
@@ -3528,7 +3542,8 @@
       2.2,
       2.16,
       2.2
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/junk_pile",
@@ -3541,7 +3556,8 @@
       1.2,
       1.05,
       1.3
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/barrel",
@@ -3549,7 +3565,8 @@
       27.6,
       0.0,
       -6.4
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/barrel",
@@ -3558,7 +3575,208 @@
       0.0,
       -7.6
      ],
-     "scale": 0.9
+     "scale": 0.9,
+     "shadow": true
+    },
+    {
+     "part": "town/tent",
+     "pos": [
+      -9.0,
+      0.0,
+      11.2
+     ],
+     "yaw": 180,
+     "shadow": true
+    },
+    {
+     "part": "town/tent",
+     "pos": [
+      9.0,
+      0.0,
+      11.2
+     ],
+     "yaw": 180,
+     "shadow": true
+    },
+    {
+     "part": "town/planter_big",
+     "pos": [
+      -13.2,
+      0.0,
+      13.6
+     ],
+     "shadow": true
+    },
+    {
+     "part": "town/planter_big",
+     "pos": [
+      13.2,
+      0.0,
+      13.6
+     ],
+     "shadow": true
+    },
+    {
+     "part": "town/planter_big",
+     "pos": [
+      -2.6,
+      0.0,
+      13.8
+     ],
+     "shadow": true
+    },
+    {
+     "part": "town/planter_big",
+     "pos": [
+      2.6,
+      0.0,
+      13.8
+     ],
+     "shadow": true
+    },
+    {
+     "part": "town/planter_big",
+     "pos": [
+      -36.5,
+      0.0,
+      -12.8
+     ],
+     "shadow": true
+    },
+    {
+     "part": "town/planter_big",
+     "pos": [
+      36.5,
+      0.0,
+      -12.8
+     ],
+     "shadow": true
+    },
+    {
+     "part": "town/window_frame",
+     "pos": [
+      -26.98,
+      1.3,
+      6.5
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/window_frame",
+     "pos": [
+      -26.98,
+      4.4,
+      6.5
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/window_frame",
+     "pos": [
+      -26.98,
+      1.3,
+      10.5
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/window_frame",
+     "pos": [
+      -26.98,
+      4.4,
+      10.5
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/window_frame",
+     "pos": [
+      -41.02,
+      1.3,
+      6.5
+     ],
+     "yaw": 270
+    },
+    {
+     "part": "town/window_frame",
+     "pos": [
+      -41.02,
+      4.4,
+      6.5
+     ],
+     "yaw": 270
+    },
+    {
+     "part": "town/window_frame",
+     "pos": [
+      -41.02,
+      1.3,
+      10.5
+     ],
+     "yaw": 270
+    },
+    {
+     "part": "town/window_frame",
+     "pos": [
+      -41.02,
+      4.4,
+      10.5
+     ],
+     "yaw": 270
+    },
+    {
+     "part": "town/window_frame",
+     "pos": [
+      -14.98,
+      1.3,
+      3.0
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/window_frame",
+     "pos": [
+      -14.98,
+      1.3,
+      7.0
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/window_frame",
+     "pos": [
+      -25.02,
+      1.3,
+      3.0
+     ],
+     "yaw": 270
+    },
+    {
+     "part": "town/window_frame",
+     "pos": [
+      -25.02,
+      1.3,
+      7.0
+     ],
+     "yaw": 270
+    },
+    {
+     "part": "town/canvas_roll",
+     "pos": [
+      -26.98,
+      3.6,
+      8.5
+     ],
+     "yaw": 90
+    },
+    {
+     "part": "town/pipes",
+     "pos": [
+      -26.3,
+      0.0,
+      9.0
+     ],
+     "yaw": 90
     },
     {
      "part": "town/workshop_front",
@@ -3567,7 +3785,8 @@
       0.0,
       4.0
      ],
-     "yaw": 180
+     "yaw": 180,
+     "shadow": true
     },
     {
      "part": "town/diner_front",
@@ -3576,7 +3795,8 @@
       0.0,
       0.5
      ],
-     "yaw": 180
+     "yaw": 180,
+     "shadow": true
     },
     {
      "part": "town/stall_table",
@@ -3590,7 +3810,8 @@
       1.0,
       0.82,
       1.0
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/bench",
@@ -3604,7 +3825,8 @@
       1.0,
       0.9,
       1.0
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/bench",
@@ -3618,7 +3840,8 @@
       1.0,
       0.9,
       1.0
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/stall_table",
@@ -3632,7 +3855,8 @@
       1.0,
       0.82,
       1.0
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/bench",
@@ -3646,7 +3870,8 @@
       1.0,
       0.9,
       1.0
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/bench",
@@ -3660,7 +3885,8 @@
       1.0,
       0.9,
       1.0
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/barrel",
@@ -3668,7 +3894,8 @@
       -14.2,
       0.0,
       0.0
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/crate",
@@ -3678,7 +3905,8 @@
       0.0
      ],
      "yaw": 15,
-     "scale": 0.8
+     "scale": 0.8,
+     "shadow": true
     },
     {
      "part": "town/stall",
@@ -3687,7 +3915,8 @@
       0.0,
       6.3
      ],
-     "yaw": 180
+     "yaw": 180,
+     "shadow": true
     },
     {
      "part": "town/goods_general",
@@ -3713,7 +3942,8 @@
       19.4,
       0.0,
       4.4
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/chest",
@@ -3731,7 +3961,8 @@
       0.0,
       6.3
      ],
-     "yaw": 180
+     "yaw": 180,
+     "shadow": true
     },
     {
      "part": "town/goods_junk",
@@ -3757,7 +3988,8 @@
       33.4,
       0.0,
       4.4
-     ]
+     ],
+     "shadow": true
     },
     {
      "part": "town/chest",

@@ -3,14 +3,14 @@
  "name": "オルド背町（W2-05 town_kit_* / tex_town_* / bg_desert_*）",
  "auto": {"floor": "floor", "wall": "wall", "ceiling": "ceiling", "up": 0.6},
  "trim": {"surface": "trim", "on": ["wall"], "base": 0.4, "top": 0.0, "out": 0.05, "min_h": 1.0},
- "dress_shadows": true,
+ "dress_shadows": false,
  "sky": {
   "day": "res://assets/kit/town/sky_day.jpg",
   "night": "res://assets/kit/town/sky_night.jpg",
   "dawn": "res://assets/kit/town/sky_dusk.jpg"
  },
  "light": {
-  "day": {"ambient_color": "#cfc9c0", "ambient_energy": 0.5},
+  "day": {"ambient_color": "#b9c2d0", "ambient_energy": 0.38, "sun_energy": 1.85},
   "night": {"sky_energy": 0.45, "sun_energy": 0.22, "ambient_color": "#34416a", "ambient_energy": 0.55, "fog_color": "#121830"}
  },
  "surfaces": {
@@ -26,6 +26,8 @@
   "graphite": {"color": "#444641", "roughness": 0.6, "metallic": 0.3}
  },
  "materials": {
+  "flat": {"color": "#ffffff", "tint_mix": 1.0, "roughness": 0.82},
+  "metal": {"color": "#ffffff", "tint_mix": 1.0, "roughness": 0.5, "metallic": 0.5},
   "ivory": {"color": "#e9dfc9", "roughness": 0.8},
   "ivory2": {"color": "#d3c6ac", "roughness": 0.85},
   "graphite": {"color": "#444641", "roughness": 0.6, "metallic": 0.3},

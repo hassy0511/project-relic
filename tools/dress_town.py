@@ -66,6 +66,10 @@ def common(room, d):
     room["kit"] = "town"
 
 
+SHADOW = {"stall", "tent", "monument", "workshop_front", "diner_front", "stage", "lamp_post", "lamp_tall", "bench",
+          "stall_table", "crate", "barrel", "junk_pile", "planter_big"}
+
+
 # ---------------------------------------------------------------- 中段（広場と市場）
 
 def mid(room):
@@ -153,6 +157,23 @@ def mid(room):
     d.put("barrel", [27.6, 0, -6.4])
     d.put("barrel", [40.4, 0, -7.6], 0, scale=0.9)
 
+    # 広場の両脇の天幕と大きな鉢植え（town_mood_day の天幕と緑）
+    d.put("tent", [-9.0, 0, 11.2], 180)
+    d.put("tent", [9.0, 0, 11.2], 180)
+    for x, z in ((-13.2, 13.6), (13.2, 13.6), (-2.6, 13.8), (2.6, 13.8), (-36.5, -12.8), (36.5, -12.8)):
+        d.put("planter_big", [x, 0, z])
+
+    # --- 建物の横の面（何も無い白い壁）に窓
+    for x, yaw in ((-26.98, 90), (-41.02, 270)):
+        for z in (6.5, 10.5):
+            d.put("window_frame", [x, 1.3, z], yaw)
+            d.put("window_frame", [x, 4.4, z], yaw)
+    for x, yaw in ((-14.98, 90), (-25.02, 270)):
+        for z in (3.0, 7.0):
+            d.put("window_frame", [x, 1.3, z], yaw)
+    d.put("canvas_roll", [-26.98, 3.6, 8.5], 90)
+    d.put("pipes", [-26.3, 0, 9.0], 90)
+
     # --- ヤーナの工房（正面 z=4、入口の奥まり z=6）
     d.put("workshop_front", [-34, 0, 4.0], 180)
     sign(room, "ヤーナの工房", "sign_wall_3", 180, 3.0)
@@ -183,6 +204,10 @@ def mid(room):
     d.put("clothesline", [31, 0, 11.5], 180)
     d.put("water_tower", [31, 0, 13.6], 0, scale=1.3)
 
+    # 影を落とすのは近くで形を読ませる物だけ（キットの既定は影なし。影の描画は部品の描画の 2 倍以上かかる）
+    for it in d.items:
+        if it["part"].split("/")[1] in SHADOW and "shadow" not in it:
+            it["shadow"] = True
     room["dress"] = d.items
     return room
 

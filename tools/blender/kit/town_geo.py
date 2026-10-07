@@ -34,6 +34,13 @@ MATERIALS: dict[str, dict] = {
 }
 
 
+# 書き出しでまとめる材質：平らな色だけの材質は頂点の色にして 1 つの材質（flat）に、金属（黒鉛・真鍮）は metal にまとめる。
+# 部品ごとの描画は多くて flat・metal・amber の 3 回になる（スマホのブラウザ版の描画の回数を減らす）。
+# Godot のキット（town.json）の flat・metal は tint_mix=1 で頂点の色を使う。hull・desert（遠景）はそのまま
+GROUP = {'ivory': 'flat', 'ivory2': 'flat', 'cloth': 'flat', 'cloth2': 'flat', 'wood': 'flat', 'wood2': 'flat', 'dark': 'flat',
+         'green': 'flat', 'rope': 'flat', 'linen': 'flat', 'graphite': 'metal', 'brass': 'metal'}
+
+
 def hex_lin(h: str) -> tuple[float, float, float]:
     h = h.lstrip('#')
     c = [int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
@@ -296,10 +303,18 @@ def blender_material(name: str):
     m = bpy.data.materials.get(name)
     if m:
         return m
-    d = MATERIALS[name]
     m = bpy.data.materials.new(name)
     m.use_nodes = True
     b = m.node_tree.nodes['Principled BSDF']
+    if name in ('flat', 'metal'):
+        # 頂点の色（確認の画像の Cycles 用。ゲームではキットの材質に置き換わる）
+        attr = m.node_tree.nodes.new('ShaderNodeVertexColor')
+        attr.layer_name = 'Col'
+        m.node_tree.links.new(attr.outputs['Color'], b.inputs['Base Color'])
+        b.inputs['Roughness'].default_value = 0.8 if name == 'flat' else 0.5
+        b.inputs['Metallic'].default_value = 0.0 if name == 'flat' else 0.5
+        return m
+    d = MATERIALS[name]
     col = hex_lin(d['color'])
     b.inputs['Base Color'].default_value = (*col, 1)
     b.inputs['Roughness'].default_value = d.get('rough', 0.8)
@@ -312,35 +327,41 @@ def blender_material(name: str):
 
 
 def to_object(part: Part):
-    """部品を Blender の物体 1 つ（材質ごとの面）にする。UV は面の向きの平面投影（m）"""
+    """部品を Blender の物体 1 つにする。平らな色は頂点の色（GROUP）、UV は面の向きの平面投影（m）"""
     import bpy
-    verts, faces, mats, smooth = [], [], [], []
-    names = sorted(part.by_mat)
+    verts, faces, mats, smooth, cols = [], [], [], [], []
+    groups = sorted({GROUP.get(m, m) for m in part.by_mat})
     off = 0
-    for mi, m in enumerate(names):
+    for m in sorted(part.by_mat):
+        mi = groups.index(GROUP.get(m, m))
+        col = (*hex_lin(MATERIALS[m]['color']), 1.0)
         for p in part.by_mat[m]:
             verts.append(p.v)
             for k, f in enumerate(p.f):
                 faces.append([i + off for i in f])
                 mats.append(mi)
                 smooth.append(p.sm[k])
+                cols.append(col)
             off += len(p.v)
     g = np.concatenate(verts)
     b = np.stack([g[:, 0], -g[:, 2], g[:, 1]], 1)      # ゲーム (x, y, z) → Blender (x, -z, y)
     me = bpy.data.meshes.new(part.name)
     me.from_pydata(b.tolist(), [], faces)
-    for m in names:
+    for m in groups:
         me.materials.append(blender_material(m))
     for pl, mi, sm in zip(me.polygons, mats, smooth):
         pl.material_index = mi
         pl.use_smooth = bool(sm)
+    ca = me.color_attributes.new(name='Col', type='FLOAT_COLOR', domain='CORNER')
     uv = me.uv_layers.new(name='UVMap')
     for pl in me.polygons:
         n = np.abs(np.array(pl.normal))
         ax = int(np.argmax(n))
+        c = cols[pl.index]
         for li in pl.loop_indices:
             co = b[me.loops[li].vertex_index]
             uv.data[li].uv = {0: (co[1], co[2]), 1: (co[0], co[2]), 2: (co[0], co[1])}[ax]
+            ca.data[li].color = c
     me.validate()
     ob = bpy.data.objects.new(part.name, me)
     bpy.context.scene.collection.objects.link(ob)
@@ -361,7 +382,8 @@ def write_glb(part: Part, path: str) -> dict:
     bpy.context.view_layer.objects.active = ob
     os.makedirs(os.path.dirname(path), exist_ok=True)
     bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', export_yup=True, export_apply=True,
-                              export_animations=False, use_selection=True, export_extras=False)
+                              export_animations=False, use_selection=True, export_extras=False,
+                              export_vertex_color='ACTIVE', export_active_vertex_color_when_no_material=True)
     lo, hi = part.bounds()
-    return {'tris': part.tris(), 'mats': len(part.by_mat), 'min': [round(float(x), 2) for x in lo],
+    return {'tris': part.tris(), 'mats': len({GROUP.get(m, m) for m in part.by_mat}), 'min': [round(float(x), 2) for x in lo],
             'max': [round(float(x), 2) for x in hi]}

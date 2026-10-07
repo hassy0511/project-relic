@@ -587,7 +587,36 @@ def deck_slab(w=96.0, d=40.0) -> Part:
     return p
 
 
+def window_frame() -> Part:
+    """窓だけ（壁に貼る）：暗い奥・黒鉛の枠・上へ開いた木の雨戸。原点 = 窓の下の縁の中心・壁の面"""
+    p = Part('window_frame')
+    _window(p, 0, 0, 0.0)
+    p.add('ivory2', boxb(-0.5, 0.5, -0.14, -0.06, 0, 0.2))
+    return p
+
+
+def tent(w=4.0, d=3.0, h=2.6) -> Part:
+    """立った日よけ（広場の露店の天幕、town_mood_day の左の天幕）：4 本の真鍮の柱と赤い帆布、下に台と木箱"""
+    p = Part('tent')
+    hx, hz = w / 2 - 0.1, d / 2 - 0.1
+    for x in (-hx, hx):
+        for z in (-hz, hz):
+            p.add('brass', cyl((x, 0, z), (x, h + 0.25, z), 0.05, 8))
+            p.add('graphite', boxb(x - 0.12, x + 0.12, 0, 0.08, z - 0.12, z + 0.12))
+    p.add('cloth', sheet(lambda u, v: (-w / 2 - 0.1 + (w + 0.2) * u, h + 0.35 * math.sin(math.pi * v) - 0.12 * math.sin(math.pi * u) * math.sin(math.pi * v),
+                                       -d / 2 - 0.1 + (d + 0.2) * v), 8, 6, 0.03))
+    p.add('cloth', sheet(lambda u, v: (-w / 2 - 0.1 + (w + 0.2) * u, h + 0.02 - 0.32 * v * (0.72 + 0.28 * math.cos(u * math.pi * 2 * w)), d / 2 + 0.1), int(w * 4), 1, 0.02))
+    p.place(P.stall_table(2.0), (0, 0, -0.3))
+    p.place(goods_general(1.8), (0, 0.955, -0.45), 0, (1, 1, 0.6))
+    p.place(P.crate(), (-1.4, 0, 0.6), 10, 0.7)
+    p.place(P.barrel(), (1.4, 0, 0.5), 0, 0.8)
+    P.lantern(p, 0, h - 0.35, 0, 1.0)
+    p.add('brass', cyl((0, h - 0.05, 0), (0, h + 0.3, 0), 0.012, 5))
+    return p
+
+
 SETS = {
+    'window_frame': window_frame, 'tent': tent, 'planter_big': lambda: P.planter(1.2, 0.95),
     'stall': stall, 'goods_general': goods_general, 'goods_junk': goods_junk,
     'goods_shelf_general': lambda: goods_shelf(7.0, 2.4, 'general'), 'goods_shelf_junk': lambda: goods_shelf(7.0, 2.4, 'junk'),
     'parapet_rail_8': lambda: parapet_rail(8.0), 'parapet_rail_4': lambda: parapet_rail(4.0),
