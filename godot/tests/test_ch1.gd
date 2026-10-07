@@ -155,21 +155,17 @@ func test_town_walking() -> void:
 	_warp(g, Vector3(0, 0, -8), PI)
 	await h.run_until(g, TestHelpers.seconds(20), {"move_y": 1.0}, func(): return g.room_id == "ch1.lower")
 	h.expect(g.room_id == "ch1.lower", "中段の階段を降りると下段へ戻る（%s）" % g.room_id)
-	# 訓練場の溝：ダッシュジャンプで越える
+	# 訓練場の溝：適合の前なのでダッシュは無い。走りジャンプで越える
 	g.set_flag("trigger.ch1.training.start")
 	g.load_room("ch1.training", "start")
 	await _pump(g, 6)
 	_warp(g, Vector3(3, 0, 14), 0.0)
-	var dashed := [false]
 	await h.run(g, TestHelpers.seconds(4.0), func(i):
 		var z: float = g.player.pos.z
-		var d: bool = not dashed[0] and z > 22.4
-		if d:
-			dashed[0] = true
-		return {"move_y": 1.0, "dash": d, "jump": z > 25.4})
-	h.expect(g.player.pos.z > 32.0 and g.player.pos.y > -0.3, "溝（幅 6 m）をダッシュジャンプで越えられる（z=%.1f, y=%.1f）" % [g.player.pos.z, g.player.pos.y])
+		return {"move_y": 1.0, "jump": z > 25.3 and z < 27.5})
+	h.expect(g.player.pos.z > 31.0 and g.player.pos.y > -0.3, "溝（幅 4 m）を走りジャンプで越えられる（z=%.1f, y=%.1f）" % [g.player.pos.z, g.player.pos.y])
 	# 溝に落ちても、南のスロープから戻れる
-	_warp(g, Vector3(0, -1.5, 29), PI)
+	_warp(g, Vector3(0, -1.5, 28.5), PI)
 	await h.run(g, TestHelpers.seconds(5.0), {"move_y": 1.0})
 	h.expect(g.player.pos.y > -0.3 and g.player.pos.z < 26.0, "溝に落ちても南のスロープから戻れる（z=%.1f, y=%.1f）" % [g.player.pos.z, g.player.pos.y])
 	h.free_game(g)
@@ -210,6 +206,24 @@ func test_nagomi_joins_at_frame_fit() -> void:
 	await _pump(g, 2)
 	h.expect(g.nagomi_present(), "見本の部屋では最初からナゴミがいる")
 	view.queue_free()
+	h.free_game(g)
+
+
+## 適合の前は、ダッシュ・光刃・ロックオンが使えない（訓練場は移動・ジャンプ・射撃だけ）。適合の後は使える
+func test_frame_powers_after_fitting() -> void:
+	var g := _new_game()
+	await h.settle()
+	g.set_flag("trigger.ch1.training.start")
+	g.load_room("ch1.training", "start")
+	await _pump(g, 6)
+	h.expect(not g.has_frame(), "適合の前")
+	await h.run(g, 10, {"dash": true, "sword": true, "lock_on": true, "fire": true})
+	h.expect(not g.input.dash and not g.input.sword and not g.input.lock_on and g.input.fire, "適合の前：ダッシュ・斬る・ロックオンは押していないことになる（撃つは使える）")
+	h.expect(g.player.dash_time <= 0.0 and g.player.attack == null, "適合の前：ダッシュも斬りも出ない")
+	g.set_flag(GameSim.NAGOMI_JOIN_FLAG)
+	await _pump(g, 30)
+	await h.run(g, 3, {"dash": true, "move_y": 1.0})
+	h.expect(g.player.dash_time > 0.0, "適合の後：ダッシュが出る")
 	h.free_game(g)
 
 

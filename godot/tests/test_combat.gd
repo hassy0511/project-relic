@@ -51,6 +51,33 @@ func test_no_lock_through_wall() -> void:
 	h.free_game(g)
 
 
+## 押し続けている間は、押した瞬間に誰もいなくても、見えた刻みで捉える（押し直さなくてよい）
+func test_lock_on_acquires_while_held() -> void:
+	var g := h.make_game({
+		"markers": {"e1": Vector3(0, 0, -15)},
+		"placement": _enemies([{"type": "sentry", "at": "e1"}]),
+	})
+	await h.settle()
+	await h.run(g, 40, {"lock_on": true})
+	h.expect(g.lock_on.target == null, "背後 15 m の敵は、押した瞬間には捉えない")
+	g.cam.yaw = U.dir_to_yaw(0.0, -15.0)
+	await h.run(g, 2, {"lock_on": true})
+	h.expect(g.lock_on.target == g.enemies[0], "押したままカメラを向けると、押し直さずに捉える")
+	h.free_game(g)
+
+
+## すぐ近く（8 m 以内）の敵は、カメラの向きに関係なく捉える
+func test_lock_on_near_enemy_any_angle() -> void:
+	var g := h.make_game({
+		"markers": {"e1": Vector3(0, 0, -5)},
+		"placement": _enemies([{"type": "sentry", "at": "e1"}]),
+	})
+	await h.settle()
+	await h.run(g, 2, {"lock_on": true})
+	h.expect(g.lock_on.target == g.enemies[0], "背後 5 m の敵も捉える")
+	h.free_game(g)
+
+
 func test_gun_kills_sentry() -> void:
 	var g := h.make_game({
 		"markers": {"e1": Vector3(0, 0, 8)},

@@ -104,6 +104,20 @@ func test_camera_recenter_deadzone() -> void:
 	for i in 600:
 		cam.update(1.0 / 60.0, Vector3.ZERO, 90.0 * U.DEG, 7.0, null)
 	h.near(cam.yaw / U.DEG, 65.0, 0.5, "90 度の差なら、不感帯（25 度）の端まで寄る")
+	# 弱い：横へ歩いても回らない。前寄り（40 度）なら不感帯の端まで寄る
+	cam.follow = "weak"
+	cam.yaw = 0.0
+	for i in 600:
+		cam.update(1.0 / 60.0, Vector3.ZERO, 90.0 * U.DEG, 7.0, null)
+	h.near(cam.yaw, 0.0, 0.0001, "弱い：真横へ歩いてもカメラは回らない")
+	for i in 900:
+		cam.update(1.0 / 60.0, Vector3.ZERO, 40.0 * U.DEG, 7.0, null)
+	h.near(cam.yaw / U.DEG, 15.0, 0.5, "弱い：前寄り（40 度）なら不感帯の端（15 度）まで寄る")
+	cam.follow = "off"
+	cam.yaw = 0.0
+	for i in 600:
+		cam.update(1.0 / 60.0, Vector3.ZERO, 120.0 * U.DEG, 7.0, null)
+	h.near(cam.yaw, 0.0, 0.0001, "切：自動では回らない")
 
 
 # ---------------------------------------------------------------- 割り当て
@@ -193,7 +207,7 @@ func test_controls_screen_assign() -> void:
 	var backed := [false]
 	menu.show_controls(func(): backed[0] = true)
 	await h.tree.process_frame
-	h.expect(menu.buttons.size() == PadConfig.ACTIONS.size() + 6, "全部の操作＋表記・遊び 2 つ・PS 配置・初期に戻す・戻る の行がある")
+	h.expect(menu.buttons.size() == PadConfig.ACTIONS.size() + 7, "全部の操作＋表記・遊び 2 つ・カメラの回り込み・PS 配置・初期に戻す・戻る の行がある")
 	h.expect(menu.pad_info_text().contains("押したボタンの番号"), "押したボタンの番号の表示がある")
 	# 割り当て待ちでないときは、押したものを表示するだけ
 	menu.feed_event(_btn(7))
@@ -216,9 +230,12 @@ func test_controls_screen_assign() -> void:
 	await h.tree.process_frame
 	h.expect(PadConfig.pad.jump == "b9" and PadConfig.pad.dash == "b0", "使い済みのボタンなら入れ替わる")
 	# 初期に戻す
-	menu.buttons[PadConfig.ACTIONS.size() + 4].pressed.emit()
+	menu.buttons[PadConfig.ACTIONS.size() + 3].pressed.emit()
 	await h.tree.process_frame
-	h.expect(PadConfig.pad.jump == "b0", "初期に戻す")
+	h.expect(PadConfig.cam_follow == "off", "カメラの自動回り込みを決定で切り替える（弱い → 切）")
+	menu.buttons[PadConfig.ACTIONS.size() + 5].pressed.emit()
+	await h.tree.process_frame
+	h.expect(PadConfig.pad.jump == "b0" and PadConfig.cam_follow == "weak", "初期に戻す（カメラの回り込みも弱いに戻る）")
 	menu.queue_free()
 	_end()
 

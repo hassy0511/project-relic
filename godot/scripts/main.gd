@@ -358,6 +358,7 @@ func _physics_process(dt: float) -> void:
 		_open_retry()
 		return
 	var f: InputFrame = demo.next_input() if demo else input.sample(dt)
+	game.cam.follow = PadConfig.cam_follow
 	game.step(f)
 	_handle_events()
 	_update_audio()
@@ -374,6 +375,10 @@ func _process(dt: float) -> void:
 	if game != null:
 		var dlg: Dictionary = game.story.dialogue
 		touch.stick_hint = dlg.is_empty()
+	var unavail: Array = [] if game == null or game.has_frame() else ["dash", "sword", "lock_on"]
+	if unavail != touch.unavailable:
+		touch.unavailable = unavail
+		touch.lock_toggled = touch.lock_toggled and unavail.is_empty()
 	touch.set_shown(state == "playing" and demo == null or (demo != null and args.has("touch") and state == "playing"))
 	hud.compact = touch.active
 	if game and state == "playing":

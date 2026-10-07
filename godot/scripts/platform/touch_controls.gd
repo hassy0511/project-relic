@@ -38,6 +38,8 @@ var lock_toggled := false
 var move := Vector2.ZERO
 ## 触れる前のスティックの案内を出すか（会話中は隠す。main が設定する）
 var stick_hint := true
+## まだ使えないボタン（適合の前のダッシュ・斬る・ロック。main が毎刻み設定する）。描かず、押せない
+var unavailable: Array = []
 
 var _draw: Control
 var _held := {}          # ボタン名 → 押している指の番号
@@ -160,6 +162,8 @@ func _layout(list: Array) -> Array:
 	var h := size.y
 	var out := []
 	for b in list:
+		if unavailable.has(b[0]):
+			continue
 		var off: Vector2 = b[2]
 		var anchor := Vector2(size.x, size.y if off.y < 0.0 else 0.0)
 		out.append([b[0], b[1], anchor + off * h, b[3] * h])

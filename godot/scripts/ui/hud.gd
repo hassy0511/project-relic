@@ -49,6 +49,8 @@ var _we_icon: TextureRect
 var _we: UiArt.Gauge
 var _heals: Label
 var _spark_tile: Control
+## 光刃のアイコン（適合の前は隠す）
+var _blade_tile: Control
 var _spark_icon: TextureRect
 var _cells_box: PanelContainer
 var _cells: Label
@@ -281,7 +283,8 @@ func _ready() -> void:
 	_spark_tile = _tile(UiArt.spark_icon(false))
 	_spark_icon = _spark_tile.get_child(0)
 	row3.add_child(_spark_tile)
-	row3.add_child(_tile(UiArt.tex("icon_blade")))
+	_blade_tile = _tile(UiArt.tex("icon_blade"))
+	row3.add_child(_blade_tile)
 
 	# --- 右上：所持セル、その下に今の目的 ---
 	_cells_box = PanelContainer.new()
@@ -564,6 +567,7 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 	_time += dt
 	var vs := _root.size
 	var p := game.player
+	_blade_tile.visible = game.has_frame()
 	var ratio := clampf(p.hp / p.max_hp, 0.0, 1.0)
 	# HP：減った分は少し遅れて縮む（ui_parts_gauge_hp_fill_damaged）。3 割を切ると危険の色を明滅させる
 	if ratio < _hp_lag:

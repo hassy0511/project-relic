@@ -481,6 +481,9 @@ func boss_status() -> Dictionary:
 # ---------------------------------------------------------------- 1 刻み
 
 func step(frame: InputFrame) -> void:
+	# 適合の前は、ダッシュ・光刃・ロックオンは使えない（シナリオ：訓練場は移動・ジャンプ・射撃だけ。設計 10 章）
+	if not has_frame():
+		frame = without_frame_powers(frame)
 	input = frame
 	edges.update(frame)
 	consumed_jump = false
@@ -570,12 +573,30 @@ func _update_dialogue_input(frame: InputFrame) -> void:
 
 ## ナゴミが仲間になるフラグ（第 1 章の封印室で、フレームとの適合と一緒に起動する）
 const NAGOMI_JOIN_FLAG := "ch1.frame_fitted"
+## フレームの力（適合の後に使える操作）。ロックオンと弱点の解析はナゴミ、ダッシュと光刃はフレーム
+const FRAME_BUTTONS := ["dash", "sword", "lock_on", "switch_left", "switch_right"]
 
 
-## ナゴミがハルについて来ているか。第 1 章の部屋（ch1.*）では、適合の前はまだいない。
-## 試しの部屋・見本の部屋（arena・sample・mvp）では最初からいる。
-func nagomi_present() -> bool:
+## フレームと適合したか（＝ナゴミが仲間になったか）。第 1 章の部屋（ch1.*）では適合の前は偽。
+## 試しの部屋・見本の部屋（arena・sample・mvp）では最初から真。
+func has_frame() -> bool:
 	return not room_id.begins_with("ch1.") or flag(NAGOMI_JOIN_FLAG)
+
+
+## ナゴミがハルについて来ているか（適合と同時に起動する）
+func nagomi_present() -> bool:
+	return has_frame()
+
+
+## 適合の前：フレームの力のボタン（ダッシュ・光刃・ロックオン・対象の切り替え）を押していないことにした入力
+static func without_frame_powers(f: InputFrame) -> InputFrame:
+	var o := InputFrame.new()
+	for p in f.get_property_list():
+		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			o.set(p.name, f.get(p.name))
+	for b in FRAME_BUTTONS:
+		o.set(b, false)
+	return o
 
 
 func flag(name: String) -> bool:

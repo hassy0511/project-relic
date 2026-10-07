@@ -8,6 +8,8 @@ var _sight_lost := 0.0
 var _scan_time := 0.0
 ## 解析済みの敵の種類（弱点を表示できる）
 var scanned := {}
+## この距離（m）より近い敵は、カメラの向きに関係なく候補にする（すぐ横・後ろの敵も捉えられるように）
+const NEAR_ANY_ANGLE := 8.0
 
 
 func _init(g) -> void:
@@ -29,6 +31,11 @@ func update(dt: float) -> void:
 		target = _pick_best(null)
 		if target == null:
 			g.cam.request_recenter()
+	elif target == null:
+		# 押し続けている間（タッチは入れている間）は、捉えられる敵が見えた刻みで捉える。
+		# （押した瞬間に誰もいない・対象が離れた・見えなくなったあとでも、押し直さずに捉え直す）
+		target = _pick_best(null)
+		_scan_time = 0.0
 	if target == null:
 		return
 
@@ -83,10 +90,11 @@ func candidates() -> Array:
 		if not e.alive:
 			continue
 		var c: Vector3 = e.center()
-		if c.distance_to(chest) > cfg.range:
+		var dist := c.distance_to(chest)
+		if dist > cfg.range:
 			continue
 		var rel := absf(U.wrap_angle(U.dir_to_yaw(c.x - chest.x, c.z - chest.z) - g.cam.yaw))
-		if rel > 75.0 * U.DEG:
+		if rel > 75.0 * U.DEG and dist > NEAR_ANY_ANGLE:
 			continue
 		if _has_line_of_sight(e):
 			out.append(e)
@@ -134,12 +142,15 @@ func _pick_side(side: int):
 	return best
 
 
+## 視線が通っているか：敵の中心か頭のどちらかが見えればよい（低い壁・柱の陰から体の一部が見えている敵も捉える）
 func _has_line_of_sight(e) -> bool:
 	var g = game
 	var from: Vector3 = g.player.chest()
-	var to: Vector3 = e.center()
-	var d := to - from
-	var l := d.length()
-	if l < 0.01:
-		return true
-	return g.phys.raycast(from, d / l, l, Phys.TERRAIN | Phys.BREAKABLE).is_empty()
+	for to in [e.center(), e.pos + Vector3(0, e.height * 0.9, 0)]:
+		var d: Vector3 = to - from
+		var l := d.length()
+		if l < 0.01:
+			return true
+		if g.phys.raycast(from, d / l, l, Phys.TERRAIN | Phys.BREAKABLE).is_empty():
+			return true
+	return false

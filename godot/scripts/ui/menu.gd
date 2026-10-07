@@ -479,10 +479,15 @@ func show_controls(back: Callable, focus := 0, note := "") -> void:
 		"cb": func():
 			PadConfig.cycle_dead(false)
 			show_controls(back, PadConfig.ACTIONS.size() + 2, "右スティックの遊び：%s" % PadConfig.dead_text(false))})
+	rows.append({"label": "カメラの自動回り込み", "right": PadConfig.CAM_FOLLOW_TEXT[PadConfig.cam_follow],
+		"detail": "歩いているとき、カメラが自動でハルの背後へ回るかどうか。\n弱い：前へ進むときだけゆっくり回る（横や後ろへ歩いてもカメラは回らない）。\n切：自動では回らない（右スティック・マウスで回す。背後のボタンで真後ろへ）。\n強い：横・後ろへ進んでも回る。\n決定で切り替える。",
+		"cb": func():
+			PadConfig.cycle_cam_follow()
+			show_controls(back, PadConfig.ACTIONS.size() + 3, "カメラの自動回り込み：%s" % PadConfig.CAM_FOLLOW_TEXT[PadConfig.cam_follow])})
 	rows.append({"label": "PS 配置（× で決定）", "detail": "PlayStation 系のコントローラーで、ブラウザが標準の割り当てにしてくれず、ボタンが番号順（□=0 ×=1 ○=2 △=3 L1=4 R1=5 L2=6 R2=7 SHARE=8 OPTIONS=9 L3=10 R3=11）で届くとき用。× がジャンプ・決定、○ がダッシュ・戻る、□ が斬る、△ が特殊武器、L2 がロックオン、R2 が撃つになる。\n標準の割り当てで届くコントローラーなら「初期に戻す」のままで × が決定になる。うまく合わないときは、各行を選んで 1 つずつ割り当てる。", "cb": func():
 		PadConfig.preset_ps_raw()
-		show_controls(back, PadConfig.ACTIONS.size() + 3, "PS 配置にした（×＝決定）")})
-	rows.append({"label": "初期に戻す", "detail": "ボタン・キーの割り当てと、表記・スティックの遊びをすべて初めの状態に戻す。", "cb": func():
+		show_controls(back, PadConfig.ACTIONS.size() + 4, "PS 配置にした（×＝決定）")})
+	rows.append({"label": "初期に戻す", "detail": "ボタン・キーの割り当てと、表記・スティックの遊び・カメラの自動回り込みをすべて初めの状態に戻す。", "cb": func():
 		PadConfig.reset_all()
 		show_controls(back, 0, "初期の割り当てに戻した")})
 	rows.append({"label": "戻る", "detail": "前の画面へ戻る。", "cb": back})

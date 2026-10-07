@@ -54,6 +54,10 @@ static var _loaded := false
 static var style := "auto"
 static var dead_l := 0.15
 static var dead_r := 0.2
+## カメラの自動回り込み（CameraOrbit.follow）。初期は「弱い」：前へ進むときだけゆっくり背後へ回る
+const CAM_FOLLOWS := ["weak", "off", "normal"]
+const CAM_FOLLOW_TEXT := {"weak": "弱い（前へ進むときだけ）", "off": "切（自分で回す）", "normal": "強い（横・後ろへ進んでも回る）"}
+static var cam_follow := "weak"
 
 
 static func defaults() -> Dictionary:
@@ -77,6 +81,7 @@ static func reset() -> void:
 	style = "auto"
 	dead_l = 0.15
 	dead_r = 0.2
+	cam_follow = "weak"
 	_loaded = true
 
 
@@ -95,6 +100,8 @@ static func load_file() -> void:
 	style = st if STYLES.has(st) else "auto"
 	dead_l = clampf(float(cf.get_value("options", "dead_l", 0.15)), 0.0, 0.6)
 	dead_r = clampf(float(cf.get_value("options", "dead_r", 0.2)), 0.0, 0.6)
+	var cfw := String(cf.get_value("options", "cam_follow", "weak"))
+	cam_follow = cfw if CAM_FOLLOWS.has(cfw) else "weak"
 	for a in ACTIONS:
 		var id: String = a[0]
 		var p = cf.get_value("pad", id, "?")
@@ -115,6 +122,7 @@ static func save() -> void:
 	cf.set_value("options", "style", style)
 	cf.set_value("options", "dead_l", dead_l)
 	cf.set_value("options", "dead_r", dead_r)
+	cf.set_value("options", "cam_follow", cam_follow)
 	for a in ACTIONS:
 		var id: String = a[0]
 		cf.set_value("pad", id, pad.get(id, ""))
@@ -262,6 +270,13 @@ static func assign_key(action: String, keycode: int) -> String:
 
 
 ## 表記を 自動 → Xbox → PlayStation の順に切り替える
+## カメラの自動回り込みを次の段階へ（弱い → 切 → 強い → 弱い）
+static func cycle_cam_follow() -> void:
+	ensure_loaded()
+	cam_follow = CAM_FOLLOWS[(CAM_FOLLOWS.find(cam_follow) + 1) % CAM_FOLLOWS.size()]
+	save()
+
+
 static func cycle_style() -> void:
 	ensure_loaded()
 	style = STYLES[(STYLES.find(style) + 1) % STYLES.size()]

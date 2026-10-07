@@ -262,7 +262,8 @@ func test_manual_respawn_waits_for_retry() -> void:
 	h.free_game(g)
 
 
-func test_practice_dummy_for_lock_on() -> void:
+## 訓練場（適合の前）：的を撃ち終えても練習用の番機は出ず、ロックオンはまだ使えない（ロックオンはナゴミの力。封印室で覚える）
+func test_training_has_no_lock_on_before_fitting() -> void:
 	var g := _new_game()
 	await h.settle()
 	g.load_room("ch1.training", "start")
@@ -271,18 +272,16 @@ func test_practice_dummy_for_lock_on() -> void:
 	for id in ["ch1.tg1", "ch1.tg2", "ch1.tg3"]:
 		g.activate_switch(g.switch_by_id(id))
 	await _pump(g, 120)
-	var dummy = g.enemies.filter(func(e): return e.id == "ch1.practice")
-	h.expect(dummy.size() == 1 and dummy[0].passive and dummy[0].invulnerable, "的を撃ち終えると、練習用の番機が出る（動かない・倒せない）")
-	var d = dummy[0]
+	h.expect(g.flag("ch1.t_shoot"), "的を 3 つ撃つと案内が進む")
+	h.expect(g.enemies.filter(func(e): return e.id == "ch1.practice").is_empty(), "練習用の番機は出ない")
+	g.spawn_enemy_spec({"type": "sentry", "pos": [8, 0, 15], "passive": true, "invulnerable": true})
 	g.player.teleport(Vector3(8, 0, 6), 0.0)
 	g.cam.yaw = 0.0
-	await _pump(g, 30)
-	for i in 60:
+	for i in 30:
 		await h.tree.physics_frame
 		g.step(InputFrame.of({"lock_on": true}))
 		g.drain_events()
-	h.expect(g.lock_on.target == d, "練習用の番機をロックオンできる")
-	h.near(d.pos.x, 8.0, 0.2, "練習用の番機は動かない")
+	h.expect(g.lock_on.target == null, "適合の前はロックオンできない")
 	h.free_game(g)
 
 

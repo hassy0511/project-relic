@@ -7,6 +7,11 @@ var t: Dictionary
 var yaw := PI
 var pitch := 12.0 * U.DEG
 var _idle_look := 0.0
+## 移動に合わせた自動の回り込み："off"＝回らない（右スティック・マウス・背後のボタンだけ）、
+## "weak"＝前寄り（カメラの前方 ±FORWARD_ONLY 度以内）へ進むときだけゆっくり、"normal"＝横・後ろへ進んでも回る。
+## 設定画面の「カメラの自動回り込み」（PadConfig.cam_follow）を main が毎刻み入れる
+var follow := "normal"
+const FORWARD_ONLY := 50.0
 var _recentering := 0.0
 
 
@@ -43,7 +48,7 @@ func update(dt: float, player_pos: Vector3, player_yaw: float, player_speed: flo
 		yaw = U.wrap_angle(yaw + U.wrap_angle(player_yaw - yaw) * U.damp(14.0, dt))
 		pitch += (c.defaultPitch * U.DEG - pitch) * U.damp(10.0, dt)
 		return
-	if _idle_look > c.autoRecenterDelay and player_speed > 2.0:
+	if follow != "off" and _idle_look > c.autoRecenterDelay and player_speed > 2.0:
 		# 操作がしばらくないときは、移動の向きの背後へゆっくり回る。
 		# ただしプレイヤーの向きとの差が autoRecenterDeadzone（度）以内なら回らない。
 		# （まっすぐ倒したつもりの数度のずれを追いかけると、向きが少しずれる → カメラが回る → 入力の基準が回る、
@@ -51,6 +56,11 @@ func update(dt: float, player_pos: Vector3, player_yaw: float, player_speed: flo
 		var dead: float = float(c.get("autoRecenterDeadzone", 25.0)) * U.DEG
 		var diff := U.wrap_angle(player_yaw - yaw)
 		var excess := absf(diff) - dead
+		# 弱い：横や後ろへ進むときは回らない（左スティックを横に倒しただけでカメラが回らないように）
+		if follow == "weak" and absf(diff) > FORWARD_ONLY * U.DEG:
+			excess = 0.0
 		if excess > 0.0:
 			var rate: float = c.autoRecenterSpeed * clampf(player_speed / 7.0, 0.0, 1.0) * dt
+			if follow == "weak":
+				rate *= 0.5
 			yaw = U.wrap_angle(yaw + signf(diff) * minf(excess, rate))
