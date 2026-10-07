@@ -144,10 +144,19 @@ func sync(p: Player, game: GameSim, dt: float, aim_dir: Vector3) -> void:
 
 	var a := p.anim()
 	_play(a, FADE.get(a, 0.15))
-	if anim and a == "run":
-		anim.speed_scale = maxf(0.6, p.speed() / 7.0)
-	elif anim:
-		anim.speed_scale = 1.0
+	if anim:
+		if game.hitstop > 0.0:
+			# ヒットストップ中は中身が止まるので、見た目も止める（当たったこまで止まって見える）
+			anim.speed_scale = 0.0
+		elif a == "run":
+			anim.speed_scale = maxf(0.6, p.speed() / 7.0)
+		elif p.attack != null and anim.has_animation(a):
+			# 攻撃の動作は中身の攻撃時間と同じ長さで流す。動作の振り抜きは攻撃時間の 25%（当たり判定の始まり）に
+			# 置いてあるので、速さを合わせれば当たるこまと刃が合う
+			var len := anim.get_animation(a).length
+			anim.speed_scale = len / maxf(p.attack.duration, 0.01) if len > 0.0 else 1.0
+		else:
+			anim.speed_scale = 1.0
 
 	if pose:
 		# 撃つ：照準の向きをキャラクターの座標系へ
