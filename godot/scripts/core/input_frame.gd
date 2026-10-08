@@ -38,6 +38,20 @@ func button(name: String) -> bool:
 	return bool(get(name))
 
 
+## 中身の写し（項目の名前は一度だけ調べて覚えておく）
+static var _fields := PackedStringArray()
+
+func copy() -> InputFrame:
+	if _fields.is_empty():
+		for p in get_property_list():
+			if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE and p.name != "_fields":
+				_fields.append(p.name)
+	var o := InputFrame.new()
+	for k in _fields:
+		o.set(k, get(k))
+	return o
+
+
 ## ボタンの「押した瞬間」「離した瞬間」を前の刻みとの比較で得る
 class Edges:
 	var prev := InputFrame.new()

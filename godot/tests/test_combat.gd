@@ -263,6 +263,50 @@ func test_locked_shot_goes_to_target() -> void:
 	h.free_game(g)
 
 
+## ロックオン中も、対象の見えている所へ撃つ：低い壁の陰で中心が隠れ、頭だけ見える敵には頭へ撃ち、弾は頭を追う。
+## （前は中心へ撃って全部壁に当たり、ロックオンしない方が当たった）。背の高い盾型も、捉えられれば撃って当たる
+func test_locked_shot_hits_partly_covered_enemy() -> void:
+	for c in [["sentry", 0.85], ["sentry", 0.75], ["shield", 1.3]]:
+		var g := h.make_game({
+			"boxes": [[Vector3(0, c[1] * 0.5, 8), Vector3(3, c[1], 0.4)]],
+			"markers": {"e1": Vector3(0, 0, 9)},
+			"placement": _enemies([{"type": c[0], "at": "e1", "passive": true}]),
+		})
+		await h.settle()
+		g.god_mode = true
+		g.set_flag("ch1.got_spark")
+		var e = g.enemies[0]
+		await h.run(g, 3, {})
+		var chest: Vector3 = g.player.chest()
+		var head: Vector3 = e.aim_points()[1]
+		var what := "%s（壁 %.2fm）" % [c[0], c[1]]
+		h.expect(not g.has_clear_shot(chest, e.center()) and g.has_clear_shot(chest, head), "%s：中心は壁に隠れ、頭は見える" % what)
+		await h.run(g, 2, {"lock_on": true})
+		h.expect(g.lock_on.target == e, "%s：ロックオンできる" % what)
+		await h.run(g, 1, {"lock_on": true, "fire": true})
+		var s: Shot = g.shots[0]
+		h.expect(s.dir.dot((head - s.origin).normalized()) > 0.9999, "%s：見えている頭へ撃つ" % what)
+		h.expect((e.pos + s.homing_offset).is_equal_approx(head), "%s：弾は頭を追う" % what)
+		h.expect(await h.run_until(g, 120, {"lock_on": true, "fire": true}, func(): return e.hp < e.max_hp), "%s：ロックオンして撃てば当たる" % what)
+		h.free_game(g)
+
+
+## 敵の狙う点（中心と頭）は、どの種類でも当たりの球の内側（背の高い盾型の頭も）。見えていれば撃って当たる
+func test_enemy_aim_points_inside_hit_sphere() -> void:
+	for kind in ["sentry", "shield", "charger", "mini", "floater"]:
+		var g := h.make_game({
+			"markers": {"e1": Vector3(0, 0, 6)},
+			"placement": _enemies([{"type": kind, "at": "e1", "passive": true}]),
+		})
+		await h.settle()
+		var e = g.enemies[0]
+		var pts: PackedVector3Array = e.aim_points()
+		h.expect(pts.size() == 2 and pts[1].y > pts[0].y, "%s：中心と、その上の頭" % kind)
+		for p in pts:
+			h.expect(p.distance_to(e.center()) < e.radius, "%s：狙う点 %s は当たりの球（半径 %.2f）の内側" % [kind, p, e.radius])
+		h.free_game(g)
+
+
 func test_sword_combo() -> void:
 	var g := h.make_game({
 		"markers": {"e1": Vector3(0, 0, 1.6)},

@@ -91,6 +91,8 @@ var _raw_lock_prev := false
 ## ロックオンのボタンを押した瞬間があった（まだ使えない間も）。部屋の読み込み待ち・ヒットストップの間に押した分は、
 ## 世界が動く次の刻み（LockOn.update）まで持ち越す。会話中・イベント中に押した分は捨てる
 var _lock_pressed := false
+## 練習銃の性能（gun_cfg が一度だけ作る）
+var _practice_gun := {}
 ## 積まれた出来事（見た目・音・UI が取り出す）
 var _events: Array = []
 
@@ -524,7 +526,7 @@ func step(frame: InputFrame) -> void:
 
 	cam.apply_look(frame)
 	if frame.camera_reset:
-		cam.request_recenter()
+		recenter_camera()
 
 	if hitstop > 0.0:
 		hitstop -= DT
@@ -619,6 +621,12 @@ func has_ability(a: String) -> bool:
 	return false
 
 
+## カメラをハルの体の向きの背後へ回す（背後のボタン、対象がいないときのロックオンのボタン）。
+## 回している間は左スティックの基準を止める（CameraOrbit.request_recenter。走りながら押してもカメラが回り続けない）
+func recenter_camera() -> void:
+	cam.request_recenter(player.yaw, Vector2(input.move_x, input.move_y))
+
+
 ## フレームと適合したか（＝ナゴミが仲間になったか）
 func has_frame() -> bool:
 	return has_ability("lock_on")
@@ -629,30 +637,35 @@ func nagomi_present() -> bool:
 	return has_frame()
 
 
-## 今の主武器の性能：スパークを受け取る前は練習銃（tuning.practiceGun で上書きした弱い銃。連射だけ）
+## 今の主武器の性能：スパークを受け取る前は練習銃（tuning.practiceGun で上書きした弱い銃。連射だけ）。
+## 練習銃の表は一度だけ作って使い回す（腕の構え・弱い自動照準が毎フレーム呼ぶので。tuning は遊んでいる間は変わらない）
 func gun_cfg() -> Dictionary:
 	if has_ability("spark"):
 		return tuning.gun
-	var c: Dictionary = tuning.gun.duplicate()
-	c.merge(tuning.get("practiceGun", {}), true)
-	return c
+	if _practice_gun.is_empty():
+		_practice_gun = tuning.gun.duplicate()
+		_practice_gun.merge(tuning.get("practiceGun", {}), true)
+	return _practice_gun
 
 
-## まだ使えない力のボタンを、押していないことにした入力
+## まだ使えない力のボタンを、押していないことにした入力。
+## そのボタンを押していない刻み（ほとんどの刻み）は、渡された入力をそのまま返す（作り直さない）
 func _mask_locked_abilities(f: InputFrame) -> InputFrame:
-	var off := []
+	var o: InputFrame = null
 	for a in ABILITY_BUTTONS:
-		if not has_ability(a):
-			off.append_array(ABILITY_BUTTONS[a])
-	if off.is_empty():
-		return f
-	var o := InputFrame.new()
-	for p in f.get_property_list():
-		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
-			o.set(p.name, f.get(p.name))
-	for b in off:
-		o.set(b, false)
-	return o
+		var btns: Array = ABILITY_BUTTONS[a]
+		var any := false
+		for b in btns:
+			if f.button(b):
+				any = true
+				break
+		if not any or has_ability(a):
+			continue
+		if o == null:
+			o = f.copy()
+		for b in btns:
+			o.set(b, false)
+	return f if o == null else o
 
 
 func flag(name: String) -> bool:
@@ -963,7 +976,7 @@ func soft_aim(facing: float) -> Dictionary:
 			continue
 		var score := _soft_aim_score(chest, facing, reach, e.center(), e.radius)
 		if score < best_score:
-			var p = _soft_aim_point(chest, reach, e.center(), e.radius, e.aim_points())
+			var p = first_aim_point(chest, e.aim_points(), e.center(), e.radius, reach, SOFT_AIM_MIN_HDIST)
 			if p != null:
 				best_score = score
 				best = {"target": e, "point": p}
@@ -974,7 +987,7 @@ func soft_aim(facing: float) -> Dictionary:
 			continue
 		var score := _soft_aim_score(chest, facing, reach, sw.pos, sw.radius)
 		if score < best_score and shootable(sw):
-			var p = _soft_aim_point(chest, reach, sw.pos, sw.radius, sw.aim_points(chest))
+			var p = first_aim_point(chest, sw.aim_points(chest), sw.pos, sw.radius, reach, SOFT_AIM_MIN_HDIST)
 			if p != null:
 				best_score = score
 				best = {"target": sw, "point": p}
@@ -994,18 +1007,26 @@ func _soft_aim_score(chest: Vector3, facing: float, reach: float, center: Vector
 	return rel - asin(minf(1.0, radius / maxf(dist, 0.01)))
 
 
-## 狙う点（points：中心から順に）のうち、胸から見えていて、そこへまっすぐ撃てば射程の内で当たりの球（center・radius）に入る最初の点。
-## 無ければ null。
-## 点 p を中心に半径 radius − |p − center| の球は当たりの球の内側なので、p へ向けた弾は遅くとも |p − 胸| − その半径 進めば入る
-func _soft_aim_point(chest: Vector3, reach: float, center: Vector3, radius: float, points: PackedVector3Array) -> Variant:
+## 狙う点（points：中心から順に）のうち、from から見えていて、そこへまっすぐ撃てば reach（射程。INF なら見ない）の内で
+## 当たりの球（center・radius）に入る最初の点。無ければ null。
+## min_hdist：水平にこれより近い点は選ばない（弱い自動照準は水平の向きで選ぶので、真上・真下に近い点は向きが定まらない）。
+## 点 p を中心に半径 radius − |p − center| の球は当たりの球の内側なので、p へ向けた弾は遅くとも |p − from| − その半径 進めば入る
+func first_aim_point(from: Vector3, points: PackedVector3Array, center: Vector3, radius: float, reach := INF, min_hdist := 0.0) -> Variant:
 	for p in points:
-		var to := p - chest
+		var to := p - from
 		var inner := radius - p.distance_to(center)
-		if inner <= 0.0 or Vector2(to.x, to.z).length() < SOFT_AIM_MIN_HDIST or to.length() - inner > reach:
+		if inner <= 0.0 or Vector2(to.x, to.z).length() < min_hdist or to.length() - inner > reach:
 			continue
-		if has_clear_shot(chest, p):
+		if has_clear_shot(from, p):
 			return p
 	return null
+
+
+## 敵の狙う点（Enemy.aim_points：中心、頭）のうち、ハルの胸から見えていて当たりの球の内側の最初の点。無ければ null。
+## ロックオンの「見えている」（LockOn）と、ロックオン中に撃つ点（Player.aim_plan）が使う。弱い自動照準と同じ点・同じ判定
+## （射程は見ない：ロックオンは射程より遠く（30m）まで捉える。中心と頭の遠さはほとんど同じなので、どちらを選ぶかは見えるかで決まる）
+func enemy_aim_point(e) -> Variant:
+	return first_aim_point(player.chest(), e.aim_points(), e.center(), e.radius)
 
 
 ## 今、弾が当たると入るスイッチか（撃つスイッチで、条件が満ちていて、まだ入っていない。切り替え式は何度でも）。
@@ -1111,9 +1132,9 @@ func _update_shots(dt: float) -> void:
 	for s in shots:
 		if not s.alive:
 			continue
-		# 追尾：ロックオン対象へ緩やかに曲げる
+		# 追尾：ロックオン対象の狙った点（撃ったときに見えていた中心か頭）へ緩やかに曲げる
 		if s.homing != null and s.homing.alive:
-			var want: Vector3 = (s.homing.center() - s.pos).normalized()
+			var want: Vector3 = (s.homing.pos + s.homing_offset - s.pos).normalized()
 			var cur: Vector3 = s.vel.normalized()
 			var angle := cur.angle_to(want)
 			if angle > 1e-4:

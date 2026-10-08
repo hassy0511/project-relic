@@ -268,6 +268,39 @@ func test_keyboard_hints_follow_key_mapping() -> void:
 	_end()
 
 
+## 会話の文は割り当てで置き換えられない（{fire} などを使えない）ので、ボタン・キーの名前を書かない（すぐ後の案内が出す）。
+## 操作の説明（ポーズ）は、ロックオン・撃つのキー（初期は F・L、J）も、変えた後の割り当てで出す
+func test_dialogue_and_help_follow_key_mapping() -> void:
+	_begin()
+	var lines := []
+	for path in ["res://content/dialogue/ch1_town.json", "res://content/dialogue/ch1_ruins.json", "res://content/dialogue/mvp.json", "res://content/dialogue/sample.json"]:
+		_collect_texts(JSON.parse_string(FileAccess.get_file_as_string(path)), lines)
+	h.expect(lines.size() >= 100, "会話の文を集める（%d 件）" % lines.size())
+	var re := RegEx.create_from_string("トリガー|クリック|スティック|十字キー|(?<![A-Za-z])([LR][123T]|[ABXY]ボタン|Space|Shift)(?![A-Za-z])")
+	var bad := lines.filter(func(t): return re.search(t) != null)
+	h.expect(bad.is_empty(), "会話にボタン・キーの名前を書き込まない（%s）" % [bad])
+	PadConfig.assign_key("lock_on", KEY_G)
+	PadConfig.assign_key("fire", KEY_H)
+	var rows := {}
+	for r in Menu.help_rows():
+		rows[r[0]] = r[1]
+	h.expect(String(rows["ロックオン"]).contains("G") and String(rows["ロックオン"]).contains(PadConfig.pad_short("lock_on")), "操作の説明のロックオンに、キー（G）とパッドのボタンが出る（%s）" % rows["ロックオン"])
+	h.expect(String(rows["主武器"]).contains("H") and String(rows["主武器"]).contains(PadConfig.pad_short("fire")), "操作の説明の主武器に、キー（H）とパッドのボタンが出る（%s）" % rows["主武器"])
+	_end()
+
+
+## 文字列をすべて集める（会話の文・選択肢・話す人）
+func _collect_texts(v, out: Array) -> void:
+	if v is Dictionary:
+		for k in v:
+			_collect_texts(v[k], out)
+	elif v is Array:
+		for x in v:
+			_collect_texts(x, out)
+	elif v is String:
+		out.append(v)
+
+
 func _collect_kb_hints(v, out: Array) -> void:
 	if v is Dictionary:
 		for k in v:

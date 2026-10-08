@@ -29,7 +29,7 @@ func update(dt: float, pressed: bool) -> void:
 	if not g.has_ability("lock_on"):
 		release()
 		if pressed:
-			g.cam.request_recenter()
+			g.recenter_camera()
 		return
 	var down: bool = g.edges.down("lock_on")
 	if pressed:
@@ -37,7 +37,7 @@ func update(dt: float, pressed: bool) -> void:
 		target = _pick_best(null)
 		_scan_time = 0.0
 		if target == null:
-			g.cam.request_recenter()
+			g.recenter_camera()
 	if not down:
 		release()
 		return
@@ -153,11 +153,7 @@ func _pick_side(side: int):
 
 
 ## 視線が通っているか：敵の狙う点（中心か頭。Enemy.aim_points）のどれかが胸から見えればよい
-## （低い壁・柱の陰から体の一部が見えている敵も捉える。弱い自動照準と同じ点・同じ判定）
+## （低い壁・柱の陰から体の一部が見えている敵も捉える。弱い自動照準と同じ点・同じ判定。GameSim.enemy_aim_point）。
+## ロックオン中に撃つ弾も、その見えている点へ向ける（Player.aim_plan）ので、捉えた敵には撃てば当たる
 func _has_line_of_sight(e) -> bool:
-	var g = game
-	var from: Vector3 = g.player.chest()
-	for p in e.aim_points():
-		if g.has_clear_shot(from, p):
-			return true
-	return false
+	return game.enemy_aim_point(e) != null

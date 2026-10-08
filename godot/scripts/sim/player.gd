@@ -146,8 +146,9 @@ func _move_input() -> Array:
 	var mag := minf(1.0, Vector2(x, y).length())
 	if mag < 0.15:
 		return [Vector3.ZERO, 0.0]
-	# カメラの向きを基準にする。前 = カメラが見ている方向、右 = 画面の右
-	var fwd := U.yaw_to_dir(g.cam.yaw)
+	# カメラの向きを基準にする。前 = カメラが見ている方向、右 = 画面の右。
+	# ただしカメラを背後へ回している間と、そのあと倒し続けている間は、押したときの基準から測る（倒し直した分だけカメラへ戻す。CameraOrbit.move_yaw）
+	var fwd := U.yaw_to_dir(g.cam.move_yaw())
 	var right := Vector3(-fwd.z, 0.0, fwd.x)
 	var dir := (fwd * y + right * x).normalized()
 	return [dir, mag]
@@ -430,7 +431,9 @@ func _update_gun(dt: float) -> void:
 		gun_charge = 0.0
 
 
-## 撃つ向き：ロックオン中は対象へ（弾は対象を追う）。ロックオンしていないときはハルの体の向き（yaw）へ水平に撃つ。
+## 撃つ向き：ロックオン中は対象へ（弾は対象を追う）。狙うのは対象の中心か頭のうち、胸から見えている方
+## （低い壁の陰で中心が隠れていても、頭が見えていれば頭へ。ロックオンで捉えるのも同じ判定。GameSim.enemy_aim_point）。
+## ロックオンしていないときはハルの体の向き（yaw）へ水平に撃つ。
 ## 体の正面から少し（GameSim.SOFT_AIM_DEG）以内に敵か撃つスイッチがあれば、そこへ狙いを合わせる（上下の角度も）。
 ## カメラの向きは使わない（カメラを横へ回しても、ハルは向きを変えずに体の正面へ撃つ）
 ## 返り値：{ face: 撃つときの体の向き（yaw）, aim_at: 狙う点（無ければ null＝体の正面へ水平に） }。何も変えない（腕の構えの見た目にも使う）
@@ -438,7 +441,8 @@ func aim_plan() -> Dictionary:
 	var g = game
 	var target = g.lock_on.target
 	if target != null:
-		return {"face": yaw, "aim_at": target.center()}
+		var tp = g.enemy_aim_point(target)
+		return {"face": yaw, "aim_at": target.center() if tp == null else tp}
 	var sa: Dictionary = g.soft_aim(yaw)
 	if sa.is_empty():
 		return {"face": yaw, "aim_at": null}
@@ -479,7 +483,7 @@ func _fire(damage: float, kind: String) -> void:
 		"range": cfg.range * (1.0 if kind == "normal" else 1.3),
 		"damage": damage,
 		"radius": 0.6 if kind == "charge2" else (0.35 if kind == "charge1" else 0.2),
-		"pierce": kind != "normal", "kind": kind, "homing": g.lock_on.target,
+		"pierce": kind != "normal", "kind": kind, "homing": g.lock_on.target, "homing_at": plan.aim_at,
 	})
 	aiming = 0.5
 	g.alert_noise(pos, 12.0)

@@ -294,6 +294,23 @@ func test_lock_button_recenters_before_fitting() -> void:
 	await h.run(g, 30, {})
 	h.near(rad_to_deg(U.wrap_angle(g.cam.yaw - g.player.yaw)), 0.0, 2.0, "背後のボタンもそのまま使える")
 	h.expect(g.lock_on.target == null, "ロックオンはしていない")
+	# 横へ走りながら押しても、カメラは回り続けずにハルの背後で止まる（ハルはそのまま同じ向きへ走る）
+	for btn in ["lock_on", "camera_reset"]:
+		_warp(g, Vector3(0, 0, -5), 0.0)
+		await h.run(g, 2, {})
+		await h.run(g, 15, {"move_x": 1.0})
+		var heading0 := U.dir_to_yaw(g.player.vel.x, g.player.vel.z)
+		var turned := 0.0
+		var prev := g.cam.yaw
+		for i in 30:
+			await h.run(g, 1, {"move_x": 1.0, btn: i == 0})
+			turned += absf(U.wrap_angle(g.cam.yaw - prev))
+			prev = g.cam.yaw
+		h.expect(turned < 95.0 * U.DEG, "%s：横へ走りながら押しても、カメラは回り続けない（%.0f°）" % [btn, turned / U.DEG])
+		h.near(rad_to_deg(U.wrap_angle(g.cam.yaw - g.player.yaw)), 0.0, 2.0, "%s：横へ走りながら押すと、カメラがハルの背後で止まる" % btn)
+		h.near(rad_to_deg(U.wrap_angle(U.dir_to_yaw(g.player.vel.x, g.player.vel.z) - heading0)), 0.0, 2.0, "%s：ハルはそのまま同じ向きへ走る" % btn)
+		h.expect(g.lock_on.target == null, "%s：ロックオンはしていない" % btn)
+		await h.run(g, 15, {})
 	# 会話の間は回らない
 	g.cam.yaw = PI / 2
 	g.story.start_event("ch1.r04.enter")

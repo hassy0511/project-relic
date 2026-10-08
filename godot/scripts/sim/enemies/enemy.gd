@@ -58,9 +58,12 @@ func center() -> Vector3:
 
 
 ## 狙う点：中心と頭の近く（中心が低い壁・柱の陰でも、頭が見えていれば捉えて撃てる）。
-## ロックオンの視線（LockOn）と弱い自動照準（GameSim.soft_aim）が使う。どちらの点も当たりの球の内側
+## ロックオンの視線（LockOn）、ロックオン中に撃つ点（Player.aim_plan）、弱い自動照準（GameSim.soft_aim）が使う。
+## 頭の点は背の 9 割の高さ。ただし当たりの球（中心から半径 radius）の内側に収める：中心から上へ半径の 0.8 倍まで
+## （背が高く細い盾型（背 1.8m・半径 0.55m）は背の 9 割だと球の外になり、そこが見えていても弾が当たらなかった）
 func aim_points() -> PackedVector3Array:
-	return PackedVector3Array([center(), Vector3(pos.x, pos.y + height * 0.9, pos.z)])
+	var c := center()
+	return PackedVector3Array([c, Vector3(pos.x, minf(pos.y + height * 0.9, c.y + radius * 0.8), pos.z)])
 
 
 ## 弾が当たるか（球で近似。大きな敵は上書きする）。線分 a→b の上の位置 t（0〜1）、当たらなければ -1

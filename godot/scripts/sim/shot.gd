@@ -12,6 +12,8 @@ var radius: float
 var pierce: bool
 var kind: String
 var homing = null  # Enemy
+## 追う点の、対象の足元（pos）からのずれ。spec の homing_at（撃ったときに狙った点）から決める。無ければ対象の中心
+var homing_offset := Vector3.ZERO
 var from_player: bool
 
 var pos: Vector3
@@ -32,6 +34,9 @@ func _init(spec: Dictionary, player_shot: bool) -> void:
 	pierce = spec.pierce
 	kind = spec.kind
 	homing = spec.get("homing")
+	if homing != null:
+		var at = spec.get("homing_at")
+		homing_offset = (at if at != null else homing.center()) - homing.pos
 	from_player = player_shot
 	pos = origin
 	prev = origin
