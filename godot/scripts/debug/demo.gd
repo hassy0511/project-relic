@@ -290,7 +290,7 @@ func _town_steps() -> Array:
 ## 町・遺構の見た目の点検（--town_audit）：部屋を多くの向きから撮る（建物の奥行き・裏の面・浮いた物・継ぎ目の確認）。イベントは走らせない
 ## --audit_views=<JSON のパス>（既定は tools/audit_views.json。中段の広場・遺構 r02・r03）：[{"name", "room", "spawn", "at", "look", "pitch"}（プレイヤーのカメラ）
 ##   か {"name", "room", "spawn", "eye", "target"}（自由なカメラ。高い所・裏側から見る）, …]
-## --audit_only=<名前,…> で一部だけ。--audit_state=night で停止の夜
+## "wait"：構えてから撮るまでの刻み（既定 20。宙に置いて落ちる途中を撮るときは長く）。--audit_only=<名前,…> で一部だけ。--audit_state=night で停止の夜
 func _audit_steps() -> Array:
 	var path := String(main.args.get("audit_views", ProjectSettings.globalize_path("res://") + "../tools/audit_views.json"))
 	var views: Array = JSON.parse_string(FileAccess.get_file_as_string(path))
@@ -317,7 +317,7 @@ func _audit_steps() -> Array:
 				_stand(RoomGeo.v3(v.at), RoomGeo.v3(v.look))
 				g.cam.pitch = float(v.get("pitch", 12.0)) * U.DEG
 			main.snap_views()})
-		steps.append({"ticks": 20, "input": {}})
+		steps.append({"ticks": int(v.get("wait", 20)), "input": {}})
 		var shot := {"ticks": 1, "shot": "audit_" + String(v.name), "input": {}, "check": func():
 			var missing: Array = main.level.get_meta("missing_parts", [])
 			return _check(missing.is_empty(), "%s の飾りの部品がそろっている（%s）" % [v.room, missing]),

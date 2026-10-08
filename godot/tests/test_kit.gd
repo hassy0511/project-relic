@@ -111,3 +111,81 @@ func test_room_without_kit_unchanged() -> void:
 	var mat = (meshes[0] as MeshInstance3D).mesh.surface_get_material(0)
 	h.expect(mat is ShaderMaterial and (mat as ShaderMaterial).shader == LevelLoader.GRID, "灰色の格子の材質のまま")
 	root.free()
+
+
+## 足場の箱（中心・大きさ）だけの地形（下は奈落）
+func _ledges(boxes: Array) -> Dictionary:
+	var faces := []
+	for b in boxes:
+		faces.append(TestHelpers.box_faces(b[0], b[1]))
+	return {"faces": faces, "markers": {"start": {"pos": Vector3(0, 0, 0), "yaw": 0.0}}}
+
+
+func test_fall_camera_holds_over_void() -> void:
+	# 足場の端から奈落へ歩いて落ちる：カメラは縁の高さに止まって見下ろし（ハルについて部屋の下まで下がらない）、
+	# 4 m 落ちるまでに画面が真っ暗になる。直前の足場に戻ると、暗いうちにカメラも戻ってから明るくなる
+	var g := h.make_game({"geometry": _ledges([[Vector3(0, -0.5, 0), Vector3(6, 1, 6)]])})
+	await h.settle()
+	var cam := CameraRig.new()
+	h.tree.root.add_child(cam)
+	var dt := 1.0 / 60.0
+	var hold_y := INF
+	var dark_at_4 := -1.0
+	var lowest := 0.0
+	var cam_moved := 0.0
+	var respawned := false
+	var after := 0
+	for i in 400:
+		await h.tree.physics_frame
+		g.step(InputFrame.of({"move_y": 1.0 if i < 60 else 0.0}))
+		cam.sync(g, g.player.pos, dt, 0.0)
+		var y := g.player.pos.y
+		if i < 20:
+			h.expect(cam.fall_dark == 0.0, "立っているあいだは暗くしない")
+		if not respawned:
+			if y < -1.0 and hold_y == INF:
+				hold_y = cam.global_position.y
+			if hold_y != INF and y < -0.5:
+				cam_moved = maxf(cam_moved, absf(cam.global_position.y - hold_y))
+			if y < -4.0 and dark_at_4 < 0.0:
+				dark_at_4 = cam.fall_dark
+			lowest = minf(lowest, y)
+			if lowest < -20.0 and y > -0.5:
+				respawned = true
+				h.expect(cam.global_position.y > y + 1.0 and cam.global_position.distance_to(y * Vector3.UP + Vector3(g.player.pos.x, 0, g.player.pos.z)) < 7.5,
+					"足場に戻った刻みにカメラもハルの後ろへ戻る（%s）" % cam.global_position)
+				h.expect(cam.fall_dark > 0.9, "戻った刻みはまだ暗い（%.2f）" % cam.fall_dark)
+		else:
+			after += 1
+			if after == 45:
+				h.expect(cam.fall_dark == 0.0, "戻って 0.75 秒で明るい（%.2f）" % cam.fall_dark)
+				break
+	h.expect(hold_y != INF and hold_y > 1.0, "落ち始めのカメラは縁より上（%.2f）" % hold_y)
+	h.expect(cam_moved < 0.01, "落ちているあいだカメラは下がらない（動き %.3f m）" % cam_moved)
+	h.expect(dark_at_4 > 0.95, "4 m 落ちるまでに真っ暗（%.2f）" % dark_at_4)
+	h.expect(respawned, "奈落から直前の足場に戻る")
+	cam.queue_free()
+	h.free_game(g)
+
+
+func test_fall_camera_not_on_gap_jump() -> void:
+	# 穴を跳び越す・段を飛び降りる（下に床がある）ときは、カメラを止めず暗くもしない
+	var g := h.make_game({"geometry": _ledges([[Vector3(0, -0.5, 0), Vector3(6, 1, 6)], [Vector3(0, -1.5, 8.5), Vector3(6, 1, 6)],
+		[Vector3(0, -4.5, 16), Vector3(6, 1, 6)]])})
+	await h.settle()
+	var cam := CameraRig.new()
+	h.tree.root.add_child(cam)
+	var worst := 0.0
+	var jumped := false
+	for i in 200:
+		await h.tree.physics_frame
+		var p := g.player.pos
+		var jump := not jumped and p.z > 2.4 and g.player.grounded
+		jumped = jumped or jump
+		g.step(InputFrame.of({"move_y": 1.0 if p.z < 15.0 else 0.0, "jump": jump}))
+		cam.sync(g, g.player.pos, 1.0 / 60.0, 0.0)
+		worst = maxf(worst, cam.fall_dark)
+	h.expect(g.player.pos.z > 14.0 and g.player.pos.y > -4.1, "跳び越して、段を飛び降りて下の床に着く（%s）" % g.player.pos)
+	h.expect(worst == 0.0, "下に床があるあいだは暗くしない（%.2f）" % worst)
+	cam.queue_free()
+	h.free_game(g)
