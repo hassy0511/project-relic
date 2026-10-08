@@ -11,6 +11,10 @@ const TERRAIN := 1
 const PLAYER := 2
 const ENEMY := 4
 const BREAKABLE := 8
+## 体だけを止める地形（部屋の形の "cam": false。細い柱・露店の屋根の上をふさぐ箱など）。キャラクターの体は止めるが、
+## カメラの壁よけ・弾・照準の線は通す（細い柱が後ろを横切るたびにカメラが前へ跳ねないように）。
+## キャラクターを動かすときは TERRAIN を含むマスクに自動で足す（create_character・move_character）。足元の確かめは Player._ground_below
+const PROP := 16
 
 const STEP_HEIGHT := 0.35
 const SNAP := 0.3
@@ -65,7 +69,7 @@ func set_owner_of(body: Node, obj: Object) -> void:
 func create_character(feet: Vector3, radius: float, height: float, layer: int, mask: int) -> CharacterBody3D:
 	var b := CharacterBody3D.new()
 	b.collision_layer = layer
-	b.collision_mask = mask
+	b.collision_mask = body_mask(mask)
 	b.safe_margin = 0.001
 	var shape := CapsuleShape3D.new()
 	shape.radius = radius
@@ -79,6 +83,11 @@ func create_character(feet: Vector3, radius: float, height: float, layer: int, m
 	return b
 
 
+## キャラクターの体のマスク：地形（TERRAIN）を含むなら、体だけを止める地形（PROP）も足す
+static func body_mask(mask: int) -> int:
+	return mask | PROP if mask & TERRAIN else mask
+
+
 func feet_of(body: CharacterBody3D) -> Vector3:
 	return body.position
 
@@ -89,7 +98,7 @@ func set_feet(body: CharacterBody3D, feet: Vector3) -> void:
 
 ## キャラクターを動かす。返り値：{ moved: 実際に動いた量, grounded: 接地しているか }
 func move_character(body: CharacterBody3D, delta: Vector3, mask: int, on_ground: bool = true) -> Dictionary:
-	body.collision_mask = mask
+	body.collision_mask = body_mask(mask)
 	var start := body.position
 	var motion := delta
 	var hit_floor := false

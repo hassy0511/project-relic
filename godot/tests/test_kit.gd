@@ -103,6 +103,27 @@ func test_kit_hide_keeps_collision() -> void:
 	h.free_game(g)
 
 
+## "cam": false の形（体だけを止める。細い柱など）：体は止まり、上に立てる。カメラの壁よけ・弾の線は通る
+func test_kit_body_only_shape() -> void:
+	var room := _room({})
+	room.geometry.append({"t": "box", "pos": [0, 0, 0], "size": [0.2, 3, 0.2], "hide": true, "cam": false})
+	room.geometry.append({"t": "box", "pos": [-3, 0, -3], "size": [2, 0.3, 2], "hide": true, "cam": false})
+	var w := _world(room)
+	var geo := w.geometry("k.a")
+	h.expect(geo.prop.size() == 2 and geo.faces.size() == RoomGeo.build(_room({})).faces.size(), "cam: false の形は体だけの当たり判定（prop）に分かれる")
+	var g := h.make_world_game({"start": {"room": "k.a", "spawn": "start"}, "areas": [{"id": "k", "name": "キット", "rooms": {"a": room}}]})
+	await h.settle()
+	await h.run(g, TestHelpers.seconds(2.0), {"move_y": 1.0})
+	h.expect(g.player.pos.z < -0.4 and g.player.pos.z > -0.6, "細い柱で体が止まる（z = %.2f）" % g.player.pos.z)
+	var cam_hit: Dictionary = g.phys.raycast(Vector3(0, 1.4, -2), Vector3(0, 0, 1), 4.0, Phys.TERRAIN | Phys.BREAKABLE)
+	var body_hit: Dictionary = g.phys.raycast(Vector3(0, 1.4, -2), Vector3(0, 0, 1), 4.0, Phys.PROP)
+	h.expect(cam_hit.is_empty() and not body_hit.is_empty(), "カメラ・弾の線は細い柱を通る（体だけの層には当たる）")
+	g.player.teleport(Vector3(-3, 1.0, -3), 0.0)
+	await h.run(g, TestHelpers.seconds(1.0), {})
+	h.expect(g.player.grounded and absf(g.player.pos.y - 0.3) < 0.05, "体だけの箱の上にも立てる（y = %.2f）" % g.player.pos.y)
+	h.free_game(g)
+
+
 func test_room_without_kit_unchanged() -> void:
 	var w := _world(_room({}))
 	var root := RoomView.build(w, "k.a")

@@ -100,6 +100,7 @@ func geometry(room_id: String) -> Dictionary:
 		geo = lv.geometry
 		var extra := RoomGeo.build(r)
 		geo.faces.append_array(extra.faces)
+		geo["prop"] = extra.prop
 		geo.markers.merge(extra.markers, true)
 	else:
 		geo = RoomGeo.build(r)

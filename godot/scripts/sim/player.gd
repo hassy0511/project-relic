@@ -287,7 +287,7 @@ func _update_movement(dt: float) -> void:
 ## 「接地」とみなさないため（そこから段差の自動乗り越えで登れてしまうのを防ぐ）
 func _ground_below() -> bool:
 	var origin := Vector3(pos.x, pos.y + 0.3, pos.z)
-	var hit: Dictionary = game.phys.raycast(origin, Vector3.DOWN, 0.75, Phys.TERRAIN | Phys.BREAKABLE | Phys.ENEMY)
+	var hit: Dictionary = game.phys.raycast(origin, Vector3.DOWN, 0.75, Phys.TERRAIN | Phys.BREAKABLE | Phys.ENEMY | Phys.PROP)
 	return not hit.is_empty() and pos.y - hit.point.y < 0.4
 
 

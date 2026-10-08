@@ -9,15 +9,21 @@ extends RefCounted
 ##       床と四方の壁（と天井）。pos は床の中心、size は内側の寸法。openings：{ "side": "n|s|e|w", "at": 横のずれ,
 ##       "w": 2.5, "h": 3.5, "y": 0 }。n は +Z、s は -Z、e は +X、w は -X の壁
 ## どの形にも "tint": "#rrggbb"（見た目の色）を付けられる。
+## "cam": false の形は体だけを止める（Phys.PROP。カメラの壁よけ・弾は通す）。返り値の "prop" に分けて入れる
 
 const DEFAULT_TINT := Color(0.62, 0.59, 0.55)
 
 
-## 返り値：{ faces: [PackedVector3Array...], tints: [Color...], markers: { 名前: { pos, yaw(ラジアン) } } }
+## 返り値：{ faces: [PackedVector3Array...], tints: [Color...], prop: [PackedVector3Array...]（"cam": false の形）,
+##   markers: { 名前: { pos, yaw(ラジアン) } } }
 static func build(room: Dictionary) -> Dictionary:
 	var faces: Array = []
 	var tints: Array = []
+	var prop: Array = []
 	for s in room.get("geometry", []):
+		if not s.get("cam", true):
+			prop.append_array(_shape(s))
+			continue
 		var tint := Color(s.tint) if s.has("tint") else DEFAULT_TINT
 		for f in _shape(s):
 			faces.append(f)
@@ -26,7 +32,7 @@ static func build(room: Dictionary) -> Dictionary:
 	var mk: Dictionary = room.get("markers", {})
 	for k in mk:
 		markers[k] = {"pos": v3(mk[k].pos), "yaw": float(mk[k].get("yaw", 0.0)) * U.DEG}
-	return {"faces": faces, "tints": tints, "markers": markers}
+	return {"faces": faces, "tints": tints, "prop": prop, "markers": markers}
 
 
 ## 形 1 つ分の面（箱ごとの PackedVector3Array の配列）。見た目の側（RoomKit）が形ごとに材質を分けるのに使う

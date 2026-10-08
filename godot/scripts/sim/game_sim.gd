@@ -171,6 +171,8 @@ func load_room(id: String, spawn := "", at = null, at_yaw := 0.0) -> void:
 	placement = room
 	for faces in geometry.faces:
 		phys.add_trimesh(faces, Phys.TERRAIN)
+	for faces in geometry.get("prop", []):
+		phys.add_trimesh(faces, Phys.PROP)
 	_build_room()
 	var sp: Dictionary
 	if at != null and not _buried(at):
