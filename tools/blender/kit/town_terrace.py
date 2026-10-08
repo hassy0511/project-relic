@@ -24,7 +24,7 @@ import math
 import numpy as np
 
 import town_parts as P
-from town_geo import Part, beam, boxb, cyl, lathe, sag, sheet, tube
+from town_geo import Part, Piece, beam, boxb, cyl, lathe, sag, sheet, tube
 from town_sets import _door, _retaining, _window
 
 WALL_Z = 16.0        # 段の壁の手前の面（擁壁の面）
@@ -78,6 +78,29 @@ def _window_simple(p: Part, x, y, z):
     p.add('wood', beam(hinge, hinge + d * 0.62, 0.86, 0.04, up=(0, 0, 1)))
 
 
+def _window_far(p: Part, x, y, z, shutter=True):
+    """もっと遠くから見る窓（下の段の家並み）：裏の面の無い黒鉛の枠、暗い奥は 1 枚の面、雨戸は半分だけ（三角形 12〜24）"""
+    fr = boxb(x - 0.42, x + 0.42, y - 0.08, y + 0.74, z, z + 0.07)
+    fr.f = [f for f in fr.f if not all(abs(fr.v[k][2] - z) < 1e-6 for k in f)]
+    p.add('graphite', fr)
+    zz = z + 0.072
+    p.add('dark', Piece(np.array([[x - 0.33, y, zz], [x + 0.33, y, zz], [x + 0.33, y + 0.66, zz], [x - 0.33, y + 0.66, zz]]), [[0, 1, 2, 3]]))
+    if shutter:
+        hinge = np.array([x, y + 0.74, z + 0.07])
+        d = np.array([0, -math.cos(math.radians(55)), math.sin(math.radians(55))])
+        p.add('wood', beam(hinge, hinge + d * 0.58, 0.78, 0.04, up=(0, 0, 1)))
+
+
+def _door_far(p: Part, x, y0, z):
+    """もっと遠くから見る扉：裏の面の無い黒鉛の枠の板に木の扉の面と真鍮の取っ手（三角形 24。_door は 96）"""
+    fr = boxb(x - 0.55, x + 0.55, y0, y0 + 1.95, z, z + 0.08)
+    fr.f = [f for f in fr.f if not all(abs(fr.v[k][2] - z) < 1e-6 for k in f)]
+    p.add('graphite', fr)
+    zz = z + 0.082
+    p.add('wood', Piece(np.array([[x - 0.45, y0, zz], [x + 0.45, y0, zz], [x + 0.45, y0 + 1.82, zz], [x - 0.45, y0 + 1.82, zz]]), [[0, 1, 2, 3]]))
+    p.add('brass', boxb(x + 0.25, x + 0.31, y0 + 0.85, y0 + 1.1, zz, zz + 0.05))
+
+
 def _lamp_simple(p: Part, x, y, z):
     """遠くから見る吊り灯（琥珀の箱と真鍮の笠）"""
     p.add('amber', boxb(x - 0.07, x + 0.07, y - 0.13, y + 0.12, z - 0.07, z + 0.07))
@@ -127,10 +150,13 @@ def _face(spec: dict, w: float, h: float) -> Part:
     for y in spec.get('bands', ()):
         p.add('graphite', boxb(-w / 2, w / 2, y - 0.06, y + 0.06, 0, 0.07))
     simple = spec.get('simple', False)     # 遠くから見る面：窓と灯を軽い版にする
-    for x, y in spec.get('windows', ()):
-        (_window_simple if simple else _window)(p, x, y, 0.01)
+    for k, (x, y) in enumerate(spec.get('windows', ())):
+        if spec.get('far'):                # もっと遠く（下の段の家並み）：さらに軽い窓、雨戸は 1 つおき
+            _window_far(p, x, y, 0.01, shutter=k % 2 == 0)
+        else:
+            (_window_simple if simple else _window)(p, x, y, 0.01)
     if spec.get('door') is not None:
-        _door(p, spec['door'], 0, 0.01)
+        (_door_far if spec.get('far') else _door)(p, spec['door'], 0, 0.01)
     if spec.get('door2') is not None:
         x = spec['door2']
         for sx in (-1, 1):
@@ -576,52 +602,161 @@ def ends(w, more=()):
 
 # ---------------------------------------------------------------- 南の階段（下の段へ）の両側の棟と奥の棟
 
+# 南の階段のまわりの棟の屋根。どれも当たり判定が無い（部屋の geometry を足さない）ので、プレイヤーが届く縁
+# （胸壁の上 1.2 m・階段の横の壁の上 3.0 m・奥の壁の上 4.0 m）より 2.5 m 以上低くして、縁の向こうの下の町に見せる。
+# 前は手前の棟の屋根（1.0 m）が胸壁のすぐ横、奥の棟の屋根（3.0 m）が横の壁の上と同じ高さで、歩いて乗ると落ちた
+SW_FRONT_TOP = -2.0     # 手前の平屋（胸壁の上から 3.2 m 下。屋上の小さな庭）
+SW_BACK_TOP = 0.5       # 奥の 2 階建て（横の壁の上から 2.5 m 下。跳んでも戻れない深さ）
+SW_REAR_TOP = 1.5       # 奥の壁の向こうの棟（奥の壁の上から 2.5 m 下）
+SW_WALL_TOP = 3.0       # 階段の横の壁（geometry、|x| 4〜4.5、z -32〜-14）の上
+SW_END_TOP = 4.0        # 階段の奥の壁（geometry、z -33〜-32）の上
+
+
 def stair_well_s() -> Part:
     """南の階段（x -4〜4、z -14〜-32 を 5 m 下る）の両側の棟と奥の棟。前は下の段の床から 8 m の薄い壁が 2 枚立っているだけだった。
-    階段の横の壁・奥の壁（geometry）はそのまま見せ、その外側に家を付ける。広場の胸壁から 5.5 m の内（z > -21）は
-    カメラが入るので、屋根を胸壁の上（1.2 m）より低い 1.0 m にする（屋上の小さな庭）。その奥は 2 階建て（3.0 m = 横の壁の上）"""
+    階段の横の壁・奥の壁（geometry）はそのまま見せ、その外側に家を付ける。家の屋根は届く縁より 2.5 m 以上低い（SW_* の説明）。
+    家より上に出る横の壁の外の面には付け柱・帯・配管を付け、上に笠木を載せて、厚みのある本当の壁に見せる"""
     p = Part('stair_well_s')
     rng = np.random.default_rng(11)
     for s in (-1, 1):
         out = '+x' if s > 0 else '-x'
         xi, xo = 4.5, 9.5
         x0, x1 = min(s * xi, s * xo), max(s * xi, s * xo)
-        # 手前の低い棟（下の段の床 -5 m 〜 1.0 m）
-        block(p, x0, x1, -5.3, 1.0, -21.0, -15.0, {
-            out: {'simple': True, 'posts': ends(6.0), 'door': 1.2 * s, 'windows': [(-1.4 * s, 1.05), (-1.6, 3.7), (1.2, 3.7)],
-                  'awnings': [(1.2 * s - 0.9, 1.2 * s + 0.9, 2.35, 'hard')], 'lanterns': [(0.25 * s, 1.95)], 'bands': [3.1]}},
+        # 手前の平屋（下の段の床 -5 m 〜 -2.0 m）：外の面に扉・窓・日よけ・灯
+        block(p, x0, x1, -5.3, SW_FRONT_TOP, -21.0, -15.0, {
+            out: {'simple': True, 'posts': ends(6.0), 'door': 1.2 * s, 'windows': [(-1.4 * s, 1.05)],
+                  'awnings': [(1.2 * s - 0.9, 1.2 * s + 0.9, 2.35, 'hard')], 'lanterns': [(0.25 * s, 1.95)]}},
               base=-5.0, roof=('e' if s > 0 else 'w'))
-        # 屋上の小さな庭（鉢植え・木箱）
-        pot(p, s * 8.6, 1.0, -16.0)
-        pot(p, s * 8.6, 1.0, -19.6)
-        p.place(P.crate(), (s * 6.0, 1.0, -20.2), 10 * s, 0.7)
-        # 奥の 2 階建ての棟（-5 〜 3.0 m）
-        block(p, x0, x1, -5.3, 3.0, -33.0, -21.0, {
+        # 屋上の小さな庭（鉢植え・木箱）。胸壁の手すりの向こう、3 m 下に見える
+        pot(p, s * 8.6, SW_FRONT_TOP, -16.0)
+        pot(p, s * 8.6, SW_FRONT_TOP, -19.6)
+        p.place(P.crate(), (s * 6.4, SW_FRONT_TOP, -20.2), 10 * s, 0.7)
+        # 奥の 2 階建て（-5 〜 0.5 m）：外の面に 2 列の窓、北の面（手前の平屋の屋上から上）に屋上へ出る扉
+        block(p, x0, x1, -5.3, SW_BACK_TOP, -33.0, -21.0, {
             out: {'simple': True, 'posts': ends(12.0, [0.0]), 'door': -3.0 * s, 'windows': [(-4.6, 1.05), (-1.4 * s, 1.05), (2.2, 1.05), (4.4, 1.05),
-                                                                         (-4.4, 4.5), (-1.8, 4.5), (1.8, 4.5), (4.4, 4.5)],
+                                                                         (-4.4, 3.65), (-1.8, 3.65), (1.8, 3.65), (4.4, 3.65)],
                   'awnings': [(-3.0 * s - 0.9, -3.0 * s + 0.9, 2.35, 'hard'), (1.4, 5.0, 2.05, 'soft')],
-                  'balconies': [(-2.6, -1.0, 4.3)], 'lanterns': [(-3.0 * s + 0.9 * s, 1.95)], 'bands': [3.2], 'pipes': [5.6 * s]},
-            '+z': {'_base': 1.0, 'door': 0.4 * s, 'windows': [(-1.4 * s, 0.75)], 'lanterns': [(-0.55 * s, 1.45)]}},
+                  'balconies': [(-2.6, -1.0, 3.45)], 'lanterns': [(-3.0 * s + 0.9 * s, 1.95)], 'bands': [2.85], 'pipes': [5.6 * s]},
+            '+z': {'_base': SW_FRONT_TOP, 'door': 0.6 * s, 'windows': [(-1.3 * s, 0.75)], 'lanterns': [(-0.3 * s, 1.45)]}},
               base=-5.0, roof=('n' + ('e' if s > 0 else 'w')))
-        roof_items(p, rng, min(s * 6.4, s * 9.2), max(s * 6.4, s * 9.2), 3.0, -32.4, -24.0, 2)
-    # 奥の棟（階段の奥の壁の向こう、-5 〜 4.0 m）
-    block(p, -9.5, 9.5, -5.3, 4.0, -40.0, -33.0, {
-        '+x': {'simple': True, 'posts': ends(7.0), 'windows': [(-1.6, 1.05), (1.6, 1.05), (-1.6, 4.6), (1.6, 4.6)], 'bands': [3.3]},
-        '-x': {'simple': True, 'posts': ends(7.0), 'windows': [(-1.6, 1.05), (1.6, 1.05), (-1.6, 4.6), (1.6, 4.6)], 'bands': [3.3]},
-        '+z': {}}, base=-5.0)
-    p.place(P.water_tower(), (-6.5, 4.0, -37.5), 0, 1.2)
-    canopy(p, 2.0, 5.6, -38.6, -35.0, 4.0, 2.2, 'cloth')
+        roof_items(p, rng, min(s * 6.4, s * 9.2), max(s * 6.4, s * 9.2), SW_BACK_TOP, -32.4, -24.0, 2)
+        # 家より上に出る横の壁の外の面（x = ±4.5）：付け柱・帯・配管。手前（z -21〜-15）は -2.0 から、奥は 0.5 から
+        for z0, z1, base in ((-21.0, -15.0, SW_FRONT_TOP), (-32.0, -21.0, SW_BACK_TOP)):
+            L, h = z1 - z0, SW_WALL_TOP - base
+            sp = {'posts': ends(L, [0.0] if L > 8 else []), 'bands': [h - 0.9]}
+            if L < 8:
+                sp['pipes'] = [-1.2 * s]
+            face(p, out, (s * xi, base, (z0 + z1) / 2), sp, L, h)
+    # 奥の棟（階段の奥の壁の向こう、-5 〜 1.5 m）
+    block(p, -9.5, 9.5, -5.3, SW_REAR_TOP, -40.0, -33.0, {
+        '+x': {'simple': True, 'posts': ends(7.0), 'windows': [(-1.6, 1.05), (1.6, 1.05), (-1.6, 3.9), (1.6, 3.9)], 'bands': [3.3]},
+        '-x': {'simple': True, 'posts': ends(7.0), 'windows': [(-1.6, 1.05), (1.6, 1.05), (-1.6, 3.9), (1.6, 3.9)], 'bands': [3.3]},
+        '+z': {'_base': SW_BACK_TOP}}, base=-5.0)
+    p.place(P.water_tower(), (-6.5, SW_REAR_TOP, -37.5), 0, 1.2)
+    canopy(p, 2.0, 5.6, -38.6, -35.0, SW_REAR_TOP, 2.2, 'cloth')
+    # 奥の壁の、奥の棟の屋根より上に出る面（z = -33、南向き）：付け柱と帯
+    face(p, '-z', (0.0, SW_REAR_TOP, -33.0), {'posts': ends(9.0, [0.0]), 'bands': [SW_END_TOP - SW_REAR_TOP - 0.8]}, 9.0, SW_END_TOP - SW_REAR_TOP)
     # 階段の横の壁・奥の壁の上の笠木（geometry の壁の上の面）
     for s in (-1, 1):
-        p.add('graphite', boxb(min(s * 3.94, s * 4.56), max(s * 3.94, s * 4.56), 3.0, 3.1, -32.0, -14.0))
-        p.add('brass', boxb(min(s * 3.92, s * 4.58), max(s * 3.92, s * 4.58), 2.9, 3.0, -14.06, -13.94))
-    p.add('graphite', boxb(-4.56, 4.56, 4.0, 4.1, -33.06, -31.94))
+        p.add('graphite', boxb(min(s * 3.94, s * 4.56), max(s * 3.94, s * 4.56), SW_WALL_TOP, SW_WALL_TOP + 0.1, -32.0, -14.0))
+        p.add('brass', boxb(min(s * 3.92, s * 4.58), max(s * 3.92, s * 4.58), SW_WALL_TOP - 0.1, SW_WALL_TOP, -14.06, -13.94))
+    p.add('graphite', boxb(-4.56, 4.56, SW_END_TOP, SW_END_TOP + 0.1, -33.06, -31.94))
     return p
 
 
+# ---------------------------------------------------------------- 下の段の家並み（胸壁の向こう 4〜40 m に見える）
+
+# 家の (中心 x, 中心 z, 幅, 奥行き, 高さ)（部品の座標。原点 = 下の段の床の中心）
+LOWER_HOUSES = {
+    'a': [(-3.5, -1.0, 3.0, 4.0, 3.2), (0.5, -0.5, 4.0, 5.0, 4.6), (3.8, 1.5, 2.6, 3.4, 2.8), (-1.5, 2.8, 3.4, 2.2, 2.6)],
+    'b': [(-3.0, 0.0, 4.0, 5.0, 3.8), (1.5, -1.5, 3.2, 3.2, 3.0), (2.8, 2.0, 3.6, 3.0, 5.2)],
+    'c': [(-3.8, 1.0, 2.6, 4.0, 2.9), (-0.6, 0.0, 3.4, 5.6, 4.2), (3.2, -1.2, 3.4, 3.6, 3.4), (2.0, 2.8, 4.0, 2.0, 2.4)],
+}
+
+
+def lower_block(variant='a') -> Part:
+    """下の段の家並み（10×8 m ほど）：白磁の絵（shell）の箱の家 3〜4 軒。どの向きの面にも窓（他の家に隠れる所は付けない）、
+    1 軒に 1 つの扉と固いひさし（吊り灯は 1 区画に 1 つ）、足元の木の帯と上の黒鉛の帯、屋上の縁の低い壁と笠木（前の宙に浮いた手すりの代わり）、
+    屋上の日よけ・水槽・煙突。前は平らな灰色の箱に小さな暗い四角だけで、胸壁から 4 m の所では舞台の書き割りに見えた"""
+    p = Part(f'lower_block_{variant}')
+    rng = np.random.default_rng(10 + ord(variant))
+    hs = LOWER_HOUSES[variant]
+    boxes = [(cx - w / 2, cx + w / 2, cz - d / 2, cz + d / 2, h) for cx, cz, w, d, h in hs]
+
+    def hidden(i, x, y, z):
+        """(x, y, z) が i 以外の家の中か"""
+        return any(k != i and a - 0.02 < x < b + 0.02 and c - 0.02 < z < e + 0.02 and y < hh
+                   for k, (a, b, c, e, hh) in enumerate(boxes))
+
+    lamp_done = False
+    for i, (cx, cz, w, d, h) in enumerate(hs):
+        x0, x1, z0, z1, _ = boxes[i]
+        centre = {'+z': (cx, z1), '-z': (cx, z0), '+x': (x1, cz), '-x': (x0, cz)}
+        length = {'+z': w, '-z': w, '+x': d, '-x': d}
+
+        def at(n, u, y, out=0.12):
+            """面 n の面の座標 u（face の x の向き）・高さ y の、面のすぐ外のワールドの点"""
+            fx, fz = centre[n]
+            q = {'+z': (fx + u, fz + out), '-z': (fx - u, fz - out), '+x': (fx + out, fz - u), '-x': (fx - out, fz + u)}[n]
+            return q[0], y, q[1]
+
+        def free(n, u, y, half=0.5):
+            return not any(hidden(i, *at(n, uu, y)) for uu in (u - half, u, u + half))
+
+        # 見えている長さが一番長い面に扉
+        seen = {n: sum(free(n, float(u), 1.0, 0.0) for u in np.arange(-length[n] / 2 + 0.25, length[n] / 2 - 0.2, 0.5)) for n in centre}
+        door_n = max(seen, key=lambda n: (seen[n], n == '+z', n == '-z'))
+        faces = {}
+        for n in ('+z', '-z', '+x', '-x'):
+            if not seen[n]:
+                continue
+            L = length[n]
+            sp: dict = {'simple': True, 'far': True, 'windows': [], 'awnings': [], 'lanterns': []}
+            door = None
+            if n == door_n:
+                cand = [float(u) for u in np.arange(-L / 2 + 0.8, L / 2 - 0.75, 0.3) if free(n, float(u), 1.0, 0.65)]
+                if cand:
+                    door = cand[int(rng.integers(len(cand)))]
+                    sp['door'] = door
+                    if h >= 2.6:
+                        sp['awnings'].append((door - 0.75, door + 0.75, 2.2, 'hard', 0.8))
+                    if not lamp_done:             # 吊り灯は 1 区画に 1 つ（灯は遠くでも目に付くので、数より置き場所）
+                        side = 0.8 if free(n, door + 0.8, 1.9, 0.1) else -0.8
+                        sp['lanterns'].append((door + side, 1.75))
+                        lamp_done = True
+            rows = [0.95] + ([2.75] if h >= 4.2 else [])
+            us = np.arange(-L / 2 + 0.85, L / 2 - 0.6, 1.7)
+            us = us + (L / 2 - 0.85 - us[-1]) / 2 if len(us) else us
+            for y in rows:
+                for u in us:
+                    u = float(u)
+                    if (door is None or abs(u - door) > 1.15 or y > 2.5) and free(n, u, y + 0.4):
+                        sp['windows'].append((u, y))
+            faces[n] = sp
+        block(p, x0, x1, 0.0, h, z0, z1, faces, base=0.0, roof='nsew')
+        # 屋上：日よけ・水槽・煙突のどれか
+        r = rng.random()
+        if r < 0.45 and w > 2.8 and d > 2.6:
+            canopy(p, cx - w * 0.32, cx + w * 0.32, cz - d * 0.3, cz + d * 0.3, h, 1.9, 'cloth' if rng.random() < 0.6 else 'cloth2')
+        elif r < 0.8:
+            tx, tz = cx + w * 0.18, cz - d * 0.15
+            p.add('ivory2', boxb(tx - 0.6, tx + 0.6, h, h + 0.3, tz - 0.6, tz + 0.6))
+            p.add('brass', cyl((tx, h + 0.3, tz), (tx, h + 1.4, tz), 0.5, 10))
+            p.add('graphite', cyl((tx, h + 1.4, tz), (tx, h + 1.48, tz), 0.53, 10))
+        else:
+            x = cx - w * 0.25
+            P.pipe_run(p, (x, h, cz), (x, h + 1.6, cz), 0.14, 0.8)
+            p.add('brass', lathe((x, h + 1.6, cz), (x, h + 1.9, cz), [(0, 0.18), (1, 0.06)], 8))
+    return p
+
+
+PARTS.update({f'lower_block_{v}': (lambda v=v: lower_block(v)) for v in LOWER_HOUSES})
+
+
 def parapet_corner() -> Part:
-    """広場の南の角（胸壁と東西の低い壁の角、1 m 角）の柱：geometry の壁どうしの間の 1 m 角の切れ目と、
-    外の擁壁どうしの角の隙間をふさぐ。原点 = 角の柱の中心の胸壁の上の面（y 1.2）"""
+    """広場の角の柱（1.3 m 角、上の面 = 低い壁の上 1.2 m、下は -7 m）。南の角（胸壁と東西の低い壁の角）では geometry の壁どうしの
+    間の 1 m 角の切れ目と、外の擁壁どうしの角の隙間をふさぐ。北の端（東西の低い壁が段の家の塊に当たる z=16）では壁の端の面をふさぐ。
+    原点 = 角の柱の中心の上の面（y 1.2）"""
     p = Part('parapet_corner')
     p.add('shell', boxb(-0.65, 0.65, -8.2, 0.0, -0.65, 0.65))
     p.add('graphite', boxb(-0.7, 0.7, -0.04, 0.04, -0.7, 0.7))

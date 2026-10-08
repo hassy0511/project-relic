@@ -115,11 +115,16 @@ def mid(room):
             d.put("retaining_" + "abcab"[k], [sx * x, -5.0, -15.0], 180)
         d.put("parapet_rail_4", [sx * 46.5, 1.2, -14.5])
         d.put("retaining_a", [sx * 46.5, -5.0, -15.0], 180, scale=[0.5, 1, 1])
-    # 東西の低い壁（高さ 3.2、上の面 1.2）：手すりと、外の面の擁壁（背の面まで）
+    # 東西の低い壁（高さ 3.2、上の面 1.2、z -14〜16）：手すりと、外の面の擁壁（背の面まで）。
+    # 北の端の 1 本は 6 m（z 10〜16）にして、壁の当たり判定の端（z=16）で止める（前は 8 m で z 18 まで出て、
+    # 段の家の塊の端の横に笠木・付け柱・擁壁の端が宙に浮いていた）。端には角の柱（南の角と同じ parapet_corner）
     for sx, yaw in ((-1, 90), (1, 270)):
-        for z in (-10, -2, 6, 14):
+        for z in (-10, -2, 6):
             d.put("parapet_rail_8", [sx * 48.5, 1.2, z], yaw)
-            d.put("retaining_" + ("b" if z in (-2, 14) else "a"), [sx * 49.0, -7.0, z], (yaw + 180) % 360)
+            d.put("retaining_" + ("b" if z == -2 else "a"), [sx * 49.0, -7.0, z], (yaw + 180) % 360)
+        d.put("parapet_rail_8", [sx * 48.5, 1.2, 13.0], yaw, scale=[0.75, 1, 1])
+        d.put("retaining_b", [sx * 49.0, -7.0, 13.0], (yaw + 180) % 360, scale=[0.75, 1, 1])
+        d.put("parapet_corner", [sx * 48.5, 1.2, 15.5])
     # 南の階段（下の段へ）：手すり、上り口の背の高い外灯 2 本
     d.put("stair_rail_12", [-4.0, -5.0, -26.0])
     d.put("stair_rail_12_r", [4.0, -5.0, -26.0])

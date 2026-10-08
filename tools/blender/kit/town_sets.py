@@ -14,7 +14,7 @@
   monument           広場の中央の台（3.2 m 角）の下の中心
   stage_8x3          広場の奥の壇（8×0.8×3）の下の中心
   stair_rail_12      階段の横の壁に付く手すり。原点 = 下の段の床・壁の面。+Z へ 12 m で 5 m 上がる
-  lower_block_*      下の段の家並み（遠くから見る）。床の中心
+  lower_block_*      下の段の家並み（town_terrace.py）。床の中心
 """
 from __future__ import annotations
 
@@ -456,41 +456,7 @@ def stair_rail(L=12.0, rise=5.0) -> Part:
     return p
 
 
-# ---------------------------------------------------------------- 下の段の家並み（胸壁の向こうに見える）
-
-def lower_block(variant='a') -> Part:
-    """下の段の家並み（10×8 m ほど）：白磁の箱の家 3〜4 軒、平屋根・帆布の日よけ・給水槽。遠くから見る物なので細部は少ない"""
-    p = Part(f'lower_block_{variant}')
-    rng = np.random.default_rng(10 + ord(variant))
-    houses = {'a': [(-3.5, -1.0, 3.0, 4.0, 3.2), (0.5, -0.5, 4.0, 5.0, 4.6), (3.8, 1.5, 2.6, 3.4, 2.8), (-1.5, 2.8, 3.4, 2.2, 2.6)],
-              'b': [(-3.0, 0.0, 4.0, 5.0, 3.8), (1.5, -1.5, 3.2, 3.2, 3.0), (2.8, 2.0, 3.6, 3.0, 5.2)],
-              'c': [(-3.8, 1.0, 2.6, 4.0, 2.9), (-0.6, 0.0, 3.4, 5.6, 4.2), (3.2, -1.2, 3.4, 3.6, 3.4), (2.0, 2.8, 4.0, 2.0, 2.4)]}[variant]
-    for cx, cz, w, d, h in houses:
-        p.add('ivory', boxb(cx - w / 2, cx + w / 2, 0, h, cz - d / 2, cz + d / 2))
-        p.add('graphite', boxb(cx - w / 2 - 0.05, cx + w / 2 + 0.05, h, h + 0.15, cz - d / 2 - 0.05, cz + d / 2 + 0.05))
-        for sx in (-1, 1):
-            for sz in (-1, 1):
-                p.add('graphite', boxb(cx + sx * w / 2 - 0.12, cx + sx * w / 2 + 0.12, 0, h + 0.15, cz + sz * d / 2 - 0.12, cz + sz * d / 2 + 0.12))
-        p.add('wood', boxb(cx - w / 2 - 0.02, cx + w / 2 + 0.02, 0, 0.4, cz - d / 2 - 0.02, cz + d / 2 + 0.02))
-        # 正面（+Z と -Z の両方）に窓
-        for zf, s in ((cz + d / 2, 1), (cz - d / 2, -1)):
-            for wx in np.arange(cx - w / 2 + 0.9, cx + w / 2 - 0.5, 1.4):
-                p.add('dark', boxb(wx - 0.3, wx + 0.3, h * 0.45, h * 0.45 + 0.6, min(zf, zf + s * 0.02), max(zf, zf + s * 0.02)))
-        # 屋根の上：日よけか給水槽
-        if rng.random() < 0.55:
-            y = h + 0.15
-            p.add('cloth' if rng.random() < 0.6 else 'cloth2',
-                  sheet(lambda u, v, cx=cx, cz=cz, w=w, d=d, y=y: (cx - w * 0.4 + w * 0.8 * u, y + 1.6 - 0.25 * math.sin(math.pi * u) * math.sin(math.pi * v),
-                                                                  cz - d * 0.4 + d * 0.8 * v), 3, 3, 0.03))
-            for sx in (-1, 1):
-                for sz in (-1, 1):
-                    p.add('graphite', boxb(cx + sx * w * 0.4 - 0.05, cx + sx * w * 0.4 + 0.05, y, y + 1.6, cz + sz * d * 0.4 - 0.05, cz + sz * d * 0.4 + 0.05))
-        else:
-            p.add('brass', cyl((cx + w * 0.2, h + 0.15, cz), (cx + w * 0.2, h + 1.3, cz), 0.5, 10))
-        # 低い手すり（屋上）
-        p.add('brass', cyl((cx - w / 2, h + 0.9, cz + d / 2), (cx + w / 2, h + 0.9, cz + d / 2), 0.03, 5, cap=False))
-    return p
-
+# ---------------------------------------------------------------- 下の段の床（家並み lower_block_* は town_terrace.py）
 
 def deck_slab(w=96.0, d=41.0) -> Part:
     """下の段の床（遠くから見る）：白磁の床の板と、外の縁の黒鉛の帯。床の上の面 y=0"""
@@ -540,6 +506,5 @@ SETS = {
     'workshop_front': workshop_front, 'diner_front': diner_front, 'monument': monument, 'plaza_ring': plaza_ring, 'stage': stage,
     'stair_rail_12': stair_rail, 'stair_rail_12_r': stair_rail_r,
     'retaining_a': lambda: retaining(8, 5, 'a'), 'retaining_b': lambda: retaining(8, 5, 'b'), 'retaining_c': lambda: retaining(8, 5, 'c'),
-    'lower_block_a': lambda: lower_block('a'), 'lower_block_b': lambda: lower_block('b'),
-    'lower_block_c': lambda: lower_block('c'), 'deck_slab': deck_slab,
+    'deck_slab': deck_slab,
 }
