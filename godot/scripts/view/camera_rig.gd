@@ -10,7 +10,7 @@ var _time := 0.0
 ## 壁に寄って立ったときにカメラを上へ回す角度（ラジアン。なめらかに戻す）
 var _lift := 0.0
 const LIFT_STEP := 0.26     # 15 度ずつ試す
-const LIFT_STEPS := 4
+const LIFT_STEPS := 8     # 下向き（-35 度）からでも 75 度まで届く数
 const LIFT_MAX := 1.31      # 75 度まで
 
 
@@ -54,13 +54,14 @@ func sync(game: GameSim, player_pos: Vector3, dt: float, shake: float) -> void:
 				lift_want = p2 - pitch
 			if r2 >= c.minDistance or p2 >= LIFT_MAX:
 				break
-	_lift += (lift_want - _lift) * U.damp(6.0, dt)
+	# 上へ回すのは素早く（頭のすぐ後ろにいる時間を短く）、戻すのはゆっくり
+	_lift += (lift_want - _lift) * U.damp(14.0 if lift_want > _lift else 5.0, dt)
 	if _lift > 0.001:
 		back = _dir(yaw, pitch + _lift)
 		room = _room(game, back, want)
 	want = minf(want, room)
-	# 近づくのは素早く、離れるのはゆっくり
-	_dist += (want - _dist) * (1.0 if want < _dist else U.damp(4.0, dt))
+	# 近づくのは素早く、離れるのはゆっくり（minDistance より近い窮屈な所からは早めに離れる）
+	_dist += (want - _dist) * (1.0 if want < _dist else U.damp(4.0 if _dist >= c.minDistance else 12.0, dt))
 
 	var p := _pivot + back * _dist
 	if shake > 0.0:

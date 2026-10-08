@@ -676,7 +676,7 @@ LOWER_HOUSES = {
 
 def lower_block(variant='a') -> Part:
     """下の段の家並み（10×8 m ほど）：白磁の絵（shell）の箱の家 3〜4 軒。どの向きの面にも窓（他の家に隠れる所は付けない）、
-    1 軒に 1 つの扉と固いひさし（吊り灯は 1 区画に 1 つ）、足元の木の帯と上の黒鉛の帯、屋上の縁の低い壁と笠木（前の宙に浮いた手すりの代わり）、
+    1 軒に 1 つの扉と固いひさし（吊り灯は付けない：灯の材質 1 つで描画が 1 回増えるため）、足元の木の帯と上の黒鉛の帯、屋上の縁の低い壁と笠木（前の宙に浮いた手すりの代わり）、
     屋上の日よけ・水槽・煙突。前は平らな灰色の箱に小さな暗い四角だけで、胸壁から 4 m の所では舞台の書き割りに見えた"""
     p = Part(f'lower_block_{variant}')
     rng = np.random.default_rng(10 + ord(variant))
@@ -688,7 +688,6 @@ def lower_block(variant='a') -> Part:
         return any(k != i and a - 0.02 < x < b + 0.02 and c - 0.02 < z < e + 0.02 and y < hh
                    for k, (a, b, c, e, hh) in enumerate(boxes))
 
-    lamp_done = False
     for i, (cx, cz, w, d, h) in enumerate(hs):
         x0, x1, z0, z1, _ = boxes[i]
         centre = {'+z': (cx, z1), '-z': (cx, z0), '+x': (x1, cz), '-x': (x0, cz)}
@@ -720,10 +719,6 @@ def lower_block(variant='a') -> Part:
                     sp['door'] = door
                     if h >= 2.6:
                         sp['awnings'].append((door - 0.75, door + 0.75, 2.2, 'hard', 0.8))
-                    if not lamp_done:             # 吊り灯は 1 区画に 1 つ（灯は遠くでも目に付くので、数より置き場所）
-                        side = 0.8 if free(n, door + 0.8, 1.9, 0.1) else -0.8
-                        sp['lanterns'].append((door + side, 1.75))
-                        lamp_done = True
             rows = [0.95] + ([2.75] if h >= 4.2 else [])
             us = np.arange(-L / 2 + 0.85, L / 2 - 0.6, 1.7)
             us = us + (L / 2 - 0.85 - us[-1]) / 2 if len(us) else us

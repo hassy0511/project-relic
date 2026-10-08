@@ -868,8 +868,8 @@
   ]
  },
  "lower_block_a": {
-  "tris": 2256,
-  "mats": 4,
+  "tris": 2192,
+  "mats": 3,
   "min": [
    -5.57,
    0.0,
@@ -882,8 +882,8 @@
   ]
  },
  "lower_block_b": {
-  "tris": 2032,
-  "mats": 4,
+  "tris": 1968,
+  "mats": 3,
   "min": [
    -5.57,
    0.0,
@@ -896,8 +896,8 @@
   ]
  },
  "lower_block_c": {
-  "tris": 2324,
-  "mats": 4,
+  "tris": 2260,
+  "mats": 3,
   "min": [
    -5.67,
    0.0,

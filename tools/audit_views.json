@@ -988,6 +988,234 @@
   "pitch": -10
  },
  {
+  "name": "corner_nw_free",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "eye": [
+   -52,
+   3.0,
+   21
+  ],
+  "target": [
+   -48.5,
+   0.5,
+   16.5
+  ],
+  "at": [
+   -40,
+   0,
+   8
+  ]
+ },
+ {
+  "name": "corner_ne_end",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   48.5,
+   1.2,
+   15.6
+  ],
+  "look": [
+   44,
+   1.2,
+   11
+  ],
+  "pitch": 20
+ },
+ {
+  "name": "corner_nw_end",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -48.5,
+   1.2,
+   15.6
+  ],
+  "look": [
+   -44,
+   1.2,
+   11
+  ],
+  "pitch": 20
+ },
+ {
+  "name": "corner_nw_floor",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -45.5,
+   0,
+   13.5
+  ],
+  "look": [
+   -48.5,
+   1.2,
+   17
+  ],
+  "pitch": 0
+ },
+ {
+  "name": "s_well_from_parapet",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   6.5,
+   1.2,
+   -14.5
+  ],
+  "look": [
+   6.5,
+   1.0,
+   -21
+  ],
+  "pitch": 40
+ },
+ {
+  "name": "s_wall_top_s",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   4.25,
+   3.0,
+   -18
+  ],
+  "look": [
+   4.25,
+   3.0,
+   -40
+  ],
+  "pitch": 25
+ },
+ {
+  "name": "s_wall_top",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   4.25,
+   3.0,
+   -24
+  ],
+  "look": [
+   10,
+   3.0,
+   -24
+  ],
+  "pitch": 25
+ },
+ {
+  "name": "lower_close",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   15,
+   1.2,
+   -14.5
+  ],
+  "look": [
+   15,
+   0,
+   -25
+  ],
+  "pitch": 35
+ },
+ {
+  "name": "lower_close_w",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -15,
+   1.2,
+   -14.5
+  ],
+  "look": [
+   -20,
+   0,
+   -25
+  ],
+  "pitch": 35
+ },
+ {
+  "name": "hug_alley_e",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   3.5,
+   5,
+   30
+  ],
+  "look": [
+   -4,
+   5,
+   30
+  ],
+  "pitch": 10
+ },
+ {
+  "name": "hug_landing_w",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   3.5,
+   5,
+   31
+  ],
+  "look": [
+   -4,
+   5,
+   31
+  ],
+  "pitch": 10
+ },
+ {
+  "name": "hug_mouth",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -5,
+   0,
+   15.5
+  ],
+  "look": [
+   -5,
+   0,
+   10
+  ],
+  "pitch": 20
+ },
+ {
+  "name": "hug_wall_s",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -20,
+   0,
+   15.5
+  ],
+  "look": [
+   -20,
+   0,
+   0
+  ],
+  "pitch": 12
+ },
+ {
+  "name": "hug_diner",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -20,
+   0,
+   10.0
+  ],
+  "look": [
+   -20,
+   0,
+   16
+  ],
+  "pitch": 12
+ },
+ {
   "name": "r02_entry",
   "room": "ch1.r02",
   "spawn": "from_r01",
@@ -1398,5 +1626,37 @@
    0,
    -14.5
   ]
+ },
+ {
+  "name": "r03_hug_wall",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "at": [
+   2.6,
+   0,
+   -16
+  ],
+  "look": [
+   -3,
+   0,
+   -16
+  ],
+  "pitch": 0
+ },
+ {
+  "name": "r03_fall_n",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "at": [
+   0,
+   -3,
+   -12.25
+  ],
+  "look": [
+   0,
+   -3,
+   0
+  ],
+  "pitch": 12
  }
 ]
