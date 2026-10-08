@@ -27,6 +27,8 @@ var _yaw_seen := PI
 const HOLD_EITHER_WAY := 170.0
 ## 左スティックを倒していないとみなす大きさ（Player._move_input と同じ）
 const STICK_DEAD := 0.15
+## 背後へ回している途中の回転をやめさせる、1 刻みのカメラ操作の大きさ（ラジアン。マウスで約 4 ピクセル、右スティックを半分ほど倒した量）
+const LOOK_CANCEL := 0.01
 
 
 func _init(tuning: Dictionary) -> void:
@@ -47,7 +49,9 @@ func apply_look(input: InputFrame) -> void:
 	pitch = clampf(pitch + input.look_y * c.sensitivityY, c.minPitch * U.DEG, c.maxPitch * U.DEG)
 	if input.look_active:
 		_idle_look = 0.0
-		_recentering = 0.0
+		# 背後へ回している途中は、はっきり回したときだけやめる（右クリック中のマウスの小さな揺れで止まらないように）
+		if absf(turn) > LOOK_CANCEL or absf(input.look_y) > LOOK_CANCEL:
+			_recentering = 0.0
 	_update_hold(Vector2(input.move_x, input.move_y))
 	_yaw_seen = yaw
 
@@ -60,7 +64,12 @@ func apply_look(input: InputFrame) -> void:
 func request_recenter(player_yaw: float, stick: Vector2) -> void:
 	_recentering = 0.35
 	if _hold != null:
-		return  # すでに止めている（続けて押した）：基準はそのまま
+		# すでに止めている（続けて押した）：今の基準（戻した分も含めて）をそのまま止め直す。進む向きは変わらない
+		_hold = U.wrap_angle(_hold + _hold_shift)
+		_hold_shift = 0.0
+		if stick.length() >= STICK_DEAD:
+			_hold_stick = stick.normalized()
+		return
 	_hold_shift = 0.0
 	if stick.length() >= STICK_DEAD:
 		_hold = yaw
@@ -113,8 +122,10 @@ func update(dt: float, player_pos: Vector3, player_yaw: float, player_speed: flo
 	var c: Dictionary = t.camera
 	_idle_look += dt
 	if target != null:
-		# ロックオン中：プレイヤーの後ろから対象を見る向きへ寄せる（左スティックの基準はカメラに戻す）
+		# ロックオン中：プレイヤーの後ろから対象を見る向きへ寄せる（左スティックの基準はカメラに戻す）。
+		# 背後へ回している途中に捉えたら、回すのはやめる（残すと、外れたあとに基準なしで回り出して、カメラが回り続ける）
 		_hold = null
+		_recentering = 0.0
 		var want := U.dir_to_yaw(target.x - player_pos.x, target.z - player_pos.z)
 		yaw = U.wrap_angle(yaw + U.wrap_angle(want - yaw) * U.damp(c.lockOnYawSpeed, dt))
 		pitch += (c.defaultPitch * U.DEG - pitch) * U.damp(3.0, dt)

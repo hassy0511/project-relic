@@ -152,6 +152,65 @@ func test_recenter_while_running() -> void:
 	h.free_game(g2)
 
 
+## 背後へ回している途中でロックオンが敵を捉えたら、回すのはやめる。外れたあとに残りの回転が基準なしで走って回り続けない
+func test_recenter_cancelled_by_lock() -> void:
+	var t := TestHelpers.default_tuning()
+	var cam := CameraOrbit.new(t)
+	cam.follow = "weak"
+	cam.yaw = 0.0
+	var dt := 1.0 / 60.0
+	cam.request_recenter(PI / 2, Vector2(1, 0))
+	cam.update(dt, Vector3.ZERO, PI / 2, 7.0, null)
+	cam.update(dt, Vector3.ZERO, PI / 2, 7.0, Vector3(5, 0, 5))
+	var y0 := cam.yaw
+	for i in 30:
+		cam.update(dt, Vector3.ZERO, PI / 2, 7.0, null)
+	h.near(U.wrap_angle(cam.yaw - y0), 0.0, 0.0001, "捉えたあと外れても、回していた続きは走らない")
+	h.near(U.wrap_angle(cam.move_yaw() - cam.yaw), 0.0, 0.0001, "左スティックの基準はカメラに戻っている")
+
+
+## 背後へ回したあと、倒し直しの途中でもう一度押しても、ハルの進む向きは跳ばない
+func test_recenter_twice_keeps_heading() -> void:
+	var g := h.make_game()
+	await h.settle()
+	g.cam.follow = "weak"
+	g.cam.yaw = 0.0
+	await h.run(g, 40, {"move_x": 1.0})
+	await h.run(g, 1, {"move_x": 1.0, "camera_reset": true})
+	await h.run(g, 30, {"move_x": 1.0})
+	# 右から斜め前へ半分ほど倒し直す（基準が少しカメラへ戻る）
+	var a := (-PI / 2) * 0.5
+	await h.run(g, 10, {"move_x": -sin(a), "move_y": cos(a)})
+	var p: Player = g.player
+	var before := U.dir_to_yaw(p.vel.x, p.vel.z)
+	var worst := 0.0
+	for i in 30:
+		await h.run(g, 1, {"move_x": -sin(a), "move_y": cos(a), "camera_reset": i == 0})
+		worst = maxf(worst, absf(U.wrap_angle(U.dir_to_yaw(p.vel.x, p.vel.z) - before)))
+	h.expect(worst < 2.0 * U.DEG, "続けて押しても進む向きは変わらない（最大 %.1f°）" % (worst / U.DEG))
+	h.free_game(g)
+
+
+## 背後へ回している途中、マウスの小さな揺れ（右クリック中など）では止まらない。はっきり回せば止まる
+func test_recenter_ignores_small_look() -> void:
+	var t := TestHelpers.default_tuning()
+	var dt := 1.0 / 60.0
+	for big in [false, true]:
+		var cam := CameraOrbit.new(t)
+		cam.yaw = 0.0
+		cam.request_recenter(PI / 2, Vector2.ZERO)
+		for i in 30:
+			var f := InputFrame.new()
+			f.look_x = (0.05 if big else 0.002) if i < 5 else 0.0
+			f.look_active = i < 5
+			cam.apply_look(f)
+			cam.update(dt, Vector3.ZERO, PI / 2, 0.0, null)
+		if big:
+			h.expect(absf(U.wrap_angle(cam.yaw - PI / 2)) > 30.0 * U.DEG, "はっきり回すと、背後へ回すのをやめる")
+		else:
+			h.near(U.wrap_angle(cam.yaw - PI / 2) / U.DEG, 0.0, 3.0, "小さな揺れでは止まらず、背後まで回る")
+
+
 ## 背後へ回したあと、左スティックを横から前へゆっくり倒し直しても、ハルはまっすぐ走り続ける（止めた基準が倒し直した分だけカメラへ戻る）。
 ## 倒したまま指が少し揺れても、進路はずれていかない
 func test_recenter_hold_returns_to_camera() -> void:
