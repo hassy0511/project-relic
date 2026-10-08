@@ -91,6 +91,15 @@ def _window_far(p: Part, x, y, z, shutter=True):
         p.add('wood', beam(hinge, hinge + d * 0.58, 0.78, 0.04, up=(0, 0, 1)))
 
 
+def _window_flush(p: Part, x, y, z):
+    """雨戸の無い窓（_window の枠・暗い奥・桟と、下の木の窓台。面から 0.14 m しか出ない）。カメラが壁ぎわまで寄る狭い所（南の階段の中）に使う"""
+    p.add('dark', boxb(x - 0.38, x + 0.38, y, y + 0.7, z, z + 0.01))
+    p.add('graphite', boxb(x - 0.46, x + 0.46, y + 0.7, y + 0.78, z, z + 0.1),
+          boxb(x - 0.46, x - 0.38, y, y + 0.7, z, z + 0.1), boxb(x + 0.38, x + 0.46, y, y + 0.7, z, z + 0.1),
+          boxb(x - 0.02, x + 0.02, y, y + 0.7, z, z + 0.05), boxb(x - 0.38, x + 0.38, y + 0.33, y + 0.37, z, z + 0.05))
+    p.add('wood', boxb(x - 0.52, x + 0.52, y - 0.1, y, z, z + 0.14))
+
+
 def _door_far(p: Part, x, y0, z):
     """もっと遠くから見る扉：裏の面の無い黒鉛の枠の板に木の扉の面と真鍮の取っ手（三角形 24。_door は 96）"""
     fr = boxb(x - 0.55, x + 0.55, y0, y0 + 1.95, z, z + 0.08)
@@ -142,7 +151,7 @@ def _retaining_light(p: Part, w, h):
 
 def _face(spec: dict, w: float, h: float) -> Part:
     """面の飾り。spec：
-      windows [(x, y)]、door x、door2 x（両開きの大きな扉）、awnings [(x0, x1, y, 'hard'|'soft'[, 奥行き])]、lanterns [(x, y)]、
+      windows [(x, y)]（flush：雨戸の無い窓）、door x、door2 x（両開きの大きな扉）、awnings [(x0, x1, y, 'hard'|'soft'[, 奥行き])]、lanterns [(x, y)]、
       balconies [(x0, x1, y)]、pipes [x]、posts [x]（黒鉛の付け柱）、bands [y]（黒鉛の帯）、ladder (x, h)、vents [(x, y)]"""
     p = Part('face')
     for x in spec.get('posts', ()):
@@ -153,6 +162,8 @@ def _face(spec: dict, w: float, h: float) -> Part:
     for k, (x, y) in enumerate(spec.get('windows', ())):
         if spec.get('far'):                # もっと遠く（下の段の家並み）：さらに軽い窓、雨戸は 1 つおき
             _window_far(p, x, y, 0.01, shutter=k % 2 == 0)
+        elif spec.get('flush'):            # 雨戸の無い窓（カメラが壁ぎわまで寄る所）
+            _window_flush(p, x, y, 0.01)
         else:
             (_window_simple if simple else _window)(p, x, y, 0.01)
     if spec.get('door') is not None:
@@ -656,6 +667,24 @@ def stair_well_s() -> Part:
     canopy(p, 2.0, 5.6, -38.6, -35.0, SW_REAR_TOP, 2.2, 'cloth')
     # 奥の壁の、奥の棟の屋根より上に出る面（z = -33、南向き）：付け柱と帯
     face(p, '-z', (0.0, SW_REAR_TOP, -33.0), {'posts': ends(9.0, [0.0]), 'bands': [SW_END_TOP - SW_REAR_TOP - 0.8]}, 9.0, SW_END_TOP - SW_REAR_TOP)
+    # 階段の下の踊り場の奥（奥の壁の内の面 z=-32、出口 ch1.mid.to_lower の先）：下の段への門。北の階段の奥の門（stair_gate）と同じ
+    # 両開きの扉・両脇の灯・付け柱・窓と、扉の上の飾り板。上の階（-0.7〜4.0 m）は窓の列と帯。前は壁の絵だけの 9 m の行き止まりで、
+    # 階段を下りた先が平らな壁のまま、近づくと部屋が変わった（書き割りに見えた）
+    face(p, '+z', (0.0, -5.0, -32.0), {
+        'door2': 0.0, 'lanterns': [(-1.9, 2.3), (1.9, 2.3)], 'posts': [-3.85, 3.85],
+        'windows': [(-3.0, 2.6), (3.0, 2.6)], 'flush': True, 'bands': [4.75]}, 8.0, 4.8)
+    face(p, '+z', (0.0, -0.2, -32.0), {
+        'windows': [(-2.7, 0.9), (0.0, 0.9), (2.7, 0.9)], 'posts': [-3.85, -1.35, 1.35, 3.85], 'bands': [3.0]}, 8.0, SW_END_TOP + 0.2)
+    p.add('graphite', boxb(-1.3, 1.3, -1.25, -0.45, -32.0, -31.88))
+    p.add('cloth', boxb(-1.15, 1.15, -1.15, -0.55, -31.9, -31.85))
+    p.add('brass', boxb(-1.35, 1.35, -0.45, -0.35, -32.0, -31.84), boxb(-1.35, 1.35, -1.35, -1.25, -32.0, -31.84))
+    # 階段の横の壁の内の面（|x| = 4、z -32〜-14）：両側の棟の窓（雨戸なし）と、踊り場の上の配管。前は壁の絵だけだった
+    for s in (-1, 1):
+        n = '-x' if s > 0 else '+x'
+        u = (lambda z: z + 23.0) if s > 0 else (lambda z: -23.0 - z)      # 面の x（面の中心 z=-23 から）
+        wins = [(u(z), 5.55) for z in (-30.8, -27.6, -24.4, -21.2, -18.0)] + [(u(z), 2.5) for z in (-30.8, -28.0)]
+        face(p, n, (s * ALLEY, -5.0, -23.0), {'windows': wins, 'flush': True, 'posts': [u(-26.0)], 'bands': [7.35], 'pipes': [u(-29.4)]},
+             18.0, SW_WALL_TOP + 5.0)
     # 階段の横の壁・奥の壁の上の笠木（geometry の壁の上の面）
     for s in (-1, 1):
         p.add('graphite', boxb(min(s * 3.94, s * 4.56), max(s * 3.94, s * 4.56), SW_WALL_TOP, SW_WALL_TOP + 0.1, -32.0, -14.0))

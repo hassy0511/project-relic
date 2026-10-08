@@ -118,6 +118,32 @@ def _horizon_row(a: np.ndarray) -> int:
     return lo + int(np.argmax(d[lo:hi]))
 
 
+def _fix_seam(a: np.ndarray, k: int = 6, block: int = 48) -> np.ndarray:
+    """bg_desert_* の左右の端（一周のつなぎ目）の直し。絵は左右を鏡に映してつないであり、つなぎ目の 2 列ずつが 1 割ほど暗く、
+    その外の 2 列が明るい（ゲームでは真南の空に縦の細い線、見上げると天頂を斜めに横切る線に見えた）。
+    つなぎ目の両側 k 列を、列ごとの明るさの倍率だけ外側の列に合わせる（模様はそのまま。倍率は block 行ごとに滑らかに変える）"""
+    H, W, _ = a.shape
+    r = np.roll(a, W // 2, axis=1)                  # つなぎ目を真ん中（c-1 と c の間）へ
+    c = W // 2
+    band = slice(c - k, c + k)
+    ker = np.ones(block) / block
+
+    def vsmooth(x):                                 # 縦にならす（列・色ごと）
+        pad = np.concatenate([x[:block // 2][::-1], x, x[-(block // 2):][::-1]], 0)
+        out = np.apply_along_axis(lambda col: np.convolve(col, ker, mode='same'), 0, pad)
+        return out[block // 2:block // 2 + H]
+
+    cur = vsmooth(r[:, band])                                       # (H, 2k, 3)
+    left = vsmooth(r[:, c - k - 3:c - k].mean(1, keepdims=True))     # 外側の 3 列ずつ
+    right = vsmooth(r[:, c + k:c + k + 3].mean(1, keepdims=True))
+    t = ((np.arange(2 * k) + 0.5) / (2 * k))[None, :, None]
+    want = left * (1 - t) + right * t
+    gain = np.clip(want / np.maximum(cur, 1.0), 0.75, 1.35)
+    r = r.copy()
+    r[:, band] = r[:, band] * gain
+    return np.roll(r, -(W // 2), axis=1)
+
+
 def make_sky(out_dir: str, src: str = INTAKE, width: int = 4096) -> None:
     from PIL import Image
     for name in ('day', 'night', 'dusk'):
@@ -125,7 +151,7 @@ def make_sky(out_dir: str, src: str = INTAKE, width: int = 4096) -> None:
         if not os.path.exists(path):
             print('[town] 遠景の絵が無い', path)
             continue
-        a = np.asarray(Image.open(path).convert('RGB'), np.float32)
+        a = _fix_seam(np.asarray(Image.open(path).convert('RGB'), np.float32))
         H, W = a.shape[:2]
         hz = _horizon_row(a)
         # 地平線を少し上へ：町は背の上 120 m なので、地平線は目の高さより少し下（-3 度）に見える
