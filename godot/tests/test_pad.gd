@@ -120,6 +120,42 @@ func test_camera_recenter_deadzone() -> void:
 	h.near(cam.yaw, 0.0, 0.0001, "切：自動では回らない")
 
 
+## ロックオンのボタンを押し続けていても、何も捉えていない間は右スティックでカメラを回せる（押し続けて見回し、見えた敵を捉える。LockOn.update）。
+## 捉えている間は、右スティックを弾くと対象の切り替え。捉えた瞬間に倒していた分では切り替えない（一度戻してから弾く）。
+## 前は適合のあと、ボタンを押している間は右スティックが切り替え専用になり、何も捉えていなくてもカメラを回せなかった（2026-10-08）
+func test_right_stick_looks_while_lock_held_without_target() -> void:
+	_begin()
+	var src = InputSource.new()
+	h.tree.root.add_child(src)
+	var dt := 1.0 / 60.0
+	if not ("fake_sticks" in src and "lock_target" in src):
+		h.expect(false, "InputSource にスティックの値の差し替え（fake_sticks）と、捉えているか（lock_target）がある")
+	else:
+		src.lock_available = true
+		src.lock_target = false
+		Input.action_press("lock_on")
+		src.fake_sticks = {"right": Vector2(1, 0)}
+		var f: InputFrame = src.sample(dt)
+		h.expect(f.look_x > 0.0 and f.look_active, "ボタンを押していても、捉えていない間は右スティックでカメラを回す")
+		h.expect(not f.switch_left and not f.switch_right, "捉えていない間は、対象の切り替えにしない")
+		src.lock_target = true
+		f = src.sample(dt)
+		h.expect(f.look_x == 0.0 and not f.switch_right, "捉えた瞬間に倒していた分では、回さず切り替えもしない")
+		src.fake_sticks = {"right": Vector2.ZERO}
+		src.sample(dt)
+		src.fake_sticks = {"right": Vector2(1, 0)}
+		f = src.sample(dt)
+		h.expect(f.switch_right, "一度戻してから右へ弾くと、右の対象へ切り替え")
+		h.expect(f.look_x == 0.0, "捉えている間は、右スティックでカメラを回さない")
+		Input.action_release("lock_on")
+		src.lock_target = false
+		src.fake_sticks = {"right": Vector2(-1, 0)}
+		f = src.sample(dt)
+		h.expect(f.look_x < 0.0, "ボタンを離せば、右スティックでカメラを回す")
+	src.queue_free()
+	_end()
+
+
 # ---------------------------------------------------------------- 割り当て
 
 func test_remap_swap_save_load() -> void:

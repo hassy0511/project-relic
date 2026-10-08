@@ -4,7 +4,18 @@ extends RefCounted
 ## 実際のカメラ位置（壁の回避など）は見た目の側が決める。yaw は「カメラが見ている水平方向」。
 
 var t: Dictionary
-var yaw := PI
+## カメラが見ている水平方向。外から書き換える（部屋の読み込み・復活・台本の teleport・セーブの読み込み）と、
+## 背後へ回している途中の回転と、止めている左スティックの基準をやめる（_end_swing）。
+## 回転の続きが残ると、新しい向きから基準なしで回り出し、回るカメラにつられて進む向きが回り、カメラが回り続ける
+## （部屋の出口の手前で押すと、新しい部屋でハルが扉へ走り戻った。基準だけ戻すのでは足りない。2026-10-08）。
+## カメラの中の書き換えは _yaw へ直に入れる
+var yaw: float:
+	get:
+		return _yaw
+	set(v):
+		_yaw = v
+		_end_swing()
+var _yaw := PI
 var pitch := 12.0 * U.DEG
 var _idle_look := 0.0
 ## 移動に合わせた自動の回り込み："off"＝回らない（右スティック・マウス・背後のボタンだけ）、
@@ -14,15 +25,16 @@ var follow := "normal"
 const FORWARD_ONLY := 50.0
 var _recentering := 0.0
 ## 左スティックの「前」の基準（移動の向きの基準）を止めているときの yaw。null なら止めていない（基準＝カメラの向き yaw）。
-## 背後へ回す（request_recenter）と止める。止めないと、左スティックを倒したまま押したとき、回るカメラにつられてハルの進む向きが回り、
-## それをカメラが追ってまた回る、を繰り返してカメラが回り続ける（横へ走りながら押すと 1 周近く回って横のまま止まった。2026-10-08）
+## 背後へ回す（request_recenter）と、左スティックを倒したまま自動で回り込むとき（update）に止める。止めないと、回るカメラにつられて
+## ハルの進む向きが回り、それをカメラが追ってまた回る、を繰り返してカメラが回り続ける（横へ走りながら押すと 1 周近く回って横のまま止まった。
+## 「弱い」の回り込みで斜め前へ倒し続けると、1 秒に 43° ずつ回り続けてハルが輪を描いた。2026-10-08）
 var _hold = null
 ## 回し終えたときの左スティックの向き（単位ベクトル。倒していなければ 0）。ここから倒す向きを変えた分だけ、基準をカメラへ戻していく
 var _hold_stick := Vector2.ZERO
 ## 止めた基準を、左スティックの向きを変えた分だけカメラの方へ戻した量（ラジアン。move_yaw = _hold + これ）
 var _hold_shift := 0.0
-## カメラの中で最後に決めた yaw（外から yaw を直に書き換えたこと＝部屋の移動・復活などに気づくため）
-var _yaw_seen := PI
+## この刻みの左スティック（apply_look で受け取る。自動の回り込みで基準を止めるかどうかに使う）
+var _stick := Vector2.ZERO
 ## 止めた基準とカメラの差がこれ（度）より大きい（ほぼ真後ろ）ときは、左スティックをどちらへ回しても、ハルがまっすぐ進むように戻す
 const HOLD_EITHER_WAY := 170.0
 ## 左スティックを倒していないとみなす大きさ（Player._move_input と同じ）
@@ -36,13 +48,18 @@ func _init(tuning: Dictionary) -> void:
 	pitch = t.camera.defaultPitch * U.DEG
 
 
+## 背後へ回している途中の回転と、止めている左スティックの基準をやめる（基準はカメラに戻る）
+func _end_swing() -> void:
+	_recentering = 0.0
+	_hold = null
+	_hold_shift = 0.0
+	_hold_stick = Vector2.ZERO
+
+
 func apply_look(input: InputFrame) -> void:
 	var c: Dictionary = t.camera
-	if _hold != null and yaw != _yaw_seen:
-		# 部屋の移動・復活・台本などで yaw が外から書き換わった：基準はカメラに戻す
-		_hold = null
 	var turn: float = -input.look_x * c.sensitivityX
-	yaw = U.wrap_angle(yaw + turn)
+	_yaw = U.wrap_angle(_yaw + turn)
 	if _hold != null:
 		# 右スティック・マウスで回した分は、止めている基準も一緒に回す（ふだんと同じく、カメラを回すと進む向きも回る）
 		_hold = U.wrap_angle(_hold + turn)
@@ -52,8 +69,8 @@ func apply_look(input: InputFrame) -> void:
 		# 背後へ回している途中は、はっきり回したときだけやめる（右クリック中のマウスの小さな揺れで止まらないように）
 		if absf(turn) > LOOK_CANCEL or absf(input.look_y) > LOOK_CANCEL:
 			_recentering = 0.0
-	_update_hold(Vector2(input.move_x, input.move_y))
-	_yaw_seen = yaw
+	_stick = Vector2(input.move_x, input.move_y)
+	_update_hold(_stick)
 
 
 ## プレイヤーの背後へ素早く回す（ロックオン対象がないときのロックオンボタン、R3・C・タッチの「背後」）。
@@ -72,7 +89,7 @@ func request_recenter(player_yaw: float, stick: Vector2) -> void:
 		return
 	_hold_shift = 0.0
 	if stick.length() >= STICK_DEAD:
-		_hold = yaw
+		_hold = _yaw
 		_hold_stick = stick.normalized()
 	else:
 		_hold = player_yaw
@@ -81,7 +98,7 @@ func request_recenter(player_yaw: float, stick: Vector2) -> void:
 
 ## 左スティックの「前」の基準（yaw）。ふつうはカメラの向き。背後へ回している間などは止めた向き（request_recenter）
 func move_yaw() -> float:
-	return yaw if _hold == null else U.wrap_angle(_hold + _hold_shift)
+	return _yaw if _hold == null else U.wrap_angle(_hold + _hold_shift)
 
 
 ## 左スティックの向き（前＝0、右＝−90°。基準の yaw に足すと進む向きの yaw になる）
@@ -107,7 +124,7 @@ func _update_hold(stick: Vector2) -> void:
 	if not held or _hold_stick == Vector2.ZERO:
 		_hold = null
 		return
-	var o := U.wrap_angle(yaw - _hold)
+	var o := U.wrap_angle(_yaw - _hold)
 	var turned := U.wrap_angle(_stick_yaw(stick) - _stick_yaw(_hold_stick))
 	var shift := -turned
 	if signf(shift) != signf(o) and absf(o) < HOLD_EITHER_WAY * U.DEG:
@@ -124,19 +141,16 @@ func update(dt: float, player_pos: Vector3, player_yaw: float, player_speed: flo
 	if target != null:
 		# ロックオン中：プレイヤーの後ろから対象を見る向きへ寄せる（左スティックの基準はカメラに戻す）。
 		# 背後へ回している途中に捉えたら、回すのはやめる（残すと、外れたあとに基準なしで回り出して、カメラが回り続ける）
-		_hold = null
-		_recentering = 0.0
+		_end_swing()
 		var want := U.dir_to_yaw(target.x - player_pos.x, target.z - player_pos.z)
-		yaw = U.wrap_angle(yaw + U.wrap_angle(want - yaw) * U.damp(c.lockOnYawSpeed, dt))
+		_yaw = U.wrap_angle(_yaw + U.wrap_angle(want - _yaw) * U.damp(c.lockOnYawSpeed, dt))
 		pitch += (c.defaultPitch * U.DEG - pitch) * U.damp(3.0, dt)
-		_yaw_seen = yaw
 		return
 	if _recentering > 0.0:
 		# ハルの体の向きの背後へ。左スティックの基準は止めてあるので、カメラが回ってもハルの進む向きは回らない
 		_recentering -= dt
-		yaw = U.wrap_angle(yaw + U.wrap_angle(player_yaw - yaw) * U.damp(14.0, dt))
+		_yaw = U.wrap_angle(_yaw + U.wrap_angle(player_yaw - _yaw) * U.damp(14.0, dt))
 		pitch += (c.defaultPitch * U.DEG - pitch) * U.damp(10.0, dt)
-		_yaw_seen = yaw
 		return
 	if follow != "off" and _idle_look > c.autoRecenterDelay and player_speed > 2.0:
 		# 操作がしばらくないときは、移動の向きの背後へゆっくり回る。
@@ -144,7 +158,7 @@ func update(dt: float, player_pos: Vector3, player_yaw: float, player_speed: flo
 		# （まっすぐ倒したつもりの数度のずれを追いかけると、向きが少しずれる → カメラが回る → 入力の基準が回る、
 		# という繰り返しで進路が曲がっていく。大きく曲がったときだけ、不感帯の端まで寄せる）
 		var dead: float = float(c.get("autoRecenterDeadzone", 25.0)) * U.DEG
-		var diff := U.wrap_angle(player_yaw - yaw)
+		var diff := U.wrap_angle(player_yaw - _yaw)
 		var excess := absf(diff) - dead
 		# 弱い：横や後ろへ進むときは回らない（左スティックを横に倒しただけでカメラが回らないように）
 		if follow == "weak" and absf(diff) > FORWARD_ONLY * U.DEG:
@@ -153,5 +167,10 @@ func update(dt: float, player_pos: Vector3, player_yaw: float, player_speed: flo
 			var rate: float = c.autoRecenterSpeed * clampf(player_speed / 7.0, 0.0, 1.0) * dt
 			if follow == "weak":
 				rate *= 0.5
-			yaw = U.wrap_angle(yaw + signf(diff) * minf(excess, rate))
-	_yaw_seen = yaw
+			if _hold == null and _stick.length() >= STICK_DEAD:
+				# 左スティックを倒したまま回り込む：基準は回り込む前のカメラの向きに止める（背後へ回すときと同じ。_update_hold）。
+				# ハルはまっすぐ走り続け、カメラは進む向きとの差が不感帯の端になった所で止まる（左スティックでカメラが回り続けない）
+				_hold = _yaw
+				_hold_stick = _stick.normalized()
+				_hold_shift = 0.0
+			_yaw = U.wrap_angle(_yaw + signf(diff) * minf(excess, rate))

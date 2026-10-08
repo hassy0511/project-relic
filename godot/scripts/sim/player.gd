@@ -7,6 +7,9 @@ const RADIUS := 0.35
 const HEIGHT := 1.55
 ## 胸の高さ（撃つ位置、狙われる位置）
 const CHEST := 1.1
+## 銃口の、胸からの右（m）と前（m）へのずれ（muzzle）
+const MUZZLE_SIDE := 0.22
+const MUZZLE_FORWARD := 0.4
 ## 奈落の高さ。これより下に落ちたら直前の足場に戻す
 const KILL_Y := -30.0
 
@@ -451,11 +454,13 @@ func aim_plan() -> Dictionary:
 	return {"face": U.dir_to_yaw(p.x - pos.x, p.z - pos.z), "aim_at": p}
 
 
-## 銃口（右手の先）の位置。face：撃つときの体の向き（yaw）
+## 銃口（右手の先）の位置。face：撃つときの体の向き（yaw）。
+## 右は体の向きの右（＝画面の右。_move_input と同じ (-fwd.z, 0, fwd.x)）。横の位置はモデル（haru_r）の銃口の目印に合わせる。
+## 前は左手の側にあり、弾が見た目の銃の 0.5m 左から出て、銃口が隠れているかも逆の側で調べていた（2026-10-08）
 func muzzle(face: float) -> Vector3:
 	var fwd := U.yaw_to_dir(face)
 	var right := Vector3(-fwd.z, 0.0, fwd.x)
-	return chest() - right * 0.3 + fwd * 0.4
+	return chest() + right * MUZZLE_SIDE + fwd * MUZZLE_FORWARD
 
 
 ## 弾の出る位置：ふつうは銃口。銃口が壁・箱・台にめり込むとき、または銃口からだと狙う点（aim_at）が柱の角などに隠れるときは胸から。

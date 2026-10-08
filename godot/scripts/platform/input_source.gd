@@ -19,6 +19,12 @@ var invert_y := false
 ## ロックオンが使えるか（main が毎フレーム入れる）。使えない間（第 1 章の適合の前）は、ロックオンのボタンを押していても
 ## 右スティック・マウスの横振りを対象の切り替えに使わず、カメラを回す（ボタンは押した瞬間にカメラを背後へ回すだけ）
 var lock_available := true
+## ロックオンで対象を捉えているか（main が毎刻み入れる）。捉えている間だけ、ロックオンのボタンを押しながらの右スティック・マウスの横振りを
+## 対象の切り替えに使う。捉えていない間は、ボタンを押し続けていても右スティックでカメラを回して対象を探せる（見えた刻みで捉える。LockOn.update）。
+## 前は押している間ずっと切り替え専用で、何も捉えていなくてもカメラを回せなかった（2026-10-08）
+var lock_target := false
+## テスト用：つながっているパッドの代わりに使うスティックの生の値 {"left": Vector2, "right": Vector2}（null ならパッドから読む）
+var fake_sticks = null
 var _latched := {}
 var _mouse := Vector2.ZERO
 var _flick_accum := 0.0
@@ -96,7 +102,7 @@ func _input(event: InputEvent) -> void:
 		last_device = "keyboard"
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		_mouse += event.relative
-		if Input.is_action_pressed("lock_on") and lock_available:
+		if Input.is_action_pressed("lock_on") and lock_available and lock_target:
 			_flick_accum += event.relative.x
 	for a in BUTTONS:
 		if event.is_action_pressed(a):
@@ -126,7 +132,7 @@ func sample(dt: float) -> InputFrame:
 		_latched.clear()
 		return f
 	var mv := Input.get_vector("move_left", "move_right", "move_down", "move_up")
-	var stick := shape_stick(read_stick(JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y), PadConfig.dead_l, STICK_OUTER, STICK_SNAP)
+	var stick := shape_stick(_raw_stick("left", JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y), PadConfig.dead_l, STICK_OUTER, STICK_SNAP)
 	if stick != Vector2.ZERO:
 		mv = stick
 	if mv.length() > 1.0:
@@ -151,9 +157,9 @@ func sample(dt: float) -> InputFrame:
 	f.confirm = Input.is_action_pressed("ui_accept") or _latched.has("confirm")
 	_latched.clear()
 
-	# マウスを大きく横に振ると、ロックオン対象の切り替え
+	# 対象を捉えていてロックオンのボタンを押している間：マウスを大きく横に振る・右スティックを弾くと、対象の切り替え
 	_flick_cooldown = maxf(0.0, _flick_cooldown - dt)
-	var lock_held := Input.is_action_pressed("lock_on") and lock_available
+	var lock_held := Input.is_action_pressed("lock_on") and lock_available and lock_target
 	if lock_held and _flick_cooldown <= 0.0 and absf(_flick_accum) > 60.0:
 		if _flick_accum > 0.0:
 			f.switch_right = true
@@ -165,8 +171,8 @@ func sample(dt: float) -> InputFrame:
 		_flick_accum = 0.0
 	_flick_accum *= 0.9
 
-	# 右スティック：ロックオン中は弾いて対象の切り替え、それ以外はカメラ
-	var rs := shape_stick(read_stick(JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y), PadConfig.dead_r, STICK_OUTER, STICK_SNAP)
+	# 右スティック：捉えていてボタンを押している間は弾いて対象の切り替え、それ以外はカメラ
+	var rs := shape_stick(_raw_stick("right", JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y), PadConfig.dead_r, STICK_OUTER, STICK_SNAP)
 	var rx := rs.x
 	var ry := -rs.y
 	if lock_held:
@@ -178,15 +184,25 @@ func sample(dt: float) -> InputFrame:
 			_pad_flick_ready = false
 		if absf(rx) < 0.3:
 			_pad_flick_ready = true
-	elif rx != 0.0 or ry != 0.0:
-		f.look_x += rx * absf(rx) * PAD_SENS * dt
-		f.look_y += ry * absf(ry) * PAD_SENS * 0.7 * dt * inv
-		f.look_active = true
+	else:
+		# 見回している間に捉えたとき、倒していた分で切り替えないように、一度戻すまでは弾いたことにしない
+		_pad_flick_ready = absf(rx) < 0.3
+		if rx != 0.0 or ry != 0.0:
+			f.look_x += rx * absf(rx) * PAD_SENS * dt
+			f.look_y += ry * absf(ry) * PAD_SENS * 0.7 * dt * inv
+			f.look_active = true
 	if touch and touch.visible:
 		_merge_touch(f)
 	if take_one_shot("camera_reset"):
 		f.camera_reset = true
 	return f
+
+
+## スティックの生の値（テストでは fake_sticks から）
+func _raw_stick(which: String, axis_x: int, axis_y: int) -> Vector2:
+	if fake_sticks != null:
+		return fake_sticks.get(which, Vector2.ZERO)
+	return read_stick(axis_x, axis_y)
 
 
 ## 画面の操作を混ぜる（スティックが倒れていればそちらを優先）

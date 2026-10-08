@@ -245,3 +245,120 @@ func test_recenter_hold_returns_to_camera() -> void:
 			h.expect(worst < 3.0 * U.DEG, "右から前へ倒し直す間も、ハルはまっすぐ走る（最大 %.1f°）" % (worst / U.DEG))
 			h.near(U.wrap_angle(g.cam.move_yaw() - g.cam.yaw), 0.0, 0.0001, "倒し直し終えたら、基準はカメラに戻る")
 		h.free_game(g)
+
+
+## 背後へ回している途中で、部屋が変わったり（出口の手前で押した）台本の teleport が入ったりしても、そのあとカメラは回らない：
+## 右へ倒したままなら、新しいカメラの右へ走る。カメラの向きを外から書き換えたら（部屋の読み込み・復活・台本の teleport・セーブの読み込み）、
+## 回している続きも、止めていた左スティックの基準もやめる（CameraOrbit.yaw）。
+## 前は基準だけカメラに戻して回転の続きが残り、新しい部屋で、回るカメラにつられて進む向きが回り、ハルが扉へ走り戻った（2026-10-08）
+func test_recenter_ends_on_room_change_and_teleport() -> void:
+	for how in ["room", "teleport"]:
+		for btn in ["camera_reset", "lock_on"]:
+			var g := h.make_game()
+			await h.settle()
+			g.cam.follow = "weak"
+			g.cam.yaw = 0.0
+			var hold := {"move_x": 1.0}
+			await h.run(g, 40, hold)
+			var f := hold.duplicate()
+			f[btn] = true
+			await h.run(g, 1, f)
+			await h.run(g, 3, hold)
+			if how == "room":
+				# 出口と同じ（go_to）：刻みの最後に読み込み、そのあと 2 刻みは読み込み待ち。試しの部屋は 1 つなので同じ部屋を読み直す
+				g._pending_room = {"room": g.room_id, "spawn": "start"}
+				await h.run(g, 1, hold)
+				h.expect(g.drain_events().any(func(e): return e.type == "roomChanged"), "部屋を読み込んだ")
+				await h.run(g, 2, hold)
+			else:
+				g.story._run_step({"teleport": {"pos": [0, 0, 0], "yaw": 180}})
+			var y0 := g.cam.yaw
+			var turned := 0.0
+			var prev := g.cam.yaw
+			for i in 60:
+				await h.run(g, 1, hold)
+				turned += absf(U.wrap_angle(g.cam.yaw - prev))
+				prev = g.cam.yaw
+			var p: Player = g.player
+			var what := "%s の途中の %s" % [btn, "部屋の移動" if how == "room" else "台本の teleport"]
+			h.expect(turned < 3.0 * U.DEG, "%s：そのあとカメラは回らない（%.0f°）" % [what, turned / U.DEG])
+			h.near(U.wrap_angle(U.dir_to_yaw(p.vel.x, p.vel.z) - (y0 - PI / 2)) / U.DEG, 0.0, 3.0, "%s：右へ倒したまま、新しいカメラの右へ走る" % what)
+			h.free_game(g)
+
+
+## 同じ部屋で復活しても（やられた画面で「再開」・自動の再開）、止めていた左スティックの基準と回している続きは残らない：
+## 右へ倒したままなら、復活したカメラの右へ走り、カメラは回らない。
+## 前は復活の書き換えに気づかず、やられる前の基準でカメラへ向かって走ったり、やられている間に押した回転の続きが復活のあとに回ったりした（2026-10-08）
+func test_recenter_ends_on_respawn() -> void:
+	# [再開の仕方, 背後のボタンを押す時]：before＝やられる前に押して倒し続ける、dead＝やられている間にロックオンのボタン
+	for c in [["manual", "before"], ["manual", "dead"], ["auto", "before"], ["auto", "dead"]]:
+		var g := h.make_game()
+		await h.settle()
+		var manual: bool = c[0] == "manual"
+		g.manual_respawn = manual
+		g.cam.follow = "weak"
+		g.cam.yaw = 0.0
+		g.respawn = {"room": g.room_id, "pos": Vector3.ZERO, "yaw": PI / 2}
+		var hold := {"move_x": 1.0}
+		await h.run(g, 40, hold)
+		if c[1] == "before":
+			await h.run(g, 1, {"move_x": 1.0, "camera_reset": true})
+			await h.run(g, 40, hold)
+		var p: Player = g.player
+		p.take_damage(9999, p.pos + Vector3(1, 0, 0), false, true)
+		h.expect(p.dead, "やられた")
+		# やられた画面は 1.3 秒で出る（そこでゲームは止まる）。自動の再開は 2 秒
+		var until := 1.3 if manual else 2.0
+		var pressed := false
+		while p.dead and p.dead_time < until:
+			var f := hold.duplicate()
+			if c[1] == "dead" and not pressed and p.dead_time > until - 0.15:
+				f["lock_on"] = true
+				pressed = true
+			await h.run(g, 1, f)
+		if manual:
+			g.request_respawn()
+		h.expect(await h.run_until(g, 30, hold, func(): return not p.dead), "復活した")
+		var turned := 0.0
+		var prev := g.cam.yaw
+		for i in 40:
+			await h.run(g, 1, hold)
+			turned += absf(U.wrap_angle(g.cam.yaw - prev))
+			prev = g.cam.yaw
+		var what := "%s の再開（背後のボタン：%s）" % [c[0], c[1]]
+		h.expect(turned < 3.0 * U.DEG, "%s：復活のあと、カメラは回らない（%.0f°）" % [what, turned / U.DEG])
+		h.near(U.wrap_angle(U.dir_to_yaw(p.vel.x, p.vel.z) - (g.cam.yaw - PI / 2)) / U.DEG, 0.0, 3.0, "%s：右へ倒したまま、復活したカメラの右へ走る" % what)
+		h.free_game(g)
+
+
+## 自動の回り込み（初期の「弱い」・「強い」）で、左スティックを斜め前・横・斜め後ろへ倒し続けても、カメラは回り続けない（左スティックでカメラが回らない）。
+## 回り込むのは、ハルの進む向きとの差が不感帯（25°）の端になるまでで、その間は左スティックの基準を止める（ハルはまっすぐ走る）。
+## 前は回ったカメラにつられて進む向きが回り、それをまた追って、「弱い」で 30〜48° に倒すと 1 秒に 43° ずつ回り続け、ハルは輪を描いて走った（2026-10-08）
+func test_follow_does_not_spin_with_stick() -> void:
+	var dead: float = float(TestHelpers.default_tuning().camera.autoRecenterDeadzone)
+	for c in [["weak", 30.0], ["weak", 40.0], ["weak", 48.0], ["weak", 90.0], ["normal", 40.0], ["normal", 90.0], ["normal", 150.0]]:
+		var g := h.make_game()
+		await h.settle()
+		g.cam.follow = c[0]
+		g.cam.yaw = 0.0
+		var ang: float = c[1]
+		var a := -ang * U.DEG
+		var hold := {"move_x": -sin(a), "move_y": cos(a)}
+		var p: Player = g.player
+		await h.run(g, 60, hold)
+		var heading0 := U.dir_to_yaw(p.vel.x, p.vel.z)
+		var turned := 0.0
+		var prev := g.cam.yaw
+		var worst := 0.0
+		for i in 540:
+			await h.run(g, 1, hold)
+			turned += absf(U.wrap_angle(g.cam.yaw - prev))
+			prev = g.cam.yaw
+			worst = maxf(worst, absf(U.wrap_angle(U.dir_to_yaw(p.vel.x, p.vel.z) - heading0)))
+		var may := maxf(0.0, ang - dead)
+		if c[0] == "weak" and ang > CameraOrbit.FORWARD_ONLY:
+			may = 0.0
+		var what := "%s・左スティック %.0f°" % c
+		h.expect(turned <= (may + 1.0) * U.DEG, "%s：カメラは不感帯の端まで回って止まる（10 秒で %.0f°、多くて %.0f°）" % [what, turned / U.DEG, may])
+		h.expect(worst < 2.0 * U.DEG, "%s：ハルはまっすぐ走る（最大 %.1f° ずれた）" % [what, worst / U.DEG])
+		h.free_game(g)

@@ -186,6 +186,7 @@ func load_room(id: String, spawn := "", at = null, at_yaw := 0.0) -> void:
 		checkpoint = String(room.get("playerStart", spawn))
 	else:
 		player.teleport(sp.pos, sp.yaw)
+	# カメラの向きを書き換えると、背後へ回している途中の回転と、止めていた左スティックの基準もやめる（CameraOrbit.yaw）
 	cam.yaw = sp.yaw
 	cam.pitch = tuning.camera.defaultPitch * U.DEG
 	entry = {"room": id, "pos": sp.pos, "yaw": sp.yaw}
@@ -1278,6 +1279,7 @@ func _update_respawn() -> void:
 		emit_event({"type": "respawned", "room": rp.room})
 		return
 	p.teleport(rp.pos, rp.yaw)
+	# やられる前・やられている間の背後へ回す操作は持ち越さない（CameraOrbit.yaw）
 	cam.yaw = rp.yaw
 	for s in shots:
 		if not s.from_player:

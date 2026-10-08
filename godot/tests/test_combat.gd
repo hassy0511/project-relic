@@ -464,3 +464,46 @@ func test_deterministic() -> void:
 	h.expect(a.enemies.map(func(e): return e.hp) == b.enemies.map(func(e): return e.hp), "同じ入力なら同じ敵の体力")
 	h.free_game(a)
 	h.free_game(b)
+
+
+## 弾は右手の銃口から出る（見た目のモデル haru_r の銃口の目印と同じ側。体の向きの右＝画面の右＝Player._move_input の右）。
+## 右手の側に柱の角があって銃口が隠れるときは胸から、左手の側の柱なら銃口から出る。
+## 前は銃口が左手の側にあり、弾が見た目の銃の 0.5m 左から出て、隠れているかも逆の側で調べていた（2026-10-08）
+func test_muzzle_on_right_hand() -> void:
+	var scene: PackedScene = load("res://assets/models/haru_r.glb")
+	var model: Node3D = scene.instantiate()
+	h.tree.root.add_child(model)
+	await h.tree.process_frame
+	var mk: Node3D = model.find_child("muzzle", true, false)
+	h.expect(mk != null, "モデルに銃口の目印がある")
+	# モデルは +Z を向く（体の向き yaw=0）。右は −X
+	var model_side: float = -mk.global_position.x if mk else 0.0
+	model.queue_free()
+	var g := h.make_game()
+	await h.settle()
+	var p: Player = g.player
+	for yaw in [0.0, 1.0, -2.5]:
+		var right := U.yaw_to_dir(yaw - PI / 2)
+		var side := (p.muzzle(yaw) - p.chest()).dot(right)
+		h.expect(side > 0.1, "向き %.1f：銃口は体の右（%.2fm）" % [yaw, side])
+		h.near(side, model_side, 0.1, "向き %.1f：銃口の横の位置は、モデルの銃口の目印（%.2fm）とほぼ同じ" % [yaw, model_side])
+	h.free_game(g)
+	# 柱の角が右手の側（−X）にあると銃口が隠れて胸から、左手の側（+X）なら銃口から撃つ
+	for s in [1.0, -1.0]:
+		var g2 := h.make_game({"boxes": [[Vector3(-0.825 * s, 1.0, 0.765), Vector3(1.35, 2.0, 0.87)]]})
+		await h.settle()
+		g2.set_flag("ch1.got_spark")
+		var p2: Player = g2.player
+		await h.run(g2, 3, {})
+		p2.yaw = 0.0
+		var what := "柱が%s" % ("右手の側" if s > 0.0 else "左手の側")
+		h.expect(p2.pos.distance_to(Vector3.ZERO) < 0.02, "%s：ハルは柱に押されていない（%s）" % [what, p2.pos])
+		await h.run(g2, 1, {"fire": true})
+		h.expect(g2.shots.size() == 1, "%s：撃った" % what)
+		if g2.shots.size() == 1:
+			var o: Vector3 = g2.shots[0].origin
+			if s > 0.0:
+				h.expect(o.is_equal_approx(p2.chest()), "%s：銃口が柱に隠れるので、胸から撃つ（%s）" % [what, o])
+			else:
+				h.expect(o.is_equal_approx(p2.muzzle(0.0)) and (o - p2.chest()).dot(Vector3(-1, 0, 0)) > 0.1, "%s：右手の銃口から撃つ（%s）" % [what, o])
+		h.free_game(g2)

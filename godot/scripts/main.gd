@@ -362,6 +362,7 @@ func _physics_process(dt: float) -> void:
 	if game.manual_respawn and game.player.dead and game.player.dead_time >= 1.3 and not _retry_open:
 		_open_retry()
 		return
+	input.lock_target = game.lock_on.target != null
 	var f: InputFrame = demo.next_input() if demo else input.sample(dt)
 	game.cam.follow = PadConfig.cam_follow
 	game.step(f)
@@ -434,7 +435,8 @@ func _aim_dir() -> Vector3:
 	var plan: Dictionary = p.aim_plan()
 	if plan.aim_at == null:
 		return U.yaw_to_dir(plan.face)
-	return (plan.aim_at - p.chest()).normalized()
+	# 弾が出る所（右手の銃口。隠れていれば胸）から狙う点へ：腕は今撃てば弾が行く向きへ向ける
+	return (plan.aim_at - p.shot_origin(plan.face, plan.aim_at)).normalized()
 
 
 func _handle_events() -> void:
