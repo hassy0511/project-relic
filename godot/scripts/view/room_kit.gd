@@ -10,6 +10,7 @@ extends RefCounted
 const KIT_PATH := "res://content/kits/%s.json"
 const PART_PATH := "res://assets/kit/%s.glb"
 const SHADER := preload("res://assets/shaders/kit_surface.gdshader")
+const SHADER_FADE := preload("res://assets/shaders/kit_surface_fade.gdshader")
 const GLOW := preload("res://assets/shaders/kit_glow.gdshader")
 
 ## 読んだキットと部品の置き場。終了のときに一緒に消えるよう、static var ではなく木の根（root）のメタに持つ
@@ -51,6 +52,8 @@ static func load_kit(id: String) -> Dictionary:
 ##   "tint_mix": 0, "macro": 0, "tex_strength": 1, "seams": { "every": [2, 1.33], "width": 0.04, "color": "#444641" },
 ##   "emission": { "color": "#ffbc52", "energy": 3 } }
 ##   光の筋（"blend": "add"）：{ "blend": "add", "color", "strength": 0.25, "fade_m": 7 }（kit_glow.gdshader）
+##   "near_fade": [0.8, 1.5]：カメラから 0.8 m より近い所を網目で消し、1.5 m で元に戻す（当たり判定の無い飾りの部品の材質に付ける。
+##   日よけ・柱・灯がカメラの前を塞がない）。網目は discard を使うので、軽さを優先するスマホ・ブラウザ版（gl_compatibility）では付けない
 static func make_material(def: Dictionary) -> Material:
 	var m := ShaderMaterial.new()
 	if def.get("blend", "") == "add":
@@ -60,6 +63,10 @@ static func make_material(def: Dictionary) -> Material:
 		m.set_shader_parameter("fade_m", float(def.get("fade_m", 7.0)))
 		return m
 	m.shader = SHADER
+	if def.has("near_fade") and RenderingServer.get_current_rendering_method() != "gl_compatibility":
+		m.shader = SHADER_FADE
+		var nf: Array = def.near_fade
+		m.set_shader_parameter("near_fade", Vector2(float(nf[0]), float(nf[1])))
 	if def.has("albedo"):
 		var p := String(def.albedo)
 		if ResourceLoader.exists(p):

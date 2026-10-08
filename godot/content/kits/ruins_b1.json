@@ -21,15 +21,15 @@
   "sandfloor": {"albedo": "res://assets/kit/tex/ruins_ancient_floor.jpg", "uv_m": 6.0, "color": "#e9cfa8", "roughness": 0.85, "macro": 0.6}
  },
  "materials": {
-  "ivory": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 3.0, "color": "#f1e7d2", "roughness": 0.72},
-  "graphite": {"albedo": "res://assets/kit/tex/ruins_pipe_metal.jpg", "uv_m": 2.0, "color": "#ffffff", "tex_strength": 0.35, "roughness": 0.55, "metallic": 0.1},
-  "brass": {"color": "#b8944f", "roughness": 0.45, "metallic": 0.45},
-  "amber": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 4.0}},
+  "ivory": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 3.0, "color": "#f1e7d2", "roughness": 0.72, "near_fade": [0.8, 1.5]},
+  "graphite": {"albedo": "res://assets/kit/tex/ruins_pipe_metal.jpg", "uv_m": 2.0, "color": "#ffffff", "tex_strength": 0.35, "roughness": 0.55, "metallic": 0.1, "near_fade": [0.8, 1.5]},
+  "brass": {"color": "#b8944f", "roughness": 0.45, "metallic": 0.45, "near_fade": [0.8, 1.5]},
+  "amber": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 4.0}, "near_fade": [0.8, 1.5]},
   "red": {"color": "#d4433d", "roughness": 0.4, "emission": {"color": "#ff3a30", "energy": 4.0}},
-  "sand": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 2.0, "color": "#ead2b2", "roughness": 0.95},
-  "cloth": {"color": "#a8503c", "roughness": 0.95},
-  "grate": {"albedo": "res://assets/kit/tex/ruins_rust_grate.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.7, "metallic": 0.2},
-  "dark": {"color": "#2a2a28", "roughness": 0.8},
+  "sand": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 2.0, "color": "#ead2b2", "roughness": 0.95, "near_fade": [0.8, 1.5]},
+  "cloth": {"color": "#a8503c", "roughness": 0.95, "near_fade": [0.8, 1.5]},
+  "grate": {"albedo": "res://assets/kit/tex/ruins_rust_grate.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.7, "metallic": 0.2, "near_fade": [0.8, 1.5]},
+  "dark": {"color": "#2a2a28", "roughness": 0.8, "near_fade": [0.8, 1.5]},
   "sky": {"color": "#ffd8a8", "roughness": 0.9, "emission": {"color": "#ffc98a", "energy": 1.6}},
   "shaft": {"blend": "add", "color": "#ffd9a0", "strength": 0.5, "fade_m": 7.0}
  }

@@ -26,8 +26,8 @@
   "graphite": {"color": "#444641", "roughness": 0.6, "metallic": 0.3}
  },
  "materials": {
-  "flat": {"color": "#ffffff", "tint_mix": 1.0, "roughness": 0.82},
-  "metal": {"color": "#ffffff", "tint_mix": 1.0, "roughness": 0.5, "metallic": 0.5},
+  "flat": {"color": "#ffffff", "tint_mix": 1.0, "roughness": 0.82, "near_fade": [0.8, 1.5]},
+  "metal": {"color": "#ffffff", "tint_mix": 1.0, "roughness": 0.5, "metallic": 0.5, "near_fade": [0.8, 1.5]},
   "ivory": {"color": "#e9dfc9", "roughness": 0.8},
   "ivory2": {"color": "#d3c6ac", "roughness": 0.85},
   "graphite": {"color": "#444641", "roughness": 0.6, "metallic": 0.3},
@@ -36,7 +36,7 @@
   "cloth2": {"color": "#93432f", "roughness": 0.95},
   "wood": {"albedo": "res://assets/kit/tex/town_wood.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.85},
   "wood2": {"albedo": "res://assets/kit/tex/town_wood.jpg", "uv_m": 2.0, "color": "#ffe2c4", "roughness": 0.85},
-  "amber": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 3.0}},
+  "amber": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 3.0}, "near_fade": [0.8, 1.5]},
   "dark": {"color": "#2b2824", "roughness": 0.4},
   "green": {"color": "#6e7a3c", "roughness": 0.9},
   "rope": {"color": "#a08a62", "roughness": 0.95},
