@@ -2,7 +2,8 @@
 """遺構の部屋に、キット（"kit"）と飾り（"dress"）・形の "skin" / "hide" を書き込む。出力：godot/content/areas/ch1_ruins.json
 
 部屋の当たり判定（geometry の位置と大きさ）・目印・出口・トリガー・置く物は変えない。変えるのは見た目の項目だけ
-（部屋の "kit"・"dress"・"lights"、形の "skin"・"hide"・"trim"）。何度流しても同じ結果になる（dress は毎回作り直す）。
+（部屋の "kit"・"dress"・"lights"、形の "skin"・"hide"・"trim"）と、飾りの "solid" から作る描かない当たり判定の箱
+（geometry の終わりの "dress" つきの形。tools/dress_solid.py）。何度流しても同じ結果になる（dress と solid の箱は毎回作り直す）。
 書き方：docs/design/42_コンテンツの書き方.md 14 章。部品の寸法と原点：tools/blender/kit/ruins_b1.py。
 
   python3 tools/dress_ruins.py            キットを付ける部屋（ROOMS）を全部
@@ -11,6 +12,8 @@
 import json
 import os
 import sys
+
+import dress_solid
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 PATH = os.path.join(ROOT, "godot", "content", "areas", "ch1_ruins.json")
@@ -120,12 +123,12 @@ def r02(room):
         d.put("b1_corner", [x, 0, z], yaw)
     # エレベーターの枠（形 1：x 12.4〜13、z -3〜3、高さ 4）
     for z in (-3.6, 3.6):
-        d.put("b1_pillar", [12.6, 0, z], scale=[1, 1.15, 1])
+        d.put("b1_pillar", [12.6, 0, z], scale=[1, 1.15, 1], solid=True)
     d.row("b1_beam_red", [12.7, 4.6, -2.0], [0, 0, 2.0], 3, 90)
     d.at_wall("e", H, -2.4, "b1_redlight", y=2.0, off=0.6)
     d.at_wall("e", H, 2.4, "b1_redlight", y=2.0, off=0.6)
     # 西の壁の大型ファン（6×6 m）と前の排水格子
-    d.at_wall("w", -H, 0, "b1_fan", y=0.9, scale=1.5)
+    d.at_wall("w", -H, 0, "b1_fan", y=0.9, scale=1.5, solid=True)       # 枠が壁から 0.7 m 出る（前は肩が枠に入った）
     d.along("w", -H, -3.0, 3.0, "b1_grate_red", off=0.0, every=2.0)
     # 上：東の壁の上の通路（届かない高さ 5.4 m）、天井の梁、北と南の壁の上の管
     d.row("b1_walkway", [12.0, 5.4, -12.0], [0, 0, 4.0], 7, 270)
@@ -153,12 +156,14 @@ def r02(room):
     d.put("b1_pillar", [-5, 0, -1], scale=[2.33, 0.8, 2.33])
     d.put("b1_pillar", [5.5, 0, -2], scale=[2.0, 0.6, 2.0])
     # がらくた：箱・布・かけら・砂。角の箱は床に 1 段だけ、壁ぎわに寄せる（前は南西の角に 2 段に積んでいて、部屋の中から角へ向いて
-    # 下がったカメラ（高さ約 1.9 m）が上の箱の中に入り、近くを網目に消す箱が画面の真ん中に大きな透けた塊に見えた）
+    # 下がったカメラ（高さ約 1.9 m）が上の箱の中に入り、近くを網目に消す箱が画面の真ん中に大きな透けた塊に見えた）。
+    # 箱はどれも当たり判定つき（solid。前は箱の中に入り込み、頭だけ出して立てた）。山の上の箱は、宝箱・遺物・ビー玉を取りに立つ所から
+    # 0.5 m 以上離す（宝箱の山の上の段の北の縁にあった箱は、同じ山の低い段の北東の角へ。ビー玉の山の箱は北西の角へ寄せた）
     for pos, yaw, part in (((-11.8, 0, -11.85), 10, "b1_crate"), ((-10.6, 0, -11.95), -8, "b1_crate_cloth"), ((-11.9, 0, -10.65), 30, "b1_crate"),
                            ((11.8, 0, 11.8), 25, "b1_crate_cloth"), ((10.6, 0, 11.95), 0, "b1_crate"), ((11.95, 0, 10.6), 40, "b1_crate"),
                            ((-11.85, 0, 11.85), 15, "b1_crate"), ((11.8, 0, -11.8), -20, "b1_crate_cloth"),
-                           ((-8.5, 1.8, -3.0), 20, "b1_crate"), ((7.9, 1.2, 4.0), -10, "b1_crate_cloth"), ((-9.6, 1.4, 7.8), 5, "b1_crate")):
-        d.put(part, pos, yaw)
+                           ((-6.65, 1.0, -2.65), 10, "b1_crate"), ((7.9, 1.2, 4.0), -10, "b1_crate_cloth"), ((-9.98, 1.4, 7.98), 5, "b1_crate")):
+        d.put(part, pos, yaw, solid=True)
     for pos, yaw, sc in (((-10.5, 0, -9.0), 30, 1.3), ((9.0, 0, 9.5), -20, 1.5), ((-6.5, 0, 9.5), 70, 1.2), ((10.5, 0, -6.0), 90, 1.4),
                          ((-2.0, 0, -11.5), 0, 1.6), ((4.5, 0, 11.4), 0, 1.4), ((-11.4, 0, 2.5), 90, 1.3), ((1.5, 0, 3.0), 45, 0.9),
                          ((-6.0, 0, -6.5), 10, 1.0), ((8.5, 0, 2.2), -30, 1.0)):
@@ -216,11 +221,11 @@ def r03(room):
         d.at_wall("w", -X, z, "b1_lantern", y=2.4, off=0.42)
     for z in (-9.0, 3.0, 15.0):
         d.at_wall("e", X, z, "b1_lantern", y=2.4, off=0.42)
-    # 箱・布・砂（壁ぎわ）
-    for pos, yaw, part in (((2.3, 0, -17.8), 10, "b1_crate_cloth"), ((2.4, 0, -16.6), -5, "b1_crate"), ((-2.3, 0, 5.8), 15, "b1_crate"),
-                           ((-2.4, 0, 6.9), -20, "b1_crate_cloth"), ((2.3, 1.0, 12.8), 0, "b1_crate"), ((-2.3, 0, 18.0), 5, "b1_crate"),
-                           ((2.3, 0, -3.8), 30, "b1_crate_cloth")):
-        d.put(part, pos, yaw)
+    # 箱（当たり判定つき）・砂（壁ぎわ）。箱は南の扉の前、出口（z -19.4〜-17.4）と入ったときのトリガー（z -16〜-14）の間だけに置く。
+    # 前は跳んで渡る段の上（着地する所・踏み切る所）と両端の出口の中にもあり、ハルが箱の中に入り込んだ。当たり判定を付けると跳ぶのが
+    # 難しくなるので、段の上の箱はやめた（溝の縁の灯の柱も、着地・踏み切りの所にあるので当たり判定は付けない）
+    for pos, yaw, part in (((2.4, 0, -16.7), -5, "b1_crate"), ((-2.4, 0, -16.7), 3, "b1_crate_cloth")):
+        d.put(part, pos, yaw, solid=True)
     for pos, yaw, sc in (((-2.0, 0, -17.6), 0, 1.0), ((2.0, 0, -9.5), 90, 0.9), ((-2.1, 0, -1.2), 0, 0.8), ((2.0, 0, 4.0), 0, 0.9),
                          ((-1.8, 1.0, 11.0), 90, 0.7), ((1.8, 0, 17.2), 0, 0.9)):
         d.put("b1_sand", pos, yaw, scale=[sc, 1.0, sc])
@@ -245,7 +250,8 @@ def main():
             for k in ("skin", "hide", "trim"):
                 s.pop(k, None)
         ROOMS[rid](room)
-        print(rid, room["name"], "飾り", len(room["dress"]), "件")
+        n = dress_solid.apply(room)
+        print(rid, room["name"], "飾り", len(room["dress"]), "件・当たり判定の箱", n, "個")
     with open(PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
 

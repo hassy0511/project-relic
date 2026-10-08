@@ -217,6 +217,230 @@
      ],
      "tint": "#59606a",
      "hide": true
+    },
+    {
+     "t": "box",
+     "pos": [
+      12.6,
+      0.0,
+      -3.6
+     ],
+     "size": [
+      0.6,
+      4.6,
+      0.6
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 33
+    },
+    {
+     "t": "box",
+     "pos": [
+      12.6,
+      0.0,
+      3.6
+     ],
+     "size": [
+      0.6,
+      4.6,
+      0.6
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 34
+    },
+    {
+     "t": "box",
+     "pos": [
+      -12.625,
+      0.9,
+      0.0
+     ],
+     "size": [
+      0.75,
+      6.0,
+      6.0
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 38
+    },
+    {
+     "t": "box",
+     "pos": [
+      -11.8,
+      0.0,
+      -11.85
+     ],
+     "size": [
+      1.205,
+      1.0,
+      1.205
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 65
+    },
+    {
+     "t": "box",
+     "pos": [
+      -10.6,
+      0.0,
+      -11.95
+     ],
+     "size": [
+      1.265,
+      1.04,
+      1.265
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 66
+    },
+    {
+     "t": "box",
+     "pos": [
+      -11.9,
+      0.0,
+      -10.65
+     ],
+     "size": [
+      1.421,
+      1.0,
+      1.421
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 67
+    },
+    {
+     "t": "box",
+     "pos": [
+      11.8,
+      0.0,
+      11.8
+     ],
+     "size": [
+      1.488,
+      1.04,
+      1.488
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 68
+    },
+    {
+     "t": "box",
+     "pos": [
+      10.6,
+      0.0,
+      11.95
+     ],
+     "size": [
+      1.04,
+      1.0,
+      1.04
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 69
+    },
+    {
+     "t": "box",
+     "pos": [
+      11.95,
+      0.0,
+      10.6
+     ],
+     "size": [
+      1.465,
+      1.0,
+      1.465
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 70
+    },
+    {
+     "t": "box",
+     "pos": [
+      -11.85,
+      0.0,
+      11.85
+     ],
+     "size": [
+      1.274,
+      1.0,
+      1.274
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 71
+    },
+    {
+     "t": "box",
+     "pos": [
+      11.8,
+      0.0,
+      -11.8
+     ],
+     "size": [
+      1.436,
+      1.04,
+      1.436
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 72
+    },
+    {
+     "t": "box",
+     "pos": [
+      -6.65,
+      1.0,
+      -2.65
+     ],
+     "size": [
+      1.205,
+      1.0,
+      1.205
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 73
+    },
+    {
+     "t": "box",
+     "pos": [
+      7.9,
+      1.2,
+      4.0
+     ],
+     "size": [
+      1.297,
+      1.04,
+      1.297
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 74
+    },
+    {
+     "t": "box",
+     "pos": [
+      -9.98,
+      1.4,
+      7.98
+     ],
+     "size": [
+      1.127,
+      1.0,
+      1.127
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 75
     }
    ],
    "markers": {
@@ -917,7 +1141,8 @@
       1.0,
       1.15,
       1.0
-     ]
+     ],
+     "solid": true
     },
     {
      "part": "ruins/b1_pillar",
@@ -930,7 +1155,8 @@
       1.0,
       1.15,
       1.0
-     ]
+     ],
+     "solid": true
     },
     {
      "part": "ruins/b1_beam_red",
@@ -973,7 +1199,8 @@
       0.0
      ],
      "yaw": 90,
-     "scale": 1.5
+     "scale": 1.5,
+     "solid": true
     },
     {
      "part": "ruins/b1_grate_red",
@@ -1331,7 +1558,8 @@
       0.0,
       -11.85
      ],
-     "yaw": 10
+     "yaw": 10,
+     "solid": true
     },
     {
      "part": "ruins/b1_crate_cloth",
@@ -1340,7 +1568,8 @@
       0.0,
       -11.95
      ],
-     "yaw": -8
+     "yaw": -8,
+     "solid": true
     },
     {
      "part": "ruins/b1_crate",
@@ -1349,7 +1578,8 @@
       0.0,
       -10.65
      ],
-     "yaw": 30
+     "yaw": 30,
+     "solid": true
     },
     {
      "part": "ruins/b1_crate_cloth",
@@ -1358,7 +1588,8 @@
       0.0,
       11.8
      ],
-     "yaw": 25
+     "yaw": 25,
+     "solid": true
     },
     {
      "part": "ruins/b1_crate",
@@ -1366,7 +1597,8 @@
       10.6,
       0.0,
       11.95
-     ]
+     ],
+     "solid": true
     },
     {
      "part": "ruins/b1_crate",
@@ -1375,7 +1607,8 @@
       0.0,
       10.6
      ],
-     "yaw": 40
+     "yaw": 40,
+     "solid": true
     },
     {
      "part": "ruins/b1_crate",
@@ -1384,7 +1617,8 @@
       0.0,
       11.85
      ],
-     "yaw": 15
+     "yaw": 15,
+     "solid": true
     },
     {
      "part": "ruins/b1_crate_cloth",
@@ -1393,16 +1627,18 @@
       0.0,
       -11.8
      ],
-     "yaw": -20
+     "yaw": -20,
+     "solid": true
     },
     {
      "part": "ruins/b1_crate",
      "pos": [
-      -8.5,
-      1.8,
-      -3.0
+      -6.65,
+      1.0,
+      -2.65
      ],
-     "yaw": 20
+     "yaw": 10,
+     "solid": true
     },
     {
      "part": "ruins/b1_crate_cloth",
@@ -1411,16 +1647,18 @@
       1.2,
       4.0
      ],
-     "yaw": -10
+     "yaw": -10,
+     "solid": true
     },
     {
      "part": "ruins/b1_crate",
      "pos": [
-      -9.6,
+      -9.98,
       1.4,
-      7.8
+      7.98
      ],
-     "yaw": 5
+     "yaw": 5,
+     "solid": true
     },
     {
      "part": "ruins/b1_sand",
@@ -1807,6 +2045,38 @@
       "wall": "metal",
       "floor": "plate"
      }
+    },
+    {
+     "t": "box",
+     "pos": [
+      2.4,
+      0.0,
+      -16.7
+     ],
+     "size": [
+      1.127,
+      1.0,
+      1.127
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 56
+    },
+    {
+     "t": "box",
+     "pos": [
+      -2.4,
+      0.0,
+      -16.7
+     ],
+     "size": [
+      1.177,
+      1.04,
+      1.177
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 57
     }
    ],
    "markers": {
@@ -2695,66 +2965,24 @@
      "yaw": 270
     },
     {
-     "part": "ruins/b1_crate_cloth",
-     "pos": [
-      2.3,
-      0.0,
-      -17.8
-     ],
-     "yaw": 10
-    },
-    {
      "part": "ruins/b1_crate",
      "pos": [
       2.4,
       0.0,
-      -16.6
+      -16.7
      ],
-     "yaw": -5
-    },
-    {
-     "part": "ruins/b1_crate",
-     "pos": [
-      -2.3,
-      0.0,
-      5.8
-     ],
-     "yaw": 15
+     "yaw": -5,
+     "solid": true
     },
     {
      "part": "ruins/b1_crate_cloth",
      "pos": [
       -2.4,
       0.0,
-      6.9
+      -16.7
      ],
-     "yaw": -20
-    },
-    {
-     "part": "ruins/b1_crate",
-     "pos": [
-      2.3,
-      1.0,
-      12.8
-     ]
-    },
-    {
-     "part": "ruins/b1_crate",
-     "pos": [
-      -2.3,
-      0.0,
-      18.0
-     ],
-     "yaw": 5
-    },
-    {
-     "part": "ruins/b1_crate_cloth",
-     "pos": [
-      2.3,
-      0.0,
-      -3.8
-     ],
-     "yaw": 30
+     "yaw": 3,
+     "solid": true
     },
     {
      "part": "ruins/b1_sand",

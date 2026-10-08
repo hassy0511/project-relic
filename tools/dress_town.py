@@ -2,8 +2,9 @@
 """オルド背町の部屋に、キット（"kit": "town"）と飾り（"dress"）・形の "skin" / "hide" を書き込む。出力：godot/content/areas/ch1_town.json
 
 部屋の当たり判定（geometry の位置と大きさ）・目印・出口・トリガー・住人・置く物の位置は変えない。変えるのは見た目の項目だけ
-（部屋の "kit"・"dress"・"lights" の位置、形の "skin"・"hide"、看板の "board"・"yaw"・"board_w"）。
-何度流しても同じ結果になる（dress は毎回作り直す）。部品の寸法と原点：tools/blender/kit/town_parts.py・town_sets.py・town_terrace.py。
+（部屋の "kit"・"dress"・"lights" の位置、形の "skin"・"hide"、看板の "board"・"yaw"・"board_w"）と、飾りの "solid" から作る
+描かない当たり判定の箱（geometry の終わりの "dress" つきの形。tools/dress_solid.py）。
+何度流しても同じ結果になる（dress と solid の箱は毎回作り直す）。部品の寸法と原点：tools/blender/kit/town_parts.py・town_sets.py・town_terrace.py。
 絵：W2-05 town_mood_day.png（中段の広場）・town_layout.png・town_mood_emergency.png（停止の夜）。
 
   python3 tools/dress_town.py            キットを付ける部屋（ROOMS）を全部
@@ -12,6 +13,8 @@
 import json
 import os
 import sys
+
+import dress_solid
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 PATH = os.path.join(ROOT, "godot", "content", "areas", "ch1_town.json")
@@ -68,6 +71,15 @@ def common(room, d):
 
 SHADOW = {"stall", "tent", "monument", "workshop_front", "diner_front", "stage", "lamp_post", "lamp_tall", "bench",
           "stall_table", "crate", "barrel", "junk_pile", "planter_big"}
+
+# 当たり判定を付ける部品（"solid": true。箱の形は tools/dress_solid.py の SOLID）。歩ける所に立つ、手で触れる大きさの物：
+# 木箱・樽・収納箱・鉢植え・ベンチ・卓・工具棚・給水塔・洗濯綱・床の配管・外灯の台・胸壁の角の柱・露店の棚と柱と裏の木箱・
+# 天幕の下の台と木箱と樽・工房の正面の足元の小物・食堂の裏の木箱と樽・壇の旗竿・階段の手すり。
+# 前はどれも当たり判定が無く、ハルが樽・木箱の中に入り込んで頭だけ出して立てた（ハリボテに見えた）。
+# 木箱の山とガラクタ（crate の大きな 3 つ・junk_pile）は、前から同じ広さの描かない箱があるので付けない（solid=False）
+SOLID = {"crate", "barrel", "chest", "planter", "planter_big", "bench", "stall_table", "tool_rack", "water_tower", "clothesline",
+         "pipes", "lamp_post", "lamp_tall", "parapet_corner", "goods_shelf_general", "goods_shelf_junk", "stall", "tent",
+         "workshop_front", "diner_front", "stage", "stair_rail_12", "stair_rail_12_r"}
 
 
 # ---------------------------------------------------------------- 中段（広場と市場）
@@ -162,10 +174,10 @@ def mid(room):
     for x in (-10, -20, -30, -40, 10, 20, 34, 44):
         d.put("planter", [x, 0, -13.35], 0)
     # 木箱の山（隠した箱と同じ広さ・高さ）
-    d.put("crate", [29.75, 0, -6], 0, scale=[1.65, 1.35, 2.2])
-    d.put("crate", [31.25, 0, -6], 0, scale=[1.65, 1.35, 2.2])
-    d.put("crate", [42, 0, -7], 0, scale=[2.2, 2.16, 2.2])
-    d.put("junk_pile", [-30, 0, -7], 0, scale=[1.2, 1.05, 1.3])
+    d.put("crate", [29.75, 0, -6], 0, scale=[1.65, 1.35, 2.2], solid=False)
+    d.put("crate", [31.25, 0, -6], 0, scale=[1.65, 1.35, 2.2], solid=False)
+    d.put("crate", [42, 0, -7], 0, scale=[2.2, 2.16, 2.2], solid=False)
+    d.put("junk_pile", [-30, 0, -7], 0, scale=[1.2, 1.05, 1.3], solid=False)
     d.put("barrel", [27.6, 0, -6.4])
     d.put("barrel", [40.4, 0, -7.6], 0, scale=0.9)
 
@@ -217,7 +229,12 @@ def mid(room):
     for it in d.items:
         if it["part"].split("/")[1] in SHADOW and "shadow" not in it:
             it["shadow"] = True
+        if it.get("solid") is False:
+            it.pop("solid")
+        elif it["part"].split("/")[1] in SOLID:
+            it["solid"] = True
     room["dress"] = d.items
+    dress_solid.apply(room)
     return room
 
 
@@ -229,7 +246,8 @@ def main():
     names = sys.argv[1:] or list(ROOMS)
     for n in names:
         ROOMS[n](data["rooms"][n])
-        print(f"{n}: dress {len(data['rooms'][n]['dress'])} 件")
+        solid = sum(1 for g in data["rooms"][n]["geometry"] if "dress" in g)
+        print(f"{n}: dress {len(data['rooms'][n]['dress'])} 件・当たり判定の箱 {solid} 個")
     with open(PATH, "w", encoding="utf-8") as fh:
         json.dump(data, fh, ensure_ascii=False, indent=1)
         fh.write("\n")
