@@ -186,7 +186,8 @@ func load_room(id: String, spawn := "", at = null, at_yaw := 0.0) -> void:
 		checkpoint = String(room.get("playerStart", spawn))
 	else:
 		player.teleport(sp.pos, sp.yaw)
-	# カメラの向きを書き換えると、背後へ回している途中の回転と、止めていた左スティックの基準もやめる（CameraOrbit.yaw）
+	# カメラの向きを書き換えると、背後へ回している途中の回転と、止めていた左スティックの基準もやめる（CameraOrbit.yaw）。
+	# 出口を通ったときは、そのあと _do_pending_room が基準を止め直す（倒したままなら部屋の奥へ進み続ける）
 	cam.yaw = sp.yaw
 	cam.pitch = tuning.camera.defaultPitch * U.DEG
 	entry = {"room": id, "pos": sp.pos, "yaw": sp.yaw}
@@ -563,6 +564,12 @@ func _do_pending_room() -> void:
 	_pending_room = {}
 	var at = r.get("at")
 	load_room(r.room, r.get("spawn", ""), at, r.get("yaw", 0.0))
+	if at == null:
+		# 出口を通った（go_to）：左スティックを倒したままなら、ハルはそのまま新しい部屋の奥（入口の目印の向き）へ進む。
+		# 新しいカメラから測り直すと、カメラの方へ倒して扉を通ったとき、それが新しい部屋では「扉へ戻る」向きになり、
+		# 倒している間ずっと 2 つの部屋を行き来した（CameraOrbit.keep_heading。2026-10-08）。
+		# やられたあとの復帰（at あり）は続けて走っていたわけではないので、ふつうどおりカメラから測る
+		cam.keep_heading(player.yaw, Vector2(input.move_x, input.move_y))
 	if r.get("autosave", false):
 		emit_event({"type": "autosave"})
 
@@ -622,8 +629,9 @@ func has_ability(a: String) -> bool:
 	return false
 
 
-## カメラをハルの体の向きの背後へ回す（背後のボタン、対象がいないときのロックオンのボタン）。
-## 回している間は左スティックの基準を止める（CameraOrbit.request_recenter。走りながら押してもカメラが回り続けない）
+## カメラをハルの背後へ回す（背後のボタン、対象がいないときのロックオンのボタン）。回す先は押したときに決める
+## （倒していればハルが向かう向き、倒していなければ体の向き）。回している間は左スティックの基準を止める
+## （CameraOrbit.request_recenter。走りながら押してもカメラが回り続けず、途中で倒し直してもハルはまっすぐ走る）
 func recenter_camera() -> void:
 	cam.request_recenter(player.yaw, Vector2(input.move_x, input.move_y))
 

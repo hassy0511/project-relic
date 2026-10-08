@@ -334,6 +334,77 @@ func test_lock_button_recenters_before_fitting() -> void:
 	h.free_game(g2)
 
 
+## 適合の前の換気室：カメラの方へ走りながらロックオンのボタンを押し、回している途中に左スティックを上へ倒し直しても、
+## 回し終えてから倒し直したときと同じく、ハルはそのまま走り続け、カメラはハルの背後で止まる（CameraOrbit._hold_to）。
+## 前はハルが U ターンし（+90° → −90°）、カメラは 236〜324° 回って、背中から 36〜124° 外れた所で止まったままだった（2026-10-08）
+func test_lock_button_reaim_during_swing_before_fitting() -> void:
+	for reaim_at in [6, 10, 14, 30]:
+		var g: GameSim = await _r04_facing_minis(false)
+		_warp(g, Vector3(0, 0, 0), PI / 2)
+		g.cam.yaw = -PI / 2
+		g.cam.follow = "weak"
+		await h.run(g, 4, {})
+		await h.run(g, 20, {"move_y": -1.0})
+		var p: Player = g.player
+		var heading0 := U.dir_to_yaw(p.vel.x, p.vel.z)
+		h.near(U.wrap_angle(heading0 - PI / 2) / U.DEG, 0.0, 2.0, "カメラの方（+90°）へ走っている")
+		var turned := 0.0
+		var prev := g.cam.yaw
+		var worst := 0.0
+		for i in 60:
+			var f := {"move_y": -1.0 if i < reaim_at else 1.0}
+			if i == 0:
+				f["lock_on"] = true
+			await h.run(g, 1, f)
+			turned += absf(U.wrap_angle(g.cam.yaw - prev))
+			prev = g.cam.yaw
+			worst = maxf(worst, absf(U.wrap_angle(U.dir_to_yaw(p.vel.x, p.vel.z) - heading0)))
+		var what := "%d 刻み目に上へ倒し直す" % reaim_at
+		h.expect(g.room_id == "ch1.r04" and g.lock_on.target == null, "%s：同じ部屋で、ロックオンはしていない" % what)
+		h.expect(worst < 3.0 * U.DEG, "%s：ハルはそのまま走り続ける（最大 %.1f° ずれた）" % [what, worst / U.DEG])
+		h.expect(turned < 182.0 * U.DEG, "%s：カメラは背後まで回るだけ（%.0f°）" % [what, turned / U.DEG])
+		h.near(U.wrap_angle(p.yaw - g.cam.yaw) / U.DEG, 0.0, 1.0, "%s：カメラはハルの背後で止まる" % what)
+		h.free_game(g)
+
+
+## 左スティックをカメラの方（下・斜め下）へ倒したまま扉を通ると、ハルは新しい部屋でもそのまま奥へ進む（CameraOrbit.keep_heading）。
+## 新しい部屋のカメラは入口から奥を向くので、新しいカメラから測り直すと「下」が「扉へ戻る」向きになる。
+## 前は倒している間ずっと 2 つの部屋を行き来した（換気室と遺構 B1 の間で 4 秒に 17 回。中層の町と下層の町も。2026-10-08）
+func test_door_with_stick_held_keeps_going() -> void:
+	for c in [["ch1.r04", "from_r03", Vector2(0, -1)], ["ch1.r04", "from_r03", Vector2(0.5, -0.866)], ["ch1.r03", "from_r04", Vector2(0, -1)], ["ch1.mid", "", Vector2(0, -1)]]:
+		var g := _new_game()
+		await h.settle()
+		g.set_flag("ch1.got_spark")
+		g.set_flag("ch1.frame_fitted")
+		g.load_room(c[0], c[1])
+		for t in g.triggers:
+			t.fired = true
+		await _pump(g, 8)
+		g.drain_events()
+		var s: Vector2 = c[2]
+		var room := g.room_id
+		var changes := 0
+		var into := []
+		for i in 240:
+			var f := {"move_x": s.x, "move_y": s.y}
+			if g.story.blocking():
+				f = {"jump": i % 6 < 3}
+			await h.tree.physics_frame
+			g.step(InputFrame.of(f))
+			g.drain_events()
+			if g.room_id != room:
+				changes += 1
+				room = g.room_id
+				# 入口の目印の向き（読み込んだ直後のカメラの向き）
+				into = [g.cam.yaw, i]
+		var what := "%s（%s）で左スティック %s を 4 秒" % c
+		h.expect(changes <= 1, "%s：部屋を行き来しない（移った回数 %d）" % [what, changes])
+		if changes == 1 and 240 - into[1] > 30:
+			var p: Player = g.player
+			h.near(U.wrap_angle(U.dir_to_yaw(p.vel.x, p.vel.z) - into[0]) / U.DEG, 0.0, 3.0, "%s：移った部屋でも、そのまま奥へ進む" % what)
+		h.free_game(g)
+
+
 ## 適合のあと：対象がいないときにロックオンのボタンを押すと、カメラが背後へ回る（これまでどおり）。対象がいればロックオンする
 func test_lock_button_recenters_after_fitting_without_target() -> void:
 	var g: GameSim = await _r04_facing_minis(true)
