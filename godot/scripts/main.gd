@@ -390,6 +390,7 @@ func _process(dt: float) -> void:
 	if unavail != touch.unavailable:
 		touch.unavailable = unavail
 		touch.lock_toggled = touch.lock_toggled and unavail.is_empty()
+	input.lock_available = not unavail.has("lock_on")
 	touch.set_shown(state == "playing" and demo == null or (demo != null and args.has("touch") and state == "playing"))
 	hud.compact = touch.active
 	if game and state == "playing":
@@ -426,10 +427,13 @@ func arena_music() -> String:
 
 
 func _aim_dir() -> Vector3:
+	var p := game.player
 	var t = game.lock_on.target
 	if t != null:
-		return (t.center() - game.player.chest()).normalized()
-	return camera.forward_dir()
+		return (t.center() - p.chest()).normalized()
+	# ロックオンしていないときは体の正面へ撃つ（Player._fire）。上下は最後に撃った弾の角度
+	var up := clampf(p.shot_dir.y, -0.9, 0.9)
+	return U.yaw_to_dir(p.yaw) * sqrt(1.0 - up * up) + Vector3(0.0, up, 0.0)
 
 
 func _handle_events() -> void:

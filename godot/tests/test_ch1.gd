@@ -255,6 +255,186 @@ func test_abilities_implied_by_later_flags() -> void:
 	h.free_game(g)
 
 
+## 換気室（子番機 2 体）に、ハルが +Z（子番機の方）を向いて立ち、カメラは 90° 横を向いた状態にする
+func _r04_facing_minis(fitted: bool) -> GameSim:
+	var g := _new_game()
+	await h.settle()
+	g.set_flag("ch1.got_spark")
+	if fitted:
+		g.set_flag("ch1.frame_fitted")
+	g.load_room("ch1.r04", "from_r03")
+	for t in g.triggers:
+		t.fired = true
+	await _pump(g, 6)
+	_warp(g, Vector3(0, 0, -5), 0.0)
+	await _pump(g, 4)
+	return g
+
+
+## 適合の前：ロックオンのボタンを押すと、ロックオンはしないが、カメラがハルの向きの背後へ回る（押すたびに）。
+## 背後のボタン（camera_reset。R3・C・タッチの「背後」）もそのまま使える
+func test_lock_button_recenters_before_fitting() -> void:
+	var g: GameSim = await _r04_facing_minis(false)
+	h.expect(not g.has_ability("lock_on"), "適合の前はロックオンが使えない")
+	h.expect(g.enemies.size() == 2 and g.enemies.all(func(e): return e.alive), "前に子番機が 2 体いる")
+	g.cam.yaw = PI / 2
+	await h.run(g, 30, {"lock_on": true})
+	h.near(rad_to_deg(U.wrap_angle(g.cam.yaw - g.player.yaw)), 0.0, 2.0, "ロックオンのボタンでカメラがハルの背後へ回る")
+	h.expect(g.lock_on.target == null and not g.input.lock_on, "適合の前はロックオンしない（前に敵がいても）")
+	# 押し続けても、カメラを回せば回したまま（押した瞬間だけ背後へ回す）
+	g.cam.yaw = -PI / 2
+	await h.run(g, 20, {"lock_on": true})
+	h.near(rad_to_deg(U.wrap_angle(g.cam.yaw + PI / 2)), 0.0, 0.5, "押し続けているだけでは何度も回らない")
+	await h.run(g, 2, {})
+	await h.run(g, 30, {"lock_on": true})
+	h.near(rad_to_deg(U.wrap_angle(g.cam.yaw - g.player.yaw)), 0.0, 2.0, "押し直すと、また背後へ回る")
+	await h.run(g, 2, {})
+	g.cam.yaw = PI
+	await h.run(g, 1, {"camera_reset": true})
+	await h.run(g, 30, {})
+	h.near(rad_to_deg(U.wrap_angle(g.cam.yaw - g.player.yaw)), 0.0, 2.0, "背後のボタンもそのまま使える")
+	h.expect(g.lock_on.target == null, "ロックオンはしていない")
+	# 会話の間は回らない
+	g.cam.yaw = PI / 2
+	g.story.start_event("ch1.r04.enter")
+	await h.run(g, 1, {})
+	h.expect(g.story.blocking(), "会話が出ている")
+	await h.run(g, 1, {"lock_on": true})
+	await h.run(g, 1, {})
+	h.near(g.cam.yaw, PI / 2, 0.0001, "会話の間はロックオンのボタンでカメラが回らない")
+	h.free_game(g)
+
+
+## 適合のあと：対象がいないときにロックオンのボタンを押すと、カメラが背後へ回る（これまでどおり）。対象がいればロックオンする
+func test_lock_button_recenters_after_fitting_without_target() -> void:
+	var g: GameSim = await _r04_facing_minis(true)
+	h.expect(g.has_ability("lock_on"), "適合のあとはロックオンが使える")
+	_kill_all(g)
+	# 倒した直後の手応えの一時停止（ヒットストップ）の間に押しても、押した瞬間として扱う
+	await _pump(g, 2)
+	g.cam.yaw = PI / 2
+	await h.run(g, 30, {"lock_on": true})
+	h.near(rad_to_deg(U.wrap_angle(g.cam.yaw - g.player.yaw)), 0.0, 2.0, "対象がいないときは、ロックオンのボタンでカメラが背後へ回る")
+	h.expect(g.lock_on.target == null, "対象がいなければロックオンしない")
+	h.free_game(g)
+	var g2: GameSim = await _r04_facing_minis(true)
+	await h.run(g2, 2, {"lock_on": true})
+	h.expect(g2.lock_on.target != null, "対象がいればロックオンする")
+	h.free_game(g2)
+
+
+## 部屋の床（高さ floor_y）のうち、始まりの目印から歩いて行ける所（0.5m の升目。地形・壁・閉じた扉で区切る）
+func _walkable_cells(g: GameSim, start: Vector3, floor_y: float, fits: Callable) -> Dictionary:
+	var cell := 0.5
+	var c0 := Vector2i(roundi(start.x / cell), roundi(start.z / cell))
+	var seen := {c0: true}
+	var queue := [c0]
+	while not queue.is_empty() and seen.size() < 20000:
+		var c: Vector2i = queue.pop_back()
+		for dc in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n: Vector2i = c + dc
+			if seen.has(n):
+				continue
+			var top := Vector3(n.x * cell, floor_y + 2.4, n.y * cell)
+			var down := g.phys.raycast(top, Vector3.DOWN, 3.0, Phys.TERRAIN | Phys.BREAKABLE)
+			if down.is_empty() or absf(down.point.y - floor_y) > 0.3 or not fits.call(down.point):
+				seen[n] = false
+				continue
+			seen[n] = true
+			queue.append(n)
+	return seen
+
+
+## 撃つと入るスイッチ（訓練場の的・換気室の弁・弁の間の輪・駆動回廊の動力の球など、第 1 章の "mode": "shoot" 全部）は、
+## ふつうに立つ場所から、その方を向いて撃てば入る（カメラはわざと 90° 横へ向けておく。撃つ向きは体の向き）。
+## 立つ場所：部屋の床（始まりの目印と同じ高さ）の上で、スイッチから水平に 3・5・7・9・11m、16 方向。
+## 始まりの目印から歩いて行けて（閉じた扉の向こうは除く）、体が収まり（壁や箱に埋まらない）、
+## 胸からスイッチの中心まで視線が通り（地形にも、手前の別のスイッチにもさえぎられない）、射程の内にある所を全部試す。
+## 向きは真正面と ±8°（スティックで大まかに向けた程度）。部屋の敵は先に倒しておく（ふつうの順）
+func test_all_shoot_switches_hittable() -> void:
+	var world := World.load_manifest("res://content/world.json")
+	var rooms := {}
+	for rid in world.rooms:
+		if not String(rid).begins_with("ch1."):
+			continue
+		for p in world.room(rid).get("props", []):
+			if p.type == "switch" and String(p.get("mode", "shoot")) == "shoot":
+				if not rooms.has(rid):
+					rooms[rid] = []
+				rooms[rid].append(p.id)
+	var n_switches := 0
+	for ids in rooms.values():
+		n_switches += ids.size()
+	h.expect(n_switches >= 8, "第 1 章の撃つスイッチ（%d 個：%s）" % [n_switches, rooms])
+	var mask := Phys.TERRAIN | Phys.BREAKABLE
+	for rid in rooms:
+		var g := _new_game()
+		await h.settle()
+		# 町（訓練場）は練習銃、遺構はスパークを受け取った後
+		if not String(rid).begins_with("ch1.training"):
+			g.set_flag("ch1.got_spark")
+		g.load_room(rid)
+		for t in g.triggers:
+			t.fired = true
+		await _pump(g, 6)
+		_kill_all(g)
+		await _pump(g, 6)
+		var start: Vector3 = g.world.geometry(rid).markers[String(g.room.get("playerStart", "start"))].pos
+		var floor_y := start.y
+		var space := g.phys.get_world_3d().direct_space_state
+		var cap := CapsuleShape3D.new()
+		cap.radius = Player.RADIUS + 0.1
+		cap.height = Player.HEIGHT
+		var cap_q := PhysicsShapeQueryParameters3D.new()
+		cap_q.shape = cap
+		cap_q.collision_mask = mask
+		# 体（ハルのカプセルより少し太く）が地形・壁・扉に埋まらない
+		var fits := func(f: Vector3) -> bool:
+			cap_q.transform = Transform3D(Basis(), f + Vector3(0, Player.HEIGHT * 0.5 + 0.08, 0))
+			return space.intersect_shape(cap_q, 1).is_empty()
+		var walk := _walkable_cells(g, start, floor_y, fits)
+		var reach: float = g.gun_cfg().range - 0.5
+		for sid in rooms[rid]:
+			var sw: Props.Switch = g.switch_by_id(sid)
+			var spots := []
+			for d in [3.0, 5.0, 7.0, 9.0, 11.0]:
+				for k in 16:
+					var a := k * TAU / 16.0
+					var top := Vector3(sw.pos.x + sin(a) * d, floor_y + 2.4, sw.pos.z + cos(a) * d)
+					var down := g.phys.raycast(top, Vector3.DOWN, 3.0, mask)
+					if down.is_empty() or absf(down.point.y - floor_y) > 0.3:
+						continue
+					var f: Vector3 = down.point
+					if not fits.call(f) or not walk.get(Vector2i(roundi(f.x / 0.5), roundi(f.z / 0.5)), false) or g.exits.any(func(x): return x.contains(f)):
+						continue
+					var chest := f + Vector3(0, Player.CHEST, 0)
+					if chest.distance_to(sw.pos) > reach or not g.phys.raycast(chest, (sw.pos - chest).normalized(), chest.distance_to(sw.pos), mask).is_empty():
+						continue
+					# 別のスイッチ（弾が当たると入る）が手前に重なって見える所は除く（そちらに当たるのが正しい）
+					if g.switches.any(func(o): return o != sw and o.mode == "shoot" and U.segment_sphere(chest, sw.pos, o.pos, o.radius + 0.3) >= 0.0):
+						continue
+					spots.append(f)
+			h.expect(spots.size() >= 4, "%s：ふつうに立って狙える場所がある（%d か所）" % [sid, spots.size()])
+			var missed := []
+			for f in spots:
+				var face := U.dir_to_yaw(sw.pos.x - f.x, sw.pos.z - f.z)
+				for off in [0.0, 8.0, -8.0]:
+					sw.on = false
+					g.set_flag("switch." + sid, false)
+					g.player.teleport(f, face + off * U.DEG)
+					g.player.gun_cooldown = 0.0
+					await h.run(g, 3, {})
+					if not g.player.grounded:
+						missed.append("%s %+.0f°（立てない）" % [f, off])
+						continue
+					g.cam.yaw = face + off * U.DEG + PI / 2
+					await h.run(g, 1, {"fire": true})
+					if not await h.run_until(g, 45, {}, func(): return sw.on):
+						missed.append("%s %+.0f°" % [f, off])
+			h.expect(missed.is_empty(), "%s：向いて撃てば入る（%d か所 × 3 向き。外れ：%s）" % [sid, spots.size(), missed])
+		h.free_game(g)
+
+
 ## 再始動のあとの夜（セーブして中断した場合など）でも、ハルの家のベッドで休めば夜が明ける
 func test_sleep_after_restart_brings_morning() -> void:
 	var g := _new_game()

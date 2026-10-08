@@ -6,6 +6,8 @@ var game
 var target = null  # Enemy
 var _sight_lost := 0.0
 var _scan_time := 0.0
+## 前に update したときボタンが押されていたか（ヒットストップの間に押しても、押した瞬間として扱えるように）
+var _was_down := false
 ## 解析済みの敵の種類（弱点を表示できる）
 var scanned := {}
 ## この距離（m）より近い敵は、カメラの向きに関係なく候補にする（すぐ横・後ろの敵も捉えられるように）
@@ -24,10 +26,14 @@ func update(dt: float) -> void:
 	var g = game
 	var input: InputFrame = g.input
 	var cfg: Dictionary = g.tuning.lockOn
-	if not g.edges.down("lock_on"):
+	var down: bool = g.edges.down("lock_on")
+	var just := down and not _was_down
+	_was_down = down
+	if not down:
 		release()
 		return
-	if g.edges.pressed("lock_on"):
+	if just:
+		# 押した瞬間：いちばんよい対象を捉える。誰もいなければカメラをハルの背後へ回す
 		target = _pick_best(null)
 		if target == null:
 			g.cam.request_recenter()

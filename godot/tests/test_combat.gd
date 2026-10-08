@@ -91,6 +91,94 @@ func test_gun_kills_sentry() -> void:
 	h.free_game(g)
 
 
+## ロックオンしていない弾は、ハルの体の向きへ水平に飛ぶ。カメラを 90° 横へ回して見上げても、カメラの方へは撃たず、
+## ハルも向きを変えない（カメラの先に敵がいても狙わない）。チャージ弾も同じ
+func test_unlocked_shot_follows_body_facing() -> void:
+	var g := h.make_game({
+		"markers": {"e1": Vector3(10, 0, 0)},
+		"placement": _enemies([{"type": "sentry", "at": "e1", "passive": true}]),
+	})
+	await h.settle()
+	g.god_mode = true
+	var e = g.enemies[0]
+	var hp0: float = e.hp
+	g.player.yaw = 0.0
+	g.cam.yaw = PI / 2
+	g.cam.pitch = -30.0 * U.DEG
+	await h.run(g, 1, {"fire": true})
+	h.expect(g.shots.size() == 1, "撃つと弾が 1 発出る（%d）" % g.shots.size())
+	var s: Shot = g.shots[0]
+	h.near(s.dir.x, 0.0, 0.001, "弾はカメラの向き（+X）ではなく体の向き（+Z）へ飛ぶ：横の成分")
+	h.near(s.dir.y, 0.0, 0.001, "カメラで見上げても弾は水平")
+	h.expect(s.dir.z > 0.999, "弾は体の正面（+Z）へ")
+	h.expect(s.homing == null, "ロックオンしていない弾は追わない")
+	h.near(g.player.yaw, 0.0, 0.0001, "撃ってもハルはカメラの方へ向きを変えない")
+	var x0: float = s.pos.x
+	await h.run(g, 12, {})
+	h.expect(s.pos.z > 4.0 and absf(s.pos.x - x0) < 0.001, "弾は体の正面へまっすぐ進む（z=%.2f）" % s.pos.z)
+	h.expect(e.hp == hp0, "カメラの先（+X）の敵には当たらない")
+	h.near(g.player.yaw, 0.0, 0.0001, "撃ったあとも体の向きはそのまま")
+	# チャージ弾も体の向きへ
+	g.equipped_chips["chip.charge"] = true
+	g.player.gun_cooldown = 0.0
+	g.cam.yaw = -PI / 2
+	await h.run(g, TestHelpers.seconds(1.4), {"fire": true})
+	await h.run(g, 1, {})
+	var last: Shot = g.shots[g.shots.size() - 1]
+	h.expect(last.kind == "charge2", "長押しして離すと溜め 2 段目の弾（%s）" % last.kind)
+	h.expect(last.dir.z > 0.999 and absf(last.dir.y) < 0.001, "チャージ弾も体の正面へ水平に飛ぶ")
+	h.near(g.player.yaw, 0.0, 0.0001, "チャージ弾でも体は向きを変えない")
+	h.free_game(g)
+
+
+## 弱い自動照準は体の正面が基準：体の正面から少しずれた敵には狙いが合う（上下の角度も）。カメラの正面の敵は狙わない
+func test_soft_aim_uses_body_facing() -> void:
+	# 正面から 7° ずれた高い台（上面 2.5m）の上に的の歩哨型、カメラの正面（-X）に歩哨型
+	var g := h.make_game({
+		"boxes": [[Vector3(1.2, 1.25, 10), Vector3(2, 2.5, 2)]],
+		"markers": {"e1": Vector3(1.2, 2.5, 10), "e2": Vector3(-10, 0, 0)},
+		"placement": _enemies([{"type": "sentry", "at": "e1", "passive": true}, {"type": "sentry", "at": "e2", "passive": true}]),
+	})
+	await h.settle()
+	g.god_mode = true
+	var front = g.enemies[0]
+	var side = g.enemies[1]
+	var side_hp: float = side.hp
+	await h.run(g, 10, {})
+	g.player.yaw = 0.0
+	g.cam.yaw = -PI / 2
+	await h.run(g, 1, {"fire": true})
+	var s: Shot = g.shots[0]
+	var c: Vector3 = front.center()
+	h.expect(c.y > 2.5, "的は高い所にいる（%.2f）" % c.y)
+	var want: Vector3 = (c - s.origin).normalized()
+	h.expect(s.dir.dot(want) > 0.9999, "体の正面から 7° の敵へ狙いが合う（上下も。dir.y=%.3f）" % s.dir.y)
+	h.between(g.player.yaw / U.DEG, 5.0, 9.0, "狙った分だけ体が向く")
+	h.expect(await h.run_until(g, 40, {}, func(): return front.hp < front.max_hp), "高い所の敵に当たる")
+	h.expect(side.hp == side_hp, "カメラの正面（-X）の敵は狙わない")
+	h.free_game(g)
+
+
+## ロックオン中は、体の向きやカメラに関係なく対象へ撃ち、弾は対象を追う
+func test_locked_shot_goes_to_target() -> void:
+	var g := h.make_game({
+		"markers": {"e1": Vector3(6, 0, 6)},
+		"placement": _enemies([{"type": "sentry", "at": "e1"}]),
+	})
+	await h.settle()
+	g.god_mode = true
+	var e = g.enemies[0]
+	await h.run(g, 2, {"lock_on": true})
+	h.expect(g.lock_on.target == e, "斜め前（45°）の敵をロックオンする")
+	await h.run(g, 1, {"lock_on": true, "fire": true})
+	var s: Shot = g.shots[0]
+	var want: Vector3 = (e.center() - s.origin).normalized()
+	h.expect(s.dir.dot(want) > 0.999, "ロックオン中の弾は対象へ向けて撃つ")
+	h.expect(s.homing == e, "ロックオン中の弾は対象を追う")
+	h.expect(await h.run_until(g, 40, {"lock_on": true}, func(): return e.hp < e.max_hp), "対象に当たる")
+	h.free_game(g)
+
+
 func test_sword_combo() -> void:
 	var g := h.make_game({
 		"markers": {"e1": Vector3(0, 0, 1.6)},

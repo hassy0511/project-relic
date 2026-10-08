@@ -46,6 +46,16 @@ func _use(_g: GameSim) -> void:
 	await driver.tick({})
 
 
+## 撃つと入るスイッチ（的・弁・動力の球）を実際に撃って入れる：stand に立ってスイッチの方を向き、撃つボタンを押し続ける。
+## 弾は体の向きへ飛び、正面の近くのスイッチには狙いが合う（Player._fire）
+func _shoot_switch(g: GameSim, id: String, stand: Vector3) -> void:
+	var sw: Props.Switch = g.switch_by_id(id)
+	_warp(g, stand, U.dir_to_yaw(sw.pos.x - stand.x, sw.pos.z - stand.z))
+	await _pump(g, 4)
+	h.expect(await _pump(g, 90, func(): return sw.on, false, {"fire": true}), "%s の方を向いて撃つと入る" % id)
+	await _pump(g, 2)
+
+
 ## フラグが立った順（story.flags は入れた順を保つ）
 func flag_order(g: GameSim) -> Array:
 	return g.story.flags.keys().filter(func(k): return g.story.flags[k])
@@ -81,8 +91,9 @@ func play_part1(g: GameSim) -> void:
 	_warp(g, Vector3(0, 1.8, 6))
 	await _pump(g, 20)
 	h.expect(g.flag("ch1.t_jump"), "跳ぶ練習の段で案内が進む")
-	for id in ["ch1.tg1", "ch1.tg2", "ch1.tg3"]:
-		g.activate_switch(g.switch_by_id(id))
+	await _shoot_switch(g, "ch1.tg1", Vector3(-8, 0, 11))
+	await _shoot_switch(g, "ch1.tg2", Vector3(0, 0, 12))
+	await _shoot_switch(g, "ch1.tg3", Vector3(8, 0, 11))
 	await _pump(g, 20)
 	h.expect(g.flag("ch1.t_shoot"), "的を 3 つ撃つと案内が進む")
 	await driver.milestone("02_training_dummy")
@@ -207,8 +218,8 @@ func play_part2(g: GameSim) -> void:
 	await _pump(g, 6, Callable(), true)
 	var door = g.door_by_id("ch1.r04.door")
 	h.expect(door != null and not door.is_open, "弁が詰まっている間、換気室の扉は閉じている")
-	g.activate_switch(g.switch_by_id("ch1.r04.v1"))
-	g.activate_switch(g.switch_by_id("ch1.r04.v2"))
+	await _shoot_switch(g, "ch1.r04.v1", Vector3(-7, 0, -2))
+	await _shoot_switch(g, "ch1.r04.v2", Vector3(7, 0, -2))
 	await _pump(g, 30)
 	h.expect(g.door_by_id("ch1.r04.door").is_open, "弁を 2 つ撃つと扉が開く")
 	_warp(g, Vector3(0, 0, 11))
@@ -260,7 +271,7 @@ func play_part2(g: GameSim) -> void:
 	h.expect(g.enemies.any(func(e): return e.kind == "shield"), "弁の間：盾型がいる")
 	await _pump(g, 6000, func(): return g.group_cleared("r10_w1"), true)
 	h.expect(g.group_cleared("r10_w1"), "盾型と歩哨型を倒す")
-	g.activate_switch(g.switch_by_id("ch1.r10.valve"))
+	await _shoot_switch(g, "ch1.r10.valve", Vector3(0, 0, 1.6))
 	await _pump(g, 30)
 	h.expect(g.door_by_id("ch1.r10.door").is_open, "弁の輪を撃つと扉が開く")
 	_warp(g, Vector3(9, 0, -8.5))
@@ -283,8 +294,8 @@ func play_part2(g: GameSim) -> void:
 	var y0: float = mv.pos.y
 	await _pump(g, 60)
 	h.near(mv.pos.y, y0, 0.01, "動力が通る前、ピストンは止まっている")
-	g.activate_switch(g.switch_by_id("ch1.r12.s1"))
-	g.activate_switch(g.switch_by_id("ch1.r12.s2"))
+	await _shoot_switch(g, "ch1.r12.s1", Vector3(-5, 0, -12))
+	await _shoot_switch(g, "ch1.r12.s2", Vector3(5, 0, -12))
 	h.expect(await _pump(g, 900, func(): return g.flag("ch1.drive_powered") and not g.story.running_event()), "動力の球を 2 つ撃つと駆動層に動力が戻る")
 	var lo := mv.pos.y
 	var hi := mv.pos.y

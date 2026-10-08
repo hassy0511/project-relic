@@ -43,6 +43,8 @@ var gun_cooldown := 0.0
 var gun_charge := 0.0
 ## 撃っている、または構えている（上半身を銃の構えにする）
 var aiming := 0.0
+## 最後に撃った弾の向き（見た目の腕の向きに使う）
+var shot_dir := Vector3(0, 0, 1)
 
 var drilling := false
 var _drill_tick := 0.0
@@ -430,29 +432,27 @@ func _update_gun(dt: float) -> void:
 		gun_charge = 0.0
 
 
+## 撃つ向き：ロックオン中は対象へ（弾は対象を追う）。ロックオンしていないときはハルの体の向き（yaw）へ水平に撃つ。
+## 体の正面から少し（GameSim.SOFT_AIM_DEG）以内に敵か撃つスイッチがあれば、そこへ狙いを合わせる（上下の角度も）。
+## カメラの向きは使わない（カメラを横へ回しても、ハルは向きを変えずに体の正面へ撃つ）
 func _fire(damage: float, kind: String) -> void:
 	var g = game
 	var cfg: Dictionary = g.gun_cfg()
-	var origin := chest()
-	var right := Vector3(-cos(yaw), 0.0, sin(yaw))
-	origin += right * -0.3 + U.yaw_to_dir(yaw) * 0.4
-
 	var target = g.lock_on.target
-	if target == null:
-		target = g.soft_aim_target()
-	var dir: Vector3
+	var aim_at = null
 	if target != null:
-		dir = (target.center() - origin).normalized()
-		if g.lock_on.target == null:
-			yaw = U.dir_to_yaw(dir.x, dir.z)
+		aim_at = target.center()
 	else:
-		# カメラの向きに撃つ（上下は少しだけ反映する）
-		var pitch := clampf(-g.cam.pitch * 0.5, -20.0 * U.DEG, 20.0 * U.DEG)
-		dir = U.yaw_to_dir(g.cam.yaw) * cos(pitch)
-		dir.y = sin(pitch)
-		dir = dir.normalized()
-		if attack == null:
-			yaw = g.cam.yaw
+		var sa: Dictionary = g.soft_aim(yaw)
+		if not sa.is_empty():
+			aim_at = sa.point
+			# 狙いを合わせた分（わずか）だけ体を向ける
+			yaw = U.dir_to_yaw(aim_at.x - pos.x, aim_at.z - pos.z)
+	var fwd := U.yaw_to_dir(yaw)
+	var right := Vector3(-fwd.z, 0.0, fwd.x)
+	var origin := chest() - right * 0.3 + fwd * 0.4
+	var dir: Vector3 = fwd if aim_at == null else (aim_at - origin).normalized()
+	shot_dir = dir
 	g.spawn_player_shot({
 		"origin": origin, "dir": dir,
 		"speed": cfg.speed * (1.1 if kind == "charge2" else 1.0),

@@ -16,6 +16,9 @@ const BUTTONS := ["jump", "dash", "fire", "sword", "special", "lock_on", "heal"]
 var last_device := "keyboard"
 var enabled := true
 var invert_y := false
+## ロックオンが使えるか（main が毎フレーム入れる）。使えない間（第 1 章の適合の前）は、ロックオンのボタンを押していても
+## 右スティック・マウスの横振りを対象の切り替えに使わず、カメラを回す（ボタンは押した瞬間にカメラを背後へ回すだけ）
+var lock_available := true
 var _latched := {}
 var _mouse := Vector2.ZERO
 var _flick_accum := 0.0
@@ -93,7 +96,7 @@ func _input(event: InputEvent) -> void:
 		last_device = "keyboard"
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		_mouse += event.relative
-		if Input.is_action_pressed("lock_on"):
+		if Input.is_action_pressed("lock_on") and lock_available:
 			_flick_accum += event.relative.x
 	for a in BUTTONS:
 		if event.is_action_pressed(a):
@@ -150,14 +153,15 @@ func sample(dt: float) -> InputFrame:
 
 	# マウスを大きく横に振ると、ロックオン対象の切り替え
 	_flick_cooldown = maxf(0.0, _flick_cooldown - dt)
-	if Input.is_action_pressed("lock_on") and _flick_cooldown <= 0.0 and absf(_flick_accum) > 60.0:
+	var lock_held := Input.is_action_pressed("lock_on") and lock_available
+	if lock_held and _flick_cooldown <= 0.0 and absf(_flick_accum) > 60.0:
 		if _flick_accum > 0.0:
 			f.switch_right = true
 		else:
 			f.switch_left = true
 		_flick_cooldown = 0.25
 		_flick_accum = 0.0
-	if not Input.is_action_pressed("lock_on"):
+	if not lock_held:
 		_flick_accum = 0.0
 	_flick_accum *= 0.9
 
@@ -165,7 +169,7 @@ func sample(dt: float) -> InputFrame:
 	var rs := shape_stick(read_stick(JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y), PadConfig.dead_r, STICK_OUTER, STICK_SNAP)
 	var rx := rs.x
 	var ry := -rs.y
-	if Input.is_action_pressed("lock_on"):
+	if lock_held:
 		if _pad_flick_ready and absf(rx) > 0.6:
 			if rx > 0.0:
 				f.switch_right = true

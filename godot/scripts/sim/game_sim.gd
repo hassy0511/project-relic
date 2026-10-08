@@ -86,6 +86,8 @@ var player_locked := false
 var _pending_room := {}
 var _load_wait := 0
 var _choice_axis := 0.0
+## 前の刻みのロックオンのボタン（使えない力として押していないことにする前の、生の入力）
+var _raw_lock_prev := false
 ## 積まれた出来事（見た目・音・UI が取り出す）
 var _events: Array = []
 
@@ -481,6 +483,10 @@ func boss_status() -> Dictionary:
 # ---------------------------------------------------------------- 1 刻み
 
 func step(frame: InputFrame) -> void:
+	# ロックオンがまだ使えない間（適合の前）も、ロックオンのボタンを押した瞬間はカメラをハルの背後へ回す
+	# （使えるようになったあとの「対象がいないときのロックオン」と同じ。ロックオン・対象の切り替えはしない）
+	var lock_tap := frame.lock_on and not _raw_lock_prev and not has_ability("lock_on")
+	_raw_lock_prev = frame.lock_on
 	# まだ使えない力（ロックオン・光刃・ダッシュ）のボタンは効かない（第 1 章で少しずつ解放する）
 	frame = _mask_locked_abilities(frame)
 	input = frame
@@ -510,9 +516,10 @@ func step(frame: InputFrame) -> void:
 		frame = InputFrame.new()
 		input = frame
 		edges.update(frame)
+		lock_tap = false
 
 	cam.apply_look(frame)
-	if frame.camera_reset:
+	if frame.camera_reset or lock_tap:
 		cam.request_recenter()
 
 	if hitstop > 0.0:
@@ -926,22 +933,57 @@ func visited_rooms() -> Array:
 
 # ---------------------------------------------------------------- 戦闘
 
-## ロックオンしていないときの「弱い自動照準」。カメラ正面から 10° 以内の敵
-func soft_aim_target():
+## 弱い自動照準の幅（度）：ハルの向き（体の正面）からこの角度以内なら狙いを合わせる
+const SOFT_AIM_DEG := 12.0
+
+
+## ロックオンしていないときの「弱い自動照準」。ハルの向き（facing：体の正面の yaw）から SOFT_AIM_DEG 以内に中心があり、
+## 射程の中にいて視線が通る敵か、撃つと入るスイッチ（弁・動力の球・的）。
+## いくつかあれば、正面から縁までの角度がいちばん小さいもの（近くて大きい物ほど選ばれる。手前の的の奥に別の的があっても手前）。
+## 返り値：{ target: 敵かスイッチ, point: 狙う点（上下の角度もここへ合わせる） }。無ければ空。
+## （カメラの向きは見ない。撃つ向きは体の向き。2026-10-08 ユーザーの指示）
+func soft_aim(facing: float) -> Dictionary:
 	var chest := player.chest()
-	var best = null
-	var best_rel := 10.0 * U.DEG
+	var reach: float = gun_cfg().range * 1.2
+	var best := {}
+	var best_score := INF
+	var cands := []
 	for e in enemies:
-		if not e.alive:
+		if e.alive:
+			cands.append([e, e.radius, [e.center(), e.pos + Vector3(0, e.height * 0.9, 0)]])
+	for sw in switches:
+		if sw.mode == "shoot" and not (sw.on and not sw.toggle) and Cond.eval(sw.cond, self):
+			cands.append([sw, sw.radius, [sw.pos]])
+	for c in cands:
+		var p0: Vector3 = c[2][0]
+		var dist := p0.distance_to(chest)
+		if dist > reach:
 			continue
-		var c: Vector3 = e.center()
-		if c.distance_to(chest) > gun_cfg().range * 1.2:
+		# 真上・真下に近い物は向きが定まらないので狙わない（水平に 0.5m 以上離れている物だけ）
+		if Vector2(p0.x - chest.x, p0.z - chest.z).length() < 0.5:
 			continue
-		var rel := absf(U.wrap_angle(U.dir_to_yaw(c.x - chest.x, c.z - chest.z) - cam.yaw))
-		if rel < best_rel:
-			best_rel = rel
-			best = e
+		var rel := absf(U.wrap_angle(U.dir_to_yaw(p0.x - chest.x, p0.z - chest.z) - facing))
+		if rel >= SOFT_AIM_DEG * U.DEG:
+			continue
+		var score := rel - asin(minf(1.0, float(c[1]) / maxf(dist, 0.01)))
+		if score >= best_score:
+			continue
+		# 中心が隠れていても頭（上の端）が見えていれば、そこを狙う
+		for p in c[2]:
+			if has_clear_shot(chest, p):
+				best_score = score
+				best = {"target": c[0], "point": p}
+				break
 	return best
+
+
+## from から to まで、地形・壊せる壁にさえぎられずに弾が通るか
+func has_clear_shot(from: Vector3, to: Vector3) -> bool:
+	var d := to - from
+	var l := d.length()
+	if l < 0.01:
+		return true
+	return phys.raycast(from, d / l, l, Phys.TERRAIN | Phys.BREAKABLE).is_empty()
 
 
 func damage_enemy(e, amount: float, from: Vector3, info: Dictionary) -> void:
