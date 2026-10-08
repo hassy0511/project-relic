@@ -123,7 +123,8 @@ class Part:
                 d = [x for j, x in enumerate(q) if x != q[j - 1]]
                 if len(d) >= 3:
                     faces.append(d)
-        for ring in (rings[0], rings[-1]):
+        # ふた：始めの輪は向きを逆に（前は両方を同じ向きで足したので、始めのふたが内向きになり、外から見ると消えて筒の中が透けた）
+        for ring in (rings[0][::-1], rings[-1]):
             if len(set(ring)) > 1:
                 faces.append(list(ring))
         return self.add(mat, verts, faces, smooth)
