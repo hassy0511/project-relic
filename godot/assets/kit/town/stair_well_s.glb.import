@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://c7pihljrvpx41"
-path="res://.godot/imported/terrace_a.glb-64864c587b913adae131ec45f1861a37.scn"
+uid="uid://bmoudsaimukyc"
+path="res://.godot/imported/stair_well_s.glb-efcd537cfdf8e73246f9e1d9f2d9f50c.scn"
 
 [deps]
 
-source_file="res://assets/kit/town/terrace_a.glb"
-dest_files=["res://.godot/imported/terrace_a.glb-64864c587b913adae131ec45f1861a37.scn"]
+source_file="res://assets/kit/town/stair_well_s.glb"
+dest_files=["res://.godot/imported/stair_well_s.glb-efcd537cfdf8e73246f9e1d9f2d9f50c.scn"]
 
 [params]
 

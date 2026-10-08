@@ -31,6 +31,7 @@ MATERIALS: dict[str, dict] = {
     'linen':    dict(color='#E2D5BA', rough=0.95),     # 洗濯物・麻の布
     'desert':   dict(color='#BC5636', rough=1.0),      # 遠景の砂（空の絵の下の砂の色）
     'hull':     dict(color='#E2D6BE', rough=0.85),     # オルドの外殻（遠景。キットで大きな板の絵を貼る）
+    'shell':    dict(color='#E9DFC9', rough=0.8),      # 家・擁壁の大きな面（キットで部屋の壁と同じ白磁の絵を貼る。town_terrace）
 }
 
 

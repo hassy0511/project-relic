@@ -1021,6 +1021,21 @@
      ]
     },
     {
+     "part": "ruins/b1_bracket",
+     "pos": [
+      13.0,
+      5.4,
+      -12.0
+     ],
+     "yaw": 270,
+     "count": 7,
+     "step": [
+      0.0,
+      0.0,
+      4.0
+     ]
+    },
+    {
      "part": "ruins/b1_beam",
      "pos": [
       -12.0,
@@ -2310,6 +2325,76 @@
       0.0,
       0.0
      ]
+    },
+    {
+     "part": "ruins/b1_pit",
+     "pos": [
+      0.0,
+      -2.5,
+      -12.25
+     ],
+     "scale": [
+      1.0,
+      1.0,
+      1.5
+     ],
+     "shadow": false
+    },
+    {
+     "part": "ruins/b1_pit",
+     "pos": [
+      0.0,
+      -2.5,
+      -5.75
+     ],
+     "scale": [
+      1.0,
+      1.0,
+      2.5
+     ],
+     "shadow": false
+    },
+    {
+     "part": "ruins/b1_pit",
+     "pos": [
+      0.0,
+      -2.5,
+      1.25
+     ],
+     "scale": [
+      1.0,
+      1.0,
+      3.5
+     ],
+     "shadow": false
+    },
+    {
+     "part": "ruins/b1_pit",
+     "pos": [
+      0.0,
+      -2.5,
+      9.0
+     ],
+     "scale": [
+      1.0,
+      1.0,
+      3.0
+     ],
+     "shadow": false
+    },
+    {
+     "part": "ruins/b1_pit",
+     "pos": [
+      0.0,
+      -2.5,
+      14.75
+     ],
+     "scale": [
+      1.0,
+      1.0,
+      2.5
+     ],
+     "shadow": false
     },
     {
      "part": "ruins/b1_post_lamp",

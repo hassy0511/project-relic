@@ -1,0 +1,1402 @@
+[
+ {
+  "name": "plaza_n",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   0,
+   0,
+   -9
+  ],
+  "look": [
+   0,
+   0,
+   8
+  ],
+  "pitch": 14
+ },
+ {
+  "name": "plaza_n_up",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   0,
+   0,
+   4
+  ],
+  "look": [
+   0,
+   0,
+   16
+  ],
+  "pitch": -25
+ },
+ {
+  "name": "plaza_n_high",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   0,
+   0,
+   -6
+  ],
+  "look": [
+   0,
+   0,
+   16
+  ],
+  "pitch": 55
+ },
+ {
+  "name": "stair_n_foot",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   0,
+   0,
+   13
+  ],
+  "look": [
+   0,
+   0,
+   30
+  ],
+  "pitch": 20
+ },
+ {
+  "name": "stair_n_mid_l",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   1,
+   2.5,
+   22
+  ],
+  "look": [
+   -10,
+   2.5,
+   22
+  ],
+  "pitch": -10
+ },
+ {
+  "name": "stair_n_mid_r",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -1,
+   2.5,
+   22
+  ],
+  "look": [
+   10,
+   2.5,
+   22
+  ],
+  "pitch": -10
+ },
+ {
+  "name": "stair_n_top",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   0,
+   5,
+   29
+  ],
+  "look": [
+   0,
+   0,
+   0
+  ],
+  "pitch": 30
+ },
+ {
+  "name": "stair_n_top_up",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   0,
+   5,
+   30
+  ],
+  "look": [
+   0,
+   5,
+   10
+  ],
+  "pitch": -30
+ },
+ {
+  "name": "stair_n_top_l",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   2,
+   5,
+   31
+  ],
+  "look": [
+   -10,
+   5,
+   25
+  ],
+  "pitch": -20
+ },
+ {
+  "name": "west_end",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -44,
+   0,
+   8
+  ],
+  "look": [
+   -50,
+   0,
+   20
+  ],
+  "pitch": 5
+ },
+ {
+  "name": "west_end_up",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -46,
+   0,
+   14
+  ],
+  "look": [
+   -30,
+   0,
+   16
+  ],
+  "pitch": -25
+ },
+ {
+  "name": "west_far",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -30,
+   0,
+   -10
+  ],
+  "look": [
+   -48,
+   0,
+   16
+  ],
+  "pitch": 15
+ },
+ {
+  "name": "east_end",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   44,
+   0,
+   8
+  ],
+  "look": [
+   50,
+   0,
+   20
+  ],
+  "pitch": 5
+ },
+ {
+  "name": "east_far",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   30,
+   0,
+   -10
+  ],
+  "look": [
+   48,
+   0,
+   16
+  ],
+  "pitch": 15
+ },
+ {
+  "name": "east_along",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   46,
+   0,
+   13
+  ],
+  "look": [
+   10,
+   0,
+   16
+  ],
+  "pitch": 0
+ },
+ {
+  "name": "west_along",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -24,
+   0,
+   14.5
+  ],
+  "look": [
+   -48,
+   0,
+   16
+  ],
+  "pitch": -5
+ },
+ {
+  "name": "behind_workshop",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -43,
+   0,
+   14.5
+  ],
+  "look": [
+   -20,
+   0,
+   14.5
+  ],
+  "pitch": 5
+ },
+ {
+  "name": "behind_diner",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -20,
+   0,
+   13
+  ],
+  "look": [
+   -20,
+   0,
+   5
+  ],
+  "pitch": 15
+ },
+ {
+  "name": "diner_gap",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -25.8,
+   0,
+   -2
+  ],
+  "look": [
+   -25.8,
+   0,
+   12
+  ],
+  "pitch": 5
+ },
+ {
+  "name": "diner_east",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -10,
+   0,
+   5
+  ],
+  "look": [
+   -20,
+   0,
+   6
+  ],
+  "pitch": 15
+ },
+ {
+  "name": "workshop_west",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -46,
+   0,
+   2
+  ],
+  "look": [
+   -38,
+   0,
+   9
+  ],
+  "pitch": 15
+ },
+ {
+  "name": "workshop_front",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -34,
+   0,
+   -4
+  ],
+  "look": [
+   -34,
+   0,
+   8
+  ],
+  "pitch": 25
+ },
+ {
+  "name": "workshop_high",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -30,
+   0,
+   -2
+  ],
+  "look": [
+   -34,
+   0,
+   9
+  ],
+  "pitch": 60
+ },
+ {
+  "name": "stall_back",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   24,
+   0,
+   12
+  ],
+  "look": [
+   24,
+   0,
+   0
+  ],
+  "pitch": 15
+ },
+ {
+  "name": "stall_side",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   31,
+   0,
+   5
+  ],
+  "look": [
+   24,
+   0,
+   7
+  ],
+  "pitch": 10
+ },
+ {
+  "name": "market_east",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   46,
+   0,
+   -2
+  ],
+  "look": [
+   30,
+   0,
+   8
+  ],
+  "pitch": 15
+ },
+ {
+  "name": "market_high",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   31,
+   0,
+   -4
+  ],
+  "look": [
+   31,
+   0,
+   8
+  ],
+  "pitch": 60
+ },
+ {
+  "name": "water_tower",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   31,
+   0,
+   10
+  ],
+  "look": [
+   31,
+   0,
+   16
+  ],
+  "pitch": -20
+ },
+ {
+  "name": "tent_back",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -9,
+   0,
+   15
+  ],
+  "look": [
+   -9,
+   0,
+   6
+  ],
+  "pitch": 15
+ },
+ {
+  "name": "stage_back",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   4,
+   0,
+   15
+  ],
+  "look": [
+   -4,
+   0,
+   6
+  ],
+  "pitch": 15
+ },
+ {
+  "name": "edge",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -20,
+   0,
+   -12.5
+  ],
+  "look": [
+   -34,
+   0,
+   -30
+  ],
+  "pitch": 22
+ },
+ {
+  "name": "edge_down",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   20,
+   1.2,
+   -14.5
+  ],
+  "look": [
+   20,
+   0,
+   -30
+  ],
+  "pitch": 50
+ },
+ {
+  "name": "stair_s_mid",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   0,
+   -2.5,
+   -20
+  ],
+  "look": [
+   0,
+   -5,
+   -30
+  ],
+  "pitch": 15
+ },
+ {
+  "name": "stair_s_back",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   0,
+   -5,
+   -28
+  ],
+  "look": [
+   0,
+   0,
+   -14
+  ],
+  "pitch": -15
+ },
+ {
+  "name": "stair_s_side",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -2,
+   -3,
+   -22
+  ],
+  "look": [
+   10,
+   -3,
+   -22
+  ],
+  "pitch": 5
+ },
+ {
+  "name": "side_w",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -44,
+   0,
+   -4
+  ],
+  "look": [
+   -70,
+   0,
+   -14
+  ],
+  "pitch": 16
+ },
+ {
+  "name": "overlook_w",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -47.5,
+   1.2,
+   6
+  ],
+  "look": [
+   -80,
+   0,
+   0
+  ],
+  "pitch": 40
+ },
+ {
+  "name": "overlook_e",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   47.5,
+   1.2,
+   6
+  ],
+  "look": [
+   80,
+   0,
+   8
+  ],
+  "pitch": 40
+ },
+ {
+  "name": "corner_sw",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -47,
+   1.2,
+   -14
+  ],
+  "look": [
+   -20,
+   0,
+   10
+  ],
+  "pitch": 30
+ },
+ {
+  "name": "corner_se",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   47,
+   1.2,
+   -14
+  ],
+  "look": [
+   20,
+   0,
+   10
+  ],
+  "pitch": 30
+ },
+ {
+  "name": "free_high_n",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "eye": [
+   0,
+   12,
+   -16
+  ],
+  "target": [
+   0,
+   7,
+   16
+  ],
+  "at": [
+   0,
+   0,
+   -12
+  ]
+ },
+ {
+  "name": "free_high_w",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "eye": [
+   -10,
+   10,
+   -10
+  ],
+  "target": [
+   -38,
+   5,
+   14
+  ],
+  "at": [
+   -10,
+   0,
+   -8
+  ]
+ },
+ {
+  "name": "free_high_e",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "eye": [
+   10,
+   10,
+   -10
+  ],
+  "target": [
+   38,
+   5,
+   14
+  ],
+  "at": [
+   10,
+   0,
+   -8
+  ]
+ },
+ {
+  "name": "free_wall_top",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "eye": [
+   -10,
+   13,
+   6
+  ],
+  "target": [
+   -30,
+   12,
+   18
+  ],
+  "at": [
+   -10,
+   0,
+   6
+  ]
+ },
+ {
+  "name": "end_w_plaza",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -42,
+   0,
+   13
+  ],
+  "look": [
+   -52,
+   0,
+   19
+  ],
+  "pitch": -5
+ },
+ {
+  "name": "end_e_plaza",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   42,
+   0,
+   13
+  ],
+  "look": [
+   52,
+   0,
+   19
+  ],
+  "pitch": -5
+ },
+ {
+  "name": "end_w_wall",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -48.5,
+   1.2,
+   9
+  ],
+  "look": [
+   -48.5,
+   1.2,
+   25
+  ],
+  "pitch": 5
+ },
+ {
+  "name": "end_w_out",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "eye": [
+   -55,
+   4,
+   8
+  ],
+  "target": [
+   -46,
+   6,
+   24
+  ],
+  "at": [
+   -48.5,
+   1.2,
+   12
+  ]
+ },
+ {
+  "name": "end_e_out",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "eye": [
+   55,
+   4,
+   8
+  ],
+  "target": [
+   46,
+   6,
+   24
+  ],
+  "at": [
+   48.5,
+   1.2,
+   12
+  ]
+ },
+ {
+  "name": "terrace_below",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -16,
+   0,
+   14.5
+  ],
+  "look": [
+   -16,
+   0,
+   18
+  ],
+  "pitch": -35
+ },
+ {
+  "name": "terrace_below_e",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   16,
+   0,
+   14.5
+  ],
+  "look": [
+   22,
+   0,
+   18
+  ],
+  "pitch": -30
+ },
+ {
+  "name": "s_well_w",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -9,
+   1.2,
+   -14.5
+  ],
+  "look": [
+   -3,
+   -5,
+   -24
+  ],
+  "pitch": 35
+ },
+ {
+  "name": "s_well_e",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   9,
+   1.2,
+   -14.5
+  ],
+  "look": [
+   3,
+   -5,
+   -24
+  ],
+  "pitch": 35
+ },
+ {
+  "name": "s_well_top",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   0,
+   0,
+   -12
+  ],
+  "look": [
+   0,
+   0,
+   -24
+  ],
+  "pitch": 40
+ },
+ {
+  "name": "corner_sw_close",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -46,
+   1.2,
+   -14.5
+  ],
+  "look": [
+   -49,
+   0,
+   -14.5
+  ],
+  "pitch": 50
+ },
+ {
+  "name": "corner_sw_out",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "eye": [
+   -54,
+   -2,
+   -20
+  ],
+  "target": [
+   -48.5,
+   -2,
+   -14.5
+  ],
+  "at": [
+   -47,
+   0,
+   -12
+  ]
+ },
+ {
+  "name": "diner_back_far",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -13,
+   0,
+   14
+  ],
+  "look": [
+   -20,
+   0,
+   8
+  ],
+  "pitch": 15
+ },
+ {
+  "name": "stall_back_e",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   36,
+   0,
+   13
+  ],
+  "look": [
+   38,
+   0,
+   7
+  ],
+  "pitch": 20
+ },
+ {
+  "name": "stair_n_land_back",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   0,
+   5,
+   31
+  ],
+  "look": [
+   0,
+   5,
+   20
+  ],
+  "pitch": 45
+ },
+ {
+  "name": "stair_n_land_gate",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   0,
+   5,
+   29
+  ],
+  "look": [
+   0,
+   5,
+   34
+  ],
+  "pitch": -10
+ },
+ {
+  "name": "r02_entry",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   0,
+   0,
+   -10
+  ],
+  "look": [
+   0,
+   0,
+   5
+  ],
+  "pitch": 10
+ },
+ {
+  "name": "r02_up_e",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   8,
+   0,
+   -2
+  ],
+  "look": [
+   13,
+   5,
+   0
+  ],
+  "pitch": -30
+ },
+ {
+  "name": "r02_walk_under",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   10.5,
+   0,
+   6
+  ],
+  "look": [
+   13,
+   0,
+   10
+  ],
+  "pitch": -35
+ },
+ {
+  "name": "r02_fan",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   -6,
+   0,
+   0
+  ],
+  "look": [
+   -13,
+   0,
+   0
+  ],
+  "pitch": 0
+ },
+ {
+  "name": "r02_fan_side",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   -10,
+   0,
+   -6
+  ],
+  "look": [
+   -13,
+   2,
+   2
+  ],
+  "pitch": -10
+ },
+ {
+  "name": "r02_crack",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   -6,
+   0,
+   -4
+  ],
+  "look": [
+   -6.5,
+   6,
+   -13
+  ],
+  "pitch": -35
+ },
+ {
+  "name": "r02_corner_sw",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   -9,
+   0,
+   -9
+  ],
+  "look": [
+   -13,
+   0,
+   -13
+  ],
+  "pitch": 10
+ },
+ {
+  "name": "r02_corner_ne",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   9,
+   0,
+   9
+  ],
+  "look": [
+   13,
+   0,
+   13
+  ],
+  "pitch": 10
+ },
+ {
+  "name": "r02_ceiling",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   0,
+   0,
+   0
+  ],
+  "look": [
+   0,
+   0,
+   8
+  ],
+  "pitch": -35
+ },
+ {
+  "name": "r02_pillar",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   -2,
+   0,
+   -4
+  ],
+  "look": [
+   -5,
+   0,
+   -1
+  ],
+  "pitch": 5
+ },
+ {
+  "name": "r02_junk_top",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   -8.5,
+   1.8,
+   -4.5
+  ],
+  "look": [
+   0,
+   1,
+   4
+  ],
+  "pitch": 30
+ },
+ {
+  "name": "r02_elev",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   6,
+   0,
+   2
+  ],
+  "look": [
+   13,
+   0,
+   0
+  ],
+  "pitch": 0
+ },
+ {
+  "name": "r02_door_n",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   2,
+   0,
+   6
+  ],
+  "look": [
+   0,
+   0,
+   13
+  ],
+  "pitch": 5
+ },
+ {
+  "name": "r02_high",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "eye": [
+   -11,
+   7.2,
+   -11
+  ],
+  "target": [
+   6,
+   3,
+   6
+  ],
+  "at": [
+   -9,
+   0,
+   -9
+  ]
+ },
+ {
+  "name": "r02_high2",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "eye": [
+   11,
+   7.2,
+   11
+  ],
+  "target": [
+   -6,
+   2,
+   -6
+  ],
+  "at": [
+   9,
+   0,
+   9
+  ]
+ },
+ {
+  "name": "r03_entry",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "at": [
+   0,
+   0,
+   -16
+  ],
+  "look": [
+   0,
+   0,
+   10
+  ],
+  "pitch": 8
+ },
+ {
+  "name": "r03_pit",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "at": [
+   0.6,
+   0,
+   -1.2
+  ],
+  "look": [
+   0,
+   0,
+   12
+  ],
+  "pitch": 24
+ },
+ {
+  "name": "r03_pit_down",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "at": [
+   0,
+   0,
+   -3.8
+  ],
+  "look": [
+   0,
+   -2,
+   0
+  ],
+  "pitch": 55
+ },
+ {
+  "name": "r03_pit_down2",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "at": [
+   0,
+   0,
+   7.4
+  ],
+  "look": [
+   0,
+   -2,
+   9
+  ],
+  "pitch": 60
+ },
+ {
+  "name": "r03_wall_w",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "at": [
+   1.5,
+   0,
+   4
+  ],
+  "look": [
+   -3,
+   0,
+   4
+  ],
+  "pitch": 0
+ },
+ {
+  "name": "r03_up",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "at": [
+   0,
+   0,
+   -10
+  ],
+  "look": [
+   0,
+   0,
+   0
+  ],
+  "pitch": -35
+ },
+ {
+  "name": "r03_box",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "at": [
+   -1.8,
+   2.6,
+   -8.2
+  ],
+  "look": [
+   0,
+   0,
+   6
+  ],
+  "pitch": 25
+ },
+ {
+  "name": "r03_back",
+  "room": "ch1.r03",
+  "spawn": "from_r04",
+  "at": [
+   0,
+   0,
+   16.5
+  ],
+  "look": [
+   0,
+   0,
+   -10
+  ],
+  "pitch": 8
+ },
+ {
+  "name": "r03_door_n",
+  "room": "ch1.r03",
+  "spawn": "from_r04",
+  "at": [
+   1.5,
+   1.0,
+   12
+  ],
+  "look": [
+   0,
+   0,
+   19
+  ],
+  "pitch": 5
+ },
+ {
+  "name": "r03_pit_edge_low",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "eye": [
+   0,
+   -2.0,
+   -11.0
+  ],
+  "target": [
+   0,
+   1.5,
+   -5.75
+  ],
+  "at": [
+   0,
+   0,
+   -14.5
+  ]
+ }
+]

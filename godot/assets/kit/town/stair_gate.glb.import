@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://b4do8oh01e1t4"
-path="res://.godot/imported/terrace_4.glb-ad34d330c99a9b0424ac7fce489e69d6.scn"
+uid="uid://cucjnk0tlyu8g"
+path="res://.godot/imported/stair_gate.glb-ed0f33685599b7dd817b6f65eb687cfe.scn"
 
 [deps]
 
-source_file="res://assets/kit/town/terrace_4.glb"
-dest_files=["res://.godot/imported/terrace_4.glb-ad34d330c99a9b0424ac7fce489e69d6.scn"]
+source_file="res://assets/kit/town/stair_gate.glb"
+dest_files=["res://.godot/imported/stair_gate.glb-ed0f33685599b7dd817b6f65eb687cfe.scn"]
 
 [params]
 

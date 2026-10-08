@@ -363,10 +363,44 @@ def shaft():
     return p
 
 
+def bracket():
+    p = Part('b1_bracket', '壁の通路（walkway）の受け（黒鉛の壁の板と斜めの支え、真鍮の留め）。原点：壁の面・通路の床の高さ。'
+             '正面（通路の外の縁）が +Z。通路の外の縁まで 1.8 m')
+    p.box(G, (-0.14, -0.08, -1.7), (0.14, 0, -0.05))
+    p.cbox(B, (0, -0.1, -1.55), (0.34, 0.06, 0.22), 0.03, 'y')
+    p.box(G, (-0.07, -1.8, -0.36), (0.07, 0, -0.26))
+    p.sweep(G, [(0, -0.06, -1.5), (0, -1.0, -0.84), (0, -1.72, -0.34)], 0.055, 6, smooth=False)
+    p.cbox(B, (0, -1.72, -0.31), (0.16, 0.16, 0.1), 0.03)
+    return p
+
+
+def pit():
+    p = Part('b1_pit', '床の穴の縦穴（幅 6・長さ 1・深さ 6.5 m。長さは scale の z で穴に合わせる）：通路の壁の続きの白磁、下は暗い管の壁、底に格子と赤い灯。'
+             '原点：穴の上の端（通路の床の下の面、y -2.5）の中央')
+    D = 6.5
+    for sx in (-1, 1):
+        x0, x1 = sorted((sx * 3.0, sx * 3.4))
+        p.box(I, (x0, -0.5, -1.6), (x1, 0.5, 0))
+        p.box('dark', (x0, -0.5, -D), (x1, 0.5, -1.6))
+        xi = sx * 3.0
+        for z in (-1.6, -3.6, -5.6):
+            p.box(G, (min(xi, xi - sx * 0.08), -0.5, z - 0.1), (max(xi, xi - sx * 0.08), 0.5, z + 0.1))
+        p.cyl(G, (sx * 2.75, -0.5, -2.6), (sx * 2.75, 0.5, -2.6), 0.17, 10)
+        p.cyl(B, (sx * 2.72, -0.5, -4.6), (sx * 2.72, 0.5, -4.6), 0.1, 8)
+        p.box(R, (min(xi, xi - sx * 0.05), -0.45, -D + 0.25), (max(xi, xi - sx * 0.05), 0.45, -D + 0.33))
+    for sy in (-1, 1):
+        y0, y1 = sorted((sy * 0.5, sy * 0.62))
+        p.box('dark', (-3.4, y0, -D), (3.4, y1, 0))
+        p.box(G, (-3.4, y0 - 0.0, -1.7), (3.4, y1, -1.5))
+    p.box('dark', (-3.4, -0.62, -D - 0.2), (3.4, 0.62, -D))
+    p.box('grate', (-2.6, -0.45, -D), (2.6, 0.45, -D + 0.05))
+    return p
+
+
 PARTS = [
     lambda: wall('b1_wall', True), lambda: wall('b1_wall_plain', False), door, pillar, corner,
     lambda: beam(False), lambda: beam(True), pipe, elbow, tee,
     lambda: rail(False), lambda: rail(True), lantern_part, redlight,
     lambda: grate(False), lambda: grate(True), lambda: crate(False), lambda: crate(True),
-    sand, debris, fan, lambda: walkway(False), lambda: walkway(True), crack, shaft, post_lamp,
+    sand, debris, fan, lambda: walkway(False), lambda: walkway(True), crack, shaft, post_lamp, bracket, pit,
 ]

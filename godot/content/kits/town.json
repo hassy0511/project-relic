@@ -42,6 +42,7 @@
   "rope": {"color": "#a08a62", "roughness": 0.95},
   "linen": {"color": "#e2d5ba", "roughness": 0.95},
   "desert": {"color": "#bc5636", "roughness": 1.0},
-  "hull": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 24.0, "color": "#ece2cf", "roughness": 0.85}
+  "hull": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 24.0, "color": "#ece2cf", "roughness": 0.85},
+  "shell": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 8.0, "color": "#fbf5ea", "roughness": 0.8, "macro": 0.25}
  }
 }

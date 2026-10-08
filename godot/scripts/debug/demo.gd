@@ -80,7 +80,7 @@ func _ready() -> void:
 		{"ticks": 1, "shot": "07_after_drill", "check": func(): return _check(main.game.breakables[0].broken, "ドリルで壁を壊せる")},
 	]
 	# 引数 --arena_only：試しの部屋の場面だけ（画面の確認を早く撮るため）
-	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("cp2d_shots") or main.args.has("pad_shots") or main.args.has("ui_shots") or main.args.has("town_shots"):
+	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("cp2d_shots") or main.args.has("pad_shots") or main.args.has("ui_shots") or main.args.has("town_shots") or main.args.has("town_audit"):
 		_steps.clear()
 	if main.args.has("ch1_full"):
 		_steps.clear()
@@ -99,6 +99,8 @@ func _ready() -> void:
 		_steps.append_array(_ch1b_steps())
 	elif main.args.has("town_shots"):
 		_steps.append_array(_town_steps())
+	elif main.args.has("town_audit"):
+		_steps.append_array(_audit_steps())
 	else:
 		if not main.args.has("world_only"):
 			_steps.append_array(_arena_steps())
@@ -282,6 +284,54 @@ func _town_steps() -> Array:
 					RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])
 				var missing: Array = main.level.get_meta("missing_parts", [])
 				return _check(missing.is_empty(), "町の飾りの部品がそろっている（%s）" % [missing])})
+	return steps
+
+
+## 町・遺構の見た目の点検（--town_audit）：部屋を多くの向きから撮る（建物の奥行き・裏の面・浮いた物・継ぎ目の確認）。イベントは走らせない
+## --audit_views=<JSON のパス>（既定は tools/audit_views.json。中段の広場・遺構 r02・r03）：[{"name", "room", "spawn", "at", "look", "pitch"}（プレイヤーのカメラ）
+##   か {"name", "room", "spawn", "eye", "target"}（自由なカメラ。高い所・裏側から見る）, …]
+## --audit_only=<名前,…> で一部だけ。--audit_state=night で停止の夜
+func _audit_steps() -> Array:
+	var path := String(main.args.get("audit_views", ProjectSettings.globalize_path("res://") + "../tools/audit_views.json"))
+	var views: Array = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if main.args.has("audit_only"):
+		var want: PackedStringArray = String(main.args["audit_only"]).split(",")
+		views = views.filter(func(v): return v.name in want)
+	var night := ["ch1.night", "ch1.ordo_stopped", "ch1.scolded", "ch1.debt_scene", "ch1.nico_rescued", "ch1.plaza_done"]
+	var is_night: bool = main.args.get("audit_state", "day") == "night"
+	var steps := []
+	for v in views:
+		steps.append({"ticks": 2, "setup": func():
+			var g: GameSim = main.game
+			g.god_mode = true
+			for f in night:
+				g.set_flag(f, is_night)
+			if g.room_id != v.room:
+				g.load_room(v.room, v.get("spawn", ""))
+			for t in g.triggers:
+				t.fired = true
+			if v.has("eye"):
+				var tg := RoomGeo.v3(v.target)
+				_stand(RoomGeo.v3(v.get("at", [tg.x, tg.y, tg.z])), tg + Vector3(0, 0, 1))
+			else:
+				_stand(RoomGeo.v3(v.at), RoomGeo.v3(v.look))
+				g.cam.pitch = float(v.get("pitch", 12.0)) * U.DEG
+			main.snap_views()})
+		steps.append({"ticks": 20, "input": {}})
+		var shot := {"ticks": 1, "shot": "audit_" + String(v.name), "input": {}, "check": func():
+			var missing: Array = main.level.get_meta("missing_parts", [])
+			return _check(missing.is_empty(), "%s の飾りの部品がそろっている（%s）" % [v.room, missing]),
+			# 描画の数は撮った絵の数（撮影の間だけ描くので、撮る前に読むと 1 つ前の絵の数になる）
+			"after": func(): print("描画 audit_%s：draw %d・物 %d・三角形 %d" % [v.name,
+				RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+				RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
+				RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])}
+		if v.has("eye"):
+			shot["cam"] = func():
+				main.camera.global_position = RoomGeo.v3(v.eye)
+				main.camera.look_at(RoomGeo.v3(v.target), Vector3.UP)
+				main.camera.reset_physics_interpolation()
+		steps.append(shot)
 	return steps
 
 
@@ -859,7 +909,7 @@ func _process(_dt: float) -> void:
 				await get_tree().physics_frame
 			_run_bot()
 			return
-		if not (main.args.has("ch1_shots") or main.args.has("town_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("pad_shots")):
+		if not (main.args.has("ch1_shots") or main.args.has("town_shots") or main.args.has("town_audit") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("pad_shots")):
 			main.args["mvp"] = "1"   # 見本の前半は古い試験場（mvp.main）で進める
 		main.start_game(null)
 		main.game.god_mode = true
@@ -874,6 +924,8 @@ func _process(_dt: float) -> void:
 	if _pending_shot != "" and not _shooting:
 		_shooting = true
 		var name := _pending_shot
+		if _cur.has("cam"):
+			_cur.cam.call()
 		await _shoot(name)
 		if _cur.has("after"):
 			_cur.after.call()

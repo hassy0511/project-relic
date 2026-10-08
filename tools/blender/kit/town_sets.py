@@ -8,9 +8,9 @@
   stall_*            露店の屋根の中心の真下の床。正面（+Z）が客の側
   goods_*            台・棚の上の面の中心（goods_shelf は棚の背の板の中心の床）
   parapet_rail_8/4   胸壁（1 m 厚）の上の面の中心。正面（+Z）が広場の側
-  terrace_8a/b/c/4   段の壁の面の下の中心（壁の面が z=0、正面へ最大 1.6 m 出る）。高さ 16 m の壁を町の正面にする
-  workshop_front     ヤーナの工房の正面（左右の棟の面 z=0、入口の奥まりは z=-2）の下の中心
-  diner_front        食堂の正面の下の中心
+  （北の段の壁の家並み・南の階段の両側の棟は town_terrace.py。部屋の座標のまま置く）
+  workshop_front     ヤーナの工房の正面（左右の棟の面 z=0、入口の奥まりは z=-2）の下の中心。裏（z=-9）の窓・配管も
+  diner_front        食堂の正面の下の中心。両側（x=±5）と裏（z=-9）の窓・扉・配管も
   monument           広場の中央の台（3.2 m 角）の下の中心
   stage_8x3          広場の奥の壇（8×0.8×3）の下の中心
   stair_rail_12      階段の横の壁に付く手すり。原点 = 下の段の床・壁の面。+Z へ 12 m で 5 m 上がる
@@ -64,6 +64,16 @@ def stall(w=8.0, d=5.2, h=3.45, ridge=0.55, name='stall') -> Part:
     for x in (-hx, hx):
         p.add('rope', tube(sag((x, h + 0.1, hz), (x + (0.6 if x < 0 else -0.6), 0.0, hz + 0.9), 4, 0.1), 0.012, 4))
         p.add('graphite', boxb(x + (0.45 if x < 0 else -0.75), x + (0.75 if x < 0 else -0.45), 0, 0.06, hz + 0.75, hz + 1.05))
+    # 裏（奥の箱の裏の面 z=-2.8。前は木の板の箱の面だけだった）：黒鉛の枠、掛けた帆布、積んだ木箱と樽
+    zb = -2.8
+    for x in (-3.42, -1.15, 1.15, 3.42):
+        p.add('graphite', boxb(x - 0.08, x + 0.08, 0, 2.4, zb - 0.08, zb))
+    p.add('graphite', boxb(-3.5, 3.5, 2.3, 2.45, zb - 0.1, zb), boxb(-3.5, 3.5, 0, 0.12, zb - 0.06, zb))
+    p.add('cloth2', sheet(lambda u, v: (-2.2 + 2.6 * u, 2.38 - 1.5 * v - 0.12 * math.sin(math.pi * u) * v, zb - 0.06 - 0.05 * v), 4, 3, 0.02))
+    p.place(P.canvas_roll(), (1.9, 2.25, zb), 180, 0.7)
+    p.place(P.crate(), (-2.6, 0, zb - 0.55), 8)
+    p.place(P.crate(), (-2.5, 0.74, zb - 0.55), -6, 0.8)
+    p.place(P.barrel(), (2.7, 0, zb - 0.5), 0, 0.85)
     return p
 
 
@@ -178,29 +188,6 @@ def parapet_rail(w=8.0) -> Part:
 
 # ---------------------------------------------------------------- 段の正面（高さ 16 m の壁を町にする）
 
-def _house_face(p: Part, x0, x1, y0, h, door_at=None, windows=(), awning=None, rng=None, depth=0.3, roof='flat'):
-    """壁の面（z=0）から depth だけ出た家の正面。x0〜x1、床 y0、高さ h。窓は x の中心のリスト、扉は x"""
-    w = x1 - x0
-    p.add('ivory', boxb(x0 + 0.1, x1 - 0.1, y0 + 0.4, y0 + h - 0.1, 0, depth))
-    p.add('wood', boxb(x0 + 0.1, x1 - 0.1, y0, y0 + 0.4, 0, depth + 0.02))
-    for x in (x0 + 0.1, x1 - 0.1):
-        p.add('graphite', boxb(x - 0.1, x + 0.1, y0, y0 + h, 0, depth + 0.05))
-        p.add('brass', boxb(x - 0.13, x + 0.13, y0 + 0.05, y0 + 0.25, 0, depth + 0.08),
-              boxb(x - 0.13, x + 0.13, y0 + h - 0.3, y0 + h - 0.1, 0, depth + 0.08))
-    p.add('graphite', boxb(x0, x1, y0 + h - 0.1, y0 + h + 0.05, 0, depth + 0.12))
-    if roof == 'parapet':
-        p.add('ivory', boxb(x0, x1, y0 + h + 0.05, y0 + h + 0.5, depth - 0.15, depth + 0.05))
-        p.add('graphite', boxb(x0, x1, y0 + h + 0.5, y0 + h + 0.56, depth - 0.18, depth + 0.08))
-    for wx in windows:
-        _window(p, wx, y0 + 1.0, depth)
-    if door_at is not None:
-        _door(p, door_at, y0, depth)
-    if awning:
-        ax0, ax1, ay, kind = awning
-        aw = P.awning(kind, ax1 - ax0, 1.3 if kind == 'hard' else 1.5, 0.5)
-        p.place(aw, ((ax0 + ax1) / 2, y0 + ay, depth))
-
-
 def _window(p: Part, x, y, z):
     p.add('dark', boxb(x - 0.38, x + 0.38, y, y + 0.7, z, z + 0.01))
     p.add('graphite', boxb(x - 0.46, x + 0.46, y - 0.08, y, z, z + 0.14), boxb(x - 0.46, x + 0.46, y + 0.7, y + 0.78, z, z + 0.1),
@@ -249,98 +236,6 @@ def _retaining(p: Part, w, h, door_at=None, pipes=False, ladder_at=None, x_off=0
         p.place(P.ladder(h - 0.1), (ladder_at + x_off, 0, 0.3))
 
 
-def _ledge(p: Part, x0, x1, y, out=0.7):
-    """段の縁：黒鉛の梁と真鍮の手すり（上の段の床の縁）"""
-    p.add('graphite', boxb(x0, x1, y - 0.35, y, 0, out))
-    p.add('ivory2', boxb(x0, x1, y - 0.02, y + 0.03, 0, out - 0.05))
-    for x in np.arange(x0 + 0.5, x1, 2.0):
-        p.add('brass', cyl((x, y, out - 0.18), (x, y + 0.95, out - 0.18), 0.035, 6))
-        p.add('graphite', boxb(x - 0.08, x + 0.08, y - 0.6, y - 0.35, 0, 0.3))
-    p.add('brass', cyl((x0 + 0.05, y + 0.95, out - 0.18), (x1 - 0.05, y + 0.95, out - 0.18), 0.04, 6, cap=False))
-    # 手すりの柱の小さな灯（夜の町並みの点々の明かり。town_mood_night / emergency）
-    for x in np.arange(x0 + 2.5, x1, 4.0):
-        p.add('amber', boxb(x - 0.05, x + 0.05, y + 0.97, y + 1.1, out - 0.23, out - 0.13))
-        p.add('brass', boxb(x - 0.07, x + 0.07, y + 1.1, y + 1.14, out - 0.25, out - 0.11))
-    p.add('graphite', cyl((x0 + 0.05, y + 0.55, out - 0.18), (x1 - 0.05, y + 0.55, out - 0.18), 0.025, 5, cap=False))
-
-
-def terrace(variant='a', w=8.0) -> Part:
-    """段の壁（高さ 16 m）を町の正面にする：下の段（擁壁、0〜5 m）、5 m の縁と手すり、中の段の家（5〜9.5 m）、
-    9.5 m の縁、上の段の家（9.5〜14 m）、屋上（給水塔・柱・日よけ）。絵：town_mood_day の左の段々の町"""
-    p = Part(f'terrace_{variant}')
-    hw = w / 2
-    rng = np.random.default_rng(ord(variant))
-    # 下の段
-    _retaining(p, w, 5.0, door_at={'a': -1.0, 'b': None, 'c': 2.0, 'd': None}[variant],
-               pipes=variant in ('b', 'd'), ladder_at={'a': None, 'b': 2.5, 'c': None, 'd': None}[variant])
-    if variant == 'a':
-        p.place(P.awning('soft', 2.2, 1.4, 0.4), (-1.0, 2.6, 0.06))
-        P.lantern(p, 0.4, 2.3, 0.32, 1.0)
-        p.add('graphite', beam((0.4, 2.62, 0.0), (0.4, 2.62, 0.32), 0.05))
-    if variant == 'c':
-        p.place(P.canvas_roll(), (-1.5, 3.4, 0.06))
-    # 5 m の縁
-    _ledge(p, -hw, hw, 5.0, 0.75)
-    # 中の段：2 軒
-    if variant == 'a':
-        _house_face(p, -hw, 0.2, 5.0, 4.2, door_at=-2.2, windows=(-0.6,), awning=(-3.4, -1.0, 2.6, 'hard'), depth=0.35)
-        _house_face(p, 0.2, hw, 5.0, 3.6, windows=(1.4, 3.0), awning=(0.6, 3.8, 2.3, 'soft'), depth=0.25, roof='parapet')
-    elif variant == 'b':
-        _house_face(p, -hw, -0.6, 5.0, 3.8, windows=(-3.0, -1.6), awning=(-3.8, -0.8, 2.4, 'soft'), depth=0.3, roof='parapet')
-        _house_face(p, -0.6, hw, 5.0, 4.4, door_at=1.0, windows=(2.8,), awning=(0.0, 2.0, 2.6, 'hard'), depth=0.4)
-    elif variant == 'c':
-        _house_face(p, -hw, -1.5, 5.0, 4.0, door_at=-3.0, windows=(-2.0,), depth=0.35)
-        _house_face(p, -1.5, hw, 5.0, 3.6, windows=(0.2, 2.2), awning=(-1.2, 3.6, 2.3, 'hard'), depth=0.25, roof='parapet')
-    else:
-        _house_face(p, -hw, hw, 5.0, 4.0, door_at=0.0, windows=(-1.3, 1.3), awning=(-2.0, 2.0, 2.6, 'soft'), depth=0.3)
-    # 鉢植え（縁の上）
-    for x in rng.choice(np.arange(-hw + 0.8, hw - 0.6, 1.6), 2, replace=False):
-        p.place(P.planter(0.6, 0.45), (float(x), 5.03, 0.35))
-    # 9.5 m の縁
-    _ledge(p, -hw, hw, 9.5, 0.55)
-    # 上の段
-    if variant in ('a', 'c'):
-        _house_face(p, -hw + 0.5, 1.0, 9.5, 3.8, windows=(-2.6, -0.6), awning=(-3.2, 0.6, 2.3, 'hard') if variant == 'a' else None, depth=0.3, roof='parapet')
-        _house_face(p, 1.0, hw, 9.5, 4.6, door_at=2.6, depth=0.4)
-    else:
-        _house_face(p, -hw, -1.0, 9.5, 4.4, windows=(-2.5,), awning=(-3.6, -1.4, 2.4, 'soft'), depth=0.35)
-        _house_face(p, -1.0, hw - 0.5, 9.5, 3.6, windows=(0.4, 2.2), depth=0.25, roof='parapet')
-    # 14 m〜：上の縁と屋上
-    p.add('ivory', boxb(-hw, hw, 14.0, 15.9, 0, 0.12))
-    p.add('graphite', boxb(-hw, hw, 15.9, 16.05, 0, 0.3))
-    for x in np.arange(-hw + 0.1, hw, 2.0):
-        p.add('graphite', boxb(x - 0.1, x + 0.1, 13.9, 16.0, 0, 0.16))
-    if variant == 'a':
-        p.place(P.water_tower(), (2.0, 16.0, -1.2), 0, 1.6)
-        p.place(P.power_pole(4.0), (-3.0, 16.0, -0.5))
-    elif variant == 'b':
-        # 屋上の日よけ（4 本の柱と帆布）
-        for x in (-3.4, -0.6):
-            for z in (-2.6, -0.2):
-                p.add('graphite', boxb(x - 0.06, x + 0.06, 16, 18.2, z - 0.06, z + 0.06))
-        p.add('cloth', sheet(lambda u, v: (-3.6 + 3.2 * u, 18.2 - 0.25 * math.sin(math.pi * u) * math.sin(math.pi * v), -2.8 + 2.8 * v), 4, 4, 0.03))
-        P.pipe_run(p, (2.5, 13.0, 0.4), (2.5, 18.5, 0.4), 0.14, 1.2)
-        p.add('graphite', lathe((2.5, 18.5, 0.4), (2.5, 19.0, 0.4), [(0, 0.2), (1, 0.28)], 8))
-    elif variant == 'c':
-        for x, hh in ((-2.5, 3.0), (-1.8, 2.2)):
-            P.pipe_run(p, (x, 15.0, -0.6), (x, 16 + hh, -0.6), 0.16, 1.0)
-            p.add('brass', lathe((x, 16 + hh, -0.6), (x, 16 + hh + 0.5, -0.6), [(0, 0.2), (1, 0.06)], 8))
-        p.add('cloth', sheet(lambda u, v: (0.5 + 3.2 * u, 16.9 - 0.9 * v - 0.15 * math.sin(math.pi * u), 0.15 + 0.6 * v), 4, 2, 0.02))
-        for x in (0.5, 3.7):
-            p.add('graphite', boxb(x - 0.05, x + 0.05, 16, 17.0, 0.0, 0.3))
-    else:
-        p.place(P.water_tower(), (-2.0, 16.0, -1.4), 0, 1.4)
-    # 縁の間に洗濯綱
-    if variant in ('b', 'c'):
-        pts = sag((-hw + 0.4, 8.6, 0.55), (hw - 0.4, 8.2, 0.55), 10, 0.35)
-        p.add('rope', tube(pts, 0.015, 4))
-        for k, t in enumerate((0.2, 0.45, 0.7)):
-            i = int(t * 10)
-            a = pts[i]
-            p.add('cloth' if k % 2 == 0 else 'linen', sheet(lambda u, v, a=a: (a[0] - 0.3 + 0.6 * u, a[1] - 0.02 - 0.6 * v, a[2]), 2, 2, 0.01))
-    return p
-
-
 # ---------------------------------------------------------------- 工房・食堂の正面
 
 def workshop_front() -> Part:
@@ -385,6 +280,13 @@ def workshop_front() -> Part:
     p.place(P.tank(), (6.0, 0, 0.7), 90)
     p.place(P.crate(), (-3.1, 0, 0.75), 12, 0.8)
     p.place(P.crate(), (3.3, 0, 0.7), -8, 0.75)
+    # 裏（z=-9、北の段の壁との間の 3 m の路地に向く面）：窓・裏口・配管
+    import town_terrace as T
+    T.face(p, '-z', (0, 0, -9.0), {'simple': True, 'posts': [-6.88, -1.6, 1.6, 6.88], 'door': -4.4,
+                                   'windows': [(-2.6, 1.1), (3.0, 1.1), (5.4, 1.1), (-5.4, 4.5), (-2.6, 4.5), (0.0, 4.5), (3.0, 4.5), (5.4, 4.5)],
+                                   'lanterns': [(-3.45, 1.95)], 'pipes': [1.0], 'vents': [(-0.4, 2.0)], 'bands': [3.45]}, 14.0, 7.0)
+    for y, r in ((6.2, 0.2),):
+        P.pipe_run(p, (-7.2, y, -9.35), (7.2, y, -9.35), r, 1.4)
     return p
 
 
@@ -418,6 +320,19 @@ def diner_front() -> Part:
     P.pipe_run(p, (-3.8, 6.0, -1.0), (-3.8, 8.4, -1.0), 0.22, 1.0)
     p.add('brass', lathe((-3.8, 8.4, -1.0), (-3.8, 8.8, -1.0), [(0, 0.26), (1, 0.1)], 8))
     p.place(P.water_tower(), (3.0, 6.0, -4.0), 0, 1.2)
+    # 両側（x=±5）と裏（z=-9）：前は窓の側だけ作ってあり、横と裏は何も無い白い壁だった
+    import town_terrace as T
+    side = {'simple': True, 'posts': [-4.38, 0.0, 4.38], 'windows': [(-2.0, 1.3), (2.0, 1.3), (-2.0, 3.4), (2.0, 3.4)], 'bands': [2.6]}
+    T.face(p, '+x', (5.0, 0, -4.5), dict(side, pipes=[3.3]), 9.0, 5.5)
+    T.face(p, '-x', (-5.0, 0, -4.5), dict(side, vents=[(3.2, 4.3)]), 9.0, 5.5)
+    T.face(p, '-z', (0, 0, -9.0), {'simple': True, 'posts': [-4.88, 0.0, 4.88], 'door': 2.4, 'windows': [(-3.3, 1.3), (-1.2, 1.3), (-3.3, 3.4), (3.3, 3.4)],
+                                   'awnings': [(1.5, 3.3, 2.35, 'hard')], 'lanterns': [(3.35, 1.95)], 'vents': [(1.2, 3.7)],
+                                   'pipes': [-4.4], 'bands': [2.6]}, 10.0, 5.5)
+    for x0, x1 in ((-5.0, 5.0),):
+        p.add('wood', boxb(x0 - 0.03, x1 + 0.03, 0, 0.4, -9.03, -8.97))
+    p.place(P.barrel(), (0.9, 0, -9.55), 0, 0.85)
+    p.place(P.crate(), (-0.6, 0, -9.6), 12, 0.8)
+    p.place(P.crate(), (-0.6, 0.6, -9.6), -8, 0.7)
     return p
 
 
@@ -517,6 +432,8 @@ def stair_rail_r() -> Part:
 def retaining(w=8.0, h=5.0, variant='a') -> Part:
     """段の擁壁（下の段から見た上の段の縁）：2 m ごとの白磁の板・黒鉛の柱・帯。b は配管つき"""
     p = Part(f'retaining_{variant}')
+    # 擁壁そのものの面（前は飾りだけで、外から見ると柱の間から向こうが透けた）。奥へ 1 m の箱
+    p.add('shell', boxb(-w / 2, w / 2, 0, h, -1.0, 0))
     _retaining(p, w, h, door_at=-1.0 if variant == 'c' else None, pipes=variant == 'b')
     return p
 
@@ -575,7 +492,7 @@ def lower_block(variant='a') -> Part:
     return p
 
 
-def deck_slab(w=96.0, d=40.0) -> Part:
+def deck_slab(w=96.0, d=41.0) -> Part:
     """下の段の床（遠くから見る）：白磁の床の板と、外の縁の黒鉛の帯。床の上の面 y=0"""
     p = Part('deck_slab')
     p.add('ivory2', boxb(-w / 2, w / 2, -0.6, 0, -d / 2, d / 2))
@@ -620,10 +537,9 @@ SETS = {
     'stall': stall, 'goods_general': goods_general, 'goods_junk': goods_junk,
     'goods_shelf_general': lambda: goods_shelf(7.0, 2.4, 'general'), 'goods_shelf_junk': lambda: goods_shelf(7.0, 2.4, 'junk'),
     'parapet_rail_8': lambda: parapet_rail(8.0), 'parapet_rail_4': lambda: parapet_rail(4.0),
-    'terrace_a': lambda: terrace('a'), 'terrace_b': lambda: terrace('b'), 'terrace_c': lambda: terrace('c'), 'terrace_d': lambda: terrace('d'),
     'workshop_front': workshop_front, 'diner_front': diner_front, 'monument': monument, 'plaza_ring': plaza_ring, 'stage': stage,
     'stair_rail_12': stair_rail, 'stair_rail_12_r': stair_rail_r,
     'retaining_a': lambda: retaining(8, 5, 'a'), 'retaining_b': lambda: retaining(8, 5, 'b'), 'retaining_c': lambda: retaining(8, 5, 'c'),
-    'terrace_4': lambda: terrace('d', 4.0), 'lower_block_a': lambda: lower_block('a'), 'lower_block_b': lambda: lower_block('b'),
+    'lower_block_a': lambda: lower_block('a'), 'lower_block_b': lambda: lower_block('b'),
     'lower_block_c': lambda: lower_block('c'), 'deck_slab': deck_slab,
 }

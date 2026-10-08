@@ -3,7 +3,7 @@
 
 部屋の当たり判定（geometry の位置と大きさ）・目印・出口・トリガー・住人・置く物の位置は変えない。変えるのは見た目の項目だけ
 （部屋の "kit"・"dress"・"lights" の位置、形の "skin"・"hide"、看板の "board"・"yaw"・"board_w"）。
-何度流しても同じ結果になる（dress は毎回作り直す）。部品の寸法と原点：tools/blender/kit/town_parts.py・town_sets.py。
+何度流しても同じ結果になる（dress は毎回作り直す）。部品の寸法と原点：tools/blender/kit/town_parts.py・town_sets.py・town_terrace.py。
 絵：W2-05 town_mood_day.png（中段の広場）・town_layout.png・town_mood_emergency.png（停止の夜）。
 
   python3 tools/dress_town.py            キットを付ける部屋（ROOMS）を全部
@@ -94,15 +94,13 @@ def mid(room):
     for pos, size in (([30.5, 0, -6], [3, 1.0, 2]), ([42, 0, -7], [2, 1.6, 2]), ([-30, 0, -7], [2.5, 1.2, 2])):
         G(pos, size)["hide"] = True                                       # 木箱の山・ガラクタ（部品で置き換え）
 
-    # --- 北の段の壁（高さ 16 m）：段々の町の正面。壁の面 z=16、正面は -Z（yaw 180）
-    west = ["a", "b", "c", "d", "a"]
-    east = ["b", "c", "a", "d", "b"]
-    for k, x in enumerate((-44, -36, -28, -20, -12)):
-        d.put("terrace_" + west[k], [x, 0, 16.0], 180)
-    for k, x in enumerate((12, 20, 28, 36, 44)):
-        d.put("terrace_" + east[k], [x, 0, 16.0], 180)
-    for x in (-6.25, 6.25):
-        d.put("terrace_4", [x, 0, 16.0], 180, scale=[0.875, 1, 1])
+    # --- 北の段の壁（高さ 16 m）：奥行きのある段々の家の塊（town_terrace.py。部屋の座標のまま置く）。
+    # 段の壁・階段の横の壁・門の壁の箱は当たり判定だけ残して描かない（家の塊の面が同じ所にある：擁壁 z=16、路地 |x|=4、門 z=34）
+    for pos, size in (([-26.25, 0, 16.5], [43.5, 16, 1]), ([26.25, 0, 16.5], [43.5, 16, 1]),
+                      ([-4.25, 0, 25], [0.5, 9, 18]), ([4.25, 0, 25], [0.5, 9, 18]), ([0, 0, 34.5], [9, 12, 1])):
+        G(pos, size)["hide"] = True
+    for part in ("terrace_west", "terrace_east", "stair_gate"):
+        d.put(part, [0, 0, 0])
 
     # --- 北の階段（上の段へ）：手すりと、上り口の鉢植え・外灯
     d.put("stair_rail_12", [-4.0, 0, 16.0])
@@ -125,13 +123,17 @@ def mid(room):
     # 南の階段（下の段へ）：手すり、上り口の背の高い外灯 2 本
     d.put("stair_rail_12", [-4.0, -5.0, -26.0])
     d.put("stair_rail_12_r", [4.0, -5.0, -26.0])
+    # 南の階段の両側の棟と奥の棟（town_terrace.py。部屋の座標のまま）。広場の南の角の柱（胸壁と東西の低い壁の間の切れ目をふさぐ）
+    d.put("stair_well_s", [0, 0, 0])
+    for sx in (-1, 1):
+        d.put("parapet_corner", [sx * 48.5, 1.2, -14.5])
     d.put("lamp_tall", [-5.4, 0, -13.4])
     d.put("lamp_tall", [5.4, 0, -13.4], 180, light={"at": [0.55, 3.92, 0], "color": "#ffc27a", "range": 14, "energy": 1.6})
     light(room, [0, 5, -10], [-4.85, 3.92, -13.4])
 
     # --- 下の段（胸壁の向こう、5 m 下）：床と家並み
-    d.put("deck_slab", [0, -5.02, -36.0], shadow=False)
-    for x, z, v, yaw in ((-40, -23, "a", 0), (-26, -22, "b", 180), (-14, -24, "c", 0), (14, -23, "a", 180), (26, -24, "c", 0),
+    d.put("deck_slab", [0, -5.02, -35.5], shadow=False)            # 北の縁 z=-15（擁壁の面）まで
+    for x, z, v, yaw in ((-40, -23, "a", 0), (-26, -22, "b", 180), (-15.5, -24, "c", 0), (15.5, -23, "a", 180), (26, -24, "c", 0),
                          (40, -22, "b", 0), (-34, -36, "c", 180), (-18, -38, "a", 0), (18, -36, "b", 180), (34, -38, "a", 180),
                          (-26, -50, "b", 0), (0, -46, "c", 180), (26, -50, "c", 0), (-44, -48, "a", 180), (44, -48, "b", 0)):
         d.put("lower_block_" + v, [x, -5.02, z], yaw, shadow=False)
@@ -168,9 +170,6 @@ def mid(room):
         for z in (6.5, 10.5):
             d.put("window_frame", [x, 1.3, z], yaw)
             d.put("window_frame", [x, 4.4, z], yaw)
-    for x, yaw in ((-14.98, 90), (-25.02, 270)):
-        for z in (3.0, 7.0):
-            d.put("window_frame", [x, 1.3, z], yaw)
     d.put("canvas_roll", [-26.98, 3.6, 8.5], 90)
     d.put("pipes", [-26.3, 0, 9.0], 90)
 

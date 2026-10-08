@@ -13,8 +13,8 @@
   godot/assets/kit/town/parts.json   部品の一覧（三角形の数・大きさ・灯の芯の位置）
   build/kit_town/                    確認の画像
 
-部品の中身は town_parts.py（キットと小物）と town_sets.py（広場・市場・段の正面などの組み合わせ）、
-遠景は town_backdrop.py。絵は origin/art/w2-town（W2-05）、寸法は spec_town_3d.md。
+部品の中身は town_parts.py（キットと小物）と town_sets.py（広場・市場などの組み合わせ）、
+town_terrace.py（北の段々の家の塊・北の階段の門・南の階段の両側の棟。部屋の座標のまま）、遠景は town_backdrop.py。絵は origin/art/w2-town（W2-05）、寸法は spec_town_3d.md。
 """
 from __future__ import annotations
 
@@ -35,6 +35,7 @@ def catalog() -> dict:
     import town_backdrop as BD
     import town_parts as P
     import town_sets as S
+    import town_terrace as T
     return {
         # 建物キット
         'wall_2': lambda: P.wall(2, 2), 'wall_4': lambda: P.wall(2, 4), 'wall_door': lambda: P.wall(2, 2, 'door'),
@@ -54,6 +55,8 @@ def catalog() -> dict:
         'sign_roof_2': lambda: P.sign_board(2.2, mount='post', post_len=1.65),
         # 組み合わせ（町の場所ごと）
         **S.SETS,
+        # 北の段々（奥行きのある家の塊。部屋の座標のまま）
+        **T.PARTS,
         # 遠景
         **BD.PARTS,
     }
@@ -83,7 +86,7 @@ def gallery(cat: dict) -> None:
     import bpy
 
     import town_geo as geo
-    skip = {'ordo_far', 'deck_slab', 'plaza_ring'}
+    skip = {'ordo_far', 'deck_slab', 'plaza_ring', 'terrace_west', 'terrace_east', 'stair_gate', 'stair_well_s'}   # 部屋の座標の大きな組
     for ob in list(bpy.data.objects):
         bpy.data.objects.remove(ob, do_unlink=True)
     names = [n for n in cat if n not in skip]
