@@ -405,6 +405,158 @@ func test_door_with_stick_held_keeps_going() -> void:
 		h.free_game(g)
 
 
+## 第 1 章の出口を全部通れるようにしたゲーム（本筋のフラグを全部立て、r12 のひびも壊してある）
+func _all_open_game() -> GameSim:
+	var g := _new_game()
+	await h.settle()
+	for fl in GameSim.CH1_ORDER:
+		g.set_flag(fl)
+	g.set_flag("broken.ch1.r12.crack")
+	return g
+
+
+## 今の部屋の出口・扉を全部開け、入ったときの会話も済ませておく（出口を通り抜けて戻ってしまうかを見るため）
+func _open_room(g: GameSim) -> void:
+	for t in g.triggers:
+		t.fired = true
+	for x in g.exits:
+		x.lock = null
+	for d in g.doors.duplicate():
+		g.open_door(d.id, false)
+
+
+## 第 1 章の部屋（出口のある部屋）の出口を全部：[部屋, 出口の id, 行き先, 行き先の目印]
+func _ch1_exits(g: GameSim) -> Array:
+	var out := []
+	var ids: Array = g.world.rooms.keys().filter(func(r): return String(r).begins_with("ch1."))
+	ids.sort()
+	for rid in ids:
+		for p in g.world.room(rid).get("props", []):
+			if p.type == "exit":
+				out.append([rid, String(p.id), g.world.resolve(p.to, rid), String(p.get("spawn", "start"))])
+	return out
+
+
+## 左スティックを倒したまま第 1 章の出口を全部通る：ハルは移った先の部屋の奥へ進み、通ってきた出口へ戻らない（CameraOrbit.keep_heading）。
+## 入口の目印（移った先の位置と向き）は、来た部屋へ戻る出口に背を向けていて、遺構の部屋（r01〜r20）では、その出口から 5m 以内（扉のすぐ内側）。
+## 前は隠し部屋 r14 の目印が、すぐ前（0.4m）の出口の方を向いていて、倒したまま入ると 0.15 秒で r12 へ戻った（倒したままでは入れない）。
+## 近道の部屋 r17 の目印 2 つも東の壁（r12 への扉の脇）を向いていて、エレベーターで来ても、エレベーターと反対の端に出た（2026-10-08）
+func test_arrive_through_every_exit() -> void:
+	var g: GameSim = await _all_open_game()
+	var exits := _ch1_exits(g)
+	h.expect(exits.size() >= 40, "第 1 章の出口（%d 個）" % exits.size())
+	var bounced := []
+	var facing := []
+	var far := []
+	for c in exits:
+		var from: String = c[0]
+		g.load_room(from)
+		_open_room(g)
+		await h.run(g, 3, {})
+		g.go_to(c[2], c[3])
+		await h.run(g, 1, {"move_y": 1.0})
+		if g.room_id != c[2]:
+			bounced.append("%s：移れない（%s）" % [c[1], g.room_id])
+			continue
+		_open_room(g)
+		var sp: Dictionary = g.marker(c[3])
+		var fwd := U.yaw_to_dir(sp.yaw)
+		for x in g.exits:
+			if x.to != from:
+				continue
+			var away := Vector3(sp.pos.x - x.center.x, 0.0, sp.pos.z - x.center.z)
+			if fwd.dot(away) <= 0.0:
+				facing.append("%s:%s（%s）" % [c[2], c[3], x.id])
+			var gap := Vector2(maxf(absf(away.x) - x.half.x, 0.0), maxf(absf(away.z) - x.half.z, 0.0)).length()
+			if c[2].begins_with("ch1.r") and gap > 5.0:
+				far.append("%s:%s（%s から %.1fm）" % [c[2], c[3], x.id, gap])
+		for i in 120:
+			var f := {"move_y": 1.0}
+			if g.story.blocking():
+				f = {"jump": i % 6 < 3}
+			await h.run(g, 1, f)
+			g.drain_events()
+			if g.room_id != c[2]:
+				if g.room_id == from:
+					bounced.append("%s → %s:%s → %d 刻みで %s へ戻った" % [c[1], c[2], c[3], i, from])
+				break
+	h.expect(bounced.is_empty(), "倒したまま出口を通ると、移った部屋の奥へ進み、戻らない（%s）" % [bounced])
+	h.expect(facing.is_empty(), "入口の目印は、来た部屋へ戻る出口に背を向けている（%s）" % [facing])
+	h.expect(far.is_empty(), "遺構の部屋の入口の目印は、戻る出口のすぐ内側（%s）" % [far])
+	h.free_game(g)
+
+
+## ダッシュで出口を通っても、移った部屋で前の部屋の向きのままダッシュが続かず、出口へ戻らない（ダッシュは部屋を移ると終わる。Player.teleport）。
+## 第 1 章の出口を全部、来た部屋の入口の目印から出口へ向かう向きで、出口の 0.5m 手前からダッシュする（左スティックは倒したまま・離したまま）。
+## 前は残りのダッシュが前の部屋の向き（ワールドの向き）のまま新しい部屋でも続き、入口の目印の向きが逆の部屋（r17→r12、r18↔r19、r19↔r20 など）では、
+## 出口の手前 1m 以内から押すとそのまま扉へ戻った（2026-10-08）
+func test_dash_through_exit_does_not_bounce() -> void:
+	var g: GameSim = await _all_open_game()
+	var tried := 0
+	var bounced := []
+	var stuck := []
+	for c in _ch1_exits(g):
+		var from: String = c[0]
+		# 出口の向こうから戻ってくるときの目印（この部屋で、この出口のそば）
+		var back := ""
+		for p in g.world.room(c[2]).get("props", []):
+			if p.type == "exit" and g.world.resolve(p.to, c[2]) == from:
+				back = String(p.get("spawn", "start"))
+		if back == "":
+			continue
+		for stick in [false, true]:
+			g.load_room(from)
+			_open_room(g)
+			await _pump(g, 600, func(): return not g.story.running_event())
+			var x: Props.Exit = g.exits.filter(func(e): return e.id == c[1])[0]
+			var sp: Vector3 = g.marker(back).pos
+			var to := Vector3(x.center.x - sp.x, 0.0, x.center.z - sp.z).normalized()
+			# 目印から出口へ向かう線の上で、出口の箱の 0.5m 手前。柱が線をふさいでいれば、出口の幅の内で横へずらす
+			var at := sp
+			for k in 400:
+				var q := sp + to * (k * 0.05)
+				var gap := Vector2(maxf(absf(q.x - x.center.x) - x.half.x, 0.0), maxf(absf(q.z - x.center.z) - x.half.z, 0.0)).length()
+				if gap <= 0.5:
+					break
+				at = q
+			var side := Vector3(-to.z, 0.0, to.x)
+			for s in [0.0, 1.2, -1.2, 2.0, -2.0]:
+				var q2: Vector3 = at + side * s
+				if g.phys.raycast(q2 + Vector3(0, 0.6, 0), to, 1.5, Phys.TERRAIN | Phys.BREAKABLE).is_empty():
+					at = q2
+					break
+			var yaw := U.dir_to_yaw(to.x, to.z)
+			_warp(g, at, yaw)
+			# 前のダッシュの間隔（0.3 秒）が明けるまで待つ
+			await h.run(g, 20, {})
+			if not g.player.grounded or g.room_id != from:
+				stuck.append("%s（%s に立てない）" % [c[1], at])
+				continue
+			tried += 1
+			var left := false
+			for i in 90:
+				var f := {"move_y": 1.0} if stick else {}
+				if i == 0:
+					f["dash"] = true
+				if g.story.blocking():
+					f = {"jump": i % 6 < 3}
+				await h.run(g, 1, f)
+				g.drain_events()
+				if g.room_id != from and not left:
+					left = true
+					_open_room(g)
+					h.expect(g.player.dash_time <= 0.0, "%s：部屋を移るとダッシュは終わる（残り %.2f 秒）" % [c[1], g.player.dash_time])
+				elif left and g.room_id == from:
+					bounced.append("%s（左スティック%s）→ %d 刻みで %s へ戻った" % [c[1], "を倒したまま" if stick else "を離して", i, from])
+					break
+			if not left:
+				stuck.append("%s（左スティック%s：ダッシュで通れない）" % [c[1], "を倒したまま" if stick else "を離して"])
+	h.expect(tried >= 80, "出口の手前からダッシュする（%d 回）" % tried)
+	h.expect(stuck.is_empty(), "出口の手前に立ち、ダッシュで通れる（%s）" % [stuck])
+	h.expect(bounced.is_empty(), "ダッシュで出口を通っても戻らない（%s）" % [bounced])
+	h.free_game(g)
+
+
 ## 適合のあと：対象がいないときにロックオンのボタンを押すと、カメラが背後へ回る（これまでどおり）。対象がいればロックオンする
 func test_lock_button_recenters_after_fitting_without_target() -> void:
 	var g: GameSim = await _r04_facing_minis(true)
@@ -654,6 +806,62 @@ func test_shoot_partly_hidden_switches() -> void:
 		h.expect(g.player.grounded and not g.has_clear_shot(chest, sw.pos), "%s：%s から中心は隠れている" % [c[1], f])
 		h.expect(not g.soft_aim(g.player.yaw).is_empty(), "%s：%s から一部が見えるので狙いが合う" % [c[1], f])
 		h.expect(await _shoot_switch_from_here(g, sw), "%s：%s から撃てば入る" % [c[1], f])
+	for g in games.values():
+		h.free_game(g)
+
+
+## 敵が残っていても、弁（撃つスイッチ）の方を向いて撃てば、弁の向こうに立つ敵ではなく弁に当たる：
+## 弱い自動照準は、スイッチが狙える敵のどれよりも手前（近い）で、体の正面にも近ければ（中心の角度が小さければ）スイッチを選ぶ（GameSim.soft_aim）。
+## 敵がスイッチより手前にいれば、これまでどおり敵（弁の間の盾持ち・歩哨型は、弁の手前に立っている。先に片づける）。
+## 前は幅（12°）の内に敵がいれば、いつも敵を選んだので、換気室で弁を真正面に向いて撃っても、弁の向こうの子番機へ撃ち下ろし、
+## 弁は入らなかった（ふつうに立てる 326 か所のうち 11 か所。2026-10-08）
+func test_shoot_switch_with_enemy_behind() -> void:
+	# [部屋, スイッチ, 立つ所, 狙う物（"switch" か敵の種類）]
+	var cases := [
+		["ch1.r04", "ch1.r04.v1", Vector3(-5.86, 0, -2.89), "switch"],
+		["ch1.r04", "ch1.r04.v1", Vector3(-5.09, 0, -6.82), "switch"],
+		["ch1.r04", "ch1.r04.v1", Vector3(0.87, 0, -6.06), "switch"],
+		["ch1.r04", "ch1.r04.v2", Vector3(6.58, 0, -2.99), "switch"],
+		["ch1.r04", "ch1.r04.v2", Vector3(6.30, 0, -6.98), "switch"],
+		["ch1.r10", "ch1.r10.valve", Vector3(-0.70, 0, 0.62), "shield"],
+		["ch1.r10", "ch1.r10.valve", Vector3(2.29, 0, -1.18), "shield"],
+		["ch1.r10", "ch1.r10.valve", Vector3(8.29, 0, 5.01), "sentry"],
+	]
+	var games := {}
+	for c in cases:
+		if not games.has(c[0]):
+			var g0 := _new_game()
+			await h.settle()
+			g0.set_flag("ch1.got_spark")
+			g0.load_room(c[0])
+			for t in g0.triggers:
+				t.fired = true
+			await _pump(g0, 6)
+			# 敵は動かず、倒れない（決まった所に立たせて撃つ）
+			for e in g0.enemies:
+				e.passive = true
+				e.hp = 999999.0
+				e.set_meta("home", e.pos)
+			games[c[0]] = g0
+		var g: GameSim = games[c[0]]
+		var sw: Props.Switch = g.switch_by_id(c[1])
+		for e in g.enemies:
+			e.pos = e.get_meta("home")
+			g.phys.set_feet(e.body, e.pos)
+		sw.on = false
+		g.set_flag("switch." + sw.id, false)
+		var f: Vector3 = c[2]
+		_warp(g, f, U.dir_to_yaw(sw.pos.x - f.x, sw.pos.z - f.z))
+		await h.run(g, 3, {})
+		var chest := g.player.chest()
+		var in_cone: Array = g.enemies.filter(func(e): return e.alive and absf(U.wrap_angle(U.dir_to_yaw(e.center().x - chest.x, e.center().z - chest.z) - g.player.yaw)) < GameSim.SOFT_AIM_DEG * U.DEG)
+		h.expect(not in_cone.is_empty(), "%s：%s から、弱い自動照準の幅の内に敵がいる" % [c[1], f])
+		var got = g.soft_aim(g.player.yaw).get("target")
+		if c[3] == "switch":
+			h.expect(got == sw, "%s：%s から弁を向けば、向こうの敵（%s）ではなく弁を狙う" % [c[1], f, in_cone.map(func(e): return e.kind)])
+			h.expect(await _shoot_switch_from_here(g, sw), "%s：%s から撃てば弁が入る" % [c[1], f])
+		else:
+			h.expect(got != null and got != sw and got.kind == c[3], "%s：%s からは、弁の手前の %s を狙う" % [c[1], f, c[3]])
 	for g in games.values():
 		h.free_game(g)
 

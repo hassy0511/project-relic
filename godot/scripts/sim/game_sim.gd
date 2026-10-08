@@ -553,7 +553,8 @@ func step(frame: InputFrame) -> void:
 
 	var t = lock_on.target
 	var cam_target = cam_focus if cam_focus != null else (t.pos if t != null else null)
-	cam.update(DT, player.pos, player.yaw, player.speed(), cam_target)
+	# 台本の注視（cam_focus）の間は、カメラが回っても左スティックの基準を止める（ハルは操作できる。CameraOrbit.update の focus）
+	cam.update(DT, player.pos, player.yaw, player.speed(), cam_target, cam_focus != null)
 	time += DT
 	play_time += DT
 	tick += 1
@@ -970,7 +971,10 @@ const SOFT_AIM_MIN_HDIST := 0.5
 
 ## ロックオンしていないときの「弱い自動照準」。ハルの向き（facing：体の正面の yaw）から水平に SOFT_AIM_DEG 以内に中心があり、
 ## ふつうの弾が届いて、胸から狙う点のどれかが見える敵か、撃つと入るスイッチ（弁・動力の球・的）。
-## 敵が先：敵がいなければスイッチ（頭上高くの弁が、正面の敵の弾を横取りしないように）。
+## 敵が先（頭上高くの弁が、正面の敵の弾を横取りしないように）。ただしスイッチが、狙える敵のどれよりも手前（縁までが近い）で、
+## 体の正面にも近い（中心の水平の角度が小さい）ときはスイッチ：弁の方を向いて撃てば、弁の向こうに敵が立っていても弁に当たる
+## （前は幅の内に敵がいればいつも敵を選び、換気室で弁を真正面に向いても、弁の向こうの子番機へ撃ち下ろして弁は入らなかった。2026-10-08）。
+## 敵がスイッチより手前なら敵（弁の手前の盾持ちは、先に片づける）。
 ## 同じ種類がいくつかあれば、体の正面から縁までの水平の角度がいちばん小さいもの
 ## （近くて大きい物ほど選ばれる。手前の的の奥に別の的があっても手前。上下は見ない：上下は自分では向けないので、ねらう物は水平の向きで決める）。
 ## 返り値：{ target: 敵かスイッチ, point: 狙う点（上下の角度もここへ合わせる） }。無ければ空。
@@ -982,27 +986,46 @@ func soft_aim(facing: float) -> Dictionary:
 	var reach: float = gun_cfg().range
 	var best := {}
 	var best_score := INF
+	# 狙える敵のうち、縁までのいちばん近い距離と、体の正面から中心までのいちばん小さい水平の角度
+	var enemy_near := INF
+	var enemy_rel := INF
 	for e in enemies:
 		if not e.alive:
 			continue
 		var score := _soft_aim_score(chest, facing, reach, e.center(), e.radius)
+		if score == INF:
+			continue
+		var p = first_aim_point(chest, e.aim_points(), e.center(), e.radius, reach, SOFT_AIM_MIN_HDIST)
+		if p == null:
+			continue
+		enemy_near = minf(enemy_near, e.center().distance_to(chest) - e.radius)
+		enemy_rel = minf(enemy_rel, _soft_aim_rel(chest, facing, e.center()))
 		if score < best_score:
-			var p = first_aim_point(chest, e.aim_points(), e.center(), e.radius, reach, SOFT_AIM_MIN_HDIST)
-			if p != null:
-				best_score = score
-				best = {"target": e, "point": p}
-	if not best.is_empty():
-		return best
+			best_score = score
+			best = {"target": e, "point": p}
+	var best_sw := {}
+	var sw_score := INF
 	for sw in switches:
 		if sw.mode != "shoot":
 			continue
 		var score := _soft_aim_score(chest, facing, reach, sw.pos, sw.radius)
-		if score < best_score and shootable(sw):
+		if score < sw_score and shootable(sw):
 			var p = first_aim_point(chest, sw.aim_points(chest), sw.pos, sw.radius, reach, SOFT_AIM_MIN_HDIST)
 			if p != null:
-				best_score = score
-				best = {"target": sw, "point": p}
+				sw_score = score
+				best_sw = {"target": sw, "point": p}
+	if best.is_empty():
+		return best_sw
+	if not best_sw.is_empty():
+		var s: Props.Switch = best_sw.target
+		if s.pos.distance_to(chest) - s.radius < enemy_near and _soft_aim_rel(chest, facing, s.pos) < enemy_rel:
+			return best_sw
 	return best
+
+
+## 体の正面（facing）から点 p（の中心）までの水平の角度（ラジアン）
+func _soft_aim_rel(chest: Vector3, facing: float, p: Vector3) -> float:
+	return absf(U.wrap_angle(U.dir_to_yaw(p.x - chest.x, p.z - chest.z) - facing))
 
 
 ## 弱い自動照準の候補の点数（小さいほどよい）：体の正面から縁までの水平の角度。

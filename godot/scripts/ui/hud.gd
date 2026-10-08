@@ -656,6 +656,7 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 			"charger": "弱点：激突後の側面", "mini": "弱点：全身", "floater": "弱点：上部の核（降下のあと）",
 			"shield": "弱点：背面。盾は光刃で崩す", "kannuki": "弱点：錠前核（突きが刺さったあと・叩きつけのあと）",
 		}.get(t.kind, "弱点：背面の核")
+		_reticle.far = not game.lock_on.in_reach()
 		_reticle.time = _time
 		_reticle.queue_redraw()
 	else:
@@ -870,6 +871,8 @@ class Reticle:
 	var scanned := false
 	var weak := false
 	var weak_text := ""
+	## 捉えた敵に弾が届かない（ロックオンは弾の射程より遠くまで捉える。LockOn.in_reach）。照準を薄くして、下に「射程外」と出す
+	var far := false
 	var time := 0.0
 	## 文字の大きさ（弱点の説明・解析中の進み）。スマホの配置では大きく（Hud._set_compact）
 	var text_size := 22
@@ -902,10 +905,16 @@ class Reticle:
 		var part := "ui_parts_lockon_weakpoint" if weak else ("ui_parts_lockon_normal" if scanned else "ui_parts_lockon_analyzing")
 		var s := 112.0 if not scanned else (118.0 + 6.0 * sin(time * 10.0) if weak else 100.0)
 		var t := UiArt.tex(part)
+		var tint := Color(1, 1, 1, 0.45 if far else 1.0)
 		if t != null:
-			draw_texture_rect(t, Rect2(-s * 0.5, -s * 0.5, s, s), false)
+			draw_texture_rect(t, Rect2(-s * 0.5, -s * 0.5, s, s), false, tint)
 		else:
-			draw_arc(Vector2.ZERO, 34, 0, TAU, 48, Color(amber, 0.9), 3.0, true)
+			draw_arc(Vector2.ZERO, 34, 0, TAU, 48, Color(amber, 0.9 * tint.a), 3.0, true)
+		if far:
+			var fw := font.get_string_size("射程外", HORIZONTAL_ALIGNMENT_LEFT, -1, scan_size).x
+			var base := s * 0.5 + 14.0 + font.get_ascent(scan_size)
+			draw_rect(Rect2(Vector2(-fw * 0.5 - 8, base - font.get_ascent(scan_size) - 4), Vector2(fw + 16, font.get_height(scan_size) + 8)), Color(0.06, 0.05, 0.05, 0.7))
+			draw_string(font, Vector2(-fw * 0.5, base), "射程外", HORIZONTAL_ALIGNMENT_LEFT, -1, scan_size, UiArt.PAPER)
 		# 敵の体力（照準の上の小さなゲージ。枠と中身はプレイヤーの HP と同じ部品を小さく）
 		var fr := UiArt.tex("ui_parts_gauge_hp_frame")
 		var fl := UiArt.tex("ui_parts_gauge_hp_fill_full")

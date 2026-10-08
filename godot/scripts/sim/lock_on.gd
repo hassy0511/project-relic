@@ -154,6 +154,19 @@ func _pick_side(side: int):
 
 ## 視線が通っているか：敵の狙う点（中心か頭。Enemy.aim_points）のどれかが胸から見えればよい
 ## （低い壁・柱の陰から体の一部が見えている敵も捉える。弱い自動照準と同じ点・同じ判定。GameSim.enemy_aim_point）。
-## ロックオン中に撃つ弾も、その見えている点へ向ける（Player.aim_plan）ので、捉えた敵には撃てば当たる
+## ロックオン中に撃つ弾も、その見えている点へ向ける（Player.aim_plan）ので、弾の射程の内なら当たる。
+## ただしロックオンは弾の射程（gun.range 14m、溜めは 1.3 倍）より遠く（lockOn.range 30m）まで捉えるので、遠い敵へ撃った弾は
+## 正しい向きへ飛んでも届かずに消える（in_reach。照準に「射程外」と出す）
 func _has_line_of_sight(e) -> bool:
 	return game.enemy_aim_point(e) != null
+
+
+## 今の対象に、ふつうの弾が届くか：狙う点のどれかが胸から見えていて、そこへまっすぐ撃てば主武器の射程の内で当たる
+## （弱い自動照準が狙う物と同じ判定。GameSim.first_aim_point）。対象がいなければ false。
+## 照準（Hud）は、届かないとき薄くして「射程外」と出す（前は「捉えた敵には撃てば当たる」としていて、遠い敵へ撃ち続けても当たらなかった。2026-10-08）
+func in_reach() -> bool:
+	var t = target
+	if t == null:
+		return false
+	var g = game
+	return g.first_aim_point(g.player.chest(), t.aim_points(), t.center(), t.radius, g.gun_cfg().range) != null

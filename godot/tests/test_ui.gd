@@ -384,6 +384,32 @@ func test_hud_states() -> void:
 	h.free_game(g)
 
 
+## ロックオンの照準：捉えた敵に弾が届かない（ロックオンは弾の射程より遠くまで捉える）ときは、照準を薄くして「射程外」と出す（LockOn.in_reach）
+func test_reticle_out_of_reach() -> void:
+	for z in [8.0, 24.0]:
+		var g := h.make_game({
+			"markers": {"e1": Vector3(0, 0, z)},
+			"placement": {"enemies": [{"type": "sentry", "at": "e1", "passive": true}]},
+		})
+		await h.settle()
+		g.god_mode = true
+		await h.run(g, 3, {})
+		await h.run(g, 2, {"lock_on": true})
+		var hud := Hud.new()
+		h.tree.root.add_child(hud)
+		var cam := Camera3D.new()
+		h.tree.root.add_child(cam)
+		cam.global_position = Vector3(0, 2, -4)
+		cam.look_at(Vector3(0, 1, z))
+		await h.tree.process_frame
+		hud.sync(g, cam, 0.016)
+		h.expect(hud._reticle.visible, "%.0fm 先の敵：照準が出る" % z)
+		h.expect(hud._reticle.get("far") == (z > 20.0), "%.0fm 先の敵：%s" % [z, "射程外と出る" if z > 20.0 else "射程外とは出ない"])
+		hud.queue_free()
+		cam.queue_free()
+		h.free_game(g)
+
+
 func test_frame_parts_toggle() -> void:
 	# 外装フレームの段：haru_r は胴・腕・脚の群が別の物体。set_frame_parts で付いている群だけ見せる
 	var v := PlayerView.new()

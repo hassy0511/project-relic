@@ -4,7 +4,7 @@ extends RefCounted
 ## 実際のカメラ位置（壁の回避など）は見た目の側が決める。yaw は「カメラが見ている水平方向」。
 ##
 ## 左スティックの「前」（移動の基準。move_yaw）は、ふつうはカメラの向き。ただしカメラが自分で回る間（背後へ回す・自動の回り込み・
-## ロックオンで捉えた直後）は、基準を止める（_hold）。止めないと、回るカメラにつられてハルの進む向きが回り、それをカメラが追って
+## ロックオンで捉えた直後・台本の注視）は、基準を止める（_hold）。止めないと、回るカメラにつられてハルの進む向きが回り、それをカメラが追って
 ## また回る（カメラが回り続ける）。止めた基準は、左スティックを倒し直した分だけ「カメラが向かう先」（_hold_to）へ戻し、
 ## 戻しきってカメラもそこに着いたら止めるのをやめる。基準を決めるのは左スティックと右スティック・マウスだけで、
 ## カメラが自分で回った分では動かない（docs/design/20_ゲームシステム設計.md 3 章「背後へ回すときの左スティック」）
@@ -39,8 +39,11 @@ var _hold = null
 ## カメラが向かう先：背後へ回す先（押したときにハルが向かう向き）、自動の回り込みが止まる所（不感帯の端）。
 ## 止めた基準はここまでしか戻さない。カメラが自分で回るのはここまでで、着いたら回らない（先は止めたときに決めて、そのあと動かさない）
 var _hold_to := 0.0
-## 止めたとき（または測り直したとき）の左スティックの向き（単位ベクトル。倒していなければ 0）。ここから倒す向きを変えた分だけ、基準を _hold_to へ戻す
+## 前の刻みの左スティックの向き（単位ベクトル。止めてからまだ倒していなければ 0）
 var _hold_stick := Vector2.ZERO
+## 止めたとき（または測り直したとき）から、左スティックの向きを変えた量（ラジアン。刻みごとの差を足す。左回りが正）。
+## この分だけ、基準を _hold_to へ戻す。刻みごとに足すので、180° を越えて回しても逆の符号に折り返さない
+var _hold_turn := 0.0
 ## 止めた基準を、左スティックの向きを変えた分だけ _hold_to の方へ戻した量（ラジアン。move_yaw = _hold + これ）
 var _hold_shift := 0.0
 ## この刻みの左スティック（apply_look で受け取る）
@@ -48,7 +51,7 @@ var _stick := Vector2.ZERO
 ## 今の倒し方（倒してから離すまで）で、自動の回り込みがもう基準を止めたか。回り込みで基準を止めるのは、1 回倒すごとに 1 度だけ。
 ## 何度も止め直すと、倒したまま指が揺れるたびに（基準がカメラに戻る → また回り込む）回った分が積もり、カメラが回り続けた（2026-10-08）
 var _follow_used := false
-## 前の刻みでロックオン（または演出の注視）の向きへ寄せていたか
+## 前の刻みでロックオン（または台本の注視）の向きへ寄せていたか
 var _locked := false
 ## 止めた基準と _hold_to の差がこれ（度）より大きい（ほぼ真後ろ）ときは、左スティックをどちらへ回しても、ハルがまっすぐ進むように戻す
 const HOLD_EITHER_WAY := 170.0
@@ -75,15 +78,22 @@ func _clear() -> void:
 func _end_hold() -> void:
 	_hold = null
 	_hold_shift = 0.0
+	_hold_turn = 0.0
 	_hold_stick = Vector2.ZERO
 
 
 ## 今の基準（倒し直した分も含めて）のまま止め直し、今の左スティックから測り直す。カメラが向かう先は to
 func _rebase(to: float) -> void:
 	_hold = move_yaw()
-	_hold_shift = 0.0
-	_hold_stick = _stick.normalized() if _stick.length() >= STICK_DEAD else Vector2.ZERO
+	_measure_from(_stick)
 	_hold_to = to
+
+
+## 止めた基準を今の左スティックから測り直す（ここまでに戻した分は基準に含める）
+func _measure_from(stick: Vector2) -> void:
+	_hold_shift = 0.0
+	_hold_turn = 0.0
+	_hold_stick = stick.normalized() if stick.length() >= STICK_DEAD else Vector2.ZERO
 
 
 func apply_look(input: InputFrame) -> void:
@@ -119,14 +129,11 @@ func request_recenter(player_yaw: float, stick: Vector2) -> void:
 	if stick.length() >= STICK_DEAD:
 		var b := move_yaw()
 		_hold = b
-		_hold_shift = 0.0
-		_hold_stick = stick.normalized()
 		_hold_to = U.wrap_angle(b + _stick_yaw(stick))
 	else:
 		_hold = player_yaw
-		_hold_shift = 0.0
-		_hold_stick = Vector2.ZERO
 		_hold_to = player_yaw
+	_measure_from(stick)
 
 
 ## 出口を通って部屋を移ったとき（GameSim._do_pending_room）：左スティックを倒したままなら、ハルはそのまま新しい部屋の奥
@@ -138,12 +145,11 @@ func keep_heading(heading: float, stick: Vector2) -> void:
 		return
 	_recentering = 0.0
 	_hold = U.wrap_angle(heading - _stick_yaw(stick))
-	_hold_shift = 0.0
-	_hold_stick = stick.normalized()
+	_measure_from(stick)
 	_hold_to = _yaw
 
 
-## 左スティックの「前」の基準（yaw）。ふつうはカメラの向き。止めている間は止めた向き（request_recenter・keep_heading・自動の回り込み）
+## 左スティックの「前」の基準（yaw）。ふつうはカメラの向き。止めている間は止めた向き（request_recenter・keep_heading・自動の回り込み・台本の注視）
 func move_yaw() -> float:
 	return _yaw if _hold == null else U.wrap_angle(_hold + _hold_shift)
 
@@ -157,7 +163,11 @@ static func _stick_yaw(v: Vector2) -> float:
 ## ・倒し直した分だけ戻す。先に合わせて倒し直す向き（横へ走りながら押して、そのあと前へ倒し直す）なら、戻した分と倒し直した分が
 ##   打ち消し合って、ハルはまっすぐ走り続ける。逆の向きなら 2 倍の速さで向きを変える。回している途中でも、回し終えたあとでも同じ
 ##   （先は押したときに決めてあるので、途中で倒し直しても、ハルの向きもカメラの止まる所も、回し終えてから倒し直したときと同じ）。
-##   止めたときの向きから測るので、指の小さな揺れが積もって進路がずれていくことはない。
+##   回した量（_hold_turn）は刻みごとの差を足したもので、止めたときの向きからの差と同じ（行き来すれば打ち消し合う）なので、
+##   指の小さな揺れが積もって進路がずれていくことはない。
+## ・先とほぼ真後ろ（HOLD_EITHER_WAY より大きい差）なら、どちらへ回しても戻す。逆の向き（遠回り）なら、先までは 1 周から差を引いた量
+##   （差 172° なら 188°）。そこに着いた基準は先と同じ向きなので、止めるのをやめても跳ばない
+##   （前は遠回りでも近回りの差（172°）で先へ置き直したので、進む向きが 1 刻みで 2×(180°−差) 跳んだ。2026-10-08）。
 ## ・戻しきって、カメラも先に着いたら、止めるのをやめる（基準＝カメラ）。
 ## ・左スティックを離したら、止めるのをやめる（背後へ回している途中なら、基準は回す先。次に倒した向きから測る）
 func _update_hold(stick: Vector2) -> void:
@@ -175,41 +185,57 @@ func _update_hold(stick: Vector2) -> void:
 			_end_hold()
 		return
 	if _locked or _hold_stick == Vector2.ZERO:
-		# ロックオンの向きへ基準を寄せている間（update）と、止めてから初めて倒したときは、今の向きから測る
+		# ロックオン・台本の注視の向きへカメラを寄せている間（update）と、止めてから初めて倒したときは、今の向きから測る
 		_hold = move_yaw()
-		_hold_shift = 0.0
-		_hold_stick = stick.normalized()
+		_measure_from(stick)
 		return
+	_hold_turn += U.wrap_angle(_stick_yaw(stick) - _stick_yaw(_hold_stick))
+	_hold_stick = stick.normalized()
 	var o := U.wrap_angle(_hold_to - _hold)
-	var turned := U.wrap_angle(_stick_yaw(stick) - _stick_yaw(_hold_stick))
-	var shift := -turned
+	var shift := -_hold_turn
 	if signf(shift) != signf(o) and absf(o) < HOLD_EITHER_WAY * U.DEG:
-		shift = signf(o) * absf(turned)
-	if absf(shift) >= absf(o) - 0.00001:
-		shift = o
+		shift = signf(o) * absf(_hold_turn)
+	# 先までの量：近回りなら o、遠回りなら o から 1 周引いた量（どちらも基準は先と同じ向きになる）
+	var reach := o
+	if shift != 0.0 and signf(shift) != signf(o):
+		reach = o - signf(o) * TAU
+	if absf(shift) >= absf(reach) - 0.00001:
+		shift = reach
 		if _recentering <= 0.0 and absf(U.wrap_angle(_yaw - _hold_to)) < 0.00001:
 			_end_hold()
 			return
 	_hold_shift = shift
 
 
-func update(dt: float, player_pos: Vector3, player_yaw: float, player_speed: float, target) -> void:
+## target：ロックオンの対象か、台本の注視する点（無ければ null）。focus：target が台本の注視（GameSim.cam_focus）か
+func update(dt: float, player_pos: Vector3, player_yaw: float, player_speed: float, target, focus := false) -> void:
 	var c: Dictionary = t.camera
 	_idle_look += dt
 	if target != null:
-		# ロックオン中（演出の注視も）：プレイヤーの後ろから対象を見る向きへ寄せる。背後へ回している途中なら回すのはやめる
-		# （残すと、外れたあとに基準なしで回り出して、カメラが回り続ける）。
-		# 止めていた基準は、カメラと同じ向きへ同じ割合で寄せていき、カメラに追いついたらやめる。
-		# 一度にカメラへ戻すと、捉えた刻みにハルの進む向きが大きく（横へ走りながらで 40〜90°）跳んだ（2026-10-08）
+		# ロックオン中・台本の注視の間：プレイヤーの後ろから対象を見る向きへ寄せる。背後へ回している途中なら回すのはやめる
+		# （残すと、外れたあとに基準なしで回り出して、カメラが回り続ける）
 		_recentering = 0.0
+		var b0 := move_yaw()
 		var want := U.dir_to_yaw(target.x - player_pos.x, target.z - player_pos.z)
 		var k := U.damp(c.lockOnYawSpeed, dt)
 		_yaw = U.wrap_angle(_yaw + U.wrap_angle(want - _yaw) * k)
 		pitch += (c.defaultPitch * U.DEG - pitch) * U.damp(3.0, dt)
-		if _hold != null:
-			var b := move_yaw()
-			_hold = U.wrap_angle(b + U.wrap_angle(want - b) * k)
+		if focus:
+			# 台本の注視（止めない演出。動力が通ったピストンを見せるなど）：カメラは注視する点の方へ回るが、ハルは操作できるので、
+			# 左スティックの基準は止める（倒していれば、回る前の向きのまま。倒す向きを変えた分だけ向きを変える。_locked の間は測り直すだけ）。
+			# 注視が終わっても止めたまま（カメラが向かう先は、注視が終わったときのカメラ）。倒し直せばカメラへ戻り、離せばやめる。
+			# 前は基準がカメラと一緒に回り、後ろへ下がっていたハルが注視のカメラにつられて向きを変え、出口のそばから下の階へ落ちた（2026-10-08）
+			if _hold == null and _stick.length() >= STICK_DEAD:
+				_hold = b0
+				_measure_from(_stick)
+			if _hold != null:
+				_hold_to = _yaw
+		elif _hold != null:
+			# ロックオン：止めていた基準は、カメラと同じ向きへ同じ割合で寄せていき、カメラに追いついたらやめる（捉えている間は、
+			# ふだんどおりカメラから測る横歩き）。一度にカメラへ戻すと、捉えた刻みにハルの進む向きが大きく（横へ走りながらで 40〜90°）跳んだ（2026-10-08）
+			_hold = U.wrap_angle(b0 + U.wrap_angle(want - b0) * k)
 			_hold_shift = 0.0
+			_hold_turn = 0.0
 			_hold_to = _yaw
 			if absf(U.wrap_angle(_hold - _yaw)) < LOCK_HOLD_DONE:
 				_end_hold()
@@ -260,7 +286,6 @@ func update(dt: float, player_pos: Vector3, player_yaw: float, player_speed: flo
 			return
 		_follow_used = true
 		_hold = _yaw
-		_hold_shift = 0.0
-		_hold_stick = _stick.normalized()
+		_measure_from(_stick)
 		_hold_to = to
 	_yaw = U.wrap_angle(U.approach_angle(_yaw, to, rate))

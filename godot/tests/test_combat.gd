@@ -507,3 +507,33 @@ func test_muzzle_on_right_hand() -> void:
 			else:
 				h.expect(o.is_equal_approx(p2.muzzle(0.0)) and (o - p2.chest()).dot(Vector3(-1, 0, 0)) > 0.1, "%s：右手の銃口から撃つ（%s）" % [what, o])
 		h.free_game(g2)
+
+
+## ロックオンは弾の射程（ふつう 14m、溜めは 1.3 倍）より遠く（30m）まで捉える。捉えた敵へ撃った弾は見えている点へ飛ぶが、
+## 射程より遠ければ届かずに消える。LockOn.in_reach は、ふつうの弾が届くか（照準は届かないとき「射程外」と出す。Hud）。
+## 前は「捉えた敵には撃てば当たる」と書いてあり、照準にも届くかどうかが出ていなかったので、遠い敵へ撃ち続けても当たらなかった（2026-10-08）
+func test_lock_on_shot_reach() -> void:
+	for z in [10.0, 13.0, 20.0, 28.0]:
+		var g := h.make_game({
+			"markers": {"e1": Vector3(0, 0, z)},
+			"placement": _enemies([{"type": "sentry", "at": "e1", "passive": true}]),
+		})
+		await h.settle()
+		g.god_mode = true
+		var e = g.enemies[0]
+		await h.run(g, 3, {})
+		await h.run(g, 2, {"lock_on": true})
+		h.expect(g.lock_on.target == e, "%.0fm 先の敵を捉える" % z)
+		var gap: float = e.center().distance_to(g.player.chest()) - e.radius
+		var reach: float = g.gun_cfg().range
+		var far := gap > reach
+		h.expect(g.lock_on.has_method("in_reach"), "ロックオンは、捉えた敵に弾が届くかを知らせる（LockOn.in_reach）")
+		if g.lock_on.has_method("in_reach"):
+			h.expect(g.lock_on.in_reach() == not far, "%.0fm 先（縁まで %.1fm、射程 %.0fm）：%s" % [z, gap, reach, "射程外" if far else "弾が届く"])
+		await h.run(g, 1, {"lock_on": true, "fire": true})
+		var hit := await h.run_until(g, 60, {"lock_on": true}, func(): return e.hp < e.max_hp)
+		h.expect(hit == not far, "%.0fm 先：%s" % [z, "射程外の敵には届かない" if far else "射程の内の敵には当たる"])
+		await h.run(g, 2, {})
+		if g.lock_on.has_method("in_reach"):
+			h.expect(not g.lock_on.in_reach(), "捉えていなければ届く対象はない")
+		h.free_game(g)

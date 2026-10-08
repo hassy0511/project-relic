@@ -420,7 +420,8 @@ r.trigger("enter", 0, 0, -10, 14, 3, 2, "ch1.r13.enter")
 
 r = new("r14", "B3", "隠し部屋", 1, 3)
 r.shell(10, 6, 10)
-r.start("from_r12", 3, 0, 0, 90)
+# 入口の目印は、戻る出口（東）に背を向けて部屋の奥（西）を向く（倒したまま入っても、そのまま奥へ進む）
+r.start("from_r12", 3, 0, 0, 270)
 r.exit("to_r12", "r12", "from_r14", 4.2, 0, 0, size=(1.6, 4, 4))
 r.box(0, 0, 0, 2.4, 0.8, 2.4, "#8c6a3a")
 r.prop(type="loot", id="ch1.r14.lifecore", pos=[0, 0.8, 0], contents={"lifecore": True})
@@ -466,8 +467,9 @@ for y in (22, 15, 8, 2):
 
 r = new("r17", "B3", "近道", 0, 2)
 r.shell(12, 6, 12)
-r.start("from_r12", 3, 0, 0, 90)
-r.marker("from_r02", 3, 0, 0, 90)
+# 入口の目印：r12 からは東の扉の内側で西（奥）を向く。外殻層からはエレベーター（西）の前で東（奥）を向く
+r.start("from_r12", 3, 0, 0, 270)
+r.marker("from_r02", -3, 0, -3, 90)
 r.exit("to_r12", "r12", "from_r17", 4.6, 0, 3, size=(1.6, 4, 3))
 r.exit("to_r02", "r02", "from_elevator", -4.6, 0, -3, size=(1.6, 4, 3), lock="ch1.shortcut_open",
        text="エレベーターはまだ動かない。レバーを引こう。")

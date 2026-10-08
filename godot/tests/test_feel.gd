@@ -514,3 +514,80 @@ func test_lock_catch_turns_basis_smoothly() -> void:
 		h.expect(worst < 0.2 * U.DEG, "%s：基準はカメラと同じ割合でしか寄らない（超えた分 %.2f°）" % [c[0], worst / U.DEG])
 		h.near(U.wrap_angle(g.cam.move_yaw() - g.cam.yaw), 0.0, 0.0001, "%s：捉えている間に、基準はカメラに追いついた" % c[0])
 		h.free_game(g)
+
+
+## 台本の注視（camera。止めない演出）でカメラが自分で回っても、左スティックを変えなければ、ハルの進む向きは変わらない：
+## 注視の間は左スティックの基準を止める（背後へ回すときと同じ。倒す向きを変えれば、変えた分だけ向きを変える）。
+## 注視が終わっても、倒し直すか離すまでは止めたまま（離して倒し直すと、今のカメラから測る）。
+## 前は基準がカメラと一緒に回り、r12 の動力の球を撃ったあとの注視（2.2 秒）で、後ろへ下がっていたハルが、98° 回るカメラにつられて
+## −90° から 172° へ向きを変え、r11 への出口のそばから下の階へ落ちた（2026-10-08）
+func test_camera_focus_keeps_heading() -> void:
+	# [回り込み, 左スティック, 注視の途中で左スティックを回す量（度）]
+	for c in [["weak", Vector2(0, -1), 0.0], ["normal", Vector2(1, 0), 0.0], ["off", Vector2(0, 1), 0.0], ["weak", Vector2(-0.7071, -0.7071), 0.0], ["weak", Vector2(0, -1), 45.0], ["normal", Vector2(1, 0), -60.0]]:
+		var g := h.make_game({"boxes": [[Vector3(0, -0.5, 0), Vector3(3000, 1, 3000)]]})
+		await h.settle()
+		g.cam.follow = c[0]
+		g.cam.yaw = PI / 2
+		g.player.yaw = PI / 2
+		var s: Vector2 = c[1]
+		var p: Player = g.player
+		await h.run(g, 40, {"move_x": s.x, "move_y": s.y})
+		var heading0 := U.dir_to_yaw(p.vel.x, p.vel.z)
+		var cam0 := g.cam.yaw
+		# 台本の camera と同じ（Story）：カメラの向きから 100° 横、15m 先の点を 2.2 秒注視する
+		g.cam_focus = p.pos + U.yaw_to_dir(cam0 - 100.0 * U.DEG) * 15.0 + Vector3(0, 2, 0)
+		g.cam_focus_time = 2.2
+		var turn: float = c[2] * U.DEG
+		var worst := 0.0
+		var cam_far := 0.0
+		for i in 200:
+			# 注視の途中（0.5〜1 秒目）で、左スティックを turn だけ回す
+			var a := atan2(-s.x, s.y) + turn * clampf((i - 30) / 30.0, 0.0, 1.0)
+			await h.run(g, 1, {"move_x": -sin(a), "move_y": cos(a)})
+			var want := heading0 + turn * clampf((i - 30) / 30.0, 0.0, 1.0)
+			worst = maxf(worst, absf(U.wrap_angle(U.dir_to_yaw(p.vel.x, p.vel.z) - want)) if i < 30 or i > 75 else 0.0)
+			worst = maxf(worst, absf(U.wrap_angle(g.cam.move_yaw() + a - want)))
+			cam_far = maxf(cam_far, absf(U.wrap_angle(g.cam.yaw - cam0)))
+		var what := "回り込み %s・左スティック %s・途中で %+.0f° 回す" % c
+		h.expect(g.cam_focus == null, "%s：注視は終わった" % what)
+		h.expect(cam_far > 60.0 * U.DEG, "%s：カメラは注視する点の方へ回った（%.0f°）" % [what, cam_far / U.DEG])
+		h.expect(worst < 2.0 * U.DEG, "%s：ハルの進む向きは、左スティックを回した分だけ変わる（ずれ 最大 %.1f°）" % [what, worst / U.DEG])
+		# 離して前へ倒し直すと、今のカメラから測る
+		await h.run(g, 3, {})
+		await h.run(g, 30, {"move_y": 1.0})
+		h.near(U.wrap_angle(U.dir_to_yaw(p.vel.x, p.vel.z) - g.cam.yaw) / U.DEG, 0.0, 3.0, "%s：離して前へ倒し直すと、今のカメラの向きへ進む" % what)
+		h.free_game(g)
+
+
+## 背後へ回すボタンを、ほぼ真後ろ（170° より後ろ）へ倒して走りながら押し、そのあと左スティックを「遠回り」（回す先と逆の向き）へ
+## ゆっくり回しても、ハルの進む向きは跳ばない：基準は遠回りのまま先（回す先）まで戻って、そこで止めるのをやめる（CameraOrbit._update_hold）。
+## 回した量は刻みごとに足して測る（180° を越えて回しても、差が逆の符号に折り返さない）。
+## 前は回した量が近回りの差に届いた刻みに、基準を近回りの先へ置き直したので、進む向きが 1 刻みで 2×(180°−差) 跳んだ
+## （172° で 16°、175° で 10°。タッチのスティックは 10° 刻みに寄せないので、そのまま起きる。2026-10-08）
+func test_reaim_long_way_no_jump() -> void:
+	for a0 in [172.0, 175.0, 178.0, -172.0, -176.0]:
+		for rate in [1.0, -1.0, 3.0, -3.0]:
+			var g := h.make_game({"boxes": [[Vector3(0, -0.5, 0), Vector3(3000, 1, 3000)]]})
+			await h.settle()
+			g.cam.follow = "off"
+			g.cam.yaw = 0.0
+			g.player.yaw = 0.0
+			await h.run(g, 3, {})
+			var worst := 0.0
+			var worst_at := -1
+			var prev = null
+			for i in 240:
+				var a: float = (a0 + (rate * (i - 5) if i > 5 else 0.0)) * U.DEG
+				var f := {"move_x": -sin(a), "move_y": cos(a)}
+				if i == 0:
+					f["camera_reset"] = true
+				await h.run(g, 1, f)
+				var head := U.wrap_angle(g.cam.move_yaw() + a)
+				if prev != null and absf(U.wrap_angle(head - prev)) > worst:
+					worst = absf(U.wrap_angle(head - prev))
+					worst_at = i
+				prev = head
+			var what := "左スティック %.0f° で押し、%+.0f°／刻みで回す" % [a0, rate]
+			h.expect(worst <= (2.0 * absf(rate) + 0.5) * U.DEG, "%s：進む向きは 1 刻みに、回した分の 2 倍より大きく跳ばない（%d 刻み目に %.1f°）" % [what, worst_at, worst / U.DEG])
+			h.near(U.wrap_angle(g.cam.move_yaw() - g.cam.yaw), 0.0, 0.0001, "%s：基準はカメラに戻った" % what)
+			h.free_game(g)

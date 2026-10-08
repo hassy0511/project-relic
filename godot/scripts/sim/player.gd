@@ -111,10 +111,15 @@ func anim() -> String:
 	return "run" if speed() > 0.5 else "idle"
 
 
+## 置き直す（部屋の移動・復活・台本の teleport・奈落からの復帰）。速さと一緒に、途中のダッシュも終える：
+## ダッシュの向き（_dash_dir）はワールドの向きなので、残すと新しい部屋で前の部屋の向きのまま走り出し、
+## 入口の目印の向きが逆の部屋では、ダッシュで通った扉へそのまま戻った（2026-10-08）
 func teleport(p: Vector3, new_yaw = null) -> void:
 	pos = p
 	_safe_pos = p
 	vel = Vector3.ZERO
+	dash_time = 0.0
+	_dash_jump = false
 	if new_yaw != null:
 		yaw = new_yaw
 	game.phys.set_feet(body, p)
@@ -436,6 +441,7 @@ func _update_gun(dt: float) -> void:
 
 ## 撃つ向き：ロックオン中は対象へ（弾は対象を追う）。狙うのは対象の中心か頭のうち、胸から見えている方
 ## （低い壁の陰で中心が隠れていても、頭が見えていれば頭へ。ロックオンで捉えるのも同じ判定。GameSim.enemy_aim_point）。
+## 弾の射程より遠い対象には届かない（ロックオンは射程より遠くまで捉える。LockOn.in_reach）。
 ## ロックオンしていないときはハルの体の向き（yaw）へ水平に撃つ。
 ## 体の正面から少し（GameSim.SOFT_AIM_DEG）以内に敵か撃つスイッチがあれば、そこへ狙いを合わせる（上下の角度も）。
 ## カメラの向きは使わない（カメラを横へ回しても、ハルは向きを変えずに体の正面へ撃つ）
