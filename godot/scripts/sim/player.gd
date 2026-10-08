@@ -43,8 +43,6 @@ var gun_cooldown := 0.0
 var gun_charge := 0.0
 ## 撃っている、または構えている（上半身を銃の構えにする）
 var aiming := 0.0
-## 最後に撃った弾の向き（見た目の腕の向きに使う）
-var shot_dir := Vector3(0, 0, 1)
 
 var drilling := false
 var _drill_tick := 0.0
@@ -435,24 +433,45 @@ func _update_gun(dt: float) -> void:
 ## 撃つ向き：ロックオン中は対象へ（弾は対象を追う）。ロックオンしていないときはハルの体の向き（yaw）へ水平に撃つ。
 ## 体の正面から少し（GameSim.SOFT_AIM_DEG）以内に敵か撃つスイッチがあれば、そこへ狙いを合わせる（上下の角度も）。
 ## カメラの向きは使わない（カメラを横へ回しても、ハルは向きを変えずに体の正面へ撃つ）
+## 返り値：{ face: 撃つときの体の向き（yaw）, aim_at: 狙う点（無ければ null＝体の正面へ水平に） }。何も変えない（腕の構えの見た目にも使う）
+func aim_plan() -> Dictionary:
+	var g = game
+	var target = g.lock_on.target
+	if target != null:
+		return {"face": yaw, "aim_at": target.center()}
+	var sa: Dictionary = g.soft_aim(yaw)
+	if sa.is_empty():
+		return {"face": yaw, "aim_at": null}
+	# 狙いを合わせた分（わずか）だけ体を向ける
+	var p: Vector3 = sa.point
+	return {"face": U.dir_to_yaw(p.x - pos.x, p.z - pos.z), "aim_at": p}
+
+
+## 銃口（右手の先）の位置。face：撃つときの体の向き（yaw）
+func muzzle(face: float) -> Vector3:
+	var fwd := U.yaw_to_dir(face)
+	var right := Vector3(-fwd.z, 0.0, fwd.x)
+	return chest() - right * 0.3 + fwd * 0.4
+
+
+## 弾の出る位置：ふつうは銃口。銃口が壁・箱・台にめり込むとき、または銃口からだと狙う点（aim_at）が柱の角などに隠れるときは胸から。
+## （GameSim.soft_aim は胸から見える点だけを選ぶので、狙いを合わせた物には必ず届く）
+func shot_origin(face: float, aim_at = null) -> Vector3:
+	var g = game
+	var c := chest()
+	var m := muzzle(face)
+	if g.has_clear_shot(c, m) and (aim_at == null or g.has_clear_shot(m, aim_at)):
+		return m
+	return c
+
+
 func _fire(damage: float, kind: String) -> void:
 	var g = game
 	var cfg: Dictionary = g.gun_cfg()
-	var target = g.lock_on.target
-	var aim_at = null
-	if target != null:
-		aim_at = target.center()
-	else:
-		var sa: Dictionary = g.soft_aim(yaw)
-		if not sa.is_empty():
-			aim_at = sa.point
-			# 狙いを合わせた分（わずか）だけ体を向ける
-			yaw = U.dir_to_yaw(aim_at.x - pos.x, aim_at.z - pos.z)
-	var fwd := U.yaw_to_dir(yaw)
-	var right := Vector3(-fwd.z, 0.0, fwd.x)
-	var origin := chest() - right * 0.3 + fwd * 0.4
-	var dir: Vector3 = fwd if aim_at == null else (aim_at - origin).normalized()
-	shot_dir = dir
+	var plan := aim_plan()
+	yaw = plan.face
+	var origin := shot_origin(yaw, plan.aim_at)
+	var dir: Vector3 = U.yaw_to_dir(yaw) if plan.aim_at == null else (plan.aim_at - origin).normalized()
 	g.spawn_player_shot({
 		"origin": origin, "dir": dir,
 		"speed": cfg.speed * (1.1 if kind == "charge2" else 1.0),

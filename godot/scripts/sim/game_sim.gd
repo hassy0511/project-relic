@@ -88,6 +88,9 @@ var _load_wait := 0
 var _choice_axis := 0.0
 ## 前の刻みのロックオンのボタン（使えない力として押していないことにする前の、生の入力）
 var _raw_lock_prev := false
+## ロックオンのボタンを押した瞬間があった（まだ使えない間も）。部屋の読み込み待ち・ヒットストップの間に押した分は、
+## 世界が動く次の刻み（LockOn.update）まで持ち越す。会話中・イベント中に押した分は捨てる
+var _lock_pressed := false
 ## 積まれた出来事（見た目・音・UI が取り出す）
 var _events: Array = []
 
@@ -483,9 +486,9 @@ func boss_status() -> Dictionary:
 # ---------------------------------------------------------------- 1 刻み
 
 func step(frame: InputFrame) -> void:
-	# ロックオンがまだ使えない間（適合の前）も、ロックオンのボタンを押した瞬間はカメラをハルの背後へ回す
-	# （使えるようになったあとの「対象がいないときのロックオン」と同じ。ロックオン・対象の切り替えはしない）
-	var lock_tap := frame.lock_on and not _raw_lock_prev and not has_ability("lock_on")
+	# ロックオンのボタンを押した瞬間は、まだ使えない間（適合の前）も覚えておく（LockOn.update がカメラを背後へ回す）
+	if frame.lock_on and not _raw_lock_prev:
+		_lock_pressed = true
 	_raw_lock_prev = frame.lock_on
 	# まだ使えない力（ロックオン・光刃・ダッシュ）のボタンは効かない（第 1 章で少しずつ解放する）
 	frame = _mask_locked_abilities(frame)
@@ -501,6 +504,7 @@ func step(frame: InputFrame) -> void:
 
 	# 会話中は世界を止める
 	if story.blocking():
+		_lock_pressed = false
 		_update_dialogue_input(frame)
 		story.update(DT)
 		tick += 1
@@ -516,10 +520,10 @@ func step(frame: InputFrame) -> void:
 		frame = InputFrame.new()
 		input = frame
 		edges.update(frame)
-		lock_tap = false
+		_lock_pressed = false
 
 	cam.apply_look(frame)
-	if frame.camera_reset or lock_tap:
+	if frame.camera_reset:
 		cam.request_recenter()
 
 	if hitstop > 0.0:
@@ -527,7 +531,8 @@ func step(frame: InputFrame) -> void:
 		tick += 1
 		return
 
-	lock_on.update(DT)
+	lock_on.update(DT, _lock_pressed)
+	_lock_pressed = false
 	_update_interaction()
 	_update_movers(DT)
 	_update_switches(DT)
@@ -937,44 +942,63 @@ func visited_rooms() -> Array:
 const SOFT_AIM_DEG := 12.0
 
 
-## ロックオンしていないときの「弱い自動照準」。ハルの向き（facing：体の正面の yaw）から SOFT_AIM_DEG 以内に中心があり、
-## 射程の中にいて視線が通る敵か、撃つと入るスイッチ（弁・動力の球・的）。
-## いくつかあれば、正面から縁までの角度がいちばん小さいもの（近くて大きい物ほど選ばれる。手前の的の奥に別の的があっても手前）。
+## ロックオンしていないときの「弱い自動照準」。ハルの向き（facing：体の正面の yaw）から水平に SOFT_AIM_DEG 以内に中心があり、
+## 射程の中にいて、胸から視線が通る敵か、撃つと入るスイッチ（弁・動力の球・的）。
+## 敵が先：敵がいなければスイッチ（頭上高くの弁が、正面の敵の弾を横取りしないように）。
+## 同じ種類がいくつかあれば、体の正面から縁までの水平の角度がいちばん小さいもの
+## （近くて大きい物ほど選ばれる。手前の的の奥に別の的があっても手前。上下は見ない：上下は自分では向けないので、ねらう物は水平の向きで決める）。
 ## 返り値：{ target: 敵かスイッチ, point: 狙う点（上下の角度もここへ合わせる） }。無ければ空。
+## 弾は胸か銃口から出る（Player.shot_origin）。胸から point が見えていれば、どちらから出ても point まで届く。
 ## （カメラの向きは見ない。撃つ向きは体の向き。2026-10-08 ユーザーの指示）
 func soft_aim(facing: float) -> Dictionary:
 	var chest := player.chest()
 	var reach: float = gun_cfg().range * 1.2
 	var best := {}
 	var best_score := INF
-	var cands := []
-	for e in enemies:
-		if e.alive:
-			cands.append([e, e.radius, [e.center(), e.pos + Vector3(0, e.height * 0.9, 0)]])
-	for sw in switches:
-		if sw.mode == "shoot" and not (sw.on and not sw.toggle) and Cond.eval(sw.cond, self):
-			cands.append([sw, sw.radius, [sw.pos]])
-	for c in cands:
-		var p0: Vector3 = c[2][0]
-		var dist := p0.distance_to(chest)
+	for c in _soft_aim_candidates():
+		var center: Vector3 = c.points[0]
+		var to := center - chest
+		var dist := to.length()
 		if dist > reach:
 			continue
 		# 真上・真下に近い物は向きが定まらないので狙わない（水平に 0.5m 以上離れている物だけ）
-		if Vector2(p0.x - chest.x, p0.z - chest.z).length() < 0.5:
+		if Vector2(to.x, to.z).length() < 0.5:
 			continue
-		var rel := absf(U.wrap_angle(U.dir_to_yaw(p0.x - chest.x, p0.z - chest.z) - facing))
+		var rel := absf(U.wrap_angle(U.dir_to_yaw(to.x, to.z) - facing))
 		if rel >= SOFT_AIM_DEG * U.DEG:
 			continue
-		var score := rel - asin(minf(1.0, float(c[1]) / maxf(dist, 0.01)))
+		# 敵は 0、スイッチは 1 周分を足して、種類の順を先に比べる
+		var score: float = rel - asin(minf(1.0, float(c.radius) / maxf(dist, 0.01))) + (0.0 if c.enemy else TAU)
 		if score >= best_score:
 			continue
-		# 中心が隠れていても頭（上の端）が見えていれば、そこを狙う
-		for p in c[2]:
+		# 中心が隠れていても、上の方（敵の頭・スイッチの球の上側）が見えていれば、そこを狙う
+		for p in c.points:
 			if has_clear_shot(chest, p):
 				best_score = score
-				best = {"target": c[0], "point": p}
+				best = {"target": c.target, "point": p}
 				break
 	return best
+
+
+## 弱い自動照準の候補：生きている敵と、撃つと入るスイッチ。
+## { target, enemy: 敵か, radius: 大きさ（当たりの半径）, points: 狙う点（先頭が中心。中心が隠れているときに順に試す上の方の点） }
+func _soft_aim_candidates() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for e in enemies:
+		if e.alive:
+			out.append({"target": e, "enemy": true, "radius": e.radius, "points": [e.center(), e.pos + Vector3(0, e.height * 0.9, 0)]})
+	for sw in switches:
+		if shootable(sw):
+			# 台・箱のすぐ脇から見上げると中心は台の縁に隠れる。球の上側（当たりの球の内側）なら見える
+			var up := Vector3(0, sw.radius, 0)
+			out.append({"target": sw, "enemy": false, "radius": sw.radius, "points": [sw.pos, sw.pos + up * 0.5, sw.pos + up * 0.9]})
+	return out
+
+
+## 今、弾が当たると入るスイッチか（撃つスイッチで、条件が満ちていて、まだ入っていない。切り替え式は何度でも）。
+## 弾の当たり（_update_shots）と弱い自動照準（soft_aim）の両方がこれを見る
+func shootable(sw: Props.Switch) -> bool:
+	return sw.mode == "shoot" and not (sw.on and not sw.toggle) and Cond.eval(sw.cond, self)
 
 
 ## from から to まで、地形・壊せる壁にさえぎられずに弾が通るか
@@ -1094,7 +1118,7 @@ func _update_shots(dt: float) -> void:
 		if s.from_player:
 			# 撃つと入るスイッチ（動力の球・弁の輪）
 			for sw in switches:
-				if sw.mode != "shoot" or (sw.on and not sw.toggle) or not Cond.eval(sw.cond, self):
+				if not shootable(sw):
 					continue
 				var ts: float = U.segment_sphere(s.pos, end, sw.pos, sw.radius)
 				if ts >= 0.0 and ts <= stop_at:

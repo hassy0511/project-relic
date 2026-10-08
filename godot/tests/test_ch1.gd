@@ -303,6 +303,18 @@ func test_lock_button_recenters_before_fitting() -> void:
 	await h.run(g, 1, {})
 	h.near(g.cam.yaw, PI / 2, 0.0001, "会話の間はロックオンのボタンでカメラが回らない")
 	h.free_game(g)
+	# 部屋に入った直後（物理の世界への反映を待つ 2 刻み）に押して離しても、待ちが明けたら背後へ回る
+	var g2 := _new_game()
+	await h.settle()
+	g2.set_flag("ch1.got_spark")
+	g2.load_room("ch1.r04", "from_r03")
+	for t in g2.triggers:
+		t.fired = true
+	g2.cam.yaw = g2.player.yaw + PI / 2
+	await h.run(g2, 1, {"lock_on": true})
+	await h.run(g2, 40, {})
+	h.near(rad_to_deg(U.wrap_angle(g2.cam.yaw - g2.player.yaw)), 0.0, 2.0, "部屋に入った直後に押しても背後へ回る")
+	h.free_game(g2)
 
 
 ## 適合のあと：対象がいないときにロックオンのボタンを押すと、カメラが背後へ回る（これまでどおり）。対象がいればロックオンする
@@ -321,6 +333,22 @@ func test_lock_button_recenters_after_fitting_without_target() -> void:
 	await h.run(g2, 2, {"lock_on": true})
 	h.expect(g2.lock_on.target != null, "対象がいればロックオンする")
 	h.free_game(g2)
+	# 部屋に入った直後（読み込み待ち）に押して離し、続けてヒットストップ（倒した手応え）が入っても、明けたら背後へ回る
+	var g3 := _new_game()
+	await h.settle()
+	g3.set_flag("ch1.got_spark")
+	g3.set_flag("ch1.frame_fitted")
+	g3.load_room("ch1.r04", "from_r03")
+	for t in g3.triggers:
+		t.fired = true
+	_kill_all(g3)
+	h.expect(g3.hitstop > 0.0, "倒した手応えの一時停止が入っている")
+	g3.cam.yaw = g3.player.yaw + PI / 2
+	await h.run(g3, 1, {"lock_on": true})
+	await h.run(g3, 40, {})
+	h.near(rad_to_deg(U.wrap_angle(g3.cam.yaw - g3.player.yaw)), 0.0, 2.0, "読み込み待ち・一時停止の間に押して離しても背後へ回る")
+	h.expect(g3.lock_on.target == null, "対象がいなければロックオンしない")
+	h.free_game(g3)
 
 
 ## 部屋の床（高さ floor_y）のうち、始まりの目印から歩いて行ける所（0.5m の升目。地形・壁・閉じた扉で区切る）
@@ -345,13 +373,8 @@ func _walkable_cells(g: GameSim, start: Vector3, floor_y: float, fits: Callable)
 	return seen
 
 
-## 撃つと入るスイッチ（訓練場の的・換気室の弁・弁の間の輪・駆動回廊の動力の球など、第 1 章の "mode": "shoot" 全部）は、
-## ふつうに立つ場所から、その方を向いて撃てば入る（カメラはわざと 90° 横へ向けておく。撃つ向きは体の向き）。
-## 立つ場所：部屋の床（始まりの目印と同じ高さ）の上で、スイッチから水平に 3・5・7・9・11m、16 方向。
-## 始まりの目印から歩いて行けて（閉じた扉の向こうは除く）、体が収まり（壁や箱に埋まらない）、
-## 胸からスイッチの中心まで視線が通り（地形にも、手前の別のスイッチにもさえぎられない）、射程の内にある所を全部試す。
-## 向きは真正面と ±8°（スティックで大まかに向けた程度）。部屋の敵は先に倒しておく（ふつうの順）
-func test_all_shoot_switches_hittable() -> void:
+## 第 1 章の撃つスイッチ（"mode": "shoot" 全部）の部屋：{ 部屋 id: [スイッチ id...] }
+func _ch1_shoot_switches() -> Dictionary:
 	var world := World.load_manifest("res://content/world.json")
 	var rooms := {}
 	for rid in world.rooms:
@@ -362,42 +385,76 @@ func test_all_shoot_switches_hittable() -> void:
 				if not rooms.has(rid):
 					rooms[rid] = []
 				rooms[rid].append(p.id)
+	return rooms
+
+
+## スイッチの部屋を読み込み、敵を倒しておく（ふつうの順）。町（訓練場）は練習銃、遺構はスパークを受け取った後
+func _shoot_switch_room(rid: String) -> GameSim:
+	var g := _new_game()
+	await h.settle()
+	if not rid.begins_with("ch1.training"):
+		g.set_flag("ch1.got_spark")
+	g.load_room(rid)
+	for t in g.triggers:
+		t.fired = true
+	await _pump(g, 6)
+	_kill_all(g)
+	await _pump(g, 6)
+	return g
+
+
+## 今の向きのまま撃って（カメラはわざと 90° 横）、スイッチが入るか
+func _shoot_switch_from_here(g: GameSim, sw: Props.Switch) -> bool:
+	sw.on = false
+	g.set_flag("switch." + sw.id, false)
+	g.player.gun_cooldown = 0.0
+	g.cam.yaw = g.player.yaw + PI / 2
+	await h.run(g, 1, {"fire": true})
+	return await h.run_until(g, 45, {}, func(): return sw.on)
+
+
+## 撃つと入るスイッチ（訓練場の的・換気室の弁・弁の間の輪・駆動回廊の動力の球など、第 1 章の "mode": "shoot" 全部）は、
+## ふつうに立つ場所から、その方を向いて撃てば入る（カメラはわざと 90° 横へ向けておく。撃つ向きは体の向き）。
+## 立つ場所：部屋の床（始まりの目印と同じ高さ）の上で、スイッチから水平に 1.1・1.3・1.6・2・3・5・7・9・11m、16 方向。
+## 始まりの目印から歩いて行けて（閉じた扉の向こうは除く）、体（ハルのカプセル）が収まる所に立たせ、立った位置で
+## 胸からスイッチの中心まで視線が通り（地形にも、手前の別のスイッチにもさえぎられない）、射程の内にある所を全部試す。
+## 台・箱・柱のすぐ脇（銃口が台にめり込む・銃口からだと柱の角に隠れる所）も入る。
+## 向きは真正面と ±8°（スティックで大まかに向けた程度）。部屋の敵は先に倒しておく
+func test_all_shoot_switches_hittable() -> void:
+	var rooms := _ch1_shoot_switches()
 	var n_switches := 0
 	for ids in rooms.values():
 		n_switches += ids.size()
 	h.expect(n_switches >= 8, "第 1 章の撃つスイッチ（%d 個：%s）" % [n_switches, rooms])
 	var mask := Phys.TERRAIN | Phys.BREAKABLE
 	for rid in rooms:
-		var g := _new_game()
-		await h.settle()
-		# 町（訓練場）は練習銃、遺構はスパークを受け取った後
-		if not String(rid).begins_with("ch1.training"):
-			g.set_flag("ch1.got_spark")
-		g.load_room(rid)
-		for t in g.triggers:
-			t.fired = true
-		await _pump(g, 6)
-		_kill_all(g)
-		await _pump(g, 6)
+		var g: GameSim = await _shoot_switch_room(rid)
 		var start: Vector3 = g.world.geometry(rid).markers[String(g.room.get("playerStart", "start"))].pos
 		var floor_y := start.y
 		var space := g.phys.get_world_3d().direct_space_state
 		var cap := CapsuleShape3D.new()
-		cap.radius = Player.RADIUS + 0.1
+		cap.radius = Player.RADIUS
 		cap.height = Player.HEIGHT
 		var cap_q := PhysicsShapeQueryParameters3D.new()
 		cap_q.shape = cap
 		cap_q.collision_mask = mask
-		# 体（ハルのカプセルより少し太く）が地形・壁・扉に埋まらない
+		# 体（ハルのカプセル）が地形・壁・扉に埋まらない
 		var fits := func(f: Vector3) -> bool:
 			cap_q.transform = Transform3D(Basis(), f + Vector3(0, Player.HEIGHT * 0.5 + 0.08, 0))
 			return space.intersect_shape(cap_q, 1).is_empty()
 		var walk := _walkable_cells(g, start, floor_y, fits)
 		var reach: float = g.gun_cfg().range - 0.5
+		# 胸から中心まで視線が通り、射程の内で、手前に別のスイッチ（弾が当たると入る）が重ならない（そちらに当たるのが正しい）
+		var sees := func(sw: Props.Switch, chest: Vector3) -> bool:
+			if chest.distance_to(sw.pos) > reach or Vector2(sw.pos.x - chest.x, sw.pos.z - chest.z).length() < 0.6:
+				return false
+			if not g.phys.raycast(chest, (sw.pos - chest).normalized(), chest.distance_to(sw.pos), mask).is_empty():
+				return false
+			return not g.switches.any(func(o): return o != sw and o.mode == "shoot" and U.segment_sphere(chest, sw.pos, o.pos, o.radius + 0.3) >= 0.0)
 		for sid in rooms[rid]:
 			var sw: Props.Switch = g.switch_by_id(sid)
 			var spots := []
-			for d in [3.0, 5.0, 7.0, 9.0, 11.0]:
+			for d in [1.1, 1.3, 1.6, 2.0, 3.0, 5.0, 7.0, 9.0, 11.0]:
 				for k in 16:
 					var a := k * TAU / 16.0
 					var top := Vector3(sw.pos.x + sin(a) * d, floor_y + 2.4, sw.pos.z + cos(a) * d)
@@ -407,31 +464,67 @@ func test_all_shoot_switches_hittable() -> void:
 					var f: Vector3 = down.point
 					if not fits.call(f) or not walk.get(Vector2i(roundi(f.x / 0.5), roundi(f.z / 0.5)), false) or g.exits.any(func(x): return x.contains(f)):
 						continue
-					var chest := f + Vector3(0, Player.CHEST, 0)
-					if chest.distance_to(sw.pos) > reach or not g.phys.raycast(chest, (sw.pos - chest).normalized(), chest.distance_to(sw.pos), mask).is_empty():
-						continue
-					# 別のスイッチ（弾が当たると入る）が手前に重なって見える所は除く（そちらに当たるのが正しい）
-					if g.switches.any(func(o): return o != sw and o.mode == "shoot" and U.segment_sphere(chest, sw.pos, o.pos, o.radius + 0.3) >= 0.0):
-						continue
-					spots.append(f)
-			h.expect(spots.size() >= 4, "%s：ふつうに立って狙える場所がある（%d か所）" % [sid, spots.size()])
+					if sees.call(sw, f + Vector3(0, Player.CHEST, 0)):
+						spots.append(f)
+			var tried := 0
+			var near := 0
 			var missed := []
 			for f in spots:
-				var face := U.dir_to_yaw(sw.pos.x - f.x, sw.pos.z - f.z)
 				for off in [0.0, 8.0, -8.0]:
-					sw.on = false
-					g.set_flag("switch." + sid, false)
-					g.player.teleport(f, face + off * U.DEG)
-					g.player.gun_cooldown = 0.0
+					g.player.teleport(f, U.dir_to_yaw(sw.pos.x - f.x, sw.pos.z - f.z) + off * U.DEG)
 					await h.run(g, 3, {})
+					var at := g.player.pos
 					if not g.player.grounded:
 						missed.append("%s %+.0f°（立てない）" % [f, off])
 						continue
-					g.cam.yaw = face + off * U.DEG + PI / 2
-					await h.run(g, 1, {"fire": true})
-					if not await h.run_until(g, 45, {}, func(): return sw.on):
-						missed.append("%s %+.0f°" % [f, off])
-			h.expect(missed.is_empty(), "%s：向いて撃てば入る（%d か所 × 3 向き。外れ：%s）" % [sid, spots.size(), missed])
+					# 立った位置（体が押し戻されたらそこ）で、まだ見えているか
+					if not sees.call(sw, g.player.chest()):
+						continue
+					g.player.yaw = U.dir_to_yaw(sw.pos.x - at.x, sw.pos.z - at.z) + off * U.DEG
+					tried += 1
+					if Vector2(sw.pos.x - at.x, sw.pos.z - at.z).length() < 2.5:
+						near += 1
+					if not await _shoot_switch_from_here(g, sw):
+						missed.append("%s %+.0f°" % [at, off])
+			h.expect(tried >= 12, "%s：ふつうに立って狙える場所がある（%d 回。うち 2.5m より近く %d 回）" % [sid, tried, near])
+			h.expect(missed.is_empty(), "%s：向いて撃てば入る（%d 回。外れ：%s）" % [sid, tried, missed])
+		h.free_game(g)
+
+
+## 台・箱・柱へまっすぐ歩いて寄って、止まった所でそのまま撃っても入る（銃口が台や箱にめり込む所。
+## 換気室の弁の台は背より高く、すぐ脇からは弁の中心が台の縁に隠れて、上の方だけ見える）
+func test_shoot_switches_after_walking_up() -> void:
+	# [部屋, スイッチ, 歩き始める所, 歩く向き（yaw 度）]
+	var cases := [
+		["ch1.training", "ch1.tg1", Vector3(-8, 0, 12), 0.0],
+		["ch1.training", "ch1.tg2", Vector3(0, 0, 14), 0.0],
+		["ch1.training", "ch1.tg3", Vector3(8, 0, 12), 0.0],
+		["ch1.r04", "ch1.r04.v1", Vector3(-7, 0, -2), 0.0],
+		["ch1.r04", "ch1.r04.v1", Vector3(-3, 0, 3), -90.0],
+		["ch1.r04", "ch1.r04.v1", Vector3(-7, 0, 7), 180.0],
+		["ch1.r04", "ch1.r04.v2", Vector3(7, 0, -2), 0.0],
+		["ch1.r04", "ch1.r04.v2", Vector3(3, 0, 3), 90.0],
+		["ch1.r04", "ch1.r04.v2", Vector3(7, 0, 7), 180.0],
+		["ch1.r10", "ch1.r10.valve", Vector3(-1.5, 0, -4), 0.0],
+		["ch1.r10", "ch1.r10.valve", Vector3(0, 0, -4), 0.0],
+		["ch1.r10", "ch1.r10.valve", Vector3(1, 0, -4), 0.0],
+	]
+	var games := {}
+	for c in cases:
+		if not games.has(c[0]):
+			games[c[0]] = await _shoot_switch_room(c[0])
+		var g: GameSim = games[c[0]]
+		var sw: Props.Switch = g.switch_by_id(c[1])
+		_warp(g, c[2], c[3] * U.DEG)
+		await h.run(g, 140, {"move_y": 1.0})
+		var before := g.player.pos
+		await h.run(g, 10, {"move_y": 1.0})
+		await h.run(g, 3, {})
+		var at := g.player.pos
+		var stopped := at.distance_to(before) < 0.05 and at.distance_to(c[2]) > 2.0
+		h.expect(stopped and g.player.grounded, "%s：%s から歩いて、台・箱・柱に当たって止まる（%s）" % [c[1], c[2], at])
+		h.expect(await _shoot_switch_from_here(g, sw), "%s：%s から歩いて寄り、止まった所（%s）でそのまま撃てば入る" % [c[1], c[2], at])
+	for g in games.values():
 		h.free_game(g)
 
 

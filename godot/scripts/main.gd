@@ -426,14 +426,15 @@ func arena_music() -> String:
 	return "bgm_boss" if arena_kind == "kannuki" else "bgm_trial"
 
 
+## 腕の構えの向き：今撃てば弾が行く向き（Player.aim_plan と同じ決まり。構えていない間は体の正面）
 func _aim_dir() -> Vector3:
 	var p := game.player
-	var t = game.lock_on.target
-	if t != null:
-		return (t.center() - p.chest()).normalized()
-	# ロックオンしていないときは体の正面へ撃つ（Player._fire）。上下は最後に撃った弾の角度
-	var up := clampf(p.shot_dir.y, -0.9, 0.9)
-	return U.yaw_to_dir(p.yaw) * sqrt(1.0 - up * up) + Vector3(0.0, up, 0.0)
+	if p.aiming <= 0.0:
+		return U.yaw_to_dir(p.yaw)
+	var plan: Dictionary = p.aim_plan()
+	if plan.aim_at == null:
+		return U.yaw_to_dir(plan.face)
+	return (plan.aim_at - p.chest()).normalized()
 
 
 func _handle_events() -> void:

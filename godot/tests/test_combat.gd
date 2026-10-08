@@ -159,6 +159,55 @@ func test_soft_aim_uses_body_facing() -> void:
 	h.free_game(g)
 
 
+## 弱い自動照準は敵が先：頭上高くの弁（体の真正面）より、少し横の正面の高さの敵を狙う。敵がいなくなれば弁を狙う
+func test_soft_aim_prefers_enemy_over_switch() -> void:
+	var g := h.make_game({
+		"markers": {"e1": Vector3(0.6, 0, 8)},
+		"placement": {
+			"enemies": [{"type": "sentry", "at": "e1", "passive": true}],
+			"props": [{"type": "switch", "id": "t.valve", "pos": [0, 5, 10], "mode": "shoot", "radius": 0.9}],
+		},
+	})
+	await h.settle()
+	g.god_mode = true
+	var e = g.enemies[0]
+	var sw: Props.Switch = g.switch_by_id("t.valve")
+	await h.run(g, 3, {})
+	g.player.yaw = 0.0
+	var sa := g.soft_aim(0.0)
+	h.expect(sa.get("target") == e, "体の正面の弁より、少し横（4°）の敵を狙う")
+	await h.run(g, 1, {"fire": true})
+	h.expect(await h.run_until(g, 30, {}, func(): return e.hp < e.max_hp), "敵に当たる")
+	h.expect(not sw.on, "弁は入らない")
+	g.damage_enemy(e, 99999.0, e.pos, {})
+	await h.run(g, 10, {})
+	g.player.yaw = 0.0
+	g.player.gun_cooldown = 0.0
+	await h.run(g, 1, {"fire": true})
+	h.expect(await h.run_until(g, 40, {}, func(): return sw.on), "敵がいなければ頭上の弁を狙って入れる")
+	h.free_game(g)
+
+
+## 銃口が箱にめり込むほど寄っていても（腰の高さの箱にくっついて立つ）、胸から見えるスイッチは撃てば入る（弾は胸から出る）
+func test_shot_from_chest_when_muzzle_blocked() -> void:
+	var g := h.make_game({
+		"boxes": [[Vector3(0, 0.6, 0.66), Vector3(4, 1.2, 0.6)]],
+		"placement": {"props": [{"type": "switch", "id": "t.sw", "pos": [0, 3.5, 6], "mode": "shoot", "radius": 0.7}]},
+	})
+	await h.settle()
+	g.god_mode = true
+	var sw: Props.Switch = g.switch_by_id("t.sw")
+	await h.run(g, 3, {})
+	g.player.yaw = 0.0
+	var p: Player = g.player
+	h.expect(not g.has_clear_shot(p.chest(), p.muzzle(0.0)), "銃口は箱の中（%s）" % p.muzzle(0.0))
+	h.expect(g.has_clear_shot(p.chest(), sw.pos), "胸からはスイッチが見える")
+	await h.run(g, 1, {"fire": true})
+	h.expect(g.shots.size() == 1 and g.shots[0].origin.is_equal_approx(p.chest()), "弾は胸から出る")
+	h.expect(await h.run_until(g, 40, {}, func(): return sw.on), "スイッチが入る")
+	h.free_game(g)
+
+
 ## ロックオン中は、体の向きやカメラに関係なく対象へ撃ち、弾は対象を追う
 func test_locked_shot_goes_to_target() -> void:
 	var g := h.make_game({

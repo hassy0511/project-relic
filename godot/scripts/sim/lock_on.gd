@@ -6,8 +6,6 @@ var game
 var target = null  # Enemy
 var _sight_lost := 0.0
 var _scan_time := 0.0
-## 前に update したときボタンが押されていたか（ヒットストップの間に押しても、押した瞬間として扱えるように）
-var _was_down := false
 ## 解析済みの敵の種類（弱点を表示できる）
 var scanned := {}
 ## この距離（m）より近い敵は、カメラの向きに関係なく候補にする（すぐ横・後ろの敵も捉えられるように）
@@ -22,22 +20,28 @@ func active() -> bool:
 	return target != null
 
 
-func update(dt: float) -> void:
+## pressed：ボタンを押した瞬間（GameSim が生の入力から拾い、読み込み待ち・ヒットストップの間の分も持ち越して渡す）
+func update(dt: float, pressed: bool) -> void:
 	var g = game
 	var input: InputFrame = g.input
 	var cfg: Dictionary = g.tuning.lockOn
+	# まだ使えない間（第 1 章の適合の前）：押した瞬間にカメラをハルの背後へ回すだけ（捉えない・対象を切り替えない）
+	if not g.has_ability("lock_on"):
+		release()
+		if pressed:
+			g.cam.request_recenter()
+		return
 	var down: bool = g.edges.down("lock_on")
-	var just := down and not _was_down
-	_was_down = down
+	if pressed:
+		# 押した瞬間：いちばんよい対象を捉える。誰もいなければカメラをハルの背後へ回す
+		target = _pick_best(null)
+		_scan_time = 0.0
+		if target == null:
+			g.cam.request_recenter()
 	if not down:
 		release()
 		return
-	if just:
-		# 押した瞬間：いちばんよい対象を捉える。誰もいなければカメラをハルの背後へ回す
-		target = _pick_best(null)
-		if target == null:
-			g.cam.request_recenter()
-	elif target == null:
+	if not pressed and target == null:
 		# 押し続けている間（タッチは入れている間）は、捉えられる敵が見えた刻みで捉える。
 		# （押した瞬間に誰もいない・対象が離れた・見えなくなったあとでも、押し直さずに捉え直す）
 		target = _pick_best(null)
