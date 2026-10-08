@@ -940,59 +940,72 @@ func visited_rooms() -> Array:
 
 ## 弱い自動照準の幅（度）：ハルの向き（体の正面）からこの角度以内なら狙いを合わせる
 const SOFT_AIM_DEG := 12.0
+## 弱い自動照準：水平にこれより近い点（真上・真下に近い）は向きが定まらないので狙わない
+const SOFT_AIM_MIN_HDIST := 0.5
 
 
 ## ロックオンしていないときの「弱い自動照準」。ハルの向き（facing：体の正面の yaw）から水平に SOFT_AIM_DEG 以内に中心があり、
-## 射程の中にいて、胸から視線が通る敵か、撃つと入るスイッチ（弁・動力の球・的）。
+## ふつうの弾が届いて、胸から狙う点のどれかが見える敵か、撃つと入るスイッチ（弁・動力の球・的）。
 ## 敵が先：敵がいなければスイッチ（頭上高くの弁が、正面の敵の弾を横取りしないように）。
 ## 同じ種類がいくつかあれば、体の正面から縁までの水平の角度がいちばん小さいもの
 ## （近くて大きい物ほど選ばれる。手前の的の奥に別の的があっても手前。上下は見ない：上下は自分では向けないので、ねらう物は水平の向きで決める）。
 ## 返り値：{ target: 敵かスイッチ, point: 狙う点（上下の角度もここへ合わせる） }。無ければ空。
-## 弾は胸か銃口から出る（Player.shot_origin）。胸から point が見えていれば、どちらから出ても point まで届く。
+## 選んだ物には、止まっていれば必ず当たる：狙う点は当たりの球の内側で、胸から見えていて、そこへまっすぐ飛ぶ弾が射程の内で球に入る。
+## 弾は胸か銃口から出る（Player.shot_origin）。銃口は胸より狙う点に近く、銃口から見えないときは胸から出る。
 ## （カメラの向きは見ない。撃つ向きは体の向き。2026-10-08 ユーザーの指示）
 func soft_aim(facing: float) -> Dictionary:
 	var chest := player.chest()
-	var reach: float = gun_cfg().range * 1.2
+	var reach: float = gun_cfg().range
 	var best := {}
 	var best_score := INF
-	for c in _soft_aim_candidates():
-		var center: Vector3 = c.points[0]
-		var to := center - chest
-		var dist := to.length()
-		if dist > reach:
+	for e in enemies:
+		if not e.alive:
 			continue
-		# 真上・真下に近い物は向きが定まらないので狙わない（水平に 0.5m 以上離れている物だけ）
-		if Vector2(to.x, to.z).length() < 0.5:
-			continue
-		var rel := absf(U.wrap_angle(U.dir_to_yaw(to.x, to.z) - facing))
-		if rel >= SOFT_AIM_DEG * U.DEG:
-			continue
-		# 敵は 0、スイッチは 1 周分を足して、種類の順を先に比べる
-		var score: float = rel - asin(minf(1.0, float(c.radius) / maxf(dist, 0.01))) + (0.0 if c.enemy else TAU)
-		if score >= best_score:
-			continue
-		# 中心が隠れていても、上の方（敵の頭・スイッチの球の上側）が見えていれば、そこを狙う
-		for p in c.points:
-			if has_clear_shot(chest, p):
+		var score := _soft_aim_score(chest, facing, reach, e.center(), e.radius)
+		if score < best_score:
+			var p = _soft_aim_point(chest, reach, e.center(), e.radius, e.aim_points())
+			if p != null:
 				best_score = score
-				best = {"target": c.target, "point": p}
-				break
+				best = {"target": e, "point": p}
+	if not best.is_empty():
+		return best
+	for sw in switches:
+		if sw.mode != "shoot":
+			continue
+		var score := _soft_aim_score(chest, facing, reach, sw.pos, sw.radius)
+		if score < best_score and shootable(sw):
+			var p = _soft_aim_point(chest, reach, sw.pos, sw.radius, sw.aim_points(chest))
+			if p != null:
+				best_score = score
+				best = {"target": sw, "point": p}
 	return best
 
 
-## 弱い自動照準の候補：生きている敵と、撃つと入るスイッチ。
-## { target, enemy: 敵か, radius: 大きさ（当たりの半径）, points: 狙う点（先頭が中心。中心が隠れているときに順に試す上の方の点） }
-func _soft_aim_candidates() -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	for e in enemies:
-		if e.alive:
-			out.append({"target": e, "enemy": true, "radius": e.radius, "points": [e.center(), e.pos + Vector3(0, e.height * 0.9, 0)]})
-	for sw in switches:
-		if shootable(sw):
-			# 台・箱のすぐ脇から見上げると中心は台の縁に隠れる。球の上側（当たりの球の内側）なら見える
-			var up := Vector3(0, sw.radius, 0)
-			out.append({"target": sw, "enemy": false, "radius": sw.radius, "points": [sw.pos, sw.pos + up * 0.5, sw.pos + up * 0.9]})
-	return out
+## 弱い自動照準の候補の点数（小さいほどよい）：体の正面から縁までの水平の角度。
+## 幅の外・届かない（中心までの距離 − 半径が射程より遠い）・真上か真下に近いものは INF
+func _soft_aim_score(chest: Vector3, facing: float, reach: float, center: Vector3, radius: float) -> float:
+	var to := center - chest
+	var dist := to.length()
+	if dist - radius > reach or Vector2(to.x, to.z).length() < SOFT_AIM_MIN_HDIST:
+		return INF
+	var rel := absf(U.wrap_angle(U.dir_to_yaw(to.x, to.z) - facing))
+	if rel >= SOFT_AIM_DEG * U.DEG:
+		return INF
+	return rel - asin(minf(1.0, radius / maxf(dist, 0.01)))
+
+
+## 狙う点（points：中心から順に）のうち、胸から見えていて、そこへまっすぐ撃てば射程の内で当たりの球（center・radius）に入る最初の点。
+## 無ければ null。
+## 点 p を中心に半径 radius − |p − center| の球は当たりの球の内側なので、p へ向けた弾は遅くとも |p − 胸| − その半径 進めば入る
+func _soft_aim_point(chest: Vector3, reach: float, center: Vector3, radius: float, points: PackedVector3Array) -> Variant:
+	for p in points:
+		var to := p - chest
+		var inner := radius - p.distance_to(center)
+		if inner <= 0.0 or Vector2(to.x, to.z).length() < SOFT_AIM_MIN_HDIST or to.length() - inner > reach:
+			continue
+		if has_clear_shot(chest, p):
+			return p
+	return null
 
 
 ## 今、弾が当たると入るスイッチか（撃つスイッチで、条件が満ちていて、まだ入っていない。切り替え式は何度でも）。

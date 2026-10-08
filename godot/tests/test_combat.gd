@@ -188,6 +188,41 @@ func test_soft_aim_prefers_enemy_over_switch() -> void:
 	h.free_game(g)
 
 
+## 弱い自動照準は弾の届く物だけ：射程の外の敵（射程の 1.2 倍の内でも）は、手前の射程の内のスイッチから狙いを取らない。
+## 射程の内の敵なら、スイッチより先に狙って当てる
+func test_soft_aim_only_within_shot_range() -> void:
+	for z in [15.5, 12.5]:
+		var g := h.make_game({
+			"markers": {"e1": Vector3(0.5, 0, z)},
+			"placement": {
+				"enemies": [{"type": "sentry", "at": "e1", "passive": true}],
+				"props": [{"type": "switch", "id": "t.sw", "pos": [0.6, 2.4, 5], "mode": "shoot", "radius": 0.6}],
+			},
+		})
+		await h.settle()
+		g.god_mode = true
+		g.set_flag("ch1.got_spark")
+		var e = g.enemies[0]
+		var sw: Props.Switch = g.switch_by_id("t.sw")
+		await h.run(g, 3, {})
+		g.player.yaw = 0.0
+		var reach: float = g.gun_cfg().range
+		var gap: float = e.center().distance_to(g.player.chest()) - e.radius
+		var out_of_reach: bool = z > 14.0
+		h.expect((gap > reach) == out_of_reach and gap < reach * 1.2, "敵の縁まで %.1fm（射程 %.0fm）" % [gap, reach])
+		var sa := g.soft_aim(0.0)
+		h.expect(sa.get("target") == (sw if out_of_reach else e), "%.1fm 先の敵：%s" % [z, "射程の外なので手前のスイッチを狙う" if out_of_reach else "射程の内なのでスイッチより先に狙う"])
+		await h.run(g, 1, {"fire": true})
+		if out_of_reach:
+			h.expect(await h.run_until(g, 40, {}, func(): return sw.on), "スイッチが入る")
+			await h.run(g, 40, {})
+			h.expect(e.hp == e.max_hp, "射程の外の敵には当たらない")
+		else:
+			h.expect(await h.run_until(g, 40, {}, func(): return e.hp < e.max_hp), "射程の内の敵に当たる")
+			h.expect(not sw.on, "スイッチは入らない")
+		h.free_game(g)
+
+
 ## 銃口が箱にめり込むほど寄っていても（腰の高さの箱にくっついて立つ）、胸から見えるスイッチは撃てば入る（弾は胸から出る）
 func test_shot_from_chest_when_muzzle_blocked() -> void:
 	var g := h.make_game({

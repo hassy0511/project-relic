@@ -211,6 +211,25 @@ class Switch:
 	func enabled() -> bool:
 		return mode == "interact" and (toggle or not on)
 
+	## 撃つときに狙う点（GameSim.soft_aim が順に試す。どれも当たりの球の内側）：
+	## 中心、球の上側（背より高い台・箱のすぐ脇から見上げると、中心は縁に隠れる）、
+	## from から見た球の面（視線に直交する円）の半径の 0.6 倍の 8 方向（扉・箱・柱の縁から、球の一部だけ見えているとき）、手前
+	func aim_points(from: Vector3) -> PackedVector3Array:
+		var up := Vector3(0.0, radius, 0.0)
+		var out := PackedVector3Array([pos, pos + up * 0.5, pos + up * 0.9])
+		var to := pos - from
+		if to.length() < 0.01:
+			return out
+		var fwd := to.normalized()
+		var side := Vector3(-fwd.z, 0.0, fwd.x)
+		side = side.normalized() if side.length() > 0.01 else Vector3.RIGHT
+		var lift := side.cross(fwd)
+		for i in 8:
+			var a := i * TAU / 8.0
+			out.append(pos + (side * cos(a) + lift * sin(a)) * radius * 0.6)
+		out.append(pos - fwd * radius * 0.6)
+		return out
+
 
 ## 動く足場・ピストン・リフト。from→to を往復する。
 ## toggle：cond が真なら to、偽なら from へ／pingpong：cond が真の間ずっと往復／ride：上に乗ると to へ、降りると from へ

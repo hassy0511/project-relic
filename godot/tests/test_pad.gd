@@ -250,6 +250,36 @@ func test_help_and_hint_follow_mapping() -> void:
 	_end()
 
 
+## 案内（キーボード）はキーの名前を書き込まず {fire} などで書く：キーの割り当てを変えると、変えたキーの名前が出る
+## （マウスのボタン（撃つ＝左クリック・ロックオン＝右クリック）と移動の WASD は変えられないので、そのまま書いてよい）
+func test_keyboard_hints_follow_key_mapping() -> void:
+	_begin()
+	PadConfig.assign_key("fire", KEY_H)
+	var kb := []
+	for path in ["res://content/events/ch1_town.json", "res://content/events/ch1_ruins.json", "res://content/events/mvp.json", "res://content/events/sample.json"]:
+		_collect_kb_hints(JSON.parse_string(FileAccess.get_file_as_string(path)), kb)
+	h.expect(kb.size() >= 10, "第 1 章の案内（キーボード）を集める（%d 件）" % kb.size())
+	# 変えられる操作の初期のキー（C E F J K Q R・Space・Shift・Tab・Escape）を、名前で書いている案内
+	var re := RegEx.create_from_string("(?<![A-Za-z])([CEFJKQR]|Space|Shift|Tab|Escape)(?![A-Za-z])")
+	var bad := kb.filter(func(t): return re.search(t) != null)
+	h.expect(bad.is_empty(), "案内にキーの名前を書き込まない（%s）" % [bad])
+	var valve: Array = kb.filter(func(t): return String(t).contains("弁の球の方を向いて"))
+	h.expect(valve.size() == 1 and Hud.expand_hint(valve[0], "keyboard").contains("H（左クリック）で撃とう"), "撃つキーを H に変えると、換気室の案内も H になる")
+	_end()
+
+
+func _collect_kb_hints(v, out: Array) -> void:
+	if v is Dictionary:
+		for k in v:
+			if k == "kb" and v[k] is String:
+				out.append(v[k])
+			else:
+				_collect_kb_hints(v[k], out)
+	elif v is Array:
+		for x in v:
+			_collect_kb_hints(x, out)
+
+
 func test_style_deadzone_and_preset() -> void:
 	_begin()
 	h.expect(PadConfig.code_short("b0") == "A" and PadConfig.code_short("a5+") == "RT", "表記の初期は Xbox（A、RT）")

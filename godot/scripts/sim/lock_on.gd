@@ -152,15 +152,12 @@ func _pick_side(side: int):
 	return best
 
 
-## 視線が通っているか：敵の中心か頭のどちらかが見えればよい（低い壁・柱の陰から体の一部が見えている敵も捉える）
+## 視線が通っているか：敵の狙う点（中心か頭。Enemy.aim_points）のどれかが胸から見えればよい
+## （低い壁・柱の陰から体の一部が見えている敵も捉える。弱い自動照準と同じ点・同じ判定）
 func _has_line_of_sight(e) -> bool:
 	var g = game
 	var from: Vector3 = g.player.chest()
-	for to in [e.center(), e.pos + Vector3(0, e.height * 0.9, 0)]:
-		var d: Vector3 = to - from
-		var l := d.length()
-		if l < 0.01:
-			return true
-		if g.phys.raycast(from, d / l, l, Phys.TERRAIN | Phys.BREAKABLE).is_empty():
+	for p in e.aim_points():
+		if g.has_clear_shot(from, p):
 			return true
 	return false

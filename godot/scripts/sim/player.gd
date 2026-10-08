@@ -455,7 +455,8 @@ func muzzle(face: float) -> Vector3:
 
 
 ## 弾の出る位置：ふつうは銃口。銃口が壁・箱・台にめり込むとき、または銃口からだと狙う点（aim_at）が柱の角などに隠れるときは胸から。
-## （GameSim.soft_aim は胸から見える点だけを選ぶので、狙いを合わせた物には必ず届く）
+## （GameSim.soft_aim は胸から見えて射程の内の点だけを選ぶ。face が狙う点の方を向いていれば、銃口は胸より狙う点に近い。
+## なので、狙いを合わせた物には、どちらから出ても必ず届く）
 func shot_origin(face: float, aim_at = null) -> Vector3:
 	var g = game
 	var c := chest()

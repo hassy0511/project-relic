@@ -57,6 +57,12 @@ func center() -> Vector3:
 	return Vector3(pos.x, pos.y + height * 0.5, pos.z)
 
 
+## 狙う点：中心と頭の近く（中心が低い壁・柱の陰でも、頭が見えていれば捉えて撃てる）。
+## ロックオンの視線（LockOn）と弱い自動照準（GameSim.soft_aim）が使う。どちらの点も当たりの球の内側
+func aim_points() -> PackedVector3Array:
+	return PackedVector3Array([center(), Vector3(pos.x, pos.y + height * 0.9, pos.z)])
+
+
 ## 弾が当たるか（球で近似。大きな敵は上書きする）。線分 a→b の上の位置 t（0〜1）、当たらなければ -1
 func hit_segment(a: Vector3, b: Vector3, r: float) -> float:
 	return U.segment_sphere(a, b, center(), radius + r)

@@ -417,8 +417,9 @@ func _shoot_switch_from_here(g: GameSim, sw: Props.Switch) -> bool:
 ## ふつうに立つ場所から、その方を向いて撃てば入る（カメラはわざと 90° 横へ向けておく。撃つ向きは体の向き）。
 ## 立つ場所：部屋の床（始まりの目印と同じ高さ）の上で、スイッチから水平に 1.1・1.3・1.6・2・3・5・7・9・11m、16 方向。
 ## 始まりの目印から歩いて行けて（閉じた扉の向こうは除く）、体（ハルのカプセル）が収まる所に立たせ、立った位置で
-## 胸からスイッチの中心まで視線が通り（地形にも、手前の別のスイッチにもさえぎられない）、射程の内にある所を全部試す。
-## 台・箱・柱のすぐ脇（銃口が台にめり込む・銃口からだと柱の角に隠れる所）も入る。
+## 胸からスイッチの球のどこか（中心か、中心から半径の 0.6 倍だけ上下・東西・南北の点）まで視線が通り（地形にさえぎられない。
+## 手前に別のスイッチが重なる所は除く）、射程の内にある所を全部試す。
+## 台・箱・柱のすぐ脇（銃口が台にめり込む・銃口からだと柱の角に隠れる所）や、扉・箱の縁から球の一部だけ見える所も入る。
 ## 向きは真正面と ±8°（スティックで大まかに向けた程度）。部屋の敵は先に倒しておく
 func test_all_shoot_switches_hittable() -> void:
 	var rooms := _ch1_shoot_switches()
@@ -444,13 +445,19 @@ func test_all_shoot_switches_hittable() -> void:
 			return space.intersect_shape(cap_q, 1).is_empty()
 		var walk := _walkable_cells(g, start, floor_y, fits)
 		var reach: float = g.gun_cfg().range - 0.5
-		# 胸から中心まで視線が通り、射程の内で、手前に別のスイッチ（弾が当たると入る）が重ならない（そちらに当たるのが正しい）
-		var sees := func(sw: Props.Switch, chest: Vector3) -> bool:
+		# 射程の内で、手前に別のスイッチ（弾が当たると入る）が重ならず（そちらに当たるのが正しい）、
+		# 胸から球のどこか（中心か、中心から半径の 0.6 倍だけ上下・東西・南北の点。自動照準の狙う点とは別に決めた点）まで視線が通る。
+		# 返り値：0＝見えない、1＝中心が見える、2＝中心は隠れていて一部だけ見える
+		var sees := func(sw: Props.Switch, chest: Vector3) -> int:
 			if chest.distance_to(sw.pos) > reach or Vector2(sw.pos.x - chest.x, sw.pos.z - chest.z).length() < 0.6:
-				return false
-			if not g.phys.raycast(chest, (sw.pos - chest).normalized(), chest.distance_to(sw.pos), mask).is_empty():
-				return false
-			return not g.switches.any(func(o): return o != sw and o.mode == "shoot" and U.segment_sphere(chest, sw.pos, o.pos, o.radius + 0.3) >= 0.0)
+				return 0
+			if g.switches.any(func(o): return o != sw and o.mode == "shoot" and U.segment_sphere(chest, sw.pos, o.pos, o.radius + 0.3) >= 0.0):
+				return 0
+			for o in [Vector3.ZERO, Vector3.UP, Vector3.DOWN, Vector3.LEFT, Vector3.RIGHT, Vector3.FORWARD, Vector3.BACK]:
+				var q: Vector3 = sw.pos + o * sw.radius * 0.6
+				if g.phys.raycast(chest, (q - chest).normalized(), chest.distance_to(q), mask).is_empty():
+					return 1 if o == Vector3.ZERO else 2
+			return 0
 		for sid in rooms[rid]:
 			var sw: Props.Switch = g.switch_by_id(sid)
 			var spots := []
@@ -464,29 +471,36 @@ func test_all_shoot_switches_hittable() -> void:
 					var f: Vector3 = down.point
 					if not fits.call(f) or not walk.get(Vector2i(roundi(f.x / 0.5), roundi(f.z / 0.5)), false) or g.exits.any(func(x): return x.contains(f)):
 						continue
-					if sees.call(sw, f + Vector3(0, Player.CHEST, 0)):
+					if sees.call(sw, f + Vector3(0, Player.CHEST, 0)) > 0:
 						spots.append(f)
 			var tried := 0
 			var near := 0
+			var partly := 0
 			var missed := []
 			for f in spots:
+				g.player.teleport(f, U.dir_to_yaw(sw.pos.x - f.x, sw.pos.z - f.z))
+				await h.run(g, 3, {})
+				var at := g.player.pos
+				if not g.player.grounded:
+					missed.append("%s（立てない）" % f)
+					continue
+				# 立った位置（体が押し戻されたらそこ）で、まだ見えているか
+				var vis: int = sees.call(sw, g.player.chest())
+				if vis == 0:
+					continue
 				for off in [0.0, 8.0, -8.0]:
-					g.player.teleport(f, U.dir_to_yaw(sw.pos.x - f.x, sw.pos.z - f.z) + off * U.DEG)
-					await h.run(g, 3, {})
-					var at := g.player.pos
-					if not g.player.grounded:
-						missed.append("%s %+.0f°（立てない）" % [f, off])
-						continue
-					# 立った位置（体が押し戻されたらそこ）で、まだ見えているか
-					if not sees.call(sw, g.player.chest()):
-						continue
 					g.player.yaw = U.dir_to_yaw(sw.pos.x - at.x, sw.pos.z - at.z) + off * U.DEG
 					tried += 1
 					if Vector2(sw.pos.x - at.x, sw.pos.z - at.z).length() < 2.5:
 						near += 1
+					if vis == 2:
+						partly += 1
 					if not await _shoot_switch_from_here(g, sw):
-						missed.append("%s %+.0f°" % [at, off])
-			h.expect(tried >= 12, "%s：ふつうに立って狙える場所がある（%d 回。うち 2.5m より近く %d 回）" % [sid, tried, near])
+						missed.append("%s %+.0f°%s" % [at, off, "（一部だけ見える）" if vis == 2 else ""])
+					if g.player.pos.distance_to(at) > 0.05:
+						missed.append("%s %+.0f°（撃ったあと動いた：%s）" % [at, off, g.player.pos])
+						break
+			h.expect(tried >= 12, "%s：ふつうに立って狙える場所がある（%d 回。うち 2.5m より近く %d 回、一部だけ見える所 %d 回）" % [sid, tried, near, partly])
 			h.expect(missed.is_empty(), "%s：向いて撃てば入る（%d 回。外れ：%s）" % [sid, tried, missed])
 		h.free_game(g)
 
@@ -524,6 +538,34 @@ func test_shoot_switches_after_walking_up() -> void:
 		var stopped := at.distance_to(before) < 0.05 and at.distance_to(c[2]) > 2.0
 		h.expect(stopped and g.player.grounded, "%s：%s から歩いて、台・箱・柱に当たって止まる（%s）" % [c[1], c[2], at])
 		h.expect(await _shoot_switch_from_here(g, sw), "%s：%s から歩いて寄り、止まった所（%s）でそのまま撃てば入る" % [c[1], c[2], at])
+	for g in games.values():
+		h.free_game(g)
+
+
+## 球の一部だけ見えるスイッチ（中心は箱・台・閉じた扉の縁に隠れて、横・手前・上の方だけ見える）も、その方を向いて撃てば入る
+func test_shoot_partly_hidden_switches() -> void:
+	# [部屋, スイッチ, 立つ所]
+	var cases := [
+		["ch1.r04", "ch1.r04.v2", Vector3(2, 0, -4)],
+		["ch1.r04", "ch1.r04.v2", Vector3(0, 0, -7)],
+		["ch1.r04", "ch1.r04.v1", Vector3(-4, 0, -6)],
+		["ch1.r10", "ch1.r10.valve", Vector3(9, 0, 6.6)],
+	]
+	var games := {}
+	for c in cases:
+		if not games.has(c[0]):
+			games[c[0]] = await _shoot_switch_room(c[0])
+		var g: GameSim = games[c[0]]
+		var sw: Props.Switch = g.switch_by_id(c[1])
+		var f: Vector3 = c[2]
+		_warp(g, f, U.dir_to_yaw(sw.pos.x - f.x, sw.pos.z - f.z))
+		sw.on = false
+		g.set_flag("switch." + sw.id, false)
+		await h.run(g, 4, {})
+		var chest := g.player.chest()
+		h.expect(g.player.grounded and not g.has_clear_shot(chest, sw.pos), "%s：%s から中心は隠れている" % [c[1], f])
+		h.expect(not g.soft_aim(g.player.yaw).is_empty(), "%s：%s から一部が見えるので狙いが合う" % [c[1], f])
+		h.expect(await _shoot_switch_from_here(g, sw), "%s：%s から撃てば入る" % [c[1], f])
 	for g in games.values():
 		h.free_game(g)
 
