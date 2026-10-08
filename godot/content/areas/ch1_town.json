@@ -1756,7 +1756,7 @@
      "tint": "#8d8f94",
      "skin": {
       "floor": "floor",
-      "wall": "stone2"
+      "wall": "riser"
      }
     },
     {
@@ -1889,7 +1889,7 @@
      "tint": "#8d8f94",
      "skin": {
       "floor": "floor",
-      "wall": "stone2"
+      "wall": "riser"
      }
     },
     {
@@ -2659,6 +2659,14 @@
      ]
     },
     {
+     "part": "town/stair_treads_16",
+     "pos": [
+      0.0,
+      0.0,
+      22.0
+     ]
+    },
+    {
      "part": "town/planter",
      "pos": [
       -5.4,
@@ -3085,6 +3093,14 @@
      ]
     },
     {
+     "part": "town/stair_treads_16",
+     "pos": [
+      0.0,
+      -5.0,
+      -20.0
+     ]
+    },
+    {
      "part": "town/stair_well_s",
      "pos": [
       0.0,
@@ -3142,7 +3158,7 @@
      "pos": [
       0.0,
       -5.02,
-      -35.5
+      -35.35
      ],
      "shadow": false
     },
@@ -3177,7 +3193,7 @@
     {
      "part": "town/lower_block_a",
      "pos": [
-      15.5,
+      16.0,
       -5.02,
       -23.0
      ],

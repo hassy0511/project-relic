@@ -22,7 +22,9 @@
   "wood": {"albedo": "res://assets/kit/tex/town_wood.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.85},
   "rust": {"albedo": "res://assets/kit/tex/town_rust.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.7, "metallic": 0.2},
   "canvas": {"albedo": "res://assets/kit/tex/town_canvas.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.95},
-  "stone2": {"color": "#d3c6ac", "roughness": 0.85},
+  "stone2": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 4.0, "color": "#e3dfd4", "roughness": 0.85, "macro": 0.3},
+  "riser": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 4.0, "color": "#e3dfd4", "roughness": 0.85, "macro": 0.3,
+            "seams": {"every": [2.0, 0.3125], "width": 0.06, "color": "#57534c"}},
   "graphite": {"color": "#444641", "roughness": 0.6, "metallic": 0.3}
  },
  "materials": {

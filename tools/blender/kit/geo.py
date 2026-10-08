@@ -222,8 +222,12 @@ def rot_z(deg):
 
 
 def to_blender(part: Part):
-    """部品を 1 つの Blender の物体にする（材質ごとの面、平面投影の UV（m）、管・球だけなめらか）"""
+    """部品を 1 つの Blender の物体にする（材質ごとの面、平面投影の UV（m）、管・球だけなめらか）。
+    先に、同じ平面で重なった同じ向きの面（材質の違うもの）をほどく（check_coplanar.separate：小さい方の面を 1.5 cm 外へ）"""
     import bpy
+
+    import check_coplanar
+    check_coplanar.separate_ruins(part)
     names = []
     for m, *_ in part.pieces:
         if m not in names:

@@ -328,8 +328,12 @@ def blender_material(name: str):
 
 
 def to_object(part: Part):
-    """部品を Blender の物体 1 つにする。平らな色は頂点の色（GROUP）、UV は面の向きの平面投影（m）"""
+    """部品を Blender の物体 1 つにする。平らな色は頂点の色（GROUP）、UV は面の向きの平面投影（m）。
+    先に、同じ平面で重なった同じ向きの面（材質の違うもの）をほどく（check_coplanar.separate：小さい方の面を 1.5 cm 外へ）"""
     import bpy
+
+    import check_coplanar
+    check_coplanar.separate_town(part)
     verts, faces, mats, smooth, cols = [], [], [], [], []
     groups = sorted({GROUP.get(m, m) for m in part.by_mat})
     off = 0

@@ -51,15 +51,22 @@ def lantern(p: Part, x, y, z, s=1.0):
 
 
 def pipe_run(p: Part, a, b, r=0.12, collars=1.0):
-    """黒鉛の管＋真鍮の継ぎ輪（collars m ごと）"""
+    """黒鉛の管＋真鍮の継ぎ輪（collars m ごと）。両端の継ぎ輪は管の端より 2 cm 外へ出して管の口をふさぐ
+    （前は継ぎ輪のふたと管のふたが同じ面にあり、端がまだらにちらついた。管にはふたを付けない）"""
     a, b = np.asarray(a, float), np.asarray(b, float)
-    p.add('graphite', cyl(a, b, r, 10))
+    p.add('graphite', cyl(a, b, r, 10, cap=False))
     L = float(np.linalg.norm(b - a))
     n = max(1, int(L / collars))
     d = (b - a) / L
     for k in range(n + 1):
-        c = a + d * min(L - 0.06, max(0.06, k * L / n))
-        p.add('brass', cyl(c - d * 0.06, c + d * 0.06, r * 1.25, 10))
+        t = k * L / n
+        if k == 0:
+            p.add('brass', cyl(a - d * 0.02, a + d * 0.1, r * 1.25, 10))
+        elif k == n:
+            p.add('brass', cyl(b - d * 0.1, b + d * 0.02, r * 1.25, 10))
+        else:
+            c = a + d * t
+            p.add('brass', cyl(c - d * 0.06, c + d * 0.06, r * 1.25, 10))
 
 
 # ---------------------------------------------------------------- 建物キット（town_kit_walls_*）

@@ -14,6 +14,7 @@
   monument           広場の中央の台（3.2 m 角）の下の中心
   stage_8x3          広場の奥の壇（8×0.8×3）の下の中心
   stair_rail_12      階段の横の壁に付く手すり。原点 = 下の段の床・壁の面。+Z へ 12 m で 5 m 上がる
+  stair_treads_16    階段（当たり判定の stairs 8×5×12・16 段）の踏み段の縁。原点 = stairs の pos（底の中心）。+Z が上り
   lower_block_*      下の段の家並み（town_terrace.py）。床の中心
 """
 from __future__ import annotations
@@ -137,7 +138,8 @@ def goods_junk(w=7.0) -> Part:
             p.add('amber', cyl((x + 0.15, 0.36, 0), (x + 0.15, 0.4, 0), 0.03, 6))
             x += 0.5
         k += 1
-    p.add('linen', boxb(-w / 2 + 0.05, w / 2 - 0.05, -0.01, 0.005, -0.4, 0.4))
+    # 台の上の布：台の上の面（y=0）より 2 cm 上、前後の面より 2 cm 外（台の箱の面と重ならない）
+    p.add('linen', boxb(-w / 2 + 0.05, w / 2 - 0.05, -0.005, 0.02, -0.42, 0.42))
     return p
 
 
@@ -181,8 +183,10 @@ def parapet_rail(w=8.0) -> Part:
         p.add('brass', cyl((x, 0.6, 0), (x, 0.68, 0), 0.055, 8))
     p.add('brass', cyl((-w / 2 + 0.05, 0.62, 0), (w / 2 - 0.05, 0.62, 0), 0.045, 8, cap=False))
     p.add('graphite', cyl((-w / 2 + 0.05, 0.34, 0), (w / 2 - 0.05, 0.34, 0), 0.028, 6, cap=False))
-    # 笠木（胸壁の上の縁、黒鉛）
-    p.add('graphite', boxb(-w / 2, w / 2, -0.02, 0.0, -0.52, 0.52))
+    # 笠木（胸壁の上の両側の縁、黒鉛の細い帯）。胸壁の箱の上の面（y=0）より 2 cm 上へ出す。前は上の面いっぱいの板で、
+    # 箱の上の面と同じ高さにあって重なってちらついた（見る向きで白と黒鉛がまだらに入れ替わった）。真ん中は箱の上の面（白磁の床）が見える
+    for z0, z1 in ((-0.52, -0.36), (0.36, 0.52)):
+        p.add('graphite', boxb(-w / 2, w / 2, -0.04, 0.02, z0, z1))
     return p
 
 
@@ -246,11 +250,13 @@ def workshop_front() -> Part:
     for sx in (-1, 1):
         cx = sx * 4.3
         for x in (cx - 2.6, cx + 2.6, cx):
-            p.add('graphite', boxb(x - 0.1, x + 0.1, 0, 7.0, 0, 0.12))
+            # 外の端の柱は棟の横の面（x = ±7.0）より 2 cm 外へ（横の面と同じ所だと重なってちらついた）
+            out = 0.02 if abs(x) > 6.5 else 0.0
+            p.add('graphite', boxb(x - 0.1 - (out if x < 0 else 0), x + 0.1 + (out if x > 0 else 0), 0, 7.0, 0, 0.12))
             for y in (0.08, 3.4, 6.6):
                 p.add('brass', boxb(x - 0.13, x + 0.13, y, y + 0.22, 0, 0.15))
-        p.add('graphite', boxb(cx - 2.7, cx + 2.7, 3.45, 3.55, 0, 0.1))
-        p.add('wood', boxb(cx - 2.7, cx + 2.7, 0, 0.45, 0, 0.06))
+        p.add('graphite', boxb(cx - 2.7 - (0.03 if sx < 0 else 0), cx + 2.7 + (0.03 if sx > 0 else 0), 3.45, 3.55, 0, 0.1))
+        p.add('wood', boxb(cx - 2.7 - (0.03 if sx < 0 else 0), cx + 2.7 + (0.03 if sx > 0 else 0), 0, 0.45, 0, 0.06))
         _window(p, cx - 1.2 * sx, 1.1, 0.05)
         _window(p, cx + 1.3 * sx, 4.5, 0.05)
         p.place(P.tool_rack(), (cx + 1.25 * sx, 0, 0.12))
@@ -294,11 +300,13 @@ def diner_front() -> Part:
     """食堂の正面（10 m 幅・高さ 5.5 m の棟、前に配膳台）：大きな配膳の窓、赤い日よけ、吊り灯、献立の板"""
     p = Part('diner_front')
     for x in (-4.9, -1.75, 1.75, 4.9):
-        p.add('graphite', boxb(x - 0.1, x + 0.1, 0, 5.5, 0, 0.12))
+        # 両端の柱は棟の横の面（x = ±5）より 2 cm 外へ（横の面と同じ所だと重なってちらついた）
+        out = 0.02 if abs(x) > 4.5 else 0.0
+        p.add('graphite', boxb(x - 0.1 - (out if x < 0 else 0), x + 0.1 + (out if x > 0 else 0), 0, 5.5, 0, 0.12))
         for y in (0.08, 2.6, 5.1):
             p.add('brass', boxb(x - 0.13, x + 0.13, y, y + 0.22, 0, 0.15))
-    p.add('wood', boxb(-5, 5, 0, 0.4, 0, 0.06))
-    p.add('graphite', boxb(-5, 5, 5.35, 5.5, 0, 0.2))
+    p.add('wood', boxb(-5.03, 5.03, 0, 0.4, 0, 0.06))
+    p.add('graphite', boxb(-5.03, 5.03, 5.35, 5.5, 0, 0.2))
     # 配膳の窓（暗い奥・木の枠・明かり）
     p.add('dark', boxb(-1.65, 1.65, 1.1, 2.6, 0, 0.02))
     p.add('wood', boxb(-1.75, 1.75, 1.0, 1.1, 0, 0.25), boxb(-1.75, 1.75, 2.6, 2.75, 0, 0.12),
@@ -411,6 +419,15 @@ def stage(w=8.0, d=3.0, h=0.8) -> Part:
     p.add('wood', boxb(-w / 2 + 0.1, w / 2 - 0.1, h, h + 0.04, -d / 2 + 0.1, d / 2 - 0.1))
     for x in np.arange(-w / 2 + 2, w / 2, 2.0):
         p.add('graphite', boxb(x - 0.08, x + 0.08, 0, h, -d / 2 - 0.04, -d / 2))
+    # 正面と両横の足元の黒鉛の帯（幅木）と、板の間の真鍮の留め板。前は低いカメラから見ると、正面が模様の無い一枚の面だった
+    # （広場の床の板 0.08 m に下が埋まるので、帯は 0.2 m まで）
+    p.add('graphite', boxb(-w / 2 + 0.12, w / 2 - 0.12, 0, 0.2, -d / 2 - 0.025, -d / 2 + 0.1))
+    for sx in (-1, 1):
+        xa, xb = sorted((sx * (w / 2 + 0.025), sx * (w / 2 - 0.1)))
+        p.add('graphite', boxb(xa, xb, 0, 0.2, -d / 2 + 0.12, d / 2 - 0.12))
+    for x in np.arange(-w / 2 + 1, w / 2, 2.0):
+        for y in (0.3, 0.56):
+            p.add('brass', boxb(x - 0.05, x + 0.05, y - 0.06, y + 0.06, -d / 2 - 0.02, -d / 2 + 0.01))
     for sx in (-1, 1):
         x = sx * (w / 2 - 0.35)
         p.add('graphite', cyl((x, h, d / 2 - 0.35), (x, h + 4.2, d / 2 - 0.35), 0.06, 8))
@@ -418,6 +435,23 @@ def stage(w=8.0, d=3.0, h=0.8) -> Part:
         p.add('graphite', beam((x, h + 4.0, d / 2 - 0.35), (x - sx * 0.9, h + 4.0, d / 2 - 0.35), 0.05))
         p.add('cloth', sheet(lambda u, v, x=x, sx=sx: (x - sx * (0.1 + 0.75 * u), h + 3.95 - 1.6 * v, d / 2 - 0.35 + 0.05 * math.sin(v * 3)), 2, 4, 0.02))
         p.add('brass', sheet(lambda u, v, x=x, sx=sx: (x - sx * (0.32 + 0.3 * u), h + 3.4 - 0.3 * v, d / 2 - 0.35 + 0.05 * math.sin(v * 3) + 0.015), 1, 1, 0.01))
+    return p
+
+
+def stair_treads(w=8.0, rise=5.0, run=12.0, n=16) -> Part:
+    """階段（当たり判定の "stairs"：幅 w・高さ rise・長さ run・n 段、+Z へ上る）の踏み段の縁：段ごとに黒鉛の段鼻と、両端の真鍮の留め金。
+    前は蹴上げが模様の無い同じ色の面で、低いカメラ（階段の足元で見上げる）から踏み面が隠れると、16 段が 1 枚のくさびに見えた。
+    段鼻は踏み面より 1.5 cm 上・蹴上げより 3 cm 前（当たり判定の面と重ならない）。原点 = stairs の pos（底の中心）"""
+    p = Part(f'stair_treads_{n}')
+    hw = w / 2 - 0.03                                  # 横の壁の面（|x| = w/2）から 3 cm 手前まで
+    for i in range(n):
+        y = rise * (i + 1) / n
+        z = -run / 2 + run * i / n                     # 段 i の蹴上げの面
+        p.add('graphite', boxb(-hw, hw, y - 0.075, y + 0.015, z - 0.03, z + 0.08))
+        # 留め金は横の壁の付け柱（壁から 0.14 m）に当たらない所に
+        for sx in (-1, 1):
+            xa, xb = sorted((sx * (w / 2 - 0.3), sx * (w / 2 - 0.16)))
+            p.add('brass', boxb(xa, xb, y - 0.06, y + 0.025, z - 0.045, z + 0.1))
     return p
 
 
@@ -458,8 +492,9 @@ def stair_rail(L=12.0, rise=5.0) -> Part:
 
 # ---------------------------------------------------------------- 下の段の床（家並み lower_block_* は town_terrace.py）
 
-def deck_slab(w=96.0, d=41.0) -> Part:
-    """下の段の床（遠くから見る）：白磁の床の板と、外の縁の黒鉛の帯。床の上の面 y=0"""
+def deck_slab(w=96.0, d=41.3) -> Part:
+    """下の段の床（遠くから見る）：白磁の床の板と、外の縁の黒鉛の帯。床の上の面 y=0。
+    北の縁は擁壁の面（z=-15）より 0.3 m 奥（擁壁の下）まで入れる（縁の面が南の階段の棟の面と同じ所で重ならない）"""
     p = Part('deck_slab')
     p.add('ivory2', boxb(-w / 2, w / 2, -0.6, 0, -d / 2, d / 2))
     p.add('graphite', boxb(-w / 2, w / 2, -1.2, -0.6, -d / 2, d / 2))
@@ -485,7 +520,7 @@ def tent(w=4.0, d=3.0, h=2.6) -> Part:
     for x in (-hx, hx):
         for z in (-hz, hz):
             p.add('brass', cyl((x, 0, z), (x, h + 0.25, z), 0.05, 8))
-            p.add('graphite', boxb(x - 0.12, x + 0.12, 0, 0.08, z - 0.12, z + 0.12))
+            p.add('graphite', boxb(x - 0.12, x + 0.12, 0, 0.11, z - 0.12, z + 0.12))     # 広場の床の板（0.08）より高く
     p.add('cloth', sheet(lambda u, v: (-w / 2 - 0.1 + (w + 0.2) * u, h + 0.35 * math.sin(math.pi * v) - 0.12 * math.sin(math.pi * u) * math.sin(math.pi * v),
                                        -d / 2 - 0.1 + (d + 0.2) * v), 8, 6, 0.03))
     p.add('cloth', sheet(lambda u, v: (-w / 2 - 0.1 + (w + 0.2) * u, h + 0.02 - 0.32 * v * (0.72 + 0.28 * math.cos(u * math.pi * 2 * w)), d / 2 + 0.1), int(w * 4), 1, 0.02))
@@ -504,7 +539,7 @@ SETS = {
     'goods_shelf_general': lambda: goods_shelf(7.0, 2.4, 'general'), 'goods_shelf_junk': lambda: goods_shelf(7.0, 2.4, 'junk'),
     'parapet_rail_8': lambda: parapet_rail(8.0), 'parapet_rail_4': lambda: parapet_rail(4.0),
     'workshop_front': workshop_front, 'diner_front': diner_front, 'monument': monument, 'plaza_ring': plaza_ring, 'stage': stage,
-    'stair_rail_12': stair_rail, 'stair_rail_12_r': stair_rail_r,
+    'stair_rail_12': stair_rail, 'stair_rail_12_r': stair_rail_r, 'stair_treads_16': stair_treads,
     'retaining_a': lambda: retaining(8, 5, 'a'), 'retaining_b': lambda: retaining(8, 5, 'b'), 'retaining_c': lambda: retaining(8, 5, 'c'),
     'deck_slab': deck_slab,
 }
