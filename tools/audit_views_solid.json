@@ -1,0 +1,1396 @@
+[
+ {
+  "name": "s2_r02_corner_sw",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   -11.5,
+   1.02,
+   -11.5
+  ],
+  "look": [
+   -13,
+   1.0,
+   -13
+  ],
+  "walk": true,
+  "wait": 60,
+  "eye": [
+   -9.4,
+   2.4,
+   -10.6
+  ],
+  "target": [
+   -12.3,
+   1.8,
+   -12.3
+  ]
+ },
+ {
+  "name": "s2_r02_corner_sw_player",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   -11.5,
+   1.02,
+   -11.5
+  ],
+  "look": [
+   -13,
+   1.0,
+   -13
+  ],
+  "walk": true,
+  "wait": 60,
+  "pitch": 24
+ },
+ {
+  "name": "s2_r02_corner_ne",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   11.5,
+   1.06,
+   11.5
+  ],
+  "look": [
+   13,
+   1.0,
+   13
+  ],
+  "walk": true,
+  "wait": 60,
+  "eye": [
+   9.4,
+   2.4,
+   10.6
+  ],
+  "target": [
+   12.3,
+   1.8,
+   12.3
+  ]
+ },
+ {
+  "name": "s2_r02_corner_se",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   11.6,
+   1.06,
+   -11.6
+  ],
+  "look": [
+   13,
+   1.0,
+   -13
+  ],
+  "walk": true,
+  "wait": 60,
+  "eye": [
+   9.6,
+   2.4,
+   -10.0
+  ],
+  "target": [
+   12.3,
+   1.6,
+   -12.3
+  ]
+ },
+ {
+  "name": "s2_r02_crates_sw",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   -9.0,
+   0,
+   -9.0
+  ],
+  "look": [
+   -12,
+   0,
+   -12
+  ],
+  "walk": true,
+  "wait": 70,
+  "eye": [
+   -7.2,
+   2.4,
+   -6.8
+  ],
+  "target": [
+   -11.6,
+   0.6,
+   -11.6
+  ]
+ },
+ {
+  "name": "s2_r02_crates_ne",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   9.0,
+   0,
+   9.0
+  ],
+  "look": [
+   12,
+   0,
+   12
+  ],
+  "walk": true,
+  "wait": 70,
+  "eye": [
+   7.2,
+   2.4,
+   6.8
+  ],
+  "target": [
+   11.6,
+   0.6,
+   11.6
+  ]
+ },
+ {
+  "name": "s2_r02_gap_ne",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   10.39,
+   0,
+   9.04
+  ],
+  "look": [
+   11.95,
+   0,
+   10.6
+  ],
+  "walk": true,
+  "wait": 70,
+  "eye": [
+   9.2,
+   1.3,
+   11.4
+  ],
+  "target": [
+   11.3,
+   0.6,
+   10.1
+  ]
+ },
+ {
+  "name": "s2_r02_gap_sw",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   -10.34,
+   0,
+   -9.09
+  ],
+  "look": [
+   -11.9,
+   0,
+   -10.65
+  ],
+  "walk": true,
+  "wait": 70,
+  "eye": [
+   -12.2,
+   1.3,
+   -8.0
+  ],
+  "target": [
+   -11.3,
+   0.6,
+   -10.1
+  ]
+ },
+ {
+  "name": "s2_r02_wall_pil",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   12.2,
+   0,
+   -11.0
+  ],
+  "look": [
+   14.5,
+   0,
+   -6.5
+  ],
+  "walk": true,
+  "wait": 17,
+  "eye": [
+   10.6,
+   1.3,
+   -11.6
+  ],
+  "target": [
+   12.7,
+   0.9,
+   -9.5
+  ]
+ },
+ {
+  "name": "s2_r02_wall_pil_player",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   12.2,
+   0,
+   -11.0
+  ],
+  "look": [
+   14.5,
+   0,
+   -6.5
+  ],
+  "walk": true,
+  "wait": 17,
+  "pitch": 12
+ },
+ {
+  "name": "s2_r02_wall_slide",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   11.6,
+   0,
+   -7.6
+  ],
+  "look": [
+   14,
+   0,
+   4
+  ],
+  "walk": true,
+  "wait": 20,
+  "eye": [
+   9.6,
+   1.5,
+   -1.0
+  ],
+  "target": [
+   12.5,
+   0.8,
+   -5.0
+  ]
+ },
+ {
+  "name": "s2_r02_debris",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   -8.9,
+   0.02,
+   1.5
+  ],
+  "look": [
+   -6.5,
+   0,
+   4.0
+  ],
+  "walk": true,
+  "wait": 28,
+  "eye": [
+   -5.0,
+   1.2,
+   2.5
+  ],
+  "target": [
+   -6.8,
+   0.5,
+   3.8
+  ]
+ },
+ {
+  "name": "s2_r02_fan",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   -10.0,
+   0,
+   1.0
+  ],
+  "look": [
+   -14,
+   0,
+   1.0
+  ],
+  "walk": true,
+  "wait": 40,
+  "eye": [
+   -9.6,
+   1.8,
+   3.6
+  ],
+  "target": [
+   -12.4,
+   1.2,
+   1.0
+  ]
+ },
+ {
+  "name": "s2_r02_lantern_jump",
+  "room": "ch1.r02",
+  "spawn": "from_r01",
+  "at": [
+   -11.2,
+   0,
+   7.0
+  ],
+  "look": [
+   -13,
+   0,
+   7.5
+  ],
+  "walk": true,
+  "wait": 50,
+  "jump": 24,
+  "eye": [
+   -9.0,
+   2.6,
+   4.6
+  ],
+  "target": [
+   -12.3,
+   2.2,
+   7.4
+  ]
+ },
+ {
+  "name": "s2_r03_wall",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "at": [
+   1.6,
+   0,
+   -14.6
+  ],
+  "look": [
+   4,
+   0,
+   -14.6
+  ],
+  "walk": true,
+  "wait": 90,
+  "eye": [
+   0.2,
+   1.5,
+   -11.6
+  ],
+  "target": [
+   2.6,
+   0.9,
+   -14.6
+  ]
+ },
+ {
+  "name": "s2_r03_wall_slide",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "at": [
+   2.0,
+   0,
+   -15.6
+  ],
+  "look": [
+   3.6,
+   0,
+   -4
+  ],
+  "walk": true,
+  "wait": 14,
+  "eye": [
+   0.2,
+   1.5,
+   -10.2
+  ],
+  "target": [
+   2.6,
+   0.8,
+   -13.0
+  ]
+ },
+ {
+  "name": "s2_r03_edge_lamp",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "at": [
+   2.2,
+   0,
+   -15.5
+  ],
+  "look": [
+   2.2,
+   0,
+   -10
+  ],
+  "walk": true,
+  "wait": 18,
+  "eye": [
+   0.4,
+   1.3,
+   -11.6
+  ],
+  "target": [
+   2.4,
+   0.7,
+   -13.3
+  ]
+ },
+ {
+  "name": "s2_r03_edge_lamps_far",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "at": [
+   0.0,
+   0,
+   -16.0
+  ],
+  "look": [
+   0,
+   0,
+   -8
+  ],
+  "walk": false,
+  "wait": 4,
+  "eye": [
+   0.0,
+   1.6,
+   -17.0
+  ],
+  "target": [
+   0.0,
+   0.6,
+   -8.0
+  ]
+ },
+ {
+  "name": "s2_r03_block_lantern",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "at": [
+   1.4,
+   1.32,
+   -8.2
+  ],
+  "look": [
+   3,
+   1.3,
+   -9.0
+  ],
+  "walk": true,
+  "wait": 30,
+  "eye": [
+   0.0,
+   2.6,
+   -10.5
+  ],
+  "target": [
+   2.5,
+   2.4,
+   -9.0
+  ]
+ },
+ {
+  "name": "s2_r03_block_pipe",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "at": [
+   -1.8,
+   2.62,
+   -8.8
+  ],
+  "look": [
+   -3.0,
+   2.6,
+   -7.0
+  ],
+  "walk": true,
+  "wait": 30,
+  "eye": [
+   0.0,
+   3.8,
+   -10.4
+  ],
+  "target": [
+   -2.5,
+   3.9,
+   -7.6
+  ]
+ },
+ {
+  "name": "s2_r03_block_pipe_jump",
+  "room": "ch1.r03",
+  "spawn": "from_r02",
+  "at": [
+   -1.8,
+   2.62,
+   -8.2
+  ],
+  "look": [
+   -3.0,
+   2.6,
+   -8.2
+  ],
+  "walk": true,
+  "wait": 30,
+  "jump": 20,
+  "eye": [
+   0.2,
+   3.6,
+   -10.6
+  ],
+  "target": [
+   -2.4,
+   4.0,
+   -8.2
+  ]
+ },
+ {
+  "name": "s2_mid_bench_table",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -24.6,
+   0.82,
+   -3.6
+  ],
+  "look": [
+   -27,
+   0.8,
+   -3.6
+  ],
+  "walk": true,
+  "wait": 40,
+  "eye": [
+   -22.2,
+   1.9,
+   -6.2
+  ],
+  "target": [
+   -25.3,
+   0.6,
+   -3.6
+  ]
+ },
+ {
+  "name": "s2_mid_bench_table_top",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -15.4,
+   0.82,
+   -3.6
+  ],
+  "look": [
+   -12,
+   0.8,
+   -3.6
+  ],
+  "walk": true,
+  "wait": 40,
+  "eye": [
+   -15.4,
+   4.2,
+   -6.8
+  ],
+  "target": [
+   -15.4,
+   0.4,
+   -3.6
+  ]
+ },
+ {
+  "name": "s2_mid_stall_post",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   20.2,
+   0,
+   10.4
+  ],
+  "look": [
+   20.2,
+   0,
+   8.75
+  ],
+  "walk": true,
+  "wait": 70,
+  "jump": 24,
+  "eye": [
+   22.6,
+   1.8,
+   11.8
+  ],
+  "target": [
+   20.2,
+   1.2,
+   8.75
+  ]
+ },
+ {
+  "name": "s2_mid_stall_post_on",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   20.15,
+   1.22,
+   8.75
+  ],
+  "look": [
+   20.15,
+   1.22,
+   7.75
+  ],
+  "walk": false,
+  "wait": 30,
+  "eye": [
+   17.6,
+   2.2,
+   6.2
+  ],
+  "target": [
+   20.2,
+   1.4,
+   8.75
+  ]
+ },
+ {
+  "name": "s2_mid_clothesline",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   31.0,
+   0,
+   10.0
+  ],
+  "look": [
+   31,
+   0,
+   13
+  ],
+  "walk": true,
+  "wait": 20,
+  "eye": [
+   28.6,
+   1.5,
+   10.2
+  ],
+  "target": [
+   31,
+   1.5,
+   11.5
+  ]
+ },
+ {
+  "name": "s2_mid_clothesline_on",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   30.09,
+   1.22,
+   11.5
+  ],
+  "look": [
+   30.09,
+   1.22,
+   10.5
+  ],
+  "walk": false,
+  "wait": 30,
+  "eye": [
+   27.4,
+   2.2,
+   9.2
+  ],
+  "target": [
+   30.4,
+   1.6,
+   11.5
+  ]
+ },
+ {
+  "name": "s2_mid_tower_to_roof",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   31.0,
+   3.25,
+   13.6
+  ],
+  "look": [
+   27.2,
+   3.45,
+   8.2
+  ],
+  "walk": true,
+  "wait": 80,
+  "jump": 24,
+  "eye": [
+   34.0,
+   6.0,
+   16.0
+  ],
+  "target": [
+   27.0,
+   3.0,
+   8.0
+  ]
+ },
+ {
+  "name": "s2_mid_counter_jump",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   24.0,
+   0,
+   1.6
+  ],
+  "look": [
+   24.0,
+   0,
+   5
+  ],
+  "walk": true,
+  "wait": 50,
+  "jump": 24,
+  "eye": [
+   21.6,
+   2.4,
+   0.4
+  ],
+  "target": [
+   23.6,
+   1.4,
+   3.8
+  ]
+ },
+ {
+  "name": "s2_mid_parapet",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -22.0,
+   1.22,
+   -14.0
+  ],
+  "look": [
+   -18,
+   1.2,
+   -14.6
+  ],
+  "walk": true,
+  "wait": 30,
+  "eye": [
+   -20.0,
+   2.6,
+   -12.0
+  ],
+  "target": [
+   -20.0,
+   1.8,
+   -14.5
+  ]
+ },
+ {
+  "name": "s2_mid_ladder",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -38.2,
+   0,
+   14.4
+  ],
+  "look": [
+   -38.2,
+   0,
+   18
+  ],
+  "walk": true,
+  "wait": 40,
+  "eye": [
+   -36.6,
+   1.3,
+   12.6
+  ],
+  "target": [
+   -38.2,
+   1.0,
+   15.6
+  ]
+ },
+ {
+  "name": "s2_mid_ladder_b",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   9.6,
+   0,
+   14.4
+  ],
+  "look": [
+   9.6,
+   0,
+   18
+  ],
+  "walk": true,
+  "wait": 40,
+  "eye": [
+   8.2,
+   1.3,
+   12.8
+  ],
+  "target": [
+   9.6,
+   1.0,
+   15.6
+  ]
+ },
+ {
+  "name": "s2_mid_window",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -26.0,
+   0,
+   8.0
+  ],
+  "look": [
+   -28,
+   0,
+   6.5
+  ],
+  "walk": true,
+  "wait": 40,
+  "eye": [
+   -24.6,
+   1.6,
+   4.6
+  ],
+  "target": [
+   -26.6,
+   1.3,
+   6.5
+  ]
+ },
+ {
+  "name": "s2_mid_tent_pole",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -5.8,
+   0,
+   12.0
+  ],
+  "look": [
+   -8,
+   0,
+   10.0
+  ],
+  "walk": true,
+  "wait": 40,
+  "eye": [
+   -5.0,
+   1.4,
+   8.0
+  ],
+  "target": [
+   -7.1,
+   1.2,
+   10.2
+  ]
+ },
+ {
+  "name": "s2_mid_gap_chest",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   30.16,
+   0,
+   3.04
+  ],
+  "look": [
+   28.6,
+   0,
+   4.6
+  ],
+  "walk": true,
+  "wait": 70,
+  "eye": [
+   26.4,
+   1.2,
+   2.6
+  ],
+  "target": [
+   28.3,
+   0.5,
+   3.9
+  ]
+ },
+ {
+  "name": "s2_mid_gap_diner_crate",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -27.36,
+   0,
+   -1.56
+  ],
+  "look": [
+   -25.8,
+   0,
+   0.0
+  ],
+  "walk": true,
+  "wait": 70,
+  "eye": [
+   -24.6,
+   1.2,
+   -2.2
+  ],
+  "target": [
+   -26.2,
+   0.4,
+   -0.4
+  ]
+ },
+ {
+  "name": "s2_mid_diner_hatch",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -20.0,
+   0,
+   -2.2
+  ],
+  "look": [
+   -20,
+   0,
+   0.3
+  ],
+  "walk": true,
+  "wait": 30,
+  "eye": [
+   -18.0,
+   1.3,
+   -1.6
+  ],
+  "target": [
+   -20,
+   1.0,
+   0.3
+  ]
+ },
+ {
+  "name": "s2_mid_diner_hatch_far",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -20.0,
+   0,
+   -2.2
+  ],
+  "look": [
+   -20,
+   0,
+   0.3
+  ],
+  "walk": true,
+  "wait": 30,
+  "eye": [
+   -17.0,
+   1.7,
+   -4.4
+  ],
+  "target": [
+   -20,
+   1.6,
+   0.3
+  ]
+ },
+ {
+  "name": "s2_mid_rack_back",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   31.0,
+   0,
+   10.6
+  ],
+  "look": [
+   31,
+   0,
+   9.0
+  ],
+  "walk": true,
+  "wait": 30,
+  "eye": [
+   31.6,
+   1.3,
+   11.2
+  ],
+  "target": [
+   31,
+   1.0,
+   9.0
+  ]
+ },
+ {
+  "name": "s2_mid_tower_awning",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   5.4,
+   0,
+   13.0
+  ],
+  "look": [
+   5.4,
+   0,
+   16
+  ],
+  "walk": true,
+  "wait": 50,
+  "jump": 24,
+  "eye": [
+   7.4,
+   1.6,
+   11.6
+  ],
+  "target": [
+   5.4,
+   1.8,
+   15.4
+  ]
+ },
+ {
+  "name": "s2_mid_workshop_awning",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -32.0,
+   0,
+   1.2
+  ],
+  "look": [
+   -32.0,
+   0,
+   4.0
+  ],
+  "walk": true,
+  "wait": 40,
+  "jump": 24,
+  "eye": [
+   -29.6,
+   2.0,
+   0.0
+  ],
+  "target": [
+   -32.6,
+   2.6,
+   3.2
+  ]
+ },
+ {
+  "name": "s3_mid_stall_front_corner",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   18.0,
+   0,
+   3.15
+  ],
+  "look": [
+   22.5,
+   0,
+   3.15
+  ],
+  "walk": true,
+  "wait": 60,
+  "eye": [
+   18.6,
+   2.0,
+   0.4
+  ],
+  "target": [
+   20.8,
+   1.2,
+   3.4
+  ]
+ },
+ {
+  "name": "s3_mid_stall_back",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   22.1,
+   0,
+   11.0
+  ],
+  "look": [
+   22.1,
+   0,
+   8.5
+  ],
+  "walk": true,
+  "wait": 50,
+  "eye": [
+   24.6,
+   2.2,
+   12.6
+  ],
+  "target": [
+   22.0,
+   1.4,
+   9.4
+  ]
+ },
+ {
+  "name": "s3_mid_diner_window",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -23.3,
+   0,
+   -2.0
+  ],
+  "look": [
+   -23.3,
+   0,
+   1.0
+  ],
+  "walk": true,
+  "wait": 50,
+  "eye": [
+   -21.4,
+   2.0,
+   -2.4
+  ],
+  "target": [
+   -23.3,
+   1.4,
+   0.2
+  ]
+ },
+ {
+  "name": "s3_mid_workshop_jamb",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -33.6,
+   0,
+   4.2
+  ],
+  "look": [
+   -36.5,
+   0,
+   4.2
+  ],
+  "walk": true,
+  "wait": 50,
+  "eye": [
+   -32.6,
+   2.0,
+   2.0
+  ],
+  "target": [
+   -35.0,
+   1.2,
+   4.6
+  ]
+ },
+ {
+  "name": "s3_mid_tower_window",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   6.9,
+   0,
+   14.4
+  ],
+  "look": [
+   6.9,
+   0,
+   17.0
+  ],
+  "walk": true,
+  "wait": 50,
+  "eye": [
+   5.0,
+   1.9,
+   13.4
+  ],
+  "target": [
+   6.9,
+   1.4,
+   15.7
+  ]
+ },
+ {
+  "name": "s3_mid_south_pipe",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   3.6,
+   -5.0,
+   -26.8
+  ],
+  "look": [
+   3.6,
+   -5.0,
+   -31.0
+  ],
+  "walk": true,
+  "wait": 60,
+  "eye": [
+   1.2,
+   -3.0,
+   -27.2
+  ],
+  "target": [
+   3.6,
+   -4.1,
+   -29.2
+  ]
+ },
+ {
+  "name": "s3_mid_monument_lantern",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -1.2,
+   1.02,
+   0.6
+  ],
+  "look": [
+   1.6,
+   1.0,
+   0.6
+  ],
+  "walk": true,
+  "wait": 50,
+  "eye": [
+   -2.2,
+   2.6,
+   -2.4
+  ],
+  "target": [
+   -0.2,
+   1.9,
+   0.7
+  ]
+ },
+ {
+  "name": "s3_mid_monument_jump",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -0.9,
+   1.02,
+   0.55
+  ],
+  "look": [
+   0.4,
+   1.0,
+   0.55
+  ],
+  "walk": true,
+  "jump": 20,
+  "wait": 40,
+  "eye": [
+   -2.4,
+   2.6,
+   -2.6
+  ],
+  "target": [
+   -0.2,
+   2.2,
+   0.7
+  ]
+ },
+ {
+  "name": "s3_mid_tall_lamp",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   5.4,
+   1.22,
+   -14.3
+  ],
+  "look": [
+   5.4,
+   1.2,
+   -11.5
+  ],
+  "walk": true,
+  "wait": 60,
+  "eye": [
+   8.2,
+   2.6,
+   -10.8
+  ],
+  "target": [
+   5.4,
+   1.0,
+   -13.4
+  ]
+ },
+ {
+  "name": "s3_mid_diner_back_crates",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   -19.64,
+   1.1,
+   10.1
+  ],
+  "look": [
+   -22.0,
+   1.0,
+   10.1
+  ],
+  "walk": true,
+  "wait": 70,
+  "eye": [
+   -18.2,
+   2.6,
+   12.8
+  ],
+  "target": [
+   -20.3,
+   1.0,
+   9.9
+  ]
+ },
+ {
+  "name": "s3_mid_lamp_post_top",
+  "room": "ch1.mid",
+  "spawn": "start",
+  "at": [
+   12.0,
+   3.0,
+   9.5
+  ],
+  "look": [
+   11.0,
+   3.0,
+   9.5
+  ],
+  "walk": true,
+  "wait": 60,
+  "eye": [
+   14.6,
+   3.4,
+   12.4
+  ],
+  "target": [
+   12.4,
+   2.4,
+   9.5
+  ]
+ }
+]

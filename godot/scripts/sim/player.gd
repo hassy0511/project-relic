@@ -12,6 +12,10 @@ const MUZZLE_SIDE := 0.22
 const MUZZLE_FORWARD := 0.4
 ## 奈落の高さ。これより下に落ちたら直前の足場に戻す
 const KILL_Y := -30.0
+## 足元の確かめ（_ground_below）で、体の真下の線が外れたときに見るまわりの 8 本の線のずれ（m）。体の丸い底が段・箱の縁の角に
+## 載って、当たった面が平ら（Phys.EDGE_FLAT より平ら。縁から 0.035 m まで）に見える所も立っていることにする
+## （前は滑りもせず立ちもせず、縁の上の宙に止まった）
+const GROUND_EDGE := 0.04
 
 var game  # GameSim
 var body: CharacterBody3D
@@ -289,11 +293,18 @@ func _update_movement(dt: float) -> void:
 
 
 ## 足元の真下に地面があるか。カプセルの丸い底が段の角に引っかかっただけの状態を
-## 「接地」とみなさないため（そこから段差の自動乗り越えで登れてしまうのを防ぐ）
+## 「接地」とみなさないため（そこから段差の自動乗り越えで登れてしまうのを防ぐ）。
+## 体の真ん中が縁から GROUND_EDGE（4 cm）までしか出ていないときは、縁の上に立っていることにする
 func _ground_below() -> bool:
-	var origin := Vector3(pos.x, pos.y + 0.3, pos.z)
-	var hit: Dictionary = game.phys.raycast(origin, Vector3.DOWN, 0.75, Phys.TERRAIN | Phys.BREAKABLE | Phys.ENEMY | Phys.PROP)
-	return not hit.is_empty() and pos.y - hit.point.y < 0.4
+	var mask := Phys.TERRAIN | Phys.BREAKABLE | Phys.ENEMY | Phys.PROP
+	for k in 9:
+		var origin := Vector3(pos.x, pos.y + 0.3, pos.z)
+		if k > 0:
+			origin += Vector3(cos(k * PI / 4.0), 0.0, sin(k * PI / 4.0)) * GROUND_EDGE
+		var hit: Dictionary = game.phys.raycast(origin, Vector3.DOWN, 0.75, mask)
+		if not hit.is_empty() and pos.y - hit.point.y < 0.4:
+			return true
+	return false
 
 
 func _accelerate_to(tx: float, tz: float, step: float) -> void:

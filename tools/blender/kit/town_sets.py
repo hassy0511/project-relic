@@ -24,7 +24,7 @@ import math
 import numpy as np
 
 import town_parts as P
-from town_geo import Part, beam, box, boxb, cyl, lathe, prism, sag, sheet, tube
+from town_geo import Part, beam, box, boxb, cyl, lathe, prism, sheet
 
 
 # ---------------------------------------------------------------- 露店
@@ -58,22 +58,19 @@ def stall(w=8.0, d=5.2, h=3.45, ridge=0.55, name='stall') -> Part:
     p.add('cloth2', sheet(lambda u, v: (-w / 2 + w * u, h + 0.02 - 0.3 * v, -d / 2 - 0.1), 8, 1, 0.02))
     for x in (-w / 2, w / 2):
         p.add('cloth', sheet(lambda u, v, x=x: (x, h + ridge * math.sin(math.pi * u) * 0.0 + 0.02 - 0.35 * v, -d / 2 + d * u), 6, 1, 0.02))
-    # 綱（棟から柱へ）と吊り灯
+    # 前の梁の吊り灯（前は前の柱の上から台の前の床へ張り綱があり、台の前を歩くと体が綱を抜けたので、綱は付けない）
     for x in (-w / 4, w / 4):
         P.lantern(p, x, h - 0.65, hz, 1.2)
         p.add('brass', cyl((x, h - 0.33, hz), (x, h - 0.1, hz), 0.012, 5))
-    for x in (-hx, hx):
-        p.add('rope', tube(sag((x, h + 0.1, hz), (x + (0.6 if x < 0 else -0.6), 0.0, hz + 0.9), 4, 0.1), 0.012, 4))
-        p.add('graphite', boxb(x + (0.45 if x < 0 else -0.75), x + (0.75 if x < 0 else -0.45), 0, 0.06, hz + 0.75, hz + 1.05))
-    # 裏（奥の箱の裏の面 z=-2.8。前は木の板の箱の面だけだった）：黒鉛の枠、掛けた帆布、積んだ木箱と樽
+    # 裏（奥の箱の裏の面 z=-2.8。前は木の板の箱の面だけだった）：黒鉛の枠、掛けた帆布、積んだ木箱と樽。
+    # 巻き上げ帆布は付けない（枠の上から 0.75 m 外へ、頭の高さ 1.4 m まで垂れて、裏を歩くと頭が抜けた）
     zb = -2.8
     for x in (-3.42, -1.15, 1.15, 3.42):
         p.add('graphite', boxb(x - 0.08, x + 0.08, 0, 2.4, zb - 0.08, zb))
     p.add('graphite', boxb(-3.5, 3.5, 2.3, 2.45, zb - 0.1, zb), boxb(-3.5, 3.5, 0, 0.12, zb - 0.06, zb))
     p.add('cloth2', sheet(lambda u, v: (-2.2 + 2.6 * u, 2.38 - 1.5 * v - 0.12 * math.sin(math.pi * u) * v, zb - 0.06 - 0.05 * v), 4, 3, 0.02))
-    p.place(P.canvas_roll(), (1.9, 2.25, zb), 180, 0.7)
-    p.place(P.crate(), (-2.6, 0, zb - 0.55), 8)
-    p.place(P.crate(), (-2.5, 0.74, zb - 0.55), -6, 0.8)
+    p.place(P.crate(), (-2.6, 0, zb - 0.55), 3)          # 向きは数度だけ（当たり判定の箱は軸にそろえるので、大きく回すと見えない壁になる）
+    p.place(P.crate(), (-2.5, 0.74, zb - 0.55), -3, 0.8)
     p.place(P.barrel(), (2.7, 0, zb - 0.5), 0, 0.85)
     return p
 
@@ -237,7 +234,8 @@ def _retaining(p: Part, w, h, door_at=None, pipes=False, ladder_at=None, x_off=0
         for x in np.arange(x0 + 1.0, x1, 2.0):
             p.add('graphite', boxb(x - 0.05, x + 0.05, 2.5, 3.4, 0, 0.3))
     if ladder_at is not None:
-        p.place(P.ladder(h - 0.1), (ladder_at + x_off, 0, 0.3))
+        # 壁から 0.12 m（段の棒の前の面まで 0.18 m。体は壁から 0.35 m で止まるので当たらない。前は 0.3 m で、歩くと段の棒が体を抜けた）
+        p.place(P.ladder(h - 0.1), (ladder_at + x_off, 0, 0.12))
 
 
 # ---------------------------------------------------------------- 工房・食堂の正面
@@ -246,6 +244,7 @@ def workshop_front() -> Part:
     """ヤーナの工房の正面（town_facilities 左上）：太い配管が正面を横切り、屋根の上へ立ち上がる。入口の上に赤い日よけ。
     原点 = 左右の棟の正面（z=0）の下の中心。入口の奥まり（幅 3.2）の奥は z=-2、まぐさは y 3.8〜7"""
     p = Part('workshop_front')
+    import town_terrace as T
     # 左右の棟の正面の飾り（白磁の板の上に柱と帯）
     for sx in (-1, 1):
         cx = sx * 4.3
@@ -257,7 +256,8 @@ def workshop_front() -> Part:
                 p.add('brass', boxb(x - 0.13, x + 0.13, y, y + 0.22, 0, 0.15))
         p.add('graphite', boxb(cx - 2.7 - (0.03 if sx < 0 else 0), cx + 2.7 + (0.03 if sx > 0 else 0), 3.45, 3.55, 0, 0.1))
         p.add('wood', boxb(cx - 2.7 - (0.03 if sx < 0 else 0), cx + 2.7 + (0.03 if sx > 0 else 0), 0, 0.45, 0, 0.06))
-        _window(p, cx - 1.2 * sx, 1.1, 0.05)
+        # 下の窓は雨戸の無い窓（前の木箱に乗ると、上へ開いた雨戸が頭と肩に入った）
+        T._window_flush(p, cx - 1.2 * sx, 1.1, 0.05)
         _window(p, cx + 1.3 * sx, 4.5, 0.05)
         p.place(P.tool_rack(), (cx + 1.25 * sx, 0, 0.12))
     # 入口：奥の両開きの扉（z=-2）、まぐさの正面
@@ -282,14 +282,13 @@ def workshop_front() -> Part:
         P.pipe_run(p, (x, 5.55, 0.45), (x, top, 0.45), 0.3, 1.3)
         p.add('brass', lathe((x, top, 0.45), (x, top + 0.6, 0.45), [(0, 0.34), (0.5, 0.4), (1, 0.18)], 10))
     # 足元：樽・タンク・木箱
-    p.place(P.barrel(), (-6.3, 0, 0.7))
+    p.place(P.barrel(), (-6.3, 0, 0.42))       # 壁にほぼ付ける（前は 0.7 で、樽と壁の間の 0.35 m に落ちると引っかかった）
     p.place(P.tank(), (6.0, 0, 0.7), 90)
-    p.place(P.crate(), (-3.1, 0, 0.75), 12, 0.8)
-    p.place(P.crate(), (3.3, 0, 0.7), -8, 0.75)
-    # 裏（z=-9、北の段の壁との間の 3 m の路地に向く面）：窓・裏口・配管
-    import town_terrace as T
+    p.place(P.crate(), (-3.1, 0, 0.46), 4, 0.8)        # 窓の下、正面の面にほぼ付ける（前は 0.35 m 離れていて、間に落ちると引っかかった）
+    p.place(P.crate(), (3.3, 0, 0.44), -3, 0.75)
+    # 裏（z=-9、北の段の壁との間の 3 m の路地に向く面）：窓・裏口・配管。下の窓は 1.3 m（雨戸の下の端 1.72 m は頭の上）
     T.face(p, '-z', (0, 0, -9.0), {'simple': True, 'posts': [-6.88, -1.6, 1.6, 6.88], 'door': -4.4,
-                                   'windows': [(-2.6, 1.1), (3.0, 1.1), (5.4, 1.1), (-5.4, 4.5), (-2.6, 4.5), (0.0, 4.5), (3.0, 4.5), (5.4, 4.5)],
+                                   'windows': [(-2.6, 1.3), (3.0, 1.3), (5.4, 1.3), (-5.4, 4.5), (-2.6, 4.5), (0.0, 4.5), (3.0, 4.5), (5.4, 4.5)],
                                    'lanterns': [(-3.45, 1.95)], 'pipes': [1.0], 'vents': [(-0.4, 2.0)], 'bands': [3.45]}, 14.0, 7.0)
     for y, r in ((6.2, 0.2),):
         P.pipe_run(p, (-7.2, y, -9.35), (7.2, y, -9.35), r, 1.4)
@@ -307,12 +306,34 @@ def diner_front() -> Part:
             p.add('brass', boxb(x - 0.13, x + 0.13, y, y + 0.22, 0, 0.15))
     p.add('wood', boxb(-5.03, 5.03, 0, 0.4, 0, 0.06))
     p.add('graphite', boxb(-5.03, 5.03, 5.35, 5.5, 0, 0.2))
-    # 配膳の窓（暗い奥・木の枠・明かり）
-    p.add('dark', boxb(-1.65, 1.65, 1.1, 2.6, 0, 0.02))
-    p.add('wood', boxb(-1.75, 1.75, 1.0, 1.1, 0, 0.25), boxb(-1.75, 1.75, 2.6, 2.75, 0, 0.12),
-          boxb(-1.75, -1.6, 1.1, 2.6, 0, 0.12), boxb(1.6, 1.75, 1.1, 2.6, 0, 0.12))
+    # 配膳の窓：棟の正面から 0.32 m 前へ出た木の枠の口（棟の箱の面 z=0 の奥は描けないので、口の奥行きは前へ出して作る）。
+    # 前は暗い茶色の 1 枚の板で、配膳台の前（ドミと話す所）から見ると描いた板だった。
+    # 口の中：暗い奥の面・2 段の棚と鍋・壺、底の板に鉢、吊った灯。枠は木（柱・まぐさ・底の板）
+    D = 0.32
+    p.add('dark', boxb(-1.6, 1.6, 1.1, 2.6, 0, 0.02))
+    p.add('wood', boxb(-1.75, -1.6, 1.0, 2.75, 0, D), boxb(1.6, 1.75, 1.0, 2.75, 0, D),
+          boxb(-1.75, 1.75, 2.58, 2.76, 0, D), boxb(-1.75, 1.75, 1.0, 1.1, 0, D + 0.04))      # まぐさの下は 2.58（柱の真鍮の帯 2.6 と重ねない）
+    p.add('graphite', boxb(-1.8, 1.8, 2.76, 2.86, 0, D + 0.04))
+    for y in (1.75, 2.15):
+        p.add('wood2', boxb(-1.55, 1.55, y - 0.04, y, 0.02, 0.2))
+        p.add('graphite', boxb(-1.55, 1.55, y - 0.07, y - 0.04, 0.17, 0.2))
+    for k, x in enumerate((-1.25, -0.85, -0.4, 0.1, 0.55, 1.0, 1.3)):
+        y = 1.75 if k % 2 == 0 else 2.15
+        r = 0.06 + 0.015 * (k % 3)
+        p.add('brass' if k % 3 else 'graphite', cyl((x, y, 0.11), (x, y + 0.13 + 0.05 * (k % 2), 0.11), r, 8))
+        if k % 3 == 1:
+            p.add('graphite', cyl((x, y + 0.13 + 0.05 * (k % 2), 0.11), (x, y + 0.16 + 0.05 * (k % 2), 0.11), r + 0.01, 8))
+    for x in (-0.9, 0.7):
+        p.add('ivory', lathe((x, 1.1, 0.2), (x, 1.2, 0.2), [(0, 0.06), (0.6, 0.12), (1, 0.13)], 10))
+    for x in (-1.3, -1.1, 1.15, 1.35):
+        p.add('graphite', boxb(x - 0.012, x + 0.012, 2.3, 2.58, 0.24, 0.26))
+        p.add('brass', boxb(x - 0.05, x + 0.05, 2.22, 2.3, 0.22, 0.28))
+    P.lantern(p, 0.0, 2.38, 0.18, 0.75)
+    p.add('brass', cyl((0.0, 2.6, 0.18), (0.0, 2.64, 0.18), 0.015, 5))
+    # 下の窓は雨戸の無い窓（前は上へ開いた雨戸が 0.66 m 出て 1.82 m まで下がり、窓台は 0.19 m 出て、広場から歩くと肩が入った）
+    import town_terrace as T
     for x in (-3.3, 3.3):
-        _window(p, x, 1.4, 0.05)
+        T._window_flush(p, x, 1.4, 0.05)
     # 日よけ
     p.place(P.awning('hard', 6.6, 2.4, 0.8), (0, 3.4, 0.1))
     P.lantern(p, -1.2, 2.55, 1.5, 1.2)
@@ -338,9 +359,12 @@ def diner_front() -> Part:
                                    'pipes': [-4.4], 'bands': [2.6]}, 10.0, 5.5)
     for x0, x1 in ((-5.0, 5.0),):
         p.add('wood', boxb(x0 - 0.03, x1 + 0.03, 0, 0.4, -9.03, -8.97))
-    p.place(P.barrel(), (0.9, 0, -9.55), 0, 0.85)
-    p.place(P.crate(), (-0.6, 0, -9.6), 12, 0.8)
-    p.place(P.crate(), (-0.6, 0.6, -9.6), -8, 0.7)
+    # 木箱の山は、裏口の日よけ（x -1.45 まで）と窓の雨戸（x 0.73 から）の乗れない柱の真ん中。上の木箱から両側へ 0.75 m 以上。
+    # 樽は木箱の山の横に寄せる（前は日よけから 0.5 m、次は雨戸から 0.68 m、次は樽と上の木箱の間が 0.65 m で、上の木箱から下りると
+    # 柱・樽と木箱の間に体が挟まって出られなくなった）
+    p.place(P.barrel(), (0.4, 0, -9.55), 0, 0.85)
+    p.place(P.crate(), (-0.36, 0, -9.6), 4, 0.8)
+    p.place(P.crate(), (-0.36, 0.6, -9.6), -3, 0.62)
     return p
 
 
@@ -411,9 +435,13 @@ def plaza_ring(r=6.0) -> Part:
 def stage(w=8.0, d=3.0, h=0.8) -> Part:
     """広場の奥の壇（8×0.8×3）の縁：黒鉛の角、真鍮の帯、前の 2 段の踏み段、両脇の旗竿と旗"""
     p = Part('stage')
+    # 四隅の黒鉛の柱：壇の箱の面から 0.03 m だけ出す（前は 0.12 m 出ていて、壇の角へ歩くと体に入った。壇の前の角は住人・トリガーの所で
+    # 当たり判定の箱を足せない）。上の面は板（h + 0.04）より 2 cm 上（同じ高さだと重なってちらつく）
     for sx in (-1, 1):
         for sz in (-1, 1):
-            p.add('graphite', boxb(sx * w / 2 - 0.12, sx * w / 2 + 0.12, 0, h + 0.04, sz * d / 2 - 0.12, sz * d / 2 + 0.12))
+            xa, xb = sorted((sx * (w / 2 - 0.2), sx * (w / 2 + 0.03)))
+            za, zb = sorted((sz * (d / 2 - 0.2), sz * (d / 2 + 0.03)))
+            p.add('graphite', boxb(xa, xb, 0, h + 0.06, za, zb))
     p.add('brass', boxb(-w / 2, w / 2, h - 0.06, h + 0.02, -d / 2 - 0.03, -d / 2 + 0.03),
           boxb(-w / 2, w / 2, h - 0.06, h + 0.02, d / 2 - 0.03, d / 2 + 0.03))
     p.add('wood', boxb(-w / 2 + 0.1, w / 2 - 0.1, h, h + 0.04, -d / 2 + 0.1, d / 2 - 0.1))
@@ -506,10 +534,20 @@ def deck_slab(w=96.0, d=41.3) -> Part:
 
 
 def window_frame() -> Part:
-    """窓だけ（壁に貼る）：暗い奥・黒鉛の枠・上へ開いた木の雨戸。原点 = 窓の下の縁の中心・壁の面"""
+    """窓だけ（壁に貼る）：暗い奥・黒鉛の枠・上へ開いた木の雨戸。原点 = 窓の下の縁の中心・壁の面。
+    雨戸は 0.62 m 前へ出るので、手の届く高さには window_flush を使う"""
     p = Part('window_frame')
     _window(p, 0, 0, 0.0)
-    p.add('ivory2', boxb(-0.5, 0.5, -0.14, -0.06, 0, 0.2))
+    p.add('ivory2', boxb(-0.5, 0.5, -0.14, -0.06, 0, 0.1))
+    return p
+
+
+def window_flush() -> Part:
+    """雨戸の無い窓（壁に貼る。面から 0.14 m）：暗い奥・黒鉛の枠と桟・木の窓台。原点 = 窓の下の縁の中心・壁の面。
+    歩ける所の横の低い窓に使う（前は雨戸つきの窓が 0.62 m 出て、横を歩くと肩・頭が雨戸に入った）"""
+    import town_terrace as T
+    p = Part('window_flush')
+    T._window_flush(p, 0, 0, 0.0)
     return p
 
 
@@ -526,7 +564,7 @@ def tent(w=4.0, d=3.0, h=2.6) -> Part:
     p.add('cloth', sheet(lambda u, v: (-w / 2 - 0.1 + (w + 0.2) * u, h + 0.02 - 0.32 * v * (0.72 + 0.28 * math.cos(u * math.pi * 2 * w)), d / 2 + 0.1), int(w * 4), 1, 0.02))
     p.place(P.stall_table(2.0), (0, 0, -0.3))
     p.place(goods_general(1.8), (0, 0.955, -0.45), 0, (1, 1, 0.6))
-    p.place(P.crate(), (-1.4, 0, 0.6), 10, 0.7)
+    p.place(P.crate(), (-1.4, 0, 0.6), 3, 0.7)
     p.place(P.barrel(), (1.4, 0, 0.5), 0, 0.8)
     P.lantern(p, 0, h - 0.35, 0, 1.0)
     p.add('brass', cyl((0, h - 0.05, 0), (0, h + 0.3, 0), 0.012, 5))
@@ -534,7 +572,7 @@ def tent(w=4.0, d=3.0, h=2.6) -> Part:
 
 
 SETS = {
-    'window_frame': window_frame, 'tent': tent, 'planter_big': lambda: P.planter(1.2, 0.95),
+    'window_frame': window_frame, 'window_flush': window_flush, 'tent': tent, 'planter_big': lambda: P.planter(1.2, 0.95),
     'stall': stall, 'goods_general': goods_general, 'goods_junk': goods_junk,
     'goods_shelf_general': lambda: goods_shelf(7.0, 2.4, 'general'), 'goods_shelf_junk': lambda: goods_shelf(7.0, 2.4, 'junk'),
     'parapet_rail_8': lambda: parapet_rail(8.0), 'parapet_rail_4': lambda: parapet_rail(4.0),

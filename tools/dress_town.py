@@ -46,9 +46,10 @@ def geo_index(room, pos, size):
     raise KeyError(f"形が無い: {pos} {size}")
 
 
-def light(room, old_pos, new_pos):
+def light(room, old_pos, new_pos, was=()):
+    """部屋の明かりを old_pos（元の位置）から new_pos へ。was：前にこの表で動かした先（灯を動かしたとき）"""
     for l in room.get("lights", []):
-        if all(abs(a - b) < 1e-3 for a, b in zip(l["pos"], old_pos)) or all(abs(a - b) < 1e-3 for a, b in zip(l["pos"], new_pos)):
+        if any(all(abs(a - b) < 1e-3 for a, b in zip(l["pos"], q)) for q in (old_pos, new_pos, *was)):
             l["pos"] = r3(new_pos)
             return l
     raise KeyError(f"明かりが無い: {old_pos}")
@@ -74,12 +75,17 @@ SHADOW = {"stall", "tent", "monument", "workshop_front", "diner_front", "stage",
 
 # 当たり判定を付ける部品（"solid": true。箱の形は tools/dress_solid.py の SOLID）。歩ける所に立つ、手で触れる大きさの物：
 # 木箱・樽・収納箱・鉢植え・ベンチ・卓・工具棚・給水塔・洗濯綱・床の配管・外灯の台・胸壁の角の柱・露店の棚と柱と裏の木箱・
-# 天幕の下の台と木箱と樽・工房の正面の足元の小物・食堂の裏の木箱と樽・壇の旗竿・階段の手すり。
+# 天幕の下の台と木箱と樽・工房の正面の足元の小物と入口の内張り・食堂の裏の木箱と樽・壇の旗竿・階段の手すり・胸壁の上の手すり・
+# 北の段の配管とひさし・記念の柱の吊り灯・南の階段の下の縦の管。
 # 前はどれも当たり判定が無く、ハルが樽・木箱の中に入り込んで頭だけ出して立てた（ハリボテに見えた）。
+# 細い柱（露店・天幕の柱、旗竿、外灯の柱、洗濯綱の柱、胸壁の手すり）と、露店の屋根・台の上・天幕の帆布の上をふさぐ箱、
+# 頭の上の張り出し（日よけ・巻き上げ帆布・吊り灯・雨戸：乗れない柱）は、体だけを止める（"cam": false。カメラは通す）。
+# 箱の形は tools/dress_solid.py の SOLID。
 # 木箱の山とガラクタ（crate の大きな 3 つ・junk_pile）は、前から同じ広さの描かない箱があるので付けない（solid=False）
 SOLID = {"crate", "barrel", "chest", "planter", "planter_big", "bench", "stall_table", "tool_rack", "water_tower", "clothesline",
          "pipes", "lamp_post", "lamp_tall", "parapet_corner", "goods_shelf_general", "goods_shelf_junk", "stall", "tent",
-         "workshop_front", "diner_front", "stage", "stair_rail_12", "stair_rail_12_r"}
+         "workshop_front", "diner_front", "stage", "stair_rail_12", "stair_rail_12_r", "parapet_rail_8", "parapet_rail_4",
+         "terrace_west", "terrace_east", "window_flush", "canvas_roll", "monument", "stair_well_s"}
 
 
 # ---------------------------------------------------------------- 中段（広場と市場）
@@ -117,11 +123,11 @@ def mid(room):
         d.put(part, [0, 0, 0])
 
     # --- 北の階段（上の段へ）：手すりと、上り口の鉢植え・外灯。踏み段の縁（段鼻。前は低い所から見上げると 16 段が 1 枚のくさびに見えた）
-    d.put("stair_rail_12", [-4.0, 0, 16.0])
-    d.put("stair_rail_12_r", [4.0, 0, 16.0])
+    d.put("stair_rail_12", [-4.0, 0, 16.0], solid="town/stair_rail_12_foot")       # 上り口の端の上は乗れない柱（dress_solid._rail_band）
+    d.put("stair_rail_12_r", [4.0, 0, 16.0], solid="town/stair_rail_12_r_foot")
     d.put("stair_treads_16", [0, 0, 22])
     for x in (-5.4, 5.4):
-        d.put("planter", [x, 0, 15.2])
+        d.put("planter", [x, 0, 13.95])      # 角の棟の扉のひさしの前（前は 15.2 でひさしの真下にあり、上に乗ると頭がひさしに入った）
 
     # --- 南の胸壁（下の段を見下ろす縁）：上に真鍮の手すり、外の面は擁壁、その下に下の段の家並み
     for sx in (-1, 1):
@@ -148,9 +154,11 @@ def mid(room):
     d.put("stair_well_s", [0, 0, 0])
     for sx in (-1, 1):
         d.put("parapet_corner", [sx * 48.5, 1.2, -14.5])
-    d.put("lamp_tall", [-5.4, 0, -13.4])
-    d.put("lamp_tall", [5.4, 0, -13.4], 180, light={"at": [0.55, 3.92, 0], "color": "#ffc27a", "range": 14, "energy": 1.6})
-    light(room, [0, 5, -10], [-4.85, 3.92, -13.4])
+    # 上り口の背の高い外灯は胸壁の面から 0.9 m（柱と胸壁の間を体が通る。前は 0.4 m で、胸壁の縁から下りると、縁の角と柱の間に
+    # 体の丸い底が挟まって宙に止まった）
+    d.put("lamp_tall", [-5.4, 0, -12.9])
+    d.put("lamp_tall", [5.4, 0, -12.9], 180, light={"at": [0.55, 3.92, 0], "color": "#ffc27a", "range": 14, "energy": 1.6})
+    light(room, [0, 5, -10], [-4.85, 3.92, -12.9], was=[[-4.85, 3.92, -13.4]])
 
     # --- 下の段（胸壁の向こう、5 m 下）：床と家並み。南の階段の東の棟（外の面 x=9.5）の横の区画は x=16（前は 15.5 で、
     # 区画の家の日よけ・金具が棟の窓と同じ面で重なっていた）
@@ -171,8 +179,10 @@ def mid(room):
         d.put("lamp_post", [x, 0, z], yaw, scale=1.4)
     for x, z, yaw in ((-9.5, -2, 90), (9.5, -2, 270), (-9.5, 5, 90), (9.5, 5, 270)):
         d.put("bench", [x, 0, z], yaw)
+    # 胸壁から 0.35 m 離す（胸壁の上の手すりの箱との間を 0.78 m：体が下りて胸壁の上に立てる。前の -13.35 では 0.63 m で、
+    # 鉢植えの上から胸壁の方へ下りると、鉢植えの縁と手すりの間に挟まって出られなくなった）
     for x in (-10, -20, -30, -40, 10, 20, 34, 44):
-        d.put("planter", [x, 0, -13.35], 0)
+        d.put("planter", [x, 0, -13.2], 0)
     # 木箱の山（隠した箱と同じ広さ・高さ）
     d.put("crate", [29.75, 0, -6], 0, scale=[1.65, 1.35, 2.2], solid=False)
     d.put("crate", [31.25, 0, -6], 0, scale=[1.65, 1.35, 2.2], solid=False)
@@ -184,16 +194,19 @@ def mid(room):
     # 広場の両脇の天幕と大きな鉢植え（town_mood_day の天幕と緑）
     d.put("tent", [-9.0, 0, 11.2], 180)
     d.put("tent", [9.0, 0, 11.2], 180)
-    for x, z in ((-13.2, 13.6), (13.2, 13.6), (-2.6, 13.8), (2.6, 13.8), (-36.5, -12.8), (36.5, -12.8)):
+    # 胸壁の前の 2 つは胸壁から 0.34 m（前は 0.54 m で、茂みの上から胸壁の手すりの方へ下りると間に引っかかった。
+    # 0.34 m は体が入れないので床までふさぎ、手すりとの間は 0.77 m 空けて胸壁の上に下りられるようにする）
+    for x, z in ((-13.2, 13.6), (13.2, 13.6), (-2.6, 13.8), (2.6, 13.8), (-36.5, -13.0), (36.5, -13.0)):
         d.put("planter_big", [x, 0, z])
 
     # --- 建物の横の面（何も無い白い壁）に窓
+    # 下の窓は雨戸の無い窓（前は雨戸が 0.62 m 出ていて、横を歩くと肩・頭が入った）。床の配管は食堂の裏の先へ（食堂の西の面の縦の管と並ぶと 0.6 m のすき間になる）
     for x, yaw in ((-26.98, 90), (-41.02, 270)):
         for z in (6.5, 10.5):
-            d.put("window_frame", [x, 1.3, z], yaw)
+            d.put("window_flush", [x, 1.3, z], yaw)
             d.put("window_frame", [x, 4.4, z], yaw)
     d.put("canvas_roll", [-26.98, 3.6, 8.5], 90)
-    d.put("pipes", [-26.3, 0, 9.0], 90)
+    d.put("pipes", [-26.68, 0, 11.5], 90)
 
     # --- ヤーナの工房（正面 z=4、入口の奥まり z=6）
     d.put("workshop_front", [-34, 0, 4.0], 180)
@@ -204,12 +217,13 @@ def mid(room):
     d.put("diner_front", [-20, 0, 0.5], 180)
     sign(room, "食堂", "sign_roof_2", 180, 2.2)
     light(room, [-20, 5, -2], [-21.2, 2.6, -1.1])
+    # ベンチは卓の縁から 0.08 m（座面の前の縁が卓の下に入る）。前は 0.33 m 離れていて、間に落ちると両側の角に引っかかって宙に浮いた
     for x in (-24.6, -15.4):
         d.put("stall_table", [x, 0, -3.6], 90, scale=[1, 0.82, 1])
-        d.put("bench", [x - 1.1, 0, -3.6], 90, scale=[1, 0.9, 1])
-        d.put("bench", [x + 1.1, 0, -3.6], 270, scale=[1, 0.9, 1])
+        d.put("bench", [x - 0.85, 0, -3.6], 90, scale=[1, 0.9, 1])
+        d.put("bench", [x + 0.85, 0, -3.6], 270, scale=[1, 0.9, 1])
     d.put("barrel", [-14.2, 0, 0.0])
-    d.put("crate", [-25.8, 0, 0.0], 15, scale=0.8)
+    d.put("crate", [-25.8, 0, 0.0], 4, scale=0.8)      # 向きは数度だけ（前は 15 度で、囲む当たり判定の箱が 0.25 m 手前で止めた）
 
     # --- 市場：露店 2 つ（屋根の箱の中心、正面 -Z）、台の上の品、奥の棚、看板、吊り灯の明かり
     for x, goods, shelf, text, board, bw in ((24, "goods_general", "goods_shelf_general", "雑貨屋", "sign_post_2", 2.2),
@@ -220,7 +234,7 @@ def mid(room):
         sign(room, text, board, 180, bw)
         light(room, [x, 5, 2], [x - 2.0, 2.8, 3.7])
         d.put("barrel", [x - 4.6, 0, 4.4])
-        d.put("chest", [x + 4.6, 0, 4.6], 200)
+        d.put("chest", [x + 4.9, 0, 5.2], 183)      # 台の端・露店の前の柱から 0.8 m 離す（前は 0.4〜0.6 m の間に挟まった）
     d.put("tool_rack", [31, 0, 9.0], 180)
     d.put("clothesline", [31, 0, 11.5], 180)
     d.put("water_tower", [31, 0, 13.6], 0, scale=1.3)
@@ -231,6 +245,8 @@ def mid(room):
             it["shadow"] = True
         if it.get("solid") is False:
             it.pop("solid")
+        elif isinstance(it.get("solid"), str):
+            pass        # 表の別の行（dress_solid.SOLID の名前）
         elif it["part"].split("/")[1] in SOLID:
             it["solid"] = True
     room["dress"] = d.items

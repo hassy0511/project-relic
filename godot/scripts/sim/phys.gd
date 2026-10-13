@@ -19,6 +19,8 @@ const PROP := 16
 const STEP_HEIGHT := 0.35
 const SNAP := 0.3
 const FLOOR_MIN_Y := 0.7071  # cos(45°)
+## 空中で当たった床の面がこれより傾いていたら（縁の角）、面に沿って滑らせる（move_character）
+const EDGE_FLAT := 0.995
 const MARGIN := 0.02
 
 
@@ -117,8 +119,10 @@ func move_character(body: CharacterBody3D, delta: Vector3, mask: int, on_ground:
 			motion = Vector3.ZERO
 			break
 		var slid := rem.slide(n)
-		if n.y >= FLOOR_MIN_Y and delta.y <= 0.0:
-			# 床に当たったら、残りは水平にだけ進める（坂で滑り落ちないように）
+		if n.y >= FLOOR_MIN_Y and delta.y <= 0.0 and (on_ground or n.y > EDGE_FLAT):
+			# 床に当たったら、残りは水平にだけ進める（坂で滑り落ちないように）。
+			# 空中で傾いた面に当たったとき（体の丸い底が段・箱の縁の角に載った）は、面に沿って滑らせて縁から落とす。
+			# 前は真下に床の無いまま縁の上で止まり、接地しない（跳べない）まま宙に浮いて見えた（箱の縁・溝の縁・壁ぎわの灯の上）
 			slid = Vector3(rem.x, 0.0, rem.z).slide(n)
 		if not on_ground:
 			# 空中：段の角で上へ押し上げられる分を打ち消す

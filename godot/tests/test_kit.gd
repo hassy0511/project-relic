@@ -215,8 +215,9 @@ func test_fall_camera_not_on_gap_jump() -> void:
 # ---------------------------------------------------------------- 飾りの当たり判定（"solid"）
 
 ## 当たり判定の箱が要る部品（歩ける所に立つ、手で触れる大きさの物）。solid の箱か、前からある描かない箱の中に立つこと
+## （洗濯綱は洗濯物が頭の上の高さで、2 本の柱の間は歩いて通れる。柱だけに箱がある）
 const SOLID_CLASS := ["ruins/b1_crate", "ruins/b1_crate_cloth", "town/crate", "town/barrel", "town/chest", "town/planter", "town/planter_big",
-	"town/bench", "town/stall_table", "town/junk_pile", "town/tool_rack", "town/water_tower", "town/clothesline", "town/pipes",
+	"town/bench", "town/stall_table", "town/junk_pile", "town/tool_rack", "town/water_tower", "town/pipes",
 	"town/lamp_post", "town/lamp_tall"]
 ## 飾りのある部屋（キットの部屋）
 const DRESSED := ["ch1.r02", "ch1.r03", "ch1.mid"]
@@ -224,6 +225,18 @@ const DRESSED := ["ch1.r02", "ch1.r03", "ch1.mid"]
 const CLEAR_BOX := 0.1
 const CLEAR_MARK := 0.6
 const CLEAR_PROP := 0.5
+## 壁の帯（"wall": true）が出口・トリガーの箱に掛かってよい深さ（dress_solid.WALL_REACH）
+const WALL_REACH := 1.0
+## 両辺がこれより広いトリガーは「場所」（広場など）。その中には床の上の広がりが SMALL より小さい箱は立ててよい（dress_solid.AREA・SMALL）
+const AREA := 4.0
+const SMALL := 0.5
+## 跳んで届く高さ（tuning の jumpHeight 2.2）と、乗れない柱（"nogo"）の上の端に要るゆとり。届く所を探す横の距離
+const JUMP_UP := 2.2
+const NOGO_MARGIN := 0.1
+const JUMP_ACROSS := 6.5
+## 整備通路の溝（z の範囲）と、壁の帯の面（|x|）
+const R03_PITS := [[-13.0, -11.5], [-7.0, -4.5], [-0.5, 3.0], [7.5, 10.5], [13.5, 16.0]]
+const R03_LINER := 2.64
 
 
 ## 形の床の上の広がり：[中心 x, 中心 z, 半幅 x, 半幅 z, yaw（ラジアン）, 下の y, 上の y]
@@ -256,6 +269,14 @@ static func _near_box(g: Dictionary, pos: Vector3, size: Vector3, clear: float) 
 	return true
 
 
+## 壁の帯が、出口・トリガーの箱に壁ぎわの WALL_REACH までしか掛かっていないか（重なりの幅か奥行きのどちらかが WALL_REACH 以下）
+static func _wall_edge_only(g: Dictionary, pos: Vector3, size: Vector3) -> bool:
+	var f := _foot(g)
+	var ox: float = minf(f[0] + f[2], pos.x + size.x / 2.0) - maxf(f[0] - f[2], pos.x - size.x / 2.0) + 2.0 * CLEAR_BOX
+	var oz: float = minf(f[1] + f[3], pos.z + size.z / 2.0) - maxf(f[1] - f[3], pos.z - size.z / 2.0) + 2.0 * CLEAR_BOX
+	return minf(ox, oz) <= WALL_REACH
+
+
 ## 足した箱が、出口・トリガー・目印・チェックポイント・敵・調べる物・拾う物・住人をふさいでいないか（ふさいでいる物の一覧）
 static func _blocking(room: Dictionary, added: Array) -> Array:
 	var points := []
@@ -270,12 +291,13 @@ static func _blocking(room: Dictionary, added: Array) -> Array:
 	var boxes := []
 	for t in room.get("triggers", []):
 		if t.has("pos") and t.has("size"):
-			boxes.append([t.id, RoomGeo.v3(t.pos), RoomGeo.v3(t.size)])
+			var ts := RoomGeo.v3(t.size)
+			boxes.append([t.id, RoomGeo.v3(t.pos), ts, ts.x >= AREA and ts.z >= AREA])
 	for p in room.get("props", []):
 		if p.get("type", "") == "sign":
 			continue
 		if p.get("size") is Array:
-			boxes.append([str(p.get("id", p.type)), RoomGeo.v3(p.pos), RoomGeo.v3(p.size)])
+			boxes.append([str(p.get("id", p.type)), RoomGeo.v3(p.pos), RoomGeo.v3(p.size), false])
 		elif p.has("pos"):
 			points.append([str(p.get("id", p.type)), RoomGeo.v3(p.pos), CLEAR_PROP])
 	var bad := []
@@ -285,14 +307,105 @@ static func _blocking(room: Dictionary, added: Array) -> Array:
 			var at: Vector3 = q[1]
 			if f[6] > at.y - 0.2 and f[5] < at.y + 1.6 and _dist(g, at.x, at.z) < q[2]:
 				bad.append("%s が %s に近い" % [str(g.pos), q[0]])
+		var small: bool = f[2] * 2.0 <= SMALL and f[3] * 2.0 <= SMALL
 		for b in boxes:
-			if _near_box(g, b[1], b[2], CLEAR_BOX):
+			if b[3] and small:
+				continue      # 場所のトリガーの中の小さい箱
+			if _near_box(g, b[1], b[2], CLEAR_BOX) and not (g.get("wall", false) and _wall_edge_only(g, b[1], b[2])):
 				bad.append("%s が %s に掛かる" % [str(g.pos), b[0]])
 	return bad
 
 
+## 箱の床の上の範囲 [x0, x1, z0, z1]（軸にそろった形だけ。回した形は囲む範囲）
+static func _rect(g: Dictionary) -> Array:
+	var f := _foot(g)
+	var ex: float = absf(f[2] * cos(f[4])) + absf(f[3] * sin(f[4]))
+	var ez: float = absf(f[2] * sin(f[4])) + absf(f[3] * cos(f[4]))
+	return [f[0] - ex, f[0] + ex, f[1] - ez, f[1] + ez]
+
+
+static func _rect_gap(a: Array, b: Array) -> float:
+	return Vector2(maxf(0.0, maxf(a[0] - b[1], b[0] - a[1])), maxf(0.0, maxf(a[2] - b[3], b[2] - a[3]))).length()
+
+
+## 上の面に立てる箱か（乗れない柱は除く）：上の面の点のどれかで、体の中心を置ける（その点から 0.33 m 以内に、上の面より上へ伸びる
+## ほかの箱が無い。壁ぎわの薄い箱・頭の上がふさがった箱には立てない）。i は geo の番号
+static func _standable(i: int, geo: Array, rects: Array) -> bool:
+	var g: Dictionary = geo[i]
+	if g.get("t", "box") != "box" or g.get("nogo", false):
+		return false
+	var r: Array = rects[i]
+	if r[1] - r[0] < 0.05 or r[3] - r[2] < 0.05:
+		return false
+	var top: float = float(g.pos[1]) + float(g.size[1])
+	var near := []
+	for j in geo.size():
+		var o: Dictionary = geo[j]
+		var y0: float = float(o.pos[1])
+		if j != i and y0 < top + 1.55 and y0 + float(o.size[1]) > top + 0.05 and _rect_gap(rects[j], [r[0] - 0.33, r[1] + 0.33, r[2] - 0.33, r[3] + 0.33]) == 0.0:
+			near.append(rects[j])
+	for a in 3:
+		for b in 3:
+			var x: float = r[0] + (r[1] - r[0]) * (0.1 + 0.4 * a)
+			var z: float = r[2] + (r[3] - r[2]) * (0.1 + 0.4 * b)
+			if near.all(func(ro): return _rect_gap(ro, [x, x, z, z]) >= 0.33):
+				return true
+	return false
+
+
+## 乗れない柱（"nogo"）の上には、跳んで届かない：近くの立てる面（床 0 m と、床から順に跳んで届く箱の上）から JUMP_UP 跳んでも、
+## 上の端に NOGO_MARGIN 足りない。上にほかの箱が続いている柱は、その箱の上で見る
+func _nogo_reach(room: Dictionary) -> Array:
+	var geo: Array = room.get("geometry", []).filter(func(g): return g.get("t", "box") == "box")
+	var rects := geo.map(func(g): return _rect(g))
+	var tops := geo.map(func(g): return float(g.pos[1]) + float(g.size[1]))
+	var stand := []
+	for i in geo.size():
+		if tops[i] > 0.05 and tops[i] < 8.0 and _standable(i, geo, rects):
+			stand.append(i)
+	var reached := {}      # 届く立てる箱の番号
+	var changed := true
+	while changed:
+		changed = false
+		for i in stand:
+			if reached.has(i):
+				continue
+			var ok: bool = tops[i] <= JUMP_UP
+			if not ok:
+				for a in reached:
+					if tops[a] + JUMP_UP >= tops[i] and _rect_gap(rects[a], rects[i]) <= JUMP_ACROSS:
+						ok = true
+						break
+			if ok:
+				reached[i] = true
+				changed = true
+	var bad := []
+	for k in geo.size():
+		if not geo[k].get("nogo", false):
+			continue
+		var r: Array = rects[k]
+		var cx: float = (r[0] + r[1]) / 2.0
+		var cz: float = (r[2] + r[3]) / 2.0
+		var above := false
+		for j in geo.size():
+			var ro: Array = rects[j]
+			if j != k and absf(float(geo[j].pos[1]) - tops[k]) < 0.02 and cx >= ro[0] and cx <= ro[1] and cz >= ro[2] and cz <= ro[3]:
+				above = true
+				break
+		if above:
+			continue      # 上に続く箱がある
+		var best := JUMP_UP
+		for a in reached:
+			if _rect_gap(rects[a], r) <= JUMP_ACROSS:
+				best = maxf(best, tops[a] + JUMP_UP)
+		if tops[k] < best + NOGO_MARGIN:
+			bad.append("%s（上の端 %.2f、届く %.2f）" % [str(geo[k].pos), tops[k], best])
+	return bad
+
+
 ## キットの部屋の飾りの当たり判定：solid の飾りには描かない箱があり、箱・樽・鉢植えなどはどれも当たり判定の箱の中に立ち、
-## 足した箱は出口・トリガー・目印・調べる物・住人をふさがない。整備通路の跳ぶ所（溝の縁から 1.5 m）には箱を置かない
+## 足した箱は出口・トリガー・目印・調べる物・住人をふさがない（壁の帯は壁ぎわだけ可）。乗れない柱の上には跳んで届かない。
+## 整備通路の溝と、溝の縁から 1.5 m（着地・踏み切り・跳んでいる所）では、頭の届く高さに壁の帯より前へ出た箱が無い
 func test_dress_solid_props() -> void:
 	var w := World.load_manifest("res://content/world.json")
 	for rid in DRESSED:
@@ -321,16 +434,21 @@ func test_dress_solid_props() -> void:
 		h.expect(n > 0 and loose.is_empty(), "%s：箱・樽・鉢植えなど %d 個に当たり判定がある（無い：%s）" % [rid, n, loose])
 		var bad := _blocking(room, added)
 		h.expect(bad.is_empty(), "%s：当たり判定の箱が出口・トリガー・目印・調べる物・住人から離れている（%s）" % [rid, bad])
+		h.expect(added.filter(func(g): return g.get("nogo", false) and g.get("cam", true)).is_empty(), "%s：乗れない柱はどれも体だけの箱（cam: false）" % rid)
+		var high := _nogo_reach(room)
+		h.expect(high.is_empty(), "%s：乗れない柱の上には跳んで届かない（届く：%s）" % [rid, high])
 	var on_jump := []
 	for g in w.room("ch1.r03").geometry:
 		if not g.has("dress"):
 			continue
 		var f := _foot(g)
-		var ez: float = absf(f[2] * sin(f[4])) + absf(f[3] * cos(f[4]))
-		for edge in [-13.0, -11.5, -7.0, -4.5, -0.5, 3.0, 7.5, 10.5, 13.5, 16.0]:
-			if absf(f[1] - edge) < ez + 1.5:
-				on_jump.append("%s（溝の縁 z=%.1f）" % [str(g.pos), edge])
-	h.expect(on_jump.is_empty(), "整備通路：溝の縁から 1.5 m（着地・踏み切りの所）に当たり判定の箱が無い（%s）" % [on_jump])
+		var r := _rect(g)
+		if f[5] >= 3.9 or (r[0] >= R03_LINER - 0.005 or r[1] <= -R03_LINER + 0.005):
+			continue      # 頭の上の管・梁、壁の帯の内の物
+		for pit in R03_PITS:
+			if r[3] > pit[0] - 1.5 and r[2] < pit[1] + 1.5:
+				on_jump.append("%s（溝 %s）" % [str(g.pos), str(pit)])
+	h.expect(on_jump.is_empty(), "整備通路：溝と溝の縁から 1.5 m に、壁の帯より前へ出た当たり判定の箱が無い（%s）" % [on_jump])
 
 
 func _ch1_game() -> GameSim:
@@ -354,7 +472,9 @@ func test_dress_solid_walk() -> void:
 		["ch1.r02", "from_r01", Vector3(9.4, 0, 9.4), Vector2(1, 1), "遺構 B1 の北東の角の箱"],
 		["ch1.r02", "from_r01", Vector3(-9.4, 0, -9.4), Vector2(-1, -1), "南西の角の箱"],
 		["ch1.r02", "from_r01", Vector3(-9.8, 0, 9.8), Vector2(-1, 1), "北西の角の箱"],
-		["ch1.r02", "from_r01", Vector3(9.8, 0, -9.8), Vector2(1, -1), "南東の角の箱"],
+		["ch1.r02", "from_r01", Vector3(12.0, 0, -9.0), Vector2(0, -1), "南東の角の箱"],
+		["ch1.r02", "from_r01", Vector3(11.0, 0, -9.5), Vector2(1, 0), "遺構 B1 の東の壁（板の継ぎ目の柱の前。体は壁の帯で止まる）"],
+		["ch1.r03", "from_r02", Vector3(1.0, 0, -10.0), Vector2(1, 0), "整備通路の東の壁"],
 		["ch1.r02", "from_r01", Vector3(-10.5, 0, 0.5), Vector2(-1, 0), "西の壁の大型ファン"],
 		["ch1.r03", "from_r02", Vector3(0.3, 0, -16.7), Vector2(1, 0), "整備通路の扉の前の箱（東）"],
 		["ch1.r03", "from_r02", Vector3(-0.3, 0, -16.7), Vector2(-1, 0), "整備通路の扉の前の箱（西）"],
@@ -390,3 +510,161 @@ func test_dress_solid_walk() -> void:
 		h.expect(g.room_id == c[0] and absf(g.player.pos.y - start.y) < 0.2 and g.player.grounded,
 			"%s：床の上に立ったまま（%s, y=%.2f）" % [c[4], g.room_id, g.player.pos.y])
 	h.free_game(g)
+
+
+## 縁の角に体の丸い底だけで載ったら（体の中心が縁の外）、縁から滑り落ちて床に立つ。前は接地しないまま縁の上で止まり、
+## 跳べないまま宙に浮いて見えた（箱の縁・溝の縁）。体の中心が縁の内なら、縁に立ったまま
+func test_edge_slides_off() -> void:
+	var g := h.make_game({"boxes": [[Vector3(0, 0.5, 0), Vector3(2, 1, 2)]]})
+	await h.settle()
+	g.player.teleport(Vector3(1.15, 1.0, 0), 0.0)
+	await h.run(g, TestHelpers.seconds(0.8), {})
+	h.expect(g.player.grounded and g.player.pos.y < 0.05 and g.player.pos.x > 1.3,
+		"中心が縁の 0.15 m 外：縁から床へ落ちて立つ（%.2f, %.2f）" % [g.player.pos.x, g.player.pos.y])
+	g.player.teleport(Vector3(0.9, 1.0, 0), 0.0)
+	await h.run(g, TestHelpers.seconds(0.8), {})
+	h.expect(g.player.grounded and absf(g.player.pos.y - 1.0) < 0.02 and absf(g.player.pos.x - 0.9) < 0.02,
+		"中心が縁の 0.1 m 内：縁に立ったまま（%.2f, %.2f）" % [g.player.pos.x, g.player.pos.y])
+	h.free_game(g)
+
+
+## 箱の上から角・壁ぎわへ歩いて（跳んで）下りても、宙に浮いたまま止まらない。前は遺構 B1 の角の箱と壁の間のすき間（0.3〜0.6 m）に落ちて、
+## 両側の角に体が引っかかり、立てず跳べず出られなくなった（食堂の卓とベンチの間も同じ）。止まったあと接地していて、部屋の真ん中へ戻れる
+func test_dress_no_hang() -> void:
+	var g := _ch1_game()
+	await h.settle()
+	var cases := [
+		# [部屋, 目印, 始めの位置（箱の上）, 歩く向き, 説明]
+		["ch1.r02", "from_r01", Vector3(-12.0, 1.02, -11.9), Vector2(-1, -1), "遺構 B1 の南西の角の箱の上から角へ"],
+		["ch1.r02", "from_r01", Vector3(-10.8, 1.06, -12.0), Vector2(0, -1), "南西の布の箱の上から南の壁へ"],
+		["ch1.r02", "from_r01", Vector3(-12.0, 1.02, -10.9), Vector2(-1, 0), "南西の箱の上から西の壁へ"],
+		["ch1.r02", "from_r01", Vector3(11.9, 1.06, 12.0), Vector2(1, 1), "北東の角の布の箱の上から角へ"],
+		["ch1.r02", "from_r01", Vector3(10.8, 1.02, 12.1), Vector2(0, 1), "北東の箱の上から北の壁へ"],
+		["ch1.r02", "from_r01", Vector3(12.1, 1.02, 10.9), Vector2(1, 0), "北東の箱の上から東の壁へ"],
+		["ch1.r02", "from_r01", Vector3(-12.0, 1.02, 12.0), Vector2(-1, 1), "北西の角の箱の上から角へ"],
+		["ch1.r02", "from_r01", Vector3(12.0, 1.06, -11.9), Vector2(1, -1), "南東の角の布の箱の上から角へ"],
+		["ch1.mid", "start", Vector3(-24.6, 0.82, -3.6), Vector2(-1, 0), "食堂の西の卓の上から西のベンチへ"],
+		["ch1.mid", "start", Vector3(-24.6, 0.82, -3.6), Vector2(1, 0), "食堂の西の卓の上から東のベンチへ"],
+		["ch1.mid", "start", Vector3(-15.4, 0.82, -3.6), Vector2(-1, 0), "食堂の東の卓の上から西のベンチへ"],
+		["ch1.mid", "start", Vector3(-15.4, 0.82, -3.6), Vector2(1, 0), "食堂の東の卓の上から東のベンチへ"],
+		["ch1.mid", "start", Vector3(10.0, 1.47, -13.2), Vector2(0, -1), "胸壁の前の鉢植えの上から胸壁の上へ"],
+		["ch1.mid", "start", Vector3(-20.0, 1.47, -13.2), Vector2(0, -1), "胸壁の前の鉢植えの上から胸壁の上へ（西）"],
+		["ch1.mid", "start", Vector3(2.6, 1.75, 13.8), Vector2(1, 1), "北の階段の横の大きな鉢植えの上から角の棟の扉の方へ"],
+		["ch1.mid", "start", Vector3(-2.6, 1.75, 13.8), Vector2(-1, 1), "北の階段の横の大きな鉢植えの上から角の棟の扉の方へ（西）"],
+		["ch1.mid", "start", Vector3(-19.7, 1.14, 10.1), Vector2(1, 0), "食堂の裏の木箱の上から裏口の日よけの方へ"],
+		["ch1.mid", "start", Vector3(28.9, 1.02, 5.2), Vector2(-1, -1), "雑貨屋の収納箱の上から台の端の方へ"],
+		["ch1.mid", "start", Vector3(-19.64, 1.08, 10.1), Vector2(-1, 0), "食堂の裏の木箱の上から裏の窓の雨戸の方へ"],
+		["ch1.mid", "start", Vector3(5.5, 1.22, -14.3), Vector2(0, 1), "胸壁の上から南の階段の上り口の背の高い外灯の方へ"],
+		["ch1.mid", "start", Vector3(-5.5, 1.22, -14.3), Vector2(0, 1), "胸壁の上から背の高い外灯の方へ（西）"],
+		["ch1.mid", "start", Vector3(12.0, 2.96, 9.5), Vector2(-1, 0), "広場の外灯の腕の上から灯の先へ"],
+	]
+	for c in cases:
+		if g.room_id != c[0]:
+			g.load_room(c[0], c[1])
+			for t in g.triggers:
+				t.fired = true
+			g.exits = []
+			await h.run(g, 4, {})
+		for mode in ["walk", "jump"]:
+			var dir: Vector2 = (c[3] as Vector2).normalized()
+			var yaw := atan2(dir.x, dir.y)
+			g.player.teleport(c[2], yaw)
+			g.cam.yaw = yaw
+			await h.run(g, 3, {})
+			for i in TestHelpers.seconds(1.5):
+				g.cam.yaw = yaw
+				await h.run(g, 1, {"move_y": 1.0, "jump": mode == "jump" and i < 10})
+			await h.run(g, TestHelpers.seconds(0.8), {})
+			var p := g.player.pos
+			h.expect(g.player.grounded, "%s（%s）：止まったとき接地している（%.2f, %.2f, %.2f）" % [c[4], mode, p.x, p.y, p.z])
+			# 部屋の真ん中へ戻れる
+			var back := atan2(-p.x, -p.z)
+			for i in TestHelpers.seconds(1.5):
+				g.cam.yaw = back
+				await h.run(g, 1, {"move_y": 1.0, "jump": i % 30 < 8})
+			await h.run(g, TestHelpers.seconds(0.6), {})
+			var q := g.player.pos
+			h.expect(Vector2(q.x - p.x, q.z - p.z).length() > 1.0 and g.player.grounded,
+				"%s（%s）：そこから部屋の真ん中へ歩いて戻れる（%.2f m）" % [c[4], mode, Vector2(q.x - p.x, q.z - p.z).length()])
+	h.free_game(g)
+
+
+## 跳んで乗れない所：露店の奥の柱・洗濯綱の柱の上（前は 1.2 m の低い箱で、柱の途中の宙に立てた）、工具棚 → 給水塔 → 露店の屋根
+## （前は屋根の上を歩けて、靴が帆布の下へ抜けた）、配膳台から食堂の日よけの上
+func test_dress_no_ledges() -> void:
+	var g := _ch1_game()
+	await h.settle()
+	g.load_room("ch1.mid", "start")
+	for t in g.triggers:
+		t.fired = true
+	await h.run(g, 4, {})
+	var posts := [Vector3(20.2, 0, 8.75), Vector3(27.8, 0, 8.75), Vector3(34.2, 0, 8.75), Vector3(41.8, 0, 8.75), Vector3(30.0, 0, 11.5), Vector3(32.0, 0, 11.5)]
+	var stood := []
+	for p in posts:
+		for a in 8:
+			var ang := a * TAU / 8.0
+			var start := Vector3(p.x + sin(ang) * 1.4, 0.02, p.z + cos(ang) * 1.4)
+			if not _clear(g, start):
+				continue
+			g.player.teleport(start, ang + PI)
+			await h.run(g, 3, {})
+			for i in 90:
+				var q := g.player.pos
+				var d := Vector2(p.x - q.x, p.z - q.z).length()
+				g.cam.yaw = atan2(p.x - q.x, p.z - q.z)
+				await h.run(g, 1, {"move_y": 1.0 if (d > 0.12 and (q.y > 1.3 or i > 2)) else 0.0, "jump": i < 24})
+			await h.run(g, 30, {})
+			var q := g.player.pos
+			if g.player.grounded and q.y > 0.9 and Vector2(p.x - q.x, p.z - q.z).length() < 0.3:
+				stood.append("%s から %d°：(%.2f, %.2f, %.2f)" % [str(p), a * 45, q.x, q.y, q.z])
+	h.expect(stood.is_empty(), "露店の奥の柱・洗濯綱の柱の上に立てない（立てた：%s）" % [stood])
+	# 工具棚 → 給水塔 → 露店の屋根（実際の操作：跳んで、足が目当ての上より上に来てから向きを入れる）。給水塔の上から屋根へも跳ぶ
+	var on_roof := []
+	var tower_top := 0.0
+	for start in [Vector3(31, 0, 8.2), Vector3(31, 3.25, 13.6)]:
+		g.player.teleport(start, 0.0)
+		await h.run(g, 20, {})
+		if start.y > 1.0:
+			tower_top = g.player.pos.y if g.player.grounded else -1.0
+		var legs := [[Vector3(31, 1.75, 9.0), 24, 50, false], [Vector3(31, 3.19, 13.6), 24, 80, true], [Vector3(30.2, 3.19, 12.8), 0, 40, false]] if start.y < 1.0 else []
+		legs += [[Vector3(27.2, 3.45, 8.2), 24, 90, true], [Vector3(21.0, 3.45, 5.0), 0, 90, false]]
+		for leg in legs:
+			var to: Vector3 = leg[0]
+			var up: bool = int(leg[1]) > 0
+			for i in int(leg[2]):
+				var q := g.player.pos
+				g.cam.yaw = atan2(to.x - q.x, to.z - q.z)
+				var d := Vector2(to.x - q.x, to.z - q.z).length()
+				var mv := 0.0
+				if leg[3] or not up or q.y > to.y + 0.15 or (g.player.grounded and i > 3 and absf(q.y - to.y) < 0.1):
+					mv = 1.0 if d > 0.25 else 0.0
+				await h.run(g, 1, {"move_y": mv, "jump": up and i < int(leg[1])})
+				var r := g.player.pos
+				if g.player.grounded and r.y > 3.2 and ((r.x > 19.9 and r.x < 28.1) or (r.x > 33.9 and r.x < 42.1)) and r.z > 3.5 and r.z < 9.1:
+					on_roof.append("(%.2f, %.2f, %.2f)" % [r.x, r.y, r.z])
+	h.expect(tower_top > 3.0, "給水塔の上には立てる（%.2f）" % tower_top)
+	h.expect(on_roof.is_empty(), "工具棚・給水塔から露店の屋根の上へは行けない（%s）" % [on_roof.slice(0, 3)])
+	# 配膳台の上から食堂の日よけへ跳ぶ
+	var high := 0.0
+	for a in [-0.6, 0.0, 0.6]:
+		g.player.teleport(Vector3(-20.0 + a * 2.0, 1.02, -0.25), PI)
+		await h.run(g, 3, {})
+		for i in 80:
+			g.cam.yaw = PI + a
+			await h.run(g, 1, {"move_y": 1.0 if i > 4 else 0.0, "jump": i < 24})
+			if g.player.grounded:
+				high = maxf(high, g.player.pos.y)
+	h.expect(high < 1.1, "配膳台の上から食堂の日よけの上に乗れない（立った高さ %.2f）" % high)
+	h.free_game(g)
+
+
+## 体（カプセル）が置ける所か（地形・壊せる物・体だけの箱に重ならない）
+func _clear(g: GameSim, feet: Vector3) -> bool:
+	var q := PhysicsShapeQueryParameters3D.new()
+	var cap := CapsuleShape3D.new()
+	cap.radius = Player.RADIUS
+	cap.height = Player.HEIGHT
+	q.shape = cap
+	q.transform = Transform3D(Basis(), feet + Vector3(0, Player.HEIGHT / 2.0 + 0.01, 0))
+	q.collision_mask = Phys.TERRAIN | Phys.BREAKABLE | Phys.PROP
+	return g.phys.get_world_3d().direct_space_state.intersect_shape(q, 1).is_empty()
