@@ -74,6 +74,11 @@ func _clear() -> void:
 	_end_hold()
 
 
+## ハルの背後へ回している途中か（request_recenter で始めた回転が、まだ終わっていない）
+func swinging() -> bool:
+	return _recentering > 0.0 and _hold != null
+
+
 ## 止めている基準をやめる（基準はカメラに戻る）
 func _end_hold() -> void:
 	_hold = null

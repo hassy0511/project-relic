@@ -189,6 +189,39 @@ func test_recenter_cancelled_by_lock() -> void:
 		h.near(U.wrap_angle(cam.move_yaw() - cam.yaw), 0.0, 0.0001, "捉えた %d 刻み：離せば左スティックの基準はカメラ" % lock_ticks)
 
 
+## ロックオンのボタンを短く押して（その瞬間は誰もいない）背後へ回している途中に、敵が見えてきても捉えない。
+## 回し終えるとカメラはハルの背後、進む向きは変わらない。押し続けていれば、回し終えてから捉える（2026-10-13）
+func test_recenter_tap_with_enemy_entering_view() -> void:
+	for tap in [4, 6, 8, 12, 40]:
+		var g := h.make_game()
+		await h.settle()
+		g.cam.follow = "weak"
+		g.cam.yaw = 0.0
+		var hold := {"move_y": -1.0}
+		await h.run(g, 40, hold)
+		var p: Player = g.player
+		var heading0 := U.dir_to_yaw(p.vel.x, p.vel.z)
+		# ハルから 15 m、カメラの後ろ側（前方 ±75° の外、8 m より遠い）に、動かない番機
+		var at := p.pos + U.yaw_to_dir(heading0 + 30.0 * U.DEG) * 15.0
+		var e = g.spawn_enemy_spec({"type": "sentry", "pos": [at.x, 0, at.z], "passive": true, "invulnerable": true})
+		await h.run(g, 1, hold)
+		var caught_mid := false
+		for i in 150:
+			var f := hold.duplicate()
+			f["lock_on"] = i < tap
+			await h.run(g, 1, f)
+			if g.cam.swinging() and g.lock_on.target != null:
+				caught_mid = true
+		var what := "%d 刻み押す" % tap
+		h.expect(not caught_mid, "%s：背後へ回している途中では捉えない" % what)
+		if tap < 40:
+			h.near(U.wrap_angle(p.yaw - g.cam.yaw) / U.DEG, 0.0, 3.0, "%s：離したあと、カメラはハルの背後" % what)
+			h.near(U.wrap_angle(U.dir_to_yaw(p.vel.x, p.vel.z) - heading0) / U.DEG, 0.0, 3.0, "%s：ハルの進む向きは変わらない" % what)
+		else:
+			h.expect(g.lock_on.target == null or g.lock_on.target == e, "%s：回し終えてから捉えるのは見えている番機" % what)
+		h.free_game(g)
+
+
 ## 背後へ回したあと、倒し直しの途中でもう一度押しても、ハルの進む向きは跳ばない
 func test_recenter_twice_keeps_heading() -> void:
 	var g := h.make_game()
