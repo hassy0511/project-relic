@@ -428,7 +428,8 @@ func play_part2(g: GameSim) -> void:
 	# サブ依頼 2：雑貨屋の配達
 	g.load_room("ch1.mid", "start")
 	await _pump(g, 6)
-	_warp(g, Vector3(24, 0, 3.4))
+	# 雑貨屋の台の前（台の面 z=3.4 から 0.05 m 手前。前は台の面に体の中心を置き、台の上の品の当たり判定の箱にも掛かって、台の中へ押し込まれた）
+	_warp(g, Vector3(24, 0, 3.0))
 	await _use(g)
 	await _pump(g, 1500, func(): return g.flag("ch1.parcel_taken") and not g.story.running_event())
 	h.expect(g.flag("ch1.parcel_taken"), "雑貨屋の荷物を預かる")
