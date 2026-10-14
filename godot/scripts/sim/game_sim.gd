@@ -798,6 +798,14 @@ func _update_switches(dt: float) -> void:
 
 
 ## 動く足場：乗っているプレイヤーを運ぶ
+## 足元（feet）が動く足場（ピストン・リフト・歯車の足場）の上か
+func on_mover(feet: Vector3) -> bool:
+	for m in movers:
+		if m.carries(feet):
+			return true
+	return false
+
+
 func _update_movers(dt: float) -> void:
 	for m in movers:
 		var run := Cond.eval(m.cond, self)

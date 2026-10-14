@@ -922,6 +922,78 @@ func test_ruins_walking_maintenance_corridor() -> void:
 	h.free_game(g)
 
 
+## 駆動回廊（r12）のピストンの間・まわりの穴に落ちたら、10 ダメージで直前の動かない足場（入口・出口の台）へ戻る。
+## 前は穴の底（深さ 6 m）に立ててしまい、出口の坂が奥の端からしか上れず見つけにくくて、出られずに詰んだ（ユーザーの試遊、2026-10-14）。
+## ピストンの上から落ちても、戻る先はピストンではなく、最後に立った台（ピストンは動くので、戻ったときにそこに足場が無いことがある）
+func test_r12_pit_returns_to_footing() -> void:
+	var g := _new_game()
+	await h.settle()
+	g.god_mode = false
+	g.set_flag("ch1.drive_powered")
+	g.load_room("ch1.r12", "from_r11")
+	for t in g.triggers:
+		t.fired = true
+	await _pump(g, 6)
+	# 穴の底は戻る高さより下（立てる床が無い）：ピストンの外の穴の上から真下へ
+	var floors := 0
+	for xi in range(-15, 16, 2):
+		for zi in range(-19, 30, 2):
+			var x := xi * 0.5
+			var z := zi * 0.5
+			if absf(x) < 3.0:
+				continue
+			var hit: Dictionary = g.phys.raycast(Vector3(x, -1.0, z), Vector3.DOWN, 28.5, Phys.TERRAIN | Phys.BREAKABLE)
+			if not hit.is_empty():
+				floors += 1
+	h.expect(floors == 0, "駆動回廊の穴に、戻る高さより上で立てる床が無い（%d 点）" % floors)
+	# 入口の台の東の縁から、ピストンの無い所へ歩いて落ちる
+	_warp(g, Vector3(5.0, 0, -10.6), 0.0)
+	await _pump(g, 10)
+	var hp0: float = g.player.hp
+	var fell := [false]
+	await h.run_until(g, TestHelpers.seconds(5), {"move_y": 1.0}, func():
+		if g.player.pos.y < -3.0:
+			fell[0] = true
+		return fell[0] and g.player.pos.y > -0.5)
+	h.expect(fell[0], "台の縁から穴へ落ちる")
+	await _pump(g, 30)
+	var p: Vector3 = g.player.pos
+	h.expect(p.y > -0.3 and p.z < -9.9 and g.player.grounded, "落ちたら入口の台へ戻る（%.1f, %.1f, %.1f）" % [p.x, p.y, p.z])
+	h.near(g.player.hp, hp0 - 10.0, 0.01, "落ちると 10 ダメージ")
+	# ピストンに乗ってから横へ落ちる：戻る先は最後に立った動かない台（入口の台）
+	var mv: Props.Mover = g.movers.filter(func(m): return m.id == "ch1.r12.p1")[0]
+	var rode := [false]
+	var fell2 := [false]
+	var safe_on_mover := [false]
+	_warp(g, Vector3(0, 0, -10.4), 0.0)
+	await _pump(g, 10)
+	await h.run_until(g, TestHelpers.seconds(20), func(i):
+		var y: float = g.player.pos.y
+		if not rode[0]:
+			# ピストンが台の高さ近くまで上がってきたら乗る
+			var top: float = mv.pos.y + mv.size.y
+			if top > -0.6 and top < 0.4:
+				return {"move_y": 1.0, "jump": i % 20 < 8}
+			return {}
+		# 乗ったら東（ピストンの外）へ歩いて落ちる
+		return {"move_x": 1.0}
+	, func():
+		if not rode[0] and g.on_mover(g.player.pos) and g.player.grounded:
+			rode[0] = true
+		if rode[0] and not fell2[0] and g.player._safe_pos.z > -9.9:
+			safe_on_mover[0] = true
+		if rode[0] and g.player.pos.y < -4.0:
+			fell2[0] = true
+		return fell2[0] and g.player.pos.y > -0.5)
+	h.expect(rode[0], "ピストン p1 に乗れる")
+	h.expect(fell2[0], "ピストンから横へ落ちる")
+	h.expect(not safe_on_mover[0], "ピストンに乗っている間も、戻る先は入口の台のまま（ピストンの上を覚えない）")
+	await _pump(g, 30)
+	var q: Vector3 = g.player.pos
+	h.expect(q.y > -0.3 and q.z < -9.9 and g.player.grounded, "ピストンから落ちても、入口の台（動かない足場）へ戻る（%.1f, %.1f, %.1f）" % [q.x, q.y, q.z])
+	h.free_game(g)
+
+
 ## 実際に歩く：駆動回廊（B3）のピストンを、タイミングを見て跳び移って渡りきれること（動力が通った状態）
 func test_ruins_walking_pistons() -> void:
 	var g := _new_game()

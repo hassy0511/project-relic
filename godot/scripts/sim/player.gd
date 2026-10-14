@@ -282,7 +282,9 @@ func _update_movement(dt: float) -> void:
 		vel.y = 0.0
 		_jumping = false
 		_dash_jump = false
-		_safe_pos = pos
+		# 落ちたときに戻る「直前の足場」は、動かない床だけ（動く足場の上を覚えると、戻ったときにはそこに足場が無く、また落ちる）
+		if not g.on_mover(pos):
+			_safe_pos = pos
 	elif vel.y > 0.0 and res.moved.y < want.y * 0.5:
 		# 天井に頭をぶつけた
 		vel.y = 0.0
