@@ -465,8 +465,289 @@ def _gate(p: Part):
         p.add('brass', lathe((-43.2, 13.8, z), (-43.2, 14.4, z), [(0, 0.22), (1, 0.05)], 8))
 
 
+# ---------------------------------------------------------------- 上段（ch1.upper）
+
+def _notice_ring(p: Part, x, y, z, r=1.5):
+    """ギルドの正面の丸い依頼板（town_facilities 右上）：真鍮の輪、暗い板、貼られた紙、十字の黒鉛の棒。面 z（-Z 向き）から 12 cm まで"""
+    n = 24
+    for k in range(n):
+        a0, a1 = 2 * math.pi * k / n, 2 * math.pi * (k + 1) / n
+        pa = np.array([x + r * math.cos(a0), y + r * math.sin(a0)])
+        pb = np.array([x + r * math.cos(a1), y + r * math.sin(a1)])
+        p.add('brass', beam((pa[0], pa[1], z - 0.06), (pb[0], pb[1], z - 0.06), 0.16, 0.12))
+    p.add('dark', S_disc(x, y, z - 0.015, r - 0.05))
+    p.add('graphite', boxb(x - r + 0.1, x + r - 0.1, y - 0.05, y + 0.05, z - 0.07, z), boxb(x - 0.05, x + 0.05, y - r + 0.1, y + r - 0.1, z - 0.07, z))
+    rng = np.random.default_rng(5)
+    for k in range(9):
+        a = 2 * math.pi * k / 9 + 0.3
+        rr = r * (0.35 + 0.35 * (k % 3) / 2)
+        cx, cy = x + rr * math.cos(a), y + rr * math.sin(a)
+        w, h = rng.uniform(0.3, 0.45), rng.uniform(0.4, 0.55)
+        p.add('linen', box((cx, cy, z - 0.085), (w, h, 0.01), 0))
+        p.add('brass', box((cx, cy + h / 2 - 0.05, z - 0.095), (0.05, 0.05, 0.01), 0))
+    p.add('brass', cyl((x, y, z - 0.11), (x, y, z - 0.02), 0.2, 12))
+
+
+def S_disc(x, y, z, r, n=24):
+    v = [(x, y, z)] + [(x + r * math.cos(2 * math.pi * k / n), y + r * math.sin(2 * math.pi * k / n), z) for k in range(n)]
+    f = [[0, 1 + (k + 1) % n, 1 + k] for k in range(n)]
+    from town_geo import _orient_dir
+    return _orient_dir(Piece(np.array(v, float), f), (0, 0, -1))
+
+
+def _deck_rail(p: Part, a, b, y=1.2):
+    """展望台の床の縁の低い壁（0.8 m 厚）の上の真鍮の手すり：2 m ごとの柱、上の棒と中の棒、4 m ごとに小さな灯"""
+    T._rail(p, a, b, y, h=0.68, lamps=4.0, step=2.0)
+
+
+def upper_set() -> Part:
+    """上段（ch1.upper）：町長の家（U1）とギルド（U2）の面と屋上、展望台（U3）の床の縁の手すり・望遠鏡・旗"""
+    p = Part('upper_set')
+    # --- 町長の家（x -29〜-15、z 4〜13、高さ 7。奥まり x -23.6〜-20.4・奥 z 6・高さ 3.8。屋根の板 y 7〜7.6）：
+    # 上段の落ち着いた家（緑の多いバルコニー、真鍮の帯、両開きの扉、屋上の庭）
+    _house_a(p, -29.0, -15.0, 4.0, 13.0, 7.0, (-23.6, -20.4), 6.0, 3.8,
+             front_l={'posts': [-26.3], 'bands': [3.5], 'low': [(-27.7, 1.05), (-25.0, 1.05)], 'high': [(-25.0, 4.9)],
+                      'plates': [(-29.0, -23.6, 0.4, 7.0)]},
+             front_r={'posts': [-17.7], 'bands': [3.5], 'low': [(-19.1, 1.05), (-16.3, 1.05)], 'high': [(-19.1, 4.9)],
+                      'plates': [(-20.4, -15.0, 0.4, 7.0)]},
+             lintel={'lamps': [(-24.0, 0.25), (-20.0, 0.25)]},
+             sides={'-x': {'posts': [8.5], 'low': [(6.4, 1.05), (10.6, 1.05)], 'high': [(6.4, 4.6), (10.6, 4.6)], 'bands': [3.5]},
+                    '+x': {'posts': [8.5], 'low': [(6.4, 1.05), (10.6, 1.05)], 'high': [(8.5, 4.6)], 'bands': [3.5],
+                           'vents': [(10.6, 2.6)]}},
+             back={'low': [(-26.0, 1.05), (-18.0, 1.05)], 'posts': [-22.0]}, roof_y=7.6)
+    roof_slab(p, -29.3, -14.7, 3.7, 13.3, 7.0, 7.6)
+    for x0, x1 in ((-28.6, -26.4), (-18.0, -15.8)):
+        bp = Part('balcony')
+        w = x1 - x0
+        T._balcony(bp, -w / 2, w / 2, 4.25)               # 床の下 3.98 m（頭の上）
+        T.pot(bp, -0.5, 4.25, 0.5, 0.7)
+        T.pot(bp, 0.55, 4.25, 0.5, 0.6)
+        p.place(bp, ((x0 + x1) / 2, 0.0, 4.0), 180)
+    # 屋上の庭：大きな鉢の木 2 本、鉢植え、赤い帆布の日よけ、給水塔
+    p.place(P.planter(1.2, 0.95), (-27.6, 7.6, 11.6), 0, 1.2)
+    p.place(P.planter(1.2, 0.95), (-16.6, 7.6, 5.0), 0, 1.0)
+    for x, z in ((-25.6, 4.5), (-24.6, 4.5), (-19.4, 4.5), (-18.4, 4.5), (-28.4, 7.0), (-15.6, 9.0)):
+        T.pot(p, x, 7.6, z, 0.85)
+    T.canopy(p, -24.4, -19.6, 8.4, 11.6, 7.6, 2.0, 'cloth')
+    p.place(P.water_tower(), (-17.2, 7.6, 11.6), 0, 1.1)
+    # --- 回収屋ギルド（x 12〜28、z 4〜13、高さ 8。奥まり x 18.4〜21.6・奥 z 6・高さ 3.8。屋根の板 y 8〜8.6）：
+    # 正面の左に丸い依頼板、右に赤い日よけと品の窓、両脇に吊り灯（town_facilities 右上）
+    _house_a(p, 12.0, 28.0, 4.0, 13.0, 8.0, (18.4, 21.6), 6.0, 3.8,
+             front_l={'posts': [12.3], 'low': [(13.6, 1.05), (17.0, 1.05)], 'bands': [6.7], 'high': [(13.6, 6.9), (17.0, 6.9)]},
+             front_r={'posts': [27.7], 'low': [(23.4, 1.05), (26.2, 1.05)], 'bands': [6.7],
+                      'awn': [(22.2, 27.4, 4.55, 'hard', 1.3, 0.3)], 'high': [(23.4, 6.9), (26.2, 6.9)], 'banners': [(24.8, 6.45)]},
+             lintel={'lamps': [(18.1, 0.3), (21.9, 0.3)]},
+             sides={'-x': {'posts': [8.5], 'low': [(6.0, 1.05), (11.0, 1.05)], 'high': [(6.0, 4.6), (8.5, 4.6), (11.0, 4.6)],
+                           'bands': [3.6, 6.7], 'pipes': [(12.6, 4.2, 8.0)]},
+                    '+x': {'posts': [8.5], 'low': [(6.0, 1.05), (11.0, 1.05)], 'high': [(6.0, 4.6), (11.0, 4.6)], 'bands': [3.6, 6.7],
+                           'door': [(8.5, 1.0, 2.0)]}},
+             back={'low': [(15.0, 1.05), (25.0, 1.05)], 'posts': [20.0]}, roof_y=8.6)
+    roof_slab(p, 11.7, 28.3, 3.7, 13.3, 8.0, 8.6)
+    _notice_ring(p, 15.2, 4.65, 4.0, 1.45)
+    # 屋上：旗竿（ギルドの赤い旗）、回収の箱、給水塔、日よけ
+    p.add('brass', cyl((26.6, 8.6, 5.0), (26.6, 13.4, 5.0), 0.07, 8))
+    p.add('cloth', sheet(lambda u, v: (26.6 - 0.12 - 1.3 * u, 13.2 - 1.0 * v, 5.0 + 0.08 * math.sin(u * 4 + v)), 4, 3, 0.02))
+    p.place(P.water_tower(), (14.0, 8.6, 11.4), 0, 1.2)
+    T.canopy(p, 20.5, 24.5, 8.6, 11.4, 8.6, 2.1, 'cloth2')
+    for x, z, s in ((16.6, 12.2, 0.9), (17.5, 12.3, 0.75), (16.9, 12.1, 0.6)):
+        p.place(P.crate(), (x, 8.6 if s > 0.7 else 9.27, z), 6 if s > 0.8 else -4, s)
+    # --- 展望台（床 x -8〜8・z 16〜28、縁の低い壁 x ±(8〜8.8)・z 28〜28.8、上 1.2）：真鍮の手すり、望遠鏡、南の角の旗
+    for sx in (-1, 1):
+        _deck_rail(p, (sx * 8.4, 16.4), (sx * 8.4, 28.4))
+    _deck_rail(p, (-8.4, 28.4), (8.4, 28.4))
+    for sx in (-1, 1):
+        x = sx * 8.4
+        p.add('brass', cyl((x, 1.2, 16.6), (x, 5.6, 16.6), 0.06, 8))
+        p.add('brass', lathe((x, 5.6, 16.6), (x, 5.85, 16.6), [(0, 0.11), (1, 0.02)], 8))
+        p.add('cloth', sheet(lambda u, v, x=x, sx=sx: (x - sx * (0.1 + 1.1 * u), 5.45 - 0.8 * v, 16.6 + 0.06 * math.sin(u * 4)), 4, 2, 0.02))
+    # 望遠鏡（geometry の台 (0, 0, 24) 1.6×1.2×1.6 と同じ大きさの白磁の台、その上の真鍮の筒）
+    p.add('ivory2', boxb(-0.8, 0.8, 0.0, 1.05, 23.2, 24.8))
+    p.add('graphite', boxb(-0.82, 0.82, 1.05, 1.2, 23.18, 24.82), boxb(-0.82, 0.82, 0.0, 0.12, 23.18, 24.82))
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            p.add('brass', boxb(sx * 0.8 - 0.1, sx * 0.8 + 0.1, 0.0, 1.22, 24 + sz * 0.8 - 0.1, 24 + sz * 0.8 + 0.1))
+    p.add('graphite', cyl((0, 1.2, 24.0), (0, 1.55, 24.0), 0.28, 12))
+    for sx in (-1, 1):
+        p.add('brass', boxb(sx * 0.3 - 0.05, sx * 0.3 + 0.05, 1.5, 2.05, 23.9, 24.1))
+    a, b = np.array([0.0, 1.75, 23.0]), np.array([0.0, 2.35, 25.6])
+    p.add('brass', lathe(a, b, [(0, 0.11), (0.15, 0.13), (0.7, 0.16), (1, 0.2)], 12))
+    p.add('graphite', cyl(b - (b - a) * 0.03, b + (b - a) * 0.05, 0.22, 12))
+    p.add('dark', cyl(a + (a - b) * 0.04, a, 0.08, 8))
+    p.add('graphite', cyl((-0.36, 1.95, 24.0), (0.36, 1.95, 24.0), 0.05, 8))
+    return p
+
+
+# ---------------------------------------------------------------- 訓練場（ch1.training）
+
+def _stripes(p: Part, x0, x1, z0, z1, y, n=None, along='x'):
+    """床の上の黄と黒の帯（真鍮と暗い色の交互、床の 1 cm 上）"""
+    L = (x1 - x0) if along == 'x' else (z1 - z0)
+    n = n or max(2, int(round(L / 0.6)))
+    for k in range(n):
+        a0, a1 = k / n, (k + 1) / n
+        mat = 'brass' if k % 2 == 0 else 'dark'
+        if along == 'x':
+            p.add(mat, boxb(x0 + (x1 - x0) * a0, x0 + (x1 - x0) * a1, y, y + 0.012, z0, z1))
+        else:
+            p.add(mat, boxb(x0, x1, y, y + 0.012, z0 + (z1 - z0) * a0, z0 + (z1 - z0) * a1))
+
+
+def _target(p: Part, x, z, h):
+    """的の柱（town_facilities の訓練場：白磁の柱に丸い的の紋、黒鉛の冠、真鍮の帯）。geometry の柱（0.5 角）と同じ大きさ。
+    撃つ的の球（props の switch）は柱の上に浮かぶ"""
+    p.add('ivory', boxb(x - 0.25, x + 0.25, 0.0, h - 0.12, z - 0.25, z + 0.25))
+    p.add('graphite', boxb(x - 0.27, x + 0.27, h - 0.12, h, z - 0.27, z + 0.27), boxb(x - 0.27, x + 0.27, 0.0, 0.12, z - 0.27, z + 0.27))
+    p.add('brass', boxb(x - 0.28, x + 0.28, h * 0.45, h * 0.45 + 0.08, z - 0.28, z + 0.28))
+    for k in range(16):
+        a0, a1 = 2 * math.pi * k / 16, 2 * math.pi * (k + 1) / 16
+        for rr, w in ((0.17, 0.035), (0.08, 0.03)):
+            pa = (x + rr * math.cos(a0), h * 0.72 + rr * math.sin(a0))
+            pb = (x + rr * math.cos(a1), h * 0.72 + rr * math.sin(a1))
+            p.add('cloth', beam((pa[0], pa[1], z - 0.262), (pb[0], pb[1], z - 0.262), w, 0.02))
+    p.add('cloth', box((x, h * 0.72, z - 0.262), (0.05, 0.05, 0.02), 0))
+    # 柱の上の受け（真鍮の皿：撃つ的の球が載る）
+    p.add('brass', cyl((x, h, z), (x, h + 0.06, z), 0.2, 10))
+
+
+def _wreck(p: Part, c0, s0, y0_yaw, c1, s1, y1_yaw, rng):
+    """残骸の山（geometry の斜めの箱 2 つと同じ大きさ）：外殻の黒鉛の板・白磁の装甲のかけら・管・歯車。面から 5 cm まで"""
+    from town_geo import rot_y
+    for (cx, cy, cz), (sx, sy, sz), yaw in ((c0, s0, y0_yaw), (c1, s1, y1_yaw)):
+        R = rot_y(yaw)
+        p.add('graphite', box((cx, cy + sy / 2, cz), (sx - 0.04, sy - 0.02, sz - 0.04), yaw))
+        # 白磁の装甲のかけら（前後の面に貼る板）と、横の面の白磁の板
+        for k in range(3):
+            w = rng.uniform(0.5, 0.9) * sx / 2
+            h = rng.uniform(0.35, 0.6) * sy
+            off = rng.uniform(-sx / 4, sx / 4)
+            for side in (-1, 1):
+                q = R @ np.array([off, 0.0, side * (sz / 2 + 0.01)])
+                yy = cy + rng.uniform(0.15, 0.4) * sy + h / 2
+                p.add('ivory', box((cx + q[0], yy, cz + q[2]), (w, h, 0.03), yaw))
+        for side in (-1, 1):
+            q = R @ np.array([side * (sx / 2 + 0.01), 0.0, 0.0])
+            p.add('ivory2', box((cx + q[0], cy + sy * 0.55, cz + q[2]), (0.03, sy * 0.5, sz * 0.6), yaw))
+        top = cy + sy
+        # 上の面の継ぎ目（真鍮の帯、上へは 0.04 m まで）と、横を通る管
+        for t in (-0.25, 0.25):
+            qa = R @ np.array([t * sx, 0.0, -sz / 2 + 0.05])
+            qb = R @ np.array([t * sx, 0.0, sz / 2 - 0.05])
+            p.add('brass', beam((cx + qa[0], top + 0.01, cz + qa[2]), (cx + qb[0], top + 0.01, cz + qb[2]), 0.08, 0.03))
+        qa = R @ np.array([-sx / 2 + 0.1, 0.0, sz / 2 - 0.12])
+        qb = R @ np.array([sx / 2 - 0.1, 0.0, sz / 2 - 0.12])
+        P.pipe_run(p, (cx + qa[0], cy + sy * 0.35, cz + qa[2]), (cx + qb[0], cy + sy * 0.35, cz + qb[2]), 0.1, 0.9)
+    # 横に倒れた歯車と、まわりの薄いかけら（床の上の薄い物）
+    x, _, z = c0
+    gx = x - s0[0] * 0.62
+    p.add('brass', cyl((gx, 0.0, z + 0.9), (gx, 0.08, z + 0.9), 0.42, 14))
+    p.add('graphite', cyl((gx, 0.08, z + 0.9), (gx, 0.1, z + 0.9), 0.14, 8))
+    for k in range(4):
+        a = rng.uniform(0, 2 * math.pi)
+        r = rng.uniform(2.2, 2.6)
+        p.add('ivory2' if k % 2 else 'graphite', box((x + r * math.cos(a), 0.03, z + r * math.sin(a)),
+                                                    (rng.uniform(0.3, 0.6), 0.06, rng.uniform(0.2, 0.4)), rng.uniform(0, 90)))
+
+
+def _skyline(p: Part, rng, x0, x1, z0, z1, normal, y0, tops, depth=6.0):
+    """壁の向こうの家並み（壁の上から見える上の部分だけ。当たり判定なし。カメラは壁の内から出ない）：
+    normal（家の正面が向く向き）に面した箱の家、窓の列、屋上の物"""
+    def spec(w, top):
+        return {'simple': True, 'windows': [(float(u), top - y0 - 2.4) for u in np.arange(-w / 2 + 1.1, w / 2 - 0.8, 1.6)],
+                'posts': [-w / 2 + 0.12, w / 2 - 0.12]}
+    if normal in ('+x', '-x'):
+        z = z0
+        while z < z1 - 1.0:
+            w = min(float(rng.uniform(5.0, 8.5)), z1 - z)
+            top = float(rng.choice(tops))
+            hx0, hx1 = (x1 - depth, x1) if normal == '+x' else (x0, x0 + depth)
+            T.block(p, hx0, hx1, y0, top, z, z + w, {normal: spec(w, top)}, base=y0, roof='nsew')
+            T.roof_items(p, rng, hx0 + 0.6, hx1 - 0.6, top, z + 0.4, z + w - 0.4, 2)
+            z += w + float(rng.uniform(0.0, 0.8))
+    else:
+        x = x0
+        while x < x1 - 1.0:
+            w = min(float(rng.uniform(5.0, 8.5)), x1 - x)
+            top = float(rng.choice(tops))
+            hz0, hz1 = (z0, z0 + depth) if normal == '-z' else (z1 - depth, z1)
+            T.block(p, x, x + w, y0, top, hz0, hz1, {normal: spec(w, top)}, base=y0, roof='nsew')
+            T.roof_items(p, rng, x + 0.4, x + w - 0.4, top, hz0 + 0.6, hz1 - 0.6, 2)
+            x += w + float(rng.uniform(0.0, 0.8))
+
+
+def training_set() -> Part:
+    """訓練場（ch1.training）：段の台の縁、的の柱、溝の縁の帯と斜面、残骸の山、壁の面（柱・帯・窓・垂れ幕）、入口の門、
+    壁の向こうの家並み、宙に渡した吊り灯の綱"""
+    p = Part('training_set')
+    rng = np.random.default_rng(23)
+    # --- ① 歩く：黄色い床の縁（黒鉛の枠、床の上 2 cm）
+    x0, x1, z0, z1 = -3.5, 3.5, -9.7, -6.3
+    for a, b, c, d in ((x0 - 0.12, x1 + 0.12, z0 - 0.12, z0), (x0 - 0.12, x1 + 0.12, z1, z1 + 0.12), (x0 - 0.12, x0, z0, z1), (x1, x1 + 0.12, z0, z1)):
+        p.add('graphite', boxb(a, b, 0.0, 0.02, c, d))
+    # --- ② 跳ぶ：段の台 2 つ（x -4〜4、z -2〜2 の高さ 1.0、z 4〜8 の高さ 1.8）の角の柱と上の縁の帯（面から 3 cm まで）
+    for zc, h in ((0.0, 1.0), (6.0, 1.8)):
+        za, zb = zc - 2.0, zc + 2.0
+        for x in (-4.0, 4.0):
+            for z in (za, zb):
+                p.add('graphite', boxb(x - 0.08, x + 0.08, 0.0, h, z - 0.08, z + 0.08))
+        for a, b, c, d in ((-4.03, 4.03, za - 0.03, za + 0.15), (-4.03, 4.03, zb - 0.15, zb + 0.03), (-4.03, -3.85, za, zb), (3.85, 4.03, za, zb)):
+            p.add('brass', boxb(a, b, h - 0.12, h + 0.01, c, d))
+        _stripes(p, -3.85, 3.85, za + 0.15, za + 0.45, h, along='x')
+    # --- ③ 撃つ：的の柱 3 本
+    for x, z, h in ((-8.0, 16.0, 1.3), (0.0, 18.0, 1.6), (8.0, 16.0, 1.3)):
+        _target(p, x, z, h)
+    # --- ④ 溝（z 26〜30、深さ 1.5）：両側の縁の黄と黒の帯・黒鉛の縁の角、斜面（x -5〜5）の縁の真鍮の帯
+    for z, s in ((26.0, -1), (30.0, 1)):
+        _stripes(p, -21.9, 21.9, min(z, z + s * 0.5), max(z, z + s * 0.5), 0.0, along='x')
+        p.add('graphite', boxb(-22.0, 22.0, -0.12, 0.012, min(z, z - s * 0.03), max(z, z - s * 0.03)))
+    for x in (-5.0, 5.0):
+        p.add('brass', beam((x, -1.49, 29.4), (x, 0.01, 26.0), 0.12, 0.03))
+    # --- ⑤ 残骸を片付ける：geometry の斜めの箱（下 3.4×1.3×2.4 yaw 15、上 1.6×0.8×1.4 yaw -20）と同じ形の残骸
+    for (x, z), (tx, tz) in (((-10.0, 42.0), (-9.2, 42.0)), ((9.0, 46.0), (9.8, 46.0)), ((-3.0, 51.0), (-2.2, 51.0))):
+        _wreck(p, (x, 0.0, z), (3.4, 1.3, 2.4), 15.0, (tx, 1.3, tz), (1.6, 0.8, 1.4), -20.0, rng)
+    # --- 壁の内の面（西 x=-22・東 x=22・南 z=-26・北 z=56、床から 8.5 m）：付け柱・帯・留め板・上の窓・垂れ幕
+    for normal, cx in (('+x', -22.0), ('-x', 22.0)):
+        lo, hi = -26.0, 56.0
+        posts = [float(z) for z in np.arange(lo + 0.1, hi, 4.0)] + [hi - 0.1]
+        put(p, normal, (cx, 15.0), 0.0, {'posts': posts, 'bands': [2.0, 4.6, 8.4], 'plates': [(lo, hi, 0.4, 4.0)],
+                                         'high': [(float(z), 5.4) for z in np.arange(lo + 6.0, hi - 2.0, 8.0)],
+                                         'banners': [(float(z), 4.4) for z in np.arange(lo + 10.0, hi - 4.0, 16.0)]}, 82.0, 8.5)
+    put(p, '-z', (0.0, 56.0), 0.0, {'posts': [float(x) for x in np.arange(-21.9, 22.0, 4.0)], 'bands': [2.0, 4.6, 8.4],
+                                     'plates': [(-22.0, 22.0, 0.4, 4.0)], 'high': [(-12.0, 5.4), (-4.0, 5.4), (4.0, 5.4), (12.0, 5.4)],
+                                     'banners': [(-16.0, 4.4), (16.0, 4.4)]}, 44.0, 10.5)
+    # 南の壁（入口）：両開きの大きな門（出口の先。扉の前の床は出口の箱）、門の上の飾り板、両脇の灯
+    put(p, '+z', (0.0, -26.0), 0.0, {'posts': [-21.9, -17.9, -13.9, -9.9, -5.4, 5.4, 9.9, 13.9, 17.9, 21.9], 'bands': [4.6, 8.4],
+                                      'plates': [(-22.0, -5.6, 0.4, 4.0), (5.6, 22.0, 0.4, 4.0)],
+                                      'door2': [(0.0, 4.4, 3.6)], 'lamps': [(-3.4, 4.0), (3.4, 4.0)],
+                                      'high': [(-14.0, 5.4), (14.0, 5.4)], 'banners': [(-9.0, 4.4), (9.0, 4.4)]}, 44.0, 8.5)
+    p.add('graphite', boxb(-2.8, 2.8, 4.7, 5.9, -26.0, -25.88))
+    p.add('cloth', boxb(-2.6, 2.6, 4.82, 5.78, -25.9, -25.86))
+    p.add('brass', boxb(-2.9, 2.9, 5.9, 6.02, -26.0, -25.86), boxb(-2.9, 2.9, 4.58, 4.7, -26.0, -25.86))
+    # 壁の上の笠木（白磁の縁と黒鉛の帯）
+    for a, b, c, d, top in ((-23.0, -22.0, -27.0, 57.0, 8.5), (22.0, 23.0, -27.0, 57.0, 8.5), (-23.0, 23.0, -27.0, -26.0, 8.5),
+                            (-23.0, 23.0, 56.0, 57.0, 10.5)):
+        p.add('ivory2', boxb(a, b, top, top + 0.3, c, d))
+        p.add('graphite', boxb(a - 0.04, b + 0.04, top + 0.3, top + 0.36, c - 0.04, d + 0.04))
+    # --- 宙に渡した吊り灯の綱（壁から壁へ、6.9 m・たるみ 0.5。町の明かりの芯）
+    for z, xs in ((-10.0, (-14.0, 14.0)), (10.0, (-14.0, 14.0)), (40.0, (-9.0, 0.0, 9.0))):
+        pts = sag((-22.0, 6.9, z), (22.0, 6.9, z), 16, 0.5)
+        p.add('rope', tube(pts, 0.025, 5))
+        for x in xs:
+            t = (x + 22.0) / 44.0
+            yy = 6.9 - 0.5 * 4 * t * (1 - t)
+            P.lantern(p, x, yy - 0.55, z, 1.1)
+            p.add('brass', cyl((x, yy - 0.2, z), (x, yy, z), 0.012, 5))
+    # --- 壁の向こうの家並み（壁の上 8.5 m から見える。西・東は壁の外、北は町の中段へ上る高い家並み、南は下段の家の背）
+    _skyline(p, rng, -32.0, -23.2, -27.0, 57.0, '+x', 6.0, [10.6, 11.4, 12.4, 13.2])
+    _skyline(p, rng, 23.2, 32.0, -27.0, 57.0, '-x', 6.0, [10.4, 11.2, 12.2, 13.0])
+    _skyline(p, rng, -30.0, 30.0, 57.2, 66.0, '-z', 8.0, [13.5, 15.0, 16.8, 18.2])
+    _skyline(p, rng, -30.0, 30.0, -36.0, -27.2, '+z', 6.0, [10.2, 11.0, 12.0])
+    return p
+
+
 PARTS = {
     'grime_patch': grime_patch,
     'oil_patch': lambda: grime_patch('oil_decal', 'oil_patch'),
     'lower_set': lower_set,
+    'upper_set': upper_set,
+    'training_set': training_set,
 }

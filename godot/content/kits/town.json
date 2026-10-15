@@ -53,7 +53,15 @@
             "detail": [
              {"mask": "grime", "uv_m": 2.4, "cover": 0.45, "color": "#c9ae8c", "amount": 0.55, "edge": 0.05},
              {"mask": "grime", "uv_m": 1.6, "cover": 0.5, "seam": [0.02, 0.12], "color": "#a88e70", "mode": "multiply", "amount": 0.5}]},
-  "graphite": {"color": "#444641", "roughness": 0.6, "metallic": 0.3}
+  "graphite": {"color": "#444641", "roughness": 0.6, "metallic": 0.3},
+  "paint": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 3.0, "color": "#e8b84e", "roughness": 0.7, "tex_strength": 0.5,
+            "detail": [
+             {"mask": "chips", "uv_m": 2.2, "cover": 0.07, "color": "#cfc0a0", "amount": 0.8},
+             {"mask": "grime", "uv_m": 3.2, "cover": 0.35, "color": "#b08e62", "mode": "multiply", "amount": 0.45, "edge": 0.05}]},
+  "sand": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 5.0, "color": "#d7b48c", "roughness": 1.0, "tex_strength": 0.35, "macro": 0.4,
+           "detail": [
+            {"mask": "mottle", "uv_m": 3.0, "cover": 0.5, "color": "#c39a70", "amount": 0.6, "edge": 0.08},
+            {"mask": "grime", "uv_m": 1.4, "cover": 0.25, "color": "#9c7a58", "mode": "multiply", "amount": 0.5}]}
  },
  "materials": {
   "flat": {"color": "#ffffff", "tint_mix": 1.0, "roughness": 0.82, "near_fade": [0.8, 1.5],

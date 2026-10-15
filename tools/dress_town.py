@@ -519,7 +519,185 @@ def grime_lower(d):
     dirt(d, 46.0, 0.2, 3.0, 1.8)            # 物置の戸口
 
 
-ROOMS = {"mid": mid, "lower": lower}
+# ---------------------------------------------------------------- 上段（U1 町長の家・U2 回収屋ギルド・U3 展望台）
+
+def upper(room):
+    """上段：汚れの弱いキット（town_tidy：上の段の手入れされた家並み）。南の階段まわりは中段の南の階段と同じ形なので同じ部品
+    （stair_well_s・手すり・段鼻）。家の箱は白磁の壁のまま、面に town_rooms.upper_set の飾り。展望台の床は板張り、望遠鏡の台は
+    upper_set の台（箱は描かない）。遠景のオルドの体は置かない（展望台から北の地平線の章末の場面：カランの影を隠さない）"""
+    d = Dress()
+    common(room, d)
+    room["kit"] = "town_tidy"
+    G = lambda pos, size: geo_index(room, pos, size)  # noqa: E731
+    roof = {"floor": "stone2", "wall": "graphite", "ceiling": "graphite"}
+    G([-22, 7, 8.5], [14.6, 0.6, 9.6])["skin"] = roof
+    G([20, 8, 8.5], [16.6, 0.6, 9.6])["skin"] = roof
+    G([0, -5, -20], [8, 5, 12])["skin"] = {"floor": "floor", "wall": "riser"}
+    G([0, -2, 22], [16, 2, 12])["skin"] = {"floor": "wood", "wall": "stone2"}
+    G([0, 0, 24], [1.6, 1.2, 1.6])["hide"] = True                 # 望遠鏡の台（upper_set の台が同じ所）
+    # 展望台の縁の低い壁の上の手すり（体だけの箱）と、南の角の旗竿
+    d.put("upper_set", [0, 0, 0], solid=[
+        dress_solid.B(-8.47, -8.33, 1.2, 1.9, 16.4, 28.4, cam=False), dress_solid.B(8.33, 8.47, 1.2, 1.9, 16.4, 28.4, cam=False),
+        dress_solid.B(-8.4, 8.4, 1.2, 1.9, 28.33, 28.47, cam=False),
+        dress_solid.P(-8.4, 16.6, 0.16, 1.2, 5.6), dress_solid.P(8.4, 16.6, 0.16, 1.2, 5.6)])
+    # --- 南の階段（中段へ）：中段の南の階段と同じ両側の棟・手すり・段鼻・上り口の背の高い外灯
+    d.put("stair_well_s", [0, 0, 0])
+    d.put("stair_rail_12", [-4.0, -5.0, -26.0])
+    d.put("stair_rail_12_r", [4.0, -5.0, -26.0])
+    d.put("stair_treads_16", [0, -5.0, -20])
+    d.put("lamp_tall", [-5.4, 0, -12.9])
+    d.put("lamp_tall", [5.4, 0, -12.9], 180)
+    light(room, [0, 5, -8], [4.85, 3.92, -12.9])
+    # --- 胸壁：南（階段の両側）・北（展望台の両側）・東西の低い壁の手すりと角の柱。外の面と下には何も付けない
+    for sx in (-1, 1):
+        for x in (8.5, 16.5, 24.5, 32.5):
+            d.put("parapet_rail_8", [sx * x, 1.2, -14.5])
+        d.put("parapet_rail_4", [sx * 38.25, 1.2, -14.5], 0, scale=[0.875, 1, 1])
+        for x in (12.0, 20.0, 28.0, 36.0):
+            d.put("parapet_rail_8", [sx * x, 1.2, 16.5], 180)
+        yaw = 90 if sx < 0 else 270
+        for z in (-10, -2, 6):
+            d.put("parapet_rail_8", [sx * 40.5, 1.2, z], yaw)
+        d.put("parapet_rail_8", [sx * 40.5, 1.2, 13.0], yaw, scale=[0.75, 1, 1])
+        for z in (16.5, -14.5):
+            d.put("parapet_corner", [sx * 40.5, 1.2, z])
+    # --- 看板の板
+    sign(room, "町長の家", "sign_wall_2", 180, 2.2)
+    sign(room, "回収屋ギルド", "sign_wall_3", 180, 3.0)
+    # --- 戸口の外灯（町の明かりを灯の芯へ）と展望台の灯
+    d.put("lamp_tall", [-25.4, 0, 2.4])
+    d.put("lamp_tall", [17.0, 0, 2.4])
+    light(room, [-22, 5, -2], [-24.85, 3.92, 2.4])
+    light(room, [20, 5, -2], [17.55, 3.92, 2.4])
+    d.put("lamp_post", [-6.6, 0, 17.4], 0, scale=1.4)
+    light(room, [0, 3, 22], [-5.9, 2.13, 17.4])
+    lived_upper(d)
+    grime_upper(d)
+    return finish(room, d)
+
+
+def lived_upper(d):
+    """上段：手入れされた鉢植えとベンチ（外を向く）、ギルドの前の回収の箱、展望台の見張りの腰掛け。戸口・住人・望遠鏡は空ける"""
+    # 町長の家：扉の両脇の鉢植え、窓の下のベンチ
+    d.snug("planter", 0, x1=-23.8, z1=3.98)
+    d.snug("planter", 0, x0=-20.2, z1=3.98)
+    d.snug("planter_big", 0, x0=-28.9, z1=3.98)
+    d.snug("bench", 180, x=-16.4, z1=3.98)
+    # ギルド：丸い依頼板の下のベンチ、右の日よけの下の回収の箱（積んで紐で縛った箱・長持ち・樽）
+    d.snug("bench", 180, x=15.2, z1=3.98)
+    d.snug("crate", 0, x1=27.9, z1=3.98)
+    d.snug("crate", 3, y=0.74, x1=27.86, z1=3.94, scale=0.8)
+    d.snug("cc0/plank_box", 0, x1=26.94, z1=3.98)
+    d.snug("barrel", 0, x0=21.9, z1=3.98)
+    # 南の胸壁の縁：鉢植えと外を向いたベンチ
+    for sx in (-1, 1):
+        for x in (10.0, 22.0, 34.0):
+            d.put("planter", [sx * x, 0, -13.2])
+        d.snug("bench", 180, x=sx * 16.0, z0=-13.09)
+        d.snug("bench", 180, x=sx * 28.0, z0=-13.09)
+    # 北の胸壁の縁（家の裏の向こう）：外を向いたベンチと鉢植え
+    for sx in (-1, 1):
+        d.snug("bench", 0, x=sx * 34.0, z1=15.09)
+        d.snug("planter_big", 0, x=sx * 38.4, z1=15.55)
+        d.snug("planter", 0, x=sx * 31.0, z1=15.87)
+    # 東西の低い壁の前の鉢植え
+    for sx in (-1, 1):
+        for z in (-6.0, 4.0):
+            d.put("planter", [sx * 39.2, 0, z])
+    # 展望台：北の縁の前の外を向いたベンチ 2 つ、角の鉢植え、見張りの木箱と携行灯
+    for x in (-4.6, 4.6):
+        d.snug("bench", 0, x=x, z1=27.2)
+    d.snug("planter", 0, x0=-7.98, z1=27.98)
+    d.snug("planter", 0, x1=7.98, z1=27.98)
+    d.snug("crate", 0, x0=-7.98, z=20.0)
+    d.put("hand_lantern", [-7.51, 0.74, 20.0], solid=True)
+
+
+def grime_upper(d):
+    """上段の汚れ：薄いキット（town_tidy）に、人の出入りの多い所だけ斑（ギルドの戸口と回収の箱のまわり、南の階段の上り口）"""
+    dirt(d, 20.0, 3.0, 4.0, 2.4)            # ギルドの戸口
+    dirt(d, 26.4, 3.0, 3.6, 2.0)            # 回収の箱
+    dirt(d, 0.0, -13.2, 6.0, 2.0)           # 南の階段の上り口
+    dirt(d, 0.0, -26.0, 6.0, 2.4)           # 南の階段の足元（踊り場）
+
+
+# ---------------------------------------------------------------- 訓練場（L3）
+
+def training(room):
+    """訓練場：①〜⑤ の課題の形（黄色い床・段の台・的の柱・溝と斜面・残骸）は大きさをそのまま、読みやすく描く。
+    黄色い床は面 paint、段の台は板張りの上と白磁の横、溝の底は砂、斜面は板。的の柱と残骸の箱は描かず、
+    town_rooms.training_set の同じ大きさの的・残骸。壁の内の面に柱・帯・窓・垂れ幕、南の壁に入口の門、壁の向こうに家並み"""
+    d = Dress()
+    common(room, d)
+    G = lambda pos, size: geo_index(room, pos, size)  # noqa: E731
+    G([0, 0, -8], [7, 0.06, 3.4])["skin"] = "paint"
+    for pos, size in (([0, 0, 0], [8, 1.0, 4]), ([0, 0, 6], [8, 1.8, 4])):
+        G(pos, size)["skin"] = {"floor": "wood", "wall": "stone2"}
+    G([0, -3.5, 28], [44, 2, 4])["skin"] = {"floor": "sand", "wall": "stone2"}
+    for g in room["geometry"]:
+        if g.get("t") == "ramp":
+            g["skin"] = {"floor": "wood", "wall": "stone2"}
+    for pos, size in (([-8, 0, 16], [0.5, 1.3, 0.5]), ([0, 0, 18], [0.5, 1.6, 0.5]), ([8, 0, 16], [0.5, 1.3, 0.5]),
+                      ([-10, 0, 42], [3.4, 1.3, 2.4]), ([-9.2, 1.3, 42], [1.6, 0.8, 1.4]), ([9, 0, 46], [3.4, 1.3, 2.4]),
+                      ([9.8, 1.3, 46], [1.6, 0.8, 1.4]), ([-3, 0, 51], [3.4, 1.3, 2.4]), ([-2.2, 1.3, 51], [1.6, 0.8, 1.4])):
+        G(pos, size)["hide"] = True
+    d.put("training_set", [0, 0, 0])
+    # 吊り灯の綱の灯の芯へ町の明かりを（前は宙の 6 m。ほぼ同じ所）
+    light(room, [-14, 6, -10], [-14.0, 6.05, -10.0])
+    light(room, [14, 6, 10], [14.0, 6.05, 10.0])
+    light(room, [0, 6, 40], [0.0, 5.85, 40.0])
+    lived_training(d)
+    grime_training(d)
+    return finish(room, d)
+
+
+def lived_training(d):
+    """訓練場の道具と休む所：入口の西に練習用の銃の棚、東に見物のベンチ、四隅に木箱と樽と麻袋、的の前の砂袋。
+    課題の通り道（段・的・溝の縁から 1.5 m・ニコ・出口・トリガー）は空ける"""
+    # 入口の西（バートンの後ろ）：銃の棚 2 つと木箱
+    d.snug("tool_rack", 90, x0=-21.98, z=-19.0)
+    d.snug("tool_rack", 90, x0=-21.98, z=-21.1)
+    d.snug("crate", 0, x0=-21.98, z0=-25.98)
+    d.snug("crate", 0, x0=-21.02, z0=-25.98)
+    d.snug("crate", 4, y=0.74, x0=-21.95, z0=-25.95, scale=0.8)
+    d.snug("barrel", 0, x0=-21.98, z0=-25.02)
+    # 入口の東：見物のベンチ（壁を背に）と水の樽
+    d.snug("bench", 270, x1=21.98, z=-16.0)
+    d.snug("bench", 270, x1=21.98, z=-12.0)
+    d.snug("barrel", 0, x1=21.98, z0=-25.98)
+    d.snug("cc0/cask", 0, x1=21.24, z0=-25.98)
+    d.snug("sacks", 0, x1=21.98, z0=-25.24)
+    # 中ほどの壁ぎわ：見物のベンチと休みの木箱
+    d.snug("bench", 90, x0=-21.98, z=6.0)
+    d.snug("bench", 270, x1=21.98, z=2.0)
+    d.snug("crate", 0, x1=21.98, z0=12.0)
+    d.snug("cc0/plank_box", 90, x1=21.98, z0=13.0)
+    # 溝の手前の四隅（溝の縁から 1.5 m より外）：木箱と樽
+    d.snug("crate", 0, x0=-21.98, z1=24.0)
+    d.snug("barrel", 0, x0=-21.02, z1=24.0)
+    # 北の奥の隅：片付けた残骸の置き場（木箱・ガラクタの山・麻袋）
+    d.snug("junk_pile", 0, x0=-21.98, z1=55.98)
+    d.snug("crate", 0, x0=-19.98, z1=55.98)
+    d.snug("sacks", 0, x1=21.98, z1=55.98)
+    d.snug("barrel", 0, x1=21.98, z1=55.22)
+    d.snug("cc0/plank_box", 0, x1=20.6, z1=55.98)
+
+
+def grime_training(d):
+    """訓練場の汚れ：入口の門の前、的の足元、溝の着地の所、残骸のまわり（油）、壁の足元の隅"""
+    dirt(d, 0.0, -24.0, 9.0, 3.0)           # 入口の門の前
+    for x, z in ((-8.0, 16.0), (0.0, 18.0), (8.0, 16.0)):
+        dirt(d, x, z - 0.3, 2.4, 2.0)       # 的の足元（撃った弾の焦げ・踏み跡）
+    dirt(d, 0.0, 31.4, 16.0, 2.6)           # 溝を跳び越えた着地の所
+    dirt(d, 0.0, 24.4, 12.0, 2.0)           # 溝の手前の踏み切り
+    for x, z in ((-10.0, 42.0), (9.0, 46.0), (-3.0, 51.0)):
+        dirt(d, x, z, 5.6, 4.6, kind="oil_patch")   # 残骸のまわり
+    dirt(d, 0.0, 3.0, 9.0, 2.0)             # 段の台の間の踏み跡
+    dirt(d, -20.6, -23.0, 3.0, 6.0)         # 入口の西の隅
+    dirt(d, 20.6, 54.0, 3.0, 4.0)           # 北の奥の隅
+
+
+ROOMS = {"mid": mid, "lower": lower, "upper": upper, "training": training}
 
 
 def main():
