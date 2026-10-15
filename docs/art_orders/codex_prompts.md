@@ -1208,8 +1208,8 @@ W2-01 の納品のうち、トルーデ・バートン・店主・ジャンク�
 
 | 順 | 節 | 内容 | 作業ブランチ | 出す条件 |
 |----|----|------|-------------|---------|
-| 1 | 13.1 | W1-01b：ハルの会話の顔アイコン 9 枚（新規） | `art/w1-haru3d`（追加） | すぐ |
-| 2 | 12.5 | W2-09：エフェクト（第4弾。2026-10-06 の時点でブランチが無い） | `art/w2-vfx` | Codex がまだ手を付けていなければ、12.5 をもう一度出す |
+| 1 | 13.1 | W1-01b：ハルの会話の顔アイコン 9 枚（新規） | `art/w1-haru3d`（追加） | **納品済み**（2026-10-08） |
+| 2 | 12.5 | W2-09：エフェクト（第4弾。2026-10-06 の時点でブランチが無い） | `art/w2-vfx` | **納品済み**（2026-10-07） |
 | 3 | 13.2 | W2-08：UI の直し（r2） | `art/w2-ui`（追加） | すぐ |
 | 4 | 13.3 | W1-04：ボルタの直し（r2） | `art/w1-volta`（追加） | すぐ |
 | 5 | 13.4 | W1-06：アルデンの頭と顔（r2） | `art/w1-arden`（追加） | すぐ |
@@ -1697,4 +1697,205 @@ W2-01 の納品のうち、トルーデ・バートン・店主・ジャンク�
 あなたはゲーム開発プロジェクト『アークウォーカー』の作画担当です。リポジトリ https://github.com/hassy0511/project-relic を取得し、ブランチ claude/busy-bell-oagnck の docs/art_orders/codex_prompts.md を開いて、「<節> <見出し>」のコードブロックを最後まで読み、その指示どおりに作業して納品（<ブランチ> へ push）してください。
 指示の中で読むよう書かれている文書と絵は必ず読んでください。見つからないファイルがあれば作業を止めて報告してください。
 絵は必ず画像生成機能で描いてください。3D ソフトで作った画像やプログラムで描いた図形は不可です。描けないときは、spec の冒頭に「未納品」と書いてください。
+```
+
+---
+
+## 14. 第6弾（2026-10-15）：フレーム前のハルの顔・遺構の散らかりと砂・市場の品物・練習銃（そのまま貼れる）
+
+第5弾の納品（ハルの会話の顔 W1-01b、エフェクト W2-09）の点検と、雰囲気画と今のゲームの画面の比べ（`BlenderKit検討.md` 0 章：雰囲気画との差は物の密度と砂の吹きだまりの形が大きい）をもとにした依頼。どれも前回納品したブランチへの追加なので、**並行して出してよい**。1 つずつ出すときは、下の表の順に出す。
+
+| 順 | 節 | 内容 | 作業ブランチ | 出す条件 |
+|----|----|------|-------------|---------|
+| 1 | 14.1 | W1-01c：フレームを着ける前のハルの会話の顔アイコン 9 枚（＋板つきの smile の r2） | `art/w1-haru3d`（追加） | すぐ |
+| 2 | 14.2 | W2-06b：遺構の散らかりと砂の吹きだまり（16 点） | `art/w2-ruins`（追加） | すぐ |
+| 3 | 14.3 | W2-05b：市場のにぎわいの小物（16 点） | `art/w2-town`（追加） | すぐ |
+| 4 | 14.4 | W2-07b：練習銃（回収屋ギルドの訓練用の古い銃） | `art/w2-props`（追加） | すぐ |
+
+- 第5弾の残り（13.2 UI の直し・13.3 ボルタ・13.4 アルデン・13.5 コウ）は、2026-10-15 の時点でまだ届いていない。まだ出していなければ、第6弾と並行して出してよい。
+- 短い依頼文（13.10 と同じ形）は、ダッシュボード 7 章にある。
+
+### 14.1 W1-01c：フレームを着ける前のハルの会話の顔アイコン
+
+```text
+あなたはゲーム開発プロジェクト『アークウォーカー』の作画担当です。下のリポジトリに接続し、発注書を読み、指示どおりに画像を制作して納品してください。
+
+【リポジトリ】
+- URL：https://github.com/hassy0511/project-relic
+- 作業ブランチ：art/w1-haru3d（ハルの絵を納品したブランチ。そこに追加する）
+- 発注書を読むブランチ：claude/busy-bell-oagnck（最新にすること）
+- 参照するブランチ（読むだけ・取り込まない）：art/w0（W0 A案）
+
+【最初に行うこと】
+1. git clone https://github.com/hassy0511/project-relic.git（取得済みなら git fetch --all）
+   cd project-relic
+   git checkout art/w1-haru3d && git pull
+2. 発注書と参照の絵を別のフォルダに取り出す：
+   git worktree add ../relic-docs origin/claude/busy-bell-oagnck
+   git worktree add ../relic-w0 origin/art/w0
+3. 下の「必ず読む文書」がそろっていることを確認する。見つからない場合は作業を止め、見つからないファイル名を報告する。
+
+【必ず読む文書】
+1. ../relic-docs/docs/art_orders/W1_01c_ハル_フレーム前の顔.md（今回の発注書）
+2. ../relic-docs/docs/art_orders/W1_01b_ハル_会話の顔.md（前回の発注書。形式は同じ）
+3. ../relic-docs/docs/art_orders/00_共通ルール.md
+4. このブランチの art/concepts/W1_haru_3d/ の haru_face_<表情>.png（9 枚）と spec_haru_face.md（今回の元の絵）、haru_3d_front.png、haru_3d_front_right45.png、spec_haru_3d.md
+5. ../relic-w0/art/concepts/W0_art_bible/spec_a.md（画風・色の基準）
+
+【作業】
+- 画像生成機能を使い、発注書 4 章の 9 枚（haru_face_<表情>_noframe.png）を描く。W1-01b の 9 枚（このプロジェクトで描いた絵）を元に、本人の右肩（画面の左）の白磁の板と肩ひも 2 本だけを消し、その下のれんが色の上着とシャツを描き足す。顔・表情・髪・ゴーグル・構図・位置・大きさは変えない。
+- smile は、ほかの 8 枚と同じ胸の切れ方・頭の大きさにそろえる。同じそろえ方をした板つきの版も haru_face_smile_r2.png として 1 枚描く。
+- 納品前に、元の 9 枚と今回の 9 枚を 128px に縮めて並べ、板と肩ひも以外が変わっていないか、表情が見分けられるかを確かめる（並べた絵は納品しなくてよい）。
+- 説明書き：art/concepts/W1_haru_3d/spec_haru_face_noframe.md（発注書 4 章の項目）。
+
+【守ること】
+- 絵は必ず画像生成機能で描く。描いた絵の拡大縮小・切り抜き・位置合わせに画像編集を使うのはよい。3D ソフトで作った画像やプログラムで描いた図形は不可。描けないときは代わりの方法を取らず、spec の冒頭に「未納品」と理由を書く。
+- art/concepts/W1_haru_3d/ の既存のファイルを変えない・消さない。ほかのフォルダを変更しない。参照した絵を作業ブランチにコピーしない。
+- 既存の作品の絵や写真をなぞったり合成したりしない。署名・透かし・実在ブランドの文字やロゴを入れない。
+
+【完了したら】
+- 1 コミットにまとめ（メッセージ："art: W1-01c Haru face icons before the frame"）、git push origin art/w1-haru3d で送る。途中で別のブランチに保存した場合も、最後は全部を art/w1-haru3d に入れる。
+- 取り出したフォルダを片付ける：git worktree remove ../relic-docs（relic-w0 も同じく）
+- 送れなかった場合は、エラーの内容をそのまま報告する。
+- 納品したファイルの一覧と、元の 9 枚と見比べた結果を 5 行以内で報告する。
+```
+
+### 14.2 W2-06b：遺構の散らかりと砂の吹きだまり
+
+```text
+あなたはゲーム開発プロジェクト『アークウォーカー』の作画担当です。下のリポジトリに接続し、発注書を読み、指示どおりに画像を制作して納品してください。
+
+【リポジトリ】
+- URL：https://github.com/hassy0511/project-relic
+- 作業ブランチ：art/w2-ruins（遺構の絵を納品したブランチ。そこに追加する）
+- 発注書を読むブランチ：claude/busy-bell-oagnck（最新にすること）
+- 参照するブランチ（読むだけ・取り込まない）：art/w0（W0 A案）
+
+【最初に行うこと】
+1. git clone https://github.com/hassy0511/project-relic.git（取得済みなら git fetch --all）
+   cd project-relic
+   git checkout art/w2-ruins && git pull
+2. 発注書と参照の絵を別のフォルダに取り出す：
+   git worktree add ../relic-docs origin/claude/busy-bell-oagnck
+   git worktree add ../relic-w0 origin/art/w0
+3. 下の「必ず読む文書」がそろっていることを確認する。見つからない場合は作業を止め、見つからないファイル名を報告する。
+
+【必ず読む文書】
+1. ../relic-docs/docs/art_orders/W2_06b_遺構の散らかりと砂.md（今回の発注書）
+2. ../relic-docs/docs/art_orders/W2_06_背中の遺構.md（前回の発注書）
+3. ../relic-docs/docs/art_orders/00_共通ルール.md、../relic-docs/docs/art_orders/01_3D変換用の絵の条件.md（5 章・5b 章・6 章）
+4. このブランチの art/concepts/W2_back_ruins/ の spec.md、spec_ruins_3d.md、ruins_mood_b1.png〜ruins_mood_b4.png（雰囲気と密度の手本）、ruins_kit_b1〜b3 の _front・_side・_top・_assembled.png（部品の大きさと描き方）、tex_ruins_sandy_floor.png（砂の色）
+5. ../relic-w0/art/concepts/W0_art_bible/spec_a.md（画風・色の基準）
+
+【作業】
+- 画像生成機能を使い、発注書 2 章の 16 点（砂 6・機械の残がい 7・昔の回収屋の跡 3）を描き、3 章の絵（設計の一覧、3D 変換用の部品組 3 枚、置き方の見本）にまとめる。
+- 部品組の 3 枚（ruins_clutter_front・_side・_top.png）は同じ並び・同じ縮尺、透明の背景、正投影、均一な光、影なし。番号は下の余白に書く。
+- 砂は大きな面と少ない段差で描く（ローポリで作る）。細かい粒は描かない。
+- 説明書き：art/concepts/W2_back_ruins/spec_ruins_clutter.md（発注書 3 章の項目）。
+
+【守ること】
+- 絵は必ず画像生成機能で描く。描いた絵の拡大縮小・切り抜き・位置合わせに画像編集を使うのはよい。3D ソフトで作った画像やプログラムで描いた図形は不可。描けないときは代わりの方法を取らず、spec の冒頭に「未納品」と理由を書く。
+- art/concepts/W2_back_ruins/ の既存のファイルを変えない・消さない。ほかのフォルダを変更しない。参照した絵を作業ブランチにコピーしない。
+- 既存の作品の絵や写真をなぞったり合成したりしない。署名・透かし・実在ブランドの文字やロゴを入れない。
+
+【完了したら】
+- 1 コミットにまとめ（メッセージ："art: W2-06b ruins clutter and sand drifts"）、git push origin art/w2-ruins で送る。途中で別のブランチに保存した場合も、最後は全部を art/w2-ruins に入れる。
+- 取り出したフォルダを片付ける：git worktree remove ../relic-docs（relic-w0 も同じく）
+- 送れなかった場合は、エラーの内容をそのまま報告する。
+- 納品したファイルの一覧と、デザインの要点を 5 行以内で報告する。
+```
+
+### 14.3 W2-05b：市場のにぎわいの小物
+
+```text
+あなたはゲーム開発プロジェクト『アークウォーカー』の作画担当です。下のリポジトリに接続し、発注書を読み、指示どおりに画像を制作して納品してください。
+
+【リポジトリ】
+- URL：https://github.com/hassy0511/project-relic
+- 作業ブランチ：art/w2-town（町の絵を納品したブランチ。そこに追加する）
+- 発注書を読むブランチ：claude/busy-bell-oagnck（最新にすること）
+- 参照するブランチ（読むだけ・取り込まない）：art/w0（W0 A案）、art/w2-townsfolk（住人の大きさの手本）
+
+【最初に行うこと】
+1. git clone https://github.com/hassy0511/project-relic.git（取得済みなら git fetch --all）
+   cd project-relic
+   git checkout art/w2-town && git pull
+2. 発注書と参照の絵を別のフォルダに取り出す：
+   git worktree add ../relic-docs origin/claude/busy-bell-oagnck
+   git worktree add ../relic-w0 origin/art/w0
+   git worktree add ../relic-townsfolk origin/art/w2-townsfolk
+3. 下の「必ず読む文書」がそろっていることを確認する。見つからない場合は作業を止め、見つからないファイル名を報告する。
+
+【必ず読む文書】
+1. ../relic-docs/docs/art_orders/W2_05b_市場のにぎわい.md（今回の発注書）
+2. ../relic-docs/docs/art_orders/W2_05_オルド背町.md（前回の発注書）
+3. ../relic-docs/docs/art_orders/00_共通ルール.md、../relic-docs/docs/art_orders/01_3D変換用の絵の条件.md（5 章・5b 章・6 章）
+4. このブランチの art/concepts/W2_town/ の spec.md、spec_town_3d.md、town_mood_day.png・town_mood_night.png（にぎわいの手本）、town_props.png と town_props_front・_side・_top.png（今ある小物 20 点。同じ物を描かない）、town_kit_*.png
+5. ../relic-townsfolk/art/concepts/W2_townsfolk/townsfolk_variations.png（人の大きさ）
+6. ../relic-w0/art/concepts/W0_art_bible/spec_a.md（画風・色の基準）
+
+【作業】
+- 画像生成機能を使い、発注書 2 章の 16 点を描き、3 章の絵（設計の一覧、3D 変換用の部品組 3 枚、置き方の見本）にまとめる。
+- 部品組の 3 枚（town_goods_front・_side・_top.png）は同じ並び・同じ縮尺、透明の背景、正投影、均一な光、影なし。番号は下の余白に書く。
+- 看板の文字は架空の文字にする。
+- 説明書き：art/concepts/W2_town/spec_town_goods.md（発注書 3 章の項目）。
+
+【守ること】
+- 絵は必ず画像生成機能で描く。描いた絵の拡大縮小・切り抜き・位置合わせに画像編集を使うのはよい。3D ソフトで作った画像やプログラムで描いた図形は不可。描けないときは代わりの方法を取らず、spec の冒頭に「未納品」と理由を書く。
+- art/concepts/W2_town/ の既存のファイルを変えない・消さない。ほかのフォルダを変更しない。参照した絵を作業ブランチにコピーしない。
+- 既存の作品の絵や写真をなぞったり合成したりしない。署名・透かし・実在ブランドの文字やロゴを入れない。
+
+【完了したら】
+- 1 コミットにまとめ（メッセージ："art: W2-05b market goods"）、git push origin art/w2-town で送る。途中で別のブランチに保存した場合も、最後は全部を art/w2-town に入れる。
+- 取り出したフォルダを片付ける：git worktree remove ../relic-docs（relic-w0・relic-townsfolk も同じく）
+- 送れなかった場合は、エラーの内容をそのまま報告する。
+- 納品したファイルの一覧と、デザインの要点を 5 行以内で報告する。
+```
+
+### 14.4 W2-07b：練習銃
+
+```text
+あなたはゲーム開発プロジェクト『アークウォーカー』の作画担当です。下のリポジトリに接続し、発注書を読み、指示どおりに画像を制作して納品してください。
+
+【リポジトリ】
+- URL：https://github.com/hassy0511/project-relic
+- 作業ブランチ：art/w2-props（小物の絵を納品したブランチ。そこに追加する）
+- 発注書を読むブランチ：claude/busy-bell-oagnck（最新にすること）
+- 参照するブランチ（読むだけ・取り込まない）：art/w0（W0 A案）、art/w1-haru3d（スパークとハルの手）、art/w2-town（町の色）
+
+【最初に行うこと】
+1. git clone https://github.com/hassy0511/project-relic.git（取得済みなら git fetch --all）
+   cd project-relic
+   git checkout art/w2-props && git pull
+2. 発注書と参照の絵を別のフォルダに取り出す：
+   git worktree add ../relic-docs origin/claude/busy-bell-oagnck
+   git worktree add ../relic-w0 origin/art/w0
+   git worktree add ../relic-haru3d origin/art/w1-haru3d
+   git worktree add ../relic-town origin/art/w2-town
+3. 下の「必ず読む文書」がそろっていることを確認する。見つからない場合は作業を止め、見つからないファイル名を報告する。
+
+【必ず読む文書】
+1. ../relic-docs/docs/art_orders/W2_07b_練習銃.md（今回の発注書）
+2. ../relic-docs/docs/art_orders/00_共通ルール.md、../relic-docs/docs/art_orders/01_3D変換用の絵の条件.md（5 章・6 章）
+3. ../relic-haru3d/art/concepts/W1_haru_3d/spark_gun_3d.png、spark_gun_side.png、spec_haru_3d.md（スパークの大きさと握り）、haru_3d_front.png（ハルの手）
+4. このブランチの art/concepts/W2_props/spec.md、spec_props_3d.md（小物の描き方と色）
+5. ../relic-town/art/concepts/W2_town/spec.md（町の色）
+6. ../relic-w0/art/concepts/W0_art_bible/spec_a.md（画風・色の基準）
+
+【作業】
+- 画像生成機能を使い、発注書 3 章の絵（設計の絵、スパークとの比べの絵、3D 変換用の 4 方向）を描く。
+- 握る部分の太さ・長さ・角度と引き金の位置は、スパークと同じにする。比べの絵で、握りの位置をそろえて確かめる。
+- スパークの「黒鉛色・琥珀の窓・真鍮の帯」の組み合わせを使わない。輪郭と色の両方で見分けられるようにする。
+- 説明書き：art/concepts/W2_props/spec_practice_gun.md（発注書 3 章の項目）。
+
+【守ること】
+- 絵は必ず画像生成機能で描く。描いた絵の拡大縮小・切り抜き・位置合わせに画像編集を使うのはよい。3D ソフトで作った画像やプログラムで描いた図形は不可。描けないときは代わりの方法を取らず、spec の冒頭に「未納品」と理由を書く。
+- art/concepts/W2_props/ の既存のファイルを変えない・消さない。ほかのフォルダを変更しない。参照した絵を作業ブランチにコピーしない。
+- 既存の作品の絵や写真をなぞったり合成したりしない。署名・透かし・実在ブランドの文字やロゴを入れない。
+
+【完了したら】
+- 1 コミットにまとめ（メッセージ："art: W2-07b practice gun"）、git push origin art/w2-props で送る。途中で別のブランチに保存した場合も、最後は全部を art/w2-props に入れる。
+- 取り出したフォルダを片付ける：git worktree remove ../relic-docs（relic-w0・relic-haru3d・relic-town も同じく）
+- 送れなかった場合は、エラーの内容をそのまま報告する。
+- 納品したファイルの一覧と、スパークとの見分け方の要点を 5 行以内で報告する。
 ```
