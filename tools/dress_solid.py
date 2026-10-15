@@ -239,6 +239,19 @@ def _town():
                          + [R(sx * 1.6, sz * 1.6, 0.3, 0.3, 0.0, 1.1) for sx in (-1, 1) for sz in (-1, 1)],
         # 南の階段の下の踊り場の両側の壁の縦の管（壁の面 |x|=4 から 0.29 m。踊り場の床 -5 から 2.8 まで）：体だけの柱
         "town/stair_well_s": [P(sx * 3.82, -29.4, 0.22, -5.0, 2.8) for sx in (-1, 1)],
+        # 生活感の小物（2026-10-15。町の中段・遺構 r02・r03 に置く）
+        # 水筒形タンク（横倒しの筒 x -0.5〜0.5、端のふた 0.62・蛇口 0.75）、折り畳み踏み台、曲がり管、係留柱（床の綱と環は薄いので箱に入れない）
+        "town/tank": [B(-0.52, 0.64, 0.0, 0.85, -0.34, 0.34)],
+        "town/stool": [B(-0.39, 0.39, 0.0, 0.97, -0.45, 0.47)],
+        "town/pipe_bend": [B(-0.62, 0.45, 0.0, 0.77, -0.27, 0.27)],
+        "town/bollard": [B(-0.28, 0.28, 0.0, 1.06, -0.28, 0.28)],
+        # 携行灯（0.26 m 角・0.69）：体だけの箱（細い。カメラは通す）。箱・台の上に置くときは pos の y をその上の面に
+        "town/hand_lantern": [B(-0.13, 0.13, 0.0, 0.69, -0.13, 0.13, cam=False)],
+        # ガラクタの山（junk_pile、2×1.5×1.1）：前からの中段の 1 つは描かない箱があるので solid を付けない。新しく置く物はこの箱
+        "town/junk_pile": [B(-0.99, 0.97, 0.0, 1.12, -0.68, 0.79)],
+        # CC0 の小物（tools/blender/kit/cc0_props.py）：膨らんだ樽、長持ち形の木箱
+        "cc0/cask": [_barrel(0.0, 0.0, 1.02)],
+        "cc0/plank_box": [B(-0.7, 0.7, 0.0, 0.6, -0.35, 0.35)],
     }
 
 
@@ -338,6 +351,27 @@ def _rot(yaw_deg, x, z):
     """Godot の Basis(Vector3.UP, yaw)：+Z を向いた物を yaw 度回すと +X 寄りへ向く"""
     a = math.radians(yaw_deg)
     return x * math.cos(a) + z * math.sin(a), -x * math.sin(a) + z * math.cos(a)
+
+
+def extent(part, yaw=0.0, scale=1.0, solid=True):
+    """部品の当たり判定の箱（SOLID の表）を yaw・scale で置いたときの、床の上の広がり [x0, x1, z0, z1] と高さ（部品の原点から）。
+    部屋の JSON を書く道具が、箱どうしをくっつけて並べるのに使う（すき間を作らない：14.3.1）"""
+    shapes = shapes_of({"part": part, "pos": [0, 0, 0], "yaw": yaw, "scale": scale, "solid": solid})
+    x0 = min(s["pos"][0] - s["size"][0] / 2 for s in shapes)
+    x1 = max(s["pos"][0] + s["size"][0] / 2 for s in shapes)
+    z0 = min(s["pos"][2] - s["size"][2] / 2 for s in shapes)
+    z1 = max(s["pos"][2] + s["size"][2] / 2 for s in shapes)
+    top = max(s["pos"][1] + s["size"][1] for s in shapes)
+    return [x0, x1, z0, z1], top
+
+
+def snap(part, yaw=0.0, scale=1.0, x0=None, x1=None, z0=None, z1=None, x=None, z=None, solid=True):
+    """当たり判定の箱の端を決めた所に合わせた、部品の原点の (x, z)。x0・x1：西・東の端、z0・z1：南・北の端、x・z：原点そのもの。
+    例：snap("cc0/plank_box", 0, x0=-11.56, z1=12.62) は、箱の西の端が x -11.56、北の端が z 12.62 になる原点"""
+    (ex0, ex1, ez0, ez1), _ = extent(part, yaw, scale, solid)
+    px = x if x is not None else (x0 - ex0 if x0 is not None else (x1 - ex1 if x1 is not None else 0.0))
+    pz = z if z is not None else (z0 - ez0 if z0 is not None else (z1 - ez1 if z1 is not None else 0.0))
+    return round(px, 3), round(pz, 3)
 
 
 def _spec(d):

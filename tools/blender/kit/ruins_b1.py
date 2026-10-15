@@ -361,6 +361,26 @@ def post_lamp():
     return p
 
 
+def cables():
+    p = Part('b1_cables', '床に這わせた整備のケーブル 3 本（黒い被覆、真鍮の継ぎ手。長さ 2.4 m・高さ 0.1 m 以下で、踏んで歩ける薄い物）。'
+             '原点：底の中央。ケーブルは X に沿って、Y にゆるく波打つ')
+    # 雰囲気画 ruins_mood_b1 の手前の床の黒いケーブルの束。床の上の薄い物なので当たり判定は付けない（42 の 14.3）
+    for k, (r, dy, ph, amp) in enumerate(((0.045, -0.12, 0.0, 0.16), (0.035, 0.0, 1.7, 0.22), (0.03, 0.13, 3.1, 0.12))):
+        path = []
+        for i in range(9):
+            t = i / 8
+            x = -1.2 + 2.4 * t
+            y = dy + amp * math.sin(t * math.pi * 2.0 + ph) * (0.4 + 0.6 * t)
+            path.append((x, y, r))
+        p.sweep('dark', path, r, 5)
+        yy = path[0][1]
+        p.cyl(B, (-1.26, yy, r), (-1.14, yy, r), r + 0.02, 6)
+    # 継ぎ手の箱（低い黒鉛の箱と真鍮の留め）
+    p.box(G, (1.18, -0.24, 0), (1.4, 0.24, 0.1))
+    p.cbox(B, (1.29, 0.0, 0.1), (0.16, 0.36, 0.02), 0.01)
+    return p
+
+
 def edge_lamp():
     p = Part('b1_edge_lamp', '穴の縁の目印の壁の灯（壁に付く黒鉛の細い板と琥珀の光の筋、上に琥珀の灯。壁から 0.34 m まで＝壁の帯の内）。'
              '原点：壁の面の下の端の中央（壁に付く物と同じ）')
@@ -427,5 +447,5 @@ PARTS = [
     lambda: beam(False), lambda: beam(True), pipe, elbow, tee,
     lambda: rail(False), lambda: rail(True), lantern_part, redlight,
     lambda: grate(False), lambda: grate(True), lambda: crate(False), lambda: crate(True),
-    sand, debris, fan, lambda: walkway(False), lambda: walkway(True), crack, shaft, post_lamp, bracket, pit, edge_lamp,
+    sand, debris, fan, lambda: walkway(False), lambda: walkway(True), crack, shaft, post_lamp, bracket, pit, edge_lamp, cables,
 ]

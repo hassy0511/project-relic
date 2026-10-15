@@ -40,6 +40,22 @@ class Dress:
         self.items.append(d)
         return d
 
+    def put_any(self, part, pos, yaw=0, **kw):
+        """キットの名前つきの部品（"town/barrel"・"cc0/cask" など。遺構のキットの flat・metal の材質で描く）"""
+        d = self.put(part, pos, yaw, **kw)
+        d["part"] = part
+        return d
+
+    def snug(self, part, yaw=0, y=0.0, scale=None, solid=True, **edges):
+        """当たり判定の箱の端を edges（x0・x1・z0・z1・x・z）に合わせて置く（dress_solid.snap）。ruins/ の無い名前はそのまま"""
+        x, z = dress_solid.snap(part if "/" in part else "ruins/" + part, yaw, scale or 1.0, **edges)
+        kw = {"solid": True} if solid else {}
+        if scale is not None:
+            kw["scale"] = scale
+        if "/" in part:
+            return self.put_any(part, [x, y, z], yaw, **kw)
+        return self.put(part, [x, y, z], yaw, **kw)
+
     def row(self, part, pos, step, count, yaw=0, **kw):
         if count <= 0:
             return None
@@ -185,6 +201,7 @@ def r02(room):
     # 折れた柱の角から 0.75 m 以上離す（前は (-3.5, -2.5) で柱の角とかけらの間に足が挟まった）
     for pos, yaw in (((-2.8, 0, -3.2), 30), ((4.0, 0, -3.5), -60), ((-6.5, 0, 4.0), 100), ((10.0, 0, -10.2), 10), ((2.5, 0, 9.5), 200)):
         d.put("b1_debris", pos, yaw, solid=True)
+    lived_r02(d)
     room["kit"] = "ruins_b1"
     room["dress"] = d.items
     # 明かり：天井の 2 つ（暖かい外光）、割れ目から差す光、入口と出口の扉の灯、エレベーターの赤
@@ -194,6 +211,69 @@ def r02(room):
         light([0, 3.2, 11.3], "#ffbc52", 9.0, 1.6), light([0, 3.2, -11.3], "#ffbc52", 9.0, 1.6),
         light([11.2, 3.0, 0], "#ff5a40", 7.0, 1.4),
     ]
+
+
+def lived_r02(d):
+    """生活感の小物（2026-10-15。雰囲気画 ruins_mood_b1 の床の箱・赤い布・黒いケーブル・灯）：前に入った回収の一団が残した物。
+    箱どうし・壁の帯とは 2 cm 離して並べる（dress_solid.snap。すき間は道具がふさぐ：14.3.1）。どれも当たり判定つき（ケーブルは床の上の薄い物）。
+    通り道（南北の出口の間・エレベーターの前）、宝箱・遺物・ビー玉、入ったときのトリガーからは離す"""
+    W = 13.0 - 0.38       # 壁の帯（壁 13 m から 0.36 m）の 2 cm 手前
+    # 北西：回収の野営。北の壁ぎわに 1 列（長持ち・樽・布の箱・収納箱・踏み台）、布の箱の前に樽、長持ちの上に携行灯、床にケーブル。
+    # 奥行きの違う物を前後に重ねると、間の 0.75 m より狭いすき間を道具がふさいで見えない棚になるので、1 列にくっつけて並べる
+    d.snug("cc0/plank_box", 0, x0=-11.56, z1=W)
+    d.snug("cc0/cask", 0, x0=-10.14, z1=W)
+    d.snug("b1_crate_cloth", 0, x0=-9.42, z1=W)
+    d.snug("town/chest", 0, x0=-8.24, z1=W)
+    d.snug("town/stool", 0, x0=-7.18, z1=W)
+    d.snug("cc0/cask", 0, x=-8.85, z1=11.44)
+    d.put_any("town/hand_lantern", [-10.5, 0.6, 12.42], solid=True)
+    d.put("b1_cables", [-6.9, 0, 10.8], 172)
+    # 南西：仕分けの山。布の箱と箱、上に町の木箱、長持ち、樽、かけら、床のケーブル（入ったときのトリガー x -6〜6 の外）
+    d.snug("b1_crate_cloth", 0, x1=-8.4, z1=-7.9)
+    d.snug("b1_crate", 0, x1=-9.58, z1=-7.9)
+    d.snug("town/crate", 2, y=1.0, x=-10.1, z=-8.42)
+    d.snug("cc0/plank_box", 90, x1=-10.64, z1=-7.9)
+    d.snug("cc0/cask", 0, x0=-8.38, z1=-8.2)
+    d.put("b1_debris", [-7.0, 0, -11.2], 140, solid=True)      # 山から 1.4 m（前は 0.5 m で、布の箱の角とかけらの間に体が挟まった）
+    d.put("b1_cables", [-11.3, 0, -5.6], 75)
+    # 南東：作業の跡。南の壁ぎわに低い灯の柱、工具棚（壁の琥珀の灯の下）、収納箱（上に携行灯）、踏み台、床にケーブル。
+    # 南東の角の布の箱とは 0.75 m 以上離す
+    S = -W
+    d.snug("b1_post_lamp", 0, x1=6.58, z0=S + 0.1)
+    d.snug("town/tool_rack", 0, x0=6.6, z0=S)
+    d.snug("town/chest", 0, x0=8.68, z0=S)
+    d.put_any("town/hand_lantern", [8.83, 1.0, -12.32], solid=True)   # 工具棚に寄せる（前は 0.63 m 離れていて、棚の上から下りた体が間に挟まった）
+    d.snug("town/stool", 180, x0=9.74, z0=S)
+    d.put("b1_cables", [5.2, 0, -10.9], 35)
+    # 真ん中の東：折れた柱（5.5, -2）に寄せた回収の山。布の箱・箱（上に町の木箱）・長持ち・樽 2 つ、足元に砂とかけら、
+    # エレベーターの方へケーブル（エレベーターの前の通り道 z -1〜1、入ったときのトリガー z -6.5 より南には出さない）
+    d.snug("b1_crate_cloth", 0, x0=6.12, z1=-1.42)
+    d.snug("town/barrel", 0, x0=7.3, z1=-1.62)
+    d.snug("cc0/cask", 0, x0=8.02, z1=-1.62)
+    d.snug("b1_crate", 0, x0=6.12, z1=-2.6)
+    d.snug("town/crate", 3, y=1.0, x=6.62, z=-3.12)
+    d.snug("cc0/plank_box", 0, x0=6.12, z1=-3.67)
+    d.put("b1_sand", [8.6, 0, -3.9], 20, scale=[1.0, 1.0, 1.0])
+    d.put("b1_debris", [8.9, 0, -5.0], 30, solid=True)
+    d.put("b1_cables", [9.9, 0, -2.6], 4)
+    # 真ん中の西：低い山（-4, 6）の上の北の縁に箱と布の箱、上に携行灯。ファンの足元から床にケーブル
+    d.snug("b1_crate", 2, y=0.7, x0=-6.48, z1=7.48)
+    d.snug("b1_crate_cloth", 0, y=0.7, x0=-5.42, z1=7.48)
+    d.put_any("town/hand_lantern", [-4.6, 1.74, 6.8], solid=True)
+    d.put("b1_cables", [-11.0, 0, 3.5], 0)
+    d.put("b1_cables", [-8.6, 0, 3.1], 12)
+    # 山の上にも：入口から見える 2 つの山（3, -5 の箱の上に樽、宝箱の山の低い段の南東の角に布の箱）。宝箱の前（自動の通しが立つ所）からは離す
+    d.snug("cc0/cask", 0, y=1.6, x1=3.98, z1=-4.02)
+    d.snug("b1_crate_cloth", 0, y=1.0, x1=-6.02, z0=-5.98)
+    # 北東：エレベーターの近くの物置き。北の壁ぎわの箱の西に樽 2 つとタンク、樽の前に箱
+    d.snug("cc0/cask", 0, x1=10.23, z1=W)
+    d.snug("town/barrel", 0, x1=9.51, z1=W)
+    d.snug("town/tank", 0, x1=8.79, z1=W)
+    d.snug("b1_crate", 0, x1=10.21, z1=11.9)
+    d.put("b1_sand", [5.2, 0, 11.4], 15, scale=[1.1, 1.0, 1.0])
+    # 真ん中：折れた柱のまわりのかけらを足す
+    d.put("b1_debris", [-3.2, 0, 2.2], 250, solid=True)
+    d.put("b1_debris", [3.4, 0, 1.6], 60, solid=True)
 
 
 def r03(room):
@@ -250,12 +330,32 @@ def r03(room):
     for pos, yaw, sc in (((-2.0, 0, -17.6), 0, 1.0), ((2.0, 0, -9.5), 90, 0.9), ((-2.1, 0, -1.2), 0, 0.8), ((2.0, 0, 4.0), 0, 0.9),
                          ((-1.8, 1.0, 11.0), 90, 0.7), ((1.8, 0, 17.2), 0, 0.9)):
         d.put("b1_sand", pos, yaw, scale=[sc, 1.0, sc])
+    lived_r03(d)
     room["kit"] = "ruins_b1"
     room["dress"] = d.items
     room["lights"] = [
         light([0, 4.2, -14], "#ffd596", 15.0, 2.0), light([0, 4.2, -2], "#ffd596", 15.0, 2.0), light([0, 4.2, 10], "#ffd596", 15.0, 2.0),
         light([0, -2.0, -5.75], "#ff4a3a", 5.0, 1.5), light([0, -2.0, 9.0], "#ff4a3a", 5.0, 1.5),
     ]
+
+
+def lived_r03(d):
+    """生活感の小物（2026-10-15）：前の整備の一団が置いていった道具と灯。当たり判定のある物は、溝と溝の縁から 1.5 m（跳ぶ所）の外、
+    出口・トリガーの箱の外だけに置く（42 の 14.3.1）：床の段 z 4.5〜6.0（西の壁ぎわ）と、z -3.0〜-2.0（東の壁ぎわ）。
+    壁の帯の内（|x| 2.64 より外）と床のケーブルは当たり判定なし"""
+    L = 2.62              # 壁の帯の面の 2 cm 手前
+    # 中ほどの床の段（z 3〜7.5）：西の壁ぎわに道具箱（収納箱）と、その上の携行灯、低い灯の柱、踏み台、床のケーブル
+    d.snug("town/chest", 90, x0=-L, z0=4.52)
+    d.put_any("town/hand_lantern", [-2.3, 1.0, 4.82], solid=True)
+    d.snug("b1_post_lamp", 0, x0=-L, z0=5.58)
+    d.snug("town/stool", 90, x0=-1.66, z0=4.56)
+    d.put("b1_cables", [-1.2, 0, 4.15], 8)
+    # 手前の床の段（z -4.5〜-0.5）の東の壁ぎわに樽、壁の帯の内に携行灯
+    d.snug("cc0/cask", 0, x1=L, z0=-2.95)
+    d.put_any("town/hand_lantern", [2.84, 0, -1.55])
+    # 入口：南の扉の前の布の箱の上に携行灯、床に壁ぎわから延びるケーブル
+    d.put_any("town/hand_lantern", [-2.3, 1.04, -16.95], solid=True)
+    d.put("b1_cables", [1.1, 0, -15.0], -12)
 
 
 # 整備通路の床の穴（z の範囲）。床の段（geometry 5〜10）の間

@@ -1,0 +1,34 @@
+{
+ "cask.glb": {
+  "name": "Barrel",
+  "id": "053353d1-171d-46f6-98f6-0d3d206dbedd",
+  "license": "cc_zero",
+  "author": "stray designer",
+  "style": "lowpoly",
+  "page": "https://www.blenderkit.com/asset-gallery-detail/053353d1-171d-46f6-98f6-0d3d206dbedd/",
+  "fetched": "2026-10-14",
+  "file_type": "blend",
+  "made_from": "model.glb",
+  "made_by": "tools/blender/kit/cc0_props.py",
+  "made": "2026-10-15",
+  "tris": 304,
+  "src_tris": 8916,
+  "note": "膨らみの大きい樽。縮約すると板と輪が崩れたので、元の輪郭（高さごとの半径）と輪の高さから回転体で組み直した。胴は明るい板、輪は真鍮"
+ },
+ "plank_box.glb": {
+  "name": "Wooden Crate 01",
+  "id": "bc3c8bf5-f8a5-40c9-89e8-7f24fbaf2780",
+  "license": "cc_zero",
+  "author": "Poly Haven",
+  "style": "realistic",
+  "page": "https://www.blenderkit.com/asset-gallery-detail/bc3c8bf5-f8a5-40c9-89e8-7f24fbaf2780/",
+  "fetched": "2026-10-14",
+  "file_type": "resolution_1K",
+  "made_from": "model.glb",
+  "made_by": "tools/blender/kit/cc0_props.py",
+  "made": "2026-10-15",
+  "tris": 498,
+  "src_tris": 6576,
+  "note": "写実の木箱（長持ち形）を平らな色に。絵の色を面ごとに読んで、木と金物に振り分けた"
+ }
+}

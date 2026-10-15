@@ -541,6 +541,52 @@ def hand_lantern() -> Part:
     return p
 
 
+def laundry_line(w=2.0) -> Part:
+    """洗濯物の綱（壁から壁へ）：両端の壁の真鍮の留め金と目、たるんだ綱、布 4 枚。柱は無い（建物の間の路地に渡す。town_mood_day）。
+    原点 = 綱の両端を結ぶ線の真ん中（留め金の高さ）。綱は X に沿って ±w/2（壁の面）。布の下の端は原点の 0.75 m 下より上
+    （3.3 m に渡すと 2.5 m より上：頭の上。当たり判定は付けない。洗濯綱 clothesline と同じ）。幅は scale の x で路地に合わせる"""
+    p = Part('laundry_line' if w == 2.0 else f'laundry_line_{int(w)}')
+    hw = w / 2
+    for x in (-hw, hw):
+        p.add('brass', boxb(x - 0.02 if x > 0 else x, x if x > 0 else x + 0.02, -0.12, 0.12, -0.07, 0.07))
+        d = -1 if x > 0 else 1
+        p.add('graphite', cyl((x, 0, 0), (x + d * 0.09, 0, 0), 0.02, 5))
+    dip = 0.14 * max(1.0, w / 4)
+    pts = sag((-hw + 0.08, 0, 0), (hw - 0.08, 0, 0), max(8, int(w * 3)), dip)
+    p.add('rope', tube(pts, 0.014, 5))
+    # 布：2 m あたり 4 枚（幅・長さ・色を順に替える）。長い綱は真ん中ほど下がる
+    pat = ((0.38, 'linen', 0.5), (0.37, 'cloth', 0.6), (0.3, 'cloth2', 0.42), (0.3, 'linen', 0.55))
+    n = max(4, int(round(w * 2)))
+    step = (w - 0.4) / n
+    for k in range(n):
+        cw, mat, ln = pat[k % 4]
+        x0 = -hw + 0.2 + k * step + (step - min(cw, step * 0.85)) / 2
+        x1 = x0 + min(cw, step * 0.85)
+        def f(u, v, x0=x0, x1=x1, ln=ln):
+            x = x0 + (x1 - x0) * u
+            t = -dip * 4 * ((x + hw) / w) * (1 - (x + hw) / w) - 0.01
+            return (x, t - ln * v, 0.025 * math.sin(u * 5 + v * 2 + x0 * 3))
+        p.add(mat, sheet(f, 3, 3))
+    return p
+
+
+def bollard() -> Part:
+    """7 係留柱 1 m：白磁の台、黒鉛の柱と真鍮の笠、柱に巻いた綱と、床の真鍮の環へ伸びる綱（胸壁の縁。town_props の 7）"""
+    p = Part('bollard')
+    p.add('ivory', boxb(-0.26, 0.26, 0.0, 0.3, -0.26, 0.26))
+    p.add('graphite', boxb(-0.28, 0.28, 0.0, 0.06, -0.28, 0.28), boxb(-0.27, 0.27, 0.27, 0.32, -0.27, 0.27))
+    p.add('graphite', cyl((0, 0.3, 0), (0, 0.95, 0), 0.12, 10))
+    p.add('brass', lathe((0, 0.95, 0), (0, 1.06, 0), [(0, 0.16), (0.6, 0.15), (1, 0.08)], 10))
+    p.add('brass', cyl((0, 0.42, 0), (0, 0.48, 0), 0.135, 10, cap=False))
+    for k in range(3):
+        y = 0.56 + k * 0.07
+        p.add('rope', cyl((0, y - 0.028, 0), (0, y + 0.028, 0), 0.15, 10, cap=False))
+    p.add('rope', tube([(0.1, 0.62, 0.1), (0.3, 0.4, 0.28), (0.45, 0.06, 0.45), (0.62, 0.03, 0.56)], 0.025, 5))
+    p.add('brass', boxb(0.52, 0.8, 0.0, 0.03, 0.46, 0.7))
+    p.add('brass', lathe((0.66, 0.03, 0.58), (0.66, 0.06, 0.58), [(0, 0.07), (1, 0.06)], 8))
+    return p
+
+
 def stool() -> Part:
     """20 折り畳み踏み台 1 m"""
     p = Part('stool')

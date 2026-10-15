@@ -29,13 +29,20 @@ class Dress:
         self.items = []
 
     def put(self, part, pos, yaw=0, **kw):
-        d = {"part": "town/" + part, "pos": r3(pos)}
+        d = {"part": part if "/" in part else "town/" + part, "pos": r3(pos)}
         if yaw:
             d["yaw"] = yaw % 360
         for k, v in kw.items():
             d[k] = r3(v) if isinstance(v, (list, tuple)) else v
         self.items.append(d)
         return d
+
+    def snug(self, part, yaw=0, y=0.0, scale=None, **edges):
+        """当たり判定の箱の端を edges（x0・x1・z0・z1・x・z）に合わせて置く（dress_solid.snap。箱どうしを 2 cm 離して並べる）"""
+        full = part if "/" in part else "town/" + part
+        x, z = dress_solid.snap(full, yaw, scale or 1.0, **edges)
+        kw = {"scale": scale} if scale is not None else {}
+        return self.put(full, [x, y, z], yaw, solid=True, **kw)
 
 
 def geo_index(room, pos, size):
@@ -70,8 +77,10 @@ def common(room, d):
     room["kit"] = "town"
 
 
+# 生活感の小物（2026-10-15）は、木箱・樽と同じ役の CC0 の樽と長持ちだけ影を落とす（部品の種類ごとに影の描画が増えるため。
+# タンク・踏み台・曲がり管・係留柱・携行灯・洗濯物は影なし）
 SHADOW = {"stall", "tent", "monument", "workshop_front", "diner_front", "stage", "lamp_post", "lamp_tall", "bench",
-          "stall_table", "crate", "barrel", "junk_pile", "planter_big"}
+          "stall_table", "crate", "barrel", "junk_pile", "planter_big", "cask", "plank_box"}
 
 # 当たり判定を付ける部品（"solid": true。箱の形は tools/dress_solid.py の SOLID）。歩ける所に立つ、手で触れる大きさの物：
 # 木箱・樽・収納箱・鉢植え・ベンチ・卓・工具棚・給水塔・洗濯綱・床の配管・外灯の台・胸壁の角の柱・露店の棚と柱と裏の木箱・
@@ -85,7 +94,8 @@ SHADOW = {"stall", "tent", "monument", "workshop_front", "diner_front", "stage",
 SOLID = {"crate", "barrel", "chest", "planter", "planter_big", "bench", "stall_table", "tool_rack", "water_tower", "clothesline",
          "pipes", "lamp_post", "lamp_tall", "parapet_corner", "goods_shelf_general", "goods_shelf_junk", "stall", "tent",
          "workshop_front", "diner_front", "stage", "stair_rail_12", "stair_rail_12_r", "parapet_rail_8", "parapet_rail_4",
-         "terrace_west", "terrace_east", "window_flush", "canvas_roll", "monument", "stair_well_s"}
+         "terrace_west", "terrace_east", "window_flush", "canvas_roll", "monument", "stair_well_s",
+         "tank", "stool", "pipe_bend", "bollard", "hand_lantern", "cask", "plank_box"}
 
 
 # ---------------------------------------------------------------- 中段（広場と市場）
@@ -239,6 +249,8 @@ def mid(room):
     d.put("clothesline", [31, 0, 11.5], 180)
     d.put("water_tower", [31, 0, 13.6], 0, scale=1.3)
 
+    lived_mid(d)
+
     # 影を落とすのは近くで形を読ませる物だけ（キットの既定は影なし。影の描画は部品の描画の 2 倍以上かかる）
     for it in d.items:
         if it["part"].split("/")[1] in SHADOW and "shadow" not in it:
@@ -252,6 +264,76 @@ def mid(room):
     room["dress"] = d.items
     dress_solid.apply(room)
     return room
+
+
+def lived_mid(d):
+    """生活感の小物（2026-10-15。town_mood_day の露店のまわりの箱・樽・布、路地の洗濯物、胸壁の縁の物）。
+    どれも前からある部品（同じ部品は 1 つの MultiMesh で描くので、描画の数はほとんど増えない）と、W2-05 の小物の係留柱・
+    路地に渡す洗濯物の綱、CC0 の樽・長持ち（tools/blender/kit/cc0_props.py）。手で触れる物は当たり判定つき。
+    箱どうしは 2 cm 離してくっつける（間の 0.75 m より狭いすき間は道具がふさいで見えない棚になる：14.3.1）。
+    広場の真ん中・露店の前・食堂と工房の入口・住人のまわり・出口と目印は空けておく"""
+    # --- 市場：雑貨屋の西の脇に、箱の山と樽と鉢植えの角（露店の柱・前の樽から 0.75 m 以上）
+    d.snug("crate", 0, x1=18.9, z0=5.6)
+    d.snug("crate", 3, y=0.74, x1=18.85, z0=5.62, scale=0.85)
+    d.snug("crate", 0, x1=17.94, z0=5.6, scale=0.9)
+    d.snug("cc0/cask", 0, x1=18.9, z0=6.56)
+    d.snug("planter", 0, x1=18.9, z0=8.1)
+    # 露店の間（工具棚の前）：配達の木箱の山と長持ち（工具棚と洗濯綱の前の通り道 x 31.4〜33 は空ける）
+    d.snug("crate", 0, x0=29.6, z1=8.78)
+    d.snug("crate", 2, y=0.74, x0=29.66, z1=8.76, scale=0.8)
+    d.snug("cc0/plank_box", 90, x0=29.6, z1=7.82)
+    # 東の端：小さな 3 つ目の店（天幕。中に台・木箱・樽）。ジャンク屋の収納箱と東の低い壁から 0.75 m 以上
+    d.put("tent", [45.7, 0, 5.6], 270)
+    d.snug("barrel", 0, x0=44.25, z1=2.95)
+    d.snug("cc0/cask", 0, x0=44.97, z1=2.95)
+    # 雑貨屋・ジャンク屋の裏（奥の箱の山の後ろ）：長持ちと樽
+    d.snug("cc0/plank_box", 0, x0=22.0, z0=10.2)
+    d.snug("cc0/cask", 0, x0=23.42, z0=10.2)
+    d.snug("cc0/plank_box", 0, x0=36.4, z0=10.2)
+    d.snug("barrel", 0, x0=37.82, z0=10.2)
+    # 市場の南（前からの木箱の山の横）：樽と長持ち
+    d.snug("cc0/cask", 0, x0=32.0, z1=-5.2)
+    d.snug("cc0/plank_box", 90, x1=40.98, z1=-6.3)
+    # --- 広場：東の脇（雑貨屋との間）に樽と鉢植えの角、西の脇（食堂の東の面）に木箱と樽
+    d.snug("planter_big", 0, x0=14.4, z1=9.2)
+    d.snug("barrel", 0, x0=15.77, z1=9.2)
+    d.snug("cc0/cask", 0, x0=15.77, z1=8.48)
+    d.snug("crate", 0, x0=-14.98, z0=2.2)
+    d.snug("barrel", 0, x0=-14.98, z0=3.16)
+    d.snug("crate", 2, y=0.74, x0=-14.94, z0=2.24, scale=0.8)
+    # --- 食堂の前：東の角の樽の横に鉢植え（西の角の木箱の上に積むと、上から食堂の角の方へ下りた体が角と箱の間に挟まった）
+    d.snug("planter", 0, x1=-14.57, z0=-1.3)
+    # --- ヤーナの工房の前：西に作業台（台・タンク・踏み台・携行灯）、東に部品の山（ガラクタの山と曲がり管）。
+    # 入口の前（目印 from_workshop と工房の口）と、工房の見える向きの真ん中は空ける
+    d.snug("stall_table", 0, x0=-40.2, z0=0.4)
+    d.put("hand_lantern", [-39.65, 0.97, 0.8], solid=True)
+    d.snug("tank", 0, x0=-38.16, z0=0.6)
+    d.snug("stool", 0, x1=-40.22, z0=0.4)
+    d.snug("junk_pile", 0, x0=-30.0, z0=0.3)
+    d.snug("pipe_bend", 0, x0=-28.01, z0=0.6)
+    # --- 広場の奥：壇の脇（天幕との間）に祭りの支度の木箱と樽（壇と天幕の柱から 0.75 m 以上）
+    d.snug("crate", 0, x0=4.78, z0=10.62)
+    d.snug("barrel", 0, x0=4.78, z0=11.58)
+    d.snug("cc0/cask", 0, x0=5.5, z0=11.58)
+    d.snug("cc0/plank_box", 90, x1=-4.78, z0=10.62)
+    d.snug("crate", 0, x1=-5.5, z0=10.62, scale=0.85)
+    # --- 北の階段の上に洗濯物（階段の両側の棟の面 |x|=4 から面へ。布の下の端は、その下の段から跳んで頭が届く高さより上：
+    # z 17.4 の段は 0.6 m で頭は 4.4 m まで、布の下の端は 4.7 m。広場の看板「広場」の文字より下に見える高さ）
+    d.put("laundry_line_8", [0, 5.6, 17.4])
+    d.put("laundry_line_8", [0, 6.3, 19.8])
+    # --- 工房と食堂の間の路地に洗濯物（壁から壁へ、頭の上 2.5 m より高い）
+    d.put("laundry_line", [-26.0, 3.3, 4.7])
+    d.put("laundry_line", [-26.0, 3.55, 7.3])
+    # --- 西の端（工房の西の面と低い壁の間）：暮らしの角。洗濯綱、壁ぎわにタンク、北の角に木箱と樽と鉢植え
+    d.put("clothesline", [-44.6, 0, 9.0], 90)
+    d.snug("tank", 90, x1=-41.02, z0=1.2)
+    d.snug("crate", 0, x0=-47.98, z1=13.6)
+    d.snug("planter", 0, x0=-47.02, z1=13.6)
+    d.snug("barrel", 0, x0=-46.1, z1=13.6)
+    d.snug("cc0/cask", 0, x0=-47.98, z1=12.64)
+    # --- 南の胸壁の縁：係留柱（鉢植えの間）
+    for x in (-44.6, -25.0, 15.0, 39.6):
+        d.snug("bollard", 0, x=x, z0=-13.87)
 
 
 ROOMS = {"mid": mid}

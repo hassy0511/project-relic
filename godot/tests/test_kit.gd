@@ -299,7 +299,8 @@ func test_fall_camera_not_on_gap_jump() -> void:
 ## （洗濯綱は洗濯物が頭の上の高さで、2 本の柱の間は歩いて通れる。柱だけに箱がある）
 const SOLID_CLASS := ["ruins/b1_crate", "ruins/b1_crate_cloth", "town/crate", "town/barrel", "town/chest", "town/planter", "town/planter_big",
 	"town/bench", "town/stall_table", "town/junk_pile", "town/tool_rack", "town/water_tower", "town/pipes",
-	"town/lamp_post", "town/lamp_tall"]
+	"town/lamp_post", "town/lamp_tall", "town/tank", "town/stool", "town/pipe_bend", "town/bollard", "ruins/b1_post_lamp",
+	"cc0/cask", "cc0/plank_box"]
 ## 飾りのある部屋（キットの部屋）
 const DRESSED := ["ch1.r02", "ch1.r03", "ch1.mid"]
 ## 足した箱と、出口・トリガーの箱の間（m）／目印・チェックポイント・敵の出る所から／調べる物・拾う物・住人から（tools/dress_solid.py と同じ）
