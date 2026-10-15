@@ -578,7 +578,7 @@ func _cp2d_steps() -> Array:
 		g.guild_points = 20
 		g.objective = "遺構の奥へ進み、動力の中継器を探す"
 		g.drain_events()
-	return [
+	var steps := [
 		{"ticks": 2, "setup": func(): prep.call("ch1.mid")},
 		{"ticks": 30, "input": {}},
 		{"ticks": 1, "check": func(): return _check(main.audio.current_music == "bgm_town_day", "昼の町では昼の町の曲が鳴る（%s）" % main.audio.current_music)},
@@ -600,6 +600,28 @@ func _cp2d_steps() -> Array:
 		{"ticks": 100, "input": {}},
 		{"ticks": 1, "shot": "05_dialogue", "input": {}, "check": func():
 			return _check(main.hud._dlg_icon.visible and main.hud._dlg_icon.texture != null, "ヤーナの会話に顔のアイコンが出る")},
+	]
+	# 会話の顔（tools/face_icons.py の絵）：話し手ごと。ハルはフレームと適合する前（板と肩ひもなし）と後
+	for c in [
+			["ch1.yana.debt_a", "05b_face_haru", "haru_nf_laugh", []],
+			["ch1.scold", "05c_face_burton", "burton_normal", []],
+			["ch1.nico.training", "05d_face_nico", "nico_smile", []],
+			["ch1.trude.plaza_after", "05e_face_trude", "trude_smile", []],
+			["ch1.junker.day", "05f_face_junker", "junker_smile", []],
+			["ch1.r12.thrusters", "05g_face_nagomi", "nagomi_happy", ["ch1.frame_fitted"]],
+			["ch1.nico.found", "05h_face_haru_frame", "haru_smile", ["ch1.frame_fitted"]]]:
+		steps.append_array([
+			{"ticks": 2, "setup": func():
+				for f in c[3]:
+					main.game.set_flag(f)
+				main.game.story.start_dialogue(c[0])},
+			{"ticks": 100, "input": {}},
+			{"ticks": 1, "shot": c[1], "input": {}, "check": func():
+				var t: Texture2D = main.hud._dlg_icon.texture
+				return _check(main.hud._dlg_icon.visible and t != null and t.resource_path.get_file() == c[2] + ".png",
+					"%s の顔が %s（%s）" % [c[0], c[2], t.resource_path.get_file() if t else "なし"])},
+		])
+	steps.append_array([
 		{"ticks": 2, "setup": func():
 			prep.call("ch1.r19")
 			pass},
@@ -616,7 +638,8 @@ func _cp2d_steps() -> Array:
 		{"ticks": 40, "input": {}},
 		{"ticks": 1, "shot": "06_boss_subtitle", "input": {}, "check": func():
 			return _check(main.hud.subtitle_text().contains("排除") and main.audio.current_music == "bgm_boss", "ボス戦の字幕と、ボスの曲（%s）" % main.audio.current_music)},
-	]
+	])
+	return steps
 
 
 ## UI の部品（Codex の W2-08）の画面の確認（--ui_shots。見本の通しでも走る）：町の HUD・ボス戦の HUD（ロックオン・解析・弱点・

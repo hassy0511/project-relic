@@ -124,11 +124,46 @@ func test_music_crossfade() -> void:
 
 
 func test_face_icons() -> void:
-	for who in ["ハル", "ヤーナ", "バートン"]:
+	var was := Hud.haru_framed
+	Hud.haru_framed = true
+	for who in Hud.FACE_ID:
 		var t := Hud.face_texture(who, "normal")
-		h.expect(t != null and t.get_width() > 100, "%s の顔のアイコンがある" % who)
-		h.expect(Hud.face_texture(who, "angry") != Hud.face_texture(who, "normal"), "%s は表情で切り出す位置が変わる" % who)
-	h.expect(Hud.face_texture("ニコ", "normal") == null, "絵の無い人は頭文字の丸（null）")
+		h.expect(t != null and t.get_width() >= 256, "%s の顔のアイコンがある" % who)
+	for who in ["ハル", "ヤーナ", "バートン", "ニコ", "トルーデ"]:
+		h.expect(Hud.face_texture(who, "angry") != Hud.face_texture(who, "normal"), "%s は表情で絵が変わる" % who)
+	# 読み替えの先の絵がある（無いと黙って normal になるため）
+	for id in Hud.FACE_ALIAS:
+		for face in Hud.FACE_ALIAS[id]:
+			var to: String = Hud.FACE_ALIAS[id][face]
+			h.expect(ResourceLoader.exists("res://assets/ui/faces/%s_%s.png" % [id, to]), "%s の %s の読み替え先（%s）の絵がある" % [id, face, to])
+	# 第 1 章の台詞の表情は、絵のある人ならどれも絵になる
+	var missing := []
+	for path in ["res://content/dialogue/ch1_town.json", "res://content/dialogue/ch1_ruins.json"]:
+		for line in _dialogue_lines(JSON.parse_string(FileAccess.get_file_as_string(path))):
+			if Hud.FACE_ID.has(line.who) and Hud.face_texture(line.who, line.get("face", "normal")) == null:
+				missing.append("%s:%s" % [line.who, line.get("face", "normal")])
+	h.expect(missing.is_empty(), "第 1 章の台詞の顔がどれも出る（%s）" % ", ".join(missing))
+	# ハルは、フレームと適合する前は板と肩ひもの無い顔
+	var framed := Hud.face_texture("ハル", "smirk")
+	Hud.haru_framed = false
+	var bare := Hud.face_texture("ハル", "smirk")
+	h.expect(bare != null and bare != framed and bare.resource_path.contains("haru_nf_smirk"), "フレームの前のハルは別の顔の組（%s）" % (bare.resource_path if bare else "null"))
+	Hud.haru_framed = was
+	h.expect(Hud.face_texture("老人ゲン", "normal") == null, "絵の無い人は頭文字の丸（null）")
+
+
+## 会話の JSON から台詞の行（who と text のある辞書）を全部集める
+static func _dialogue_lines(x) -> Array:
+	var out := []
+	if x is Dictionary:
+		if x.has("who") and x.has("text"):
+			out.append(x)
+		for v in x.values():
+			out.append_array(_dialogue_lines(v))
+	elif x is Array:
+		for v in x:
+			out.append_array(_dialogue_lines(v))
+	return out
 
 
 func test_pause_info_texts() -> void:

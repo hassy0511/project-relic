@@ -7,17 +7,28 @@ const FACE_COLORS := {
 	"ヤーナ": Color("#b5452f"), "ナゴミ": Color("#ffb23e"), "ハル": Color("#c9a46a"), "バートン": Color("#4d6a8a"),
 	"トルーデ": Color("#7a5a8a"), "ニコ": Color("#3f9a8a"), "閂": Color("#7a2a1e"),
 }
-## 顔のアイコン：モデルに貼る顔の絵（2×2 の表情の並び）から、顔の部分を切り出して使う（絵が無い人は頭文字の丸）
-const FACE_ATLAS := {
-	"ハル": "res://assets/models/haru_r_haru_face_base.png",
-	"ヤーナ": "res://assets/models/yana_yana_face_base.png",
-	"バートン": "res://assets/models/burton_burton_face_base.png",
+## 顔のアイコン：Codex の会話の顔の絵（胸から上、表情ごとに 1 枚）を、顔の大きさがそろうように切り出したもの
+## （`tools/face_icons.py` が作る。res://assets/ui/faces/<絵の名前>_<表情>.png）。話し手の名前 → 絵の名前。絵の無い人は頭文字の丸
+const FACE_ID := {
+	"ハル": "haru", "ヤーナ": "yana", "ナゴミ": "nagomi", "バートン": "burton", "ニコ": "nico",
+	"トルーデ": "trude", "町長トルーデ": "trude", "雑貨屋の店主": "shopkeeper", "ジャンク屋": "junker",
 }
-## 表情 → 並びの番号（0 左上 通常、1 右上 笑い、2 左下 驚き、3 右下 険しい）
-const FACE_CELL := {
-	"normal": 0, "analyzing": 0, "laugh": 1, "smile": 1, "smirk": 1, "smug": 1,
-	"surprised": 2, "warning": 2, "angry": 3, "serious": 3, "sad": 3,
+## 絵の無い表情の読み替え（絵の名前 → {台詞の表情: 絵の表情}）。読み替えにも絵が無ければ normal
+const FACE_ALIAS := {
+	"yana": {"troubled": "sad"},
+	"nagomi": {
+		"smile": "happy", "laugh": "happy", "smirk": "joking", "surprised": "confused", "troubled": "confused",
+		"serious": "analyzing", "angry": "warning",
+	},
+	"burton": {"serious": "normal", "laugh": "smile", "smirk": "smile"},
+	"nico": {"laugh": "smile", "smirk": "smile"},
+	"trude": {"serious": "normal", "laugh": "smile", "smirk": "smile"},
+	"shopkeeper": {"laugh": "smile", "smirk": "smile"},
+	"junker": {"laugh": "smile", "smirk": "smile"},
 }
+## ハルがフレーム（右肩の板・肩ひも）を着けたか（sync がフラグ ch1.frame_fitted から入れる）。
+## 着ける前（遺構の封印室で適合するまで）は、着けていない顔の組（haru_nf、W1-01c）を使う
+static var haru_framed := false
 ## ノードの記憶を取り込む会話（ui_node_memory.png の見た目：上に取り込みの進み具合、会話の枠を古い記録の色に）
 const MEMORY_DIALOGUES := ["ch1.node"]
 const AMBER := Color("#ffb23e")
@@ -107,24 +118,18 @@ var _time := 0.0
 
 ## 顔のアイコン用の絵（無ければ null）。who：話し手、face：表情の名前
 static func face_texture(who: String, face: String) -> Texture2D:
-	if not FACE_ATLAS.has(who):
+	var id: String = FACE_ID.get(who, "")
+	if id == "":
 		return null
-	var cell := int(FACE_CELL.get(face, 0))
-	var key := "%s:%d" % [who, cell]
-	if not _face_cache.has(key):
-		var tex = load(FACE_ATLAS[who]) if ResourceLoader.exists(FACE_ATLAS[who]) else null
-		if tex == null:
-			_face_cache[key] = null
-		else:
-			var size: Vector2 = tex.get_size() * 0.5
-			var at := AtlasTexture.new()
-			at.atlas = tex
-			var o := Vector2(cell % 2, cell / 2) * size
-			# 正方形に切り出す（顔の枠が正方形のため）
-			var side: float = size.x * 0.84
-			at.region = Rect2(o + Vector2((size.x - side) * 0.5, size.y * 0.1), Vector2(side, side))
-			_face_cache[key] = at
-	return _face_cache[key]
+	if id == "haru" and not haru_framed:
+		id = "haru_nf"
+	var alias: Dictionary = FACE_ALIAS.get(id, {})
+	var path := "res://assets/ui/faces/%s_%s.png" % [id, alias.get(face, face)]
+	if not ResourceLoader.exists(path):
+		path = "res://assets/ui/faces/%s_normal.png" % id
+	if not _face_cache.has(path):
+		_face_cache[path] = load(path) if ResourceLoader.exists(path) else null
+	return _face_cache[path]
 
 
 static func make_label(text: String, size: int, color: Color = PAPER, bold: bool = false) -> Label:
@@ -207,8 +212,8 @@ static func _face_slot(px: float) -> Dictionary:
 
 ## 顔の枠に話し手の顔（または頭文字の丸）を入れる
 static func _fill_face(f: Dictionary, who: String, face: String) -> void:
-	# 会話の間は毎フレーム呼ばれるので、話し手と表情が同じなら何もしない
-	var key := who + ":" + face
+	# 会話の間は毎フレーム呼ばれるので、話し手と表情（ハルはフレームの有無も）が同じなら何もしない
+	var key := "%s:%s:%s" % [who, face, haru_framed]
 	if f.get("key", "") == key:
 		return
 	f["key"] = key
@@ -567,6 +572,7 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 	_time += dt
 	var vs := _root.size
 	var p := game.player
+	haru_framed = game.flag("ch1.frame_fitted")
 	_blade_tile.visible = game.has_ability("sword")
 	var ratio := clampf(p.hp / p.max_hp, 0.0, 1.0)
 	# HP：減った分は少し遅れて縮む（ui_parts_gauge_hp_fill_damaged）。3 割を切ると危険の色を明滅させる
