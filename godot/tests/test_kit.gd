@@ -134,6 +134,87 @@ func test_room_without_kit_unchanged() -> void:
 	root.free()
 
 
+## 汚れ・傷みの層（材質の "detail"。42 章 14.2）：層の無い材質は前のシェーダーのまま、層のある材質は層つきのシェーダーと値。
+## キットの面と部品のメッシュには、足元・上の端の汚れのための UV2（下の端からの高さ, 上の端までの深さ）が付く
+func test_kit_detail_materials() -> void:
+	var base := {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 3.0, "color": "#f1e7d2", "roughness": 0.72}
+	var plain := RoomKit.make_material(base) as ShaderMaterial
+	h.expect(plain.shader == RoomKit.SHADER, "層の無い材質は前のシェーダー（kit_surface.gdshader）のまま")
+	var with_layers := base.duplicate()
+	with_layers["detail"] = [
+		{"mask": "grime", "uv_m": 3.0, "cover": 0.4, "color": "#a47c60", "mode": "multiply", "amount": 0.6},
+		{"mask": "streaks", "uv_m": [1.6, 2.6], "cover": 0.5, "top": [0.0, 1.8], "color": "#9b5a3c", "gate": {"cover": 0.6, "uv_m": 6.0}},
+	]
+	var dm := RoomKit.make_material(with_layers) as ShaderMaterial
+	h.expect(dm.shader == RoomKit.SHADER_DETAIL, "層のある材質は層つきのシェーダー（kit_surface_detail.gdshader）")
+	h.expect(int(dm.get_shader_parameter("detail_count")) == 2, "層の数が入る（%s）" % [dm.get_shader_parameter("detail_count")])
+	h.expect(dm.get_shader_parameter("detail_tex") is Texture2D and dm.get_shader_parameter("detail_tex2") is Texture2D, "型の絵が 2 枚とも読める")
+	var pick: PackedVector4Array = dm.get_shader_parameter("d_pick")
+	var feet: PackedVector4Array = dm.get_shader_parameter("d_feet")
+	var shape: PackedVector4Array = dm.get_shader_parameter("d_shape")
+	var gate: PackedVector4Array = dm.get_shader_parameter("d_gate")
+	h.expect(pick.size() == RoomKit.DETAIL_MAX and pick[0] == Vector4(1, 0, 0, 0) and pick[1] == Vector4(0, 0, 0, 1), "型の選び（汚れの斑・縦の筋）")
+	h.expect(is_equal_approx(shape[0].x, 0.4) and shape[0].z == 1.0 and shape[0].w == 0.0, "覆う割合・掛ける塗り方・全部の面（%s）" % [shape[0]])
+	h.expect(shape[1].w == 2.0 and is_equal_approx(feet[1].w, 1.8), "上の端の層は縦の面だけ（%s・%s）" % [shape[1], feet[1]])
+	h.expect(is_equal_approx(gate[1].z, 0.6) and is_equal_approx(gate[1].w, 1.0 / 6.0), "大きな斑の中だけ（%s）" % [gate[1]])
+	for k in ["color", "uv_m", "roughness_value", "albedo_tex"]:
+		h.expect(dm.get_shader_parameter(k) == plain.get_shader_parameter(k), "層を足しても元の値（%s）は同じ" % k)
+	# 1 つの層は辞書のままでもよい。4 つを超える分は使わない
+	var one := base.duplicate()
+	one["detail"] = {"mask": "chips", "cover": 0.2}
+	h.expect(int((RoomKit.make_material(one) as ShaderMaterial).get_shader_parameter("detail_count")) == 1, "1 つの層は辞書でも書ける")
+	var many := base.duplicate()
+	many["detail"] = [{}, {}, {}, {}, {}]
+	h.expect(int((RoomKit.make_material(many) as ShaderMaterial).get_shader_parameter("detail_count")) == RoomKit.DETAIL_MAX, "層は %d つまで" % RoomKit.DETAIL_MAX)
+	var faded := with_layers.duplicate()
+	faded["near_fade"] = [0.8, 1.5]
+	var fm := RoomKit.make_material(faded) as ShaderMaterial
+	h.expect(fm.shader == (RoomKit.SHADER_DETAIL if RenderingServer.get_current_rendering_method() == "gl_compatibility" else RoomKit.SHADER_DETAIL_FADE),
+		"近くを網目に消す材質にも層が付く")
+	# キットの材質：層を書いた物は層つきのシェーダー、書いていない物は前のまま
+	for id in ["ruins_b1", "town"]:
+		var data: Dictionary = U.load_json(RoomKit.KIT_PATH % id)
+		var kit := RoomKit.load_kit(id)
+		var ok := true
+		var n := 0
+		for group in [["surfaces", "surf"], ["materials", "mats"]]:
+			for k in data.get(group[0], {}):
+				var def: Dictionary = data[group[0]][k]
+				var m: Material = kit[group[1]][k]
+				if def.get("blend", "") == "add":
+					continue
+				var sh: Shader = (m as ShaderMaterial).shader
+				var has: bool = sh == RoomKit.SHADER_DETAIL or sh == RoomKit.SHADER_DETAIL_FADE
+				ok = ok and has == def.has("detail")
+				n += 1 if has else 0
+		h.expect(ok and n > 0, "キット %s：層を書いた材質（%d）だけが層つきのシェーダー" % [id, n])
+	# 面の UV2：形の下の端からの高さと、上の端までの深さ
+	var root := RoomView.build(_world(_room({"kit": "ruins_b1", "dress": [{"part": "ruins/b1_crate", "pos": [-4, 0, -4]}]})), "k.a")
+	var surf := root.get_node("KitSurfaces") as MeshInstance3D
+	var uv_ok := true
+	for s in surf.mesh.get_surface_count():
+		var arr := surf.mesh.surface_get_arrays(s)
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var uv2 = arr[Mesh.ARRAY_TEX_UV2]
+		if not (uv2 is PackedVector2Array) or (uv2 as PackedVector2Array).size() != verts.size():
+			uv_ok = false
+			continue
+		for i in verts.size():
+			# 部屋の箱（shell）は y 0〜6、中の箱は y 0〜1
+			var hgt: float = (uv2 as PackedVector2Array)[i].x
+			var depth: float = (uv2 as PackedVector2Array)[i].y
+			uv_ok = uv_ok and absf(hgt - verts[i].y) < 1e-3 and (absf(hgt + depth - 6.0) < 1e-3 or absf(hgt + depth - 1.0) < 1e-3)
+	h.expect(uv_ok, "部屋の面の UV2 は（形の下の端からの高さ, 上の端までの深さ）")
+	var crate := RoomKit.part_mesh("ruins/b1_crate", RoomKit.load_kit("ruins_b1"))
+	var carr := crate.surface_get_arrays(0)
+	var cuv2 = carr[Mesh.ARRAY_TEX_UV2]
+	var cy := (carr[Mesh.ARRAY_VERTEX] as PackedVector3Array)
+	var aabb := crate.get_aabb()
+	h.expect(cuv2 is PackedVector2Array and (cuv2 as PackedVector2Array).size() == cy.size() and absf((cuv2 as PackedVector2Array)[0].x - (cy[0].y - aabb.position.y)) < 1e-3,
+		"部品のメッシュにも UV2（部品の下の端からの高さ）")
+	root.free()
+
+
 ## 足場の箱（中心・大きさ）だけの地形（下は奈落）
 func _ledges(boxes: Array) -> Dictionary:
 	var faces := []

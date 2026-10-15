@@ -11,7 +11,16 @@ const KIT_PATH := "res://content/kits/%s.json"
 const PART_PATH := "res://assets/kit/%s.glb"
 const SHADER := preload("res://assets/shaders/kit_surface.gdshader")
 const SHADER_FADE := preload("res://assets/shaders/kit_surface_fade.gdshader")
+const SHADER_DETAIL := preload("res://assets/shaders/kit_surface_detail.gdshader")
+const SHADER_DETAIL_FADE := preload("res://assets/shaders/kit_surface_detail_fade.gdshader")
 const GLOW := preload("res://assets/shaders/kit_glow.gdshader")
+## 汚れ・傷みの層の型の絵（tools/grime_masks.py が CC0 の写真から作る）。1 枚目：RGB 汚れの斑・A 欠け、2 枚目：RGB むら・A 縦の筋
+const DETAIL_TEX := "res://assets/kit/grime/masks.png"
+const DETAIL_TEX2 := "res://assets/kit/grime/masks2.png"
+const DETAIL_MAX := 4
+const DETAIL_MASKS := {"grime": 0, "chips": 1, "mottle": 2, "streaks": 3}
+const DETAIL_FACES := {"all": 0, "floor": 1, "wall": 2, "ceiling": 3}
+const DETAIL_MODES := {"paint": 0, "multiply": 1}
 
 ## 読んだキットと部品の置き場。終了のときに一緒に消えるよう、static var ではなく木の根（root）のメタに持つ
 ##   kits：キットの id → { id, data, surf: { 面の名前: Material }, mats: { 部品の材質の名前: Material } }
@@ -54,6 +63,7 @@ static func load_kit(id: String) -> Dictionary:
 ##   光の筋（"blend": "add"）：{ "blend": "add", "color", "strength": 0.25, "fade_m": 7 }（kit_glow.gdshader）
 ##   "near_fade": [0.8, 1.5]：カメラから 0.8 m より近い所を網目で消し、1.5 m で元に戻す（当たり判定の無い飾りの部品の材質に付ける。
 ##   日よけ・柱・灯がカメラの前を塞がない）。網目は discard を使うので、軽さを優先するスマホ・ブラウザ版（gl_compatibility）では付けない
+##   "detail": [ 層, … ]（4 つまで）：汚れ・傷みの層（_set_detail・42 章 14.2.1）。無ければ今までのシェーダーのまま（見た目は変わらない）
 static func make_material(def: Dictionary) -> Material:
 	var m := ShaderMaterial.new()
 	if def.get("blend", "") == "add":
@@ -62,9 +72,10 @@ static func make_material(def: Dictionary) -> Material:
 		m.set_shader_parameter("strength", float(def.get("strength", 0.25)))
 		m.set_shader_parameter("fade_m", float(def.get("fade_m", 7.0)))
 		return m
-	m.shader = SHADER
+	var layers := detail_layers(def)
+	m.shader = SHADER if layers.is_empty() else SHADER_DETAIL
 	if def.has("near_fade") and RenderingServer.get_current_rendering_method() != "gl_compatibility":
-		m.shader = SHADER_FADE
+		m.shader = SHADER_FADE if layers.is_empty() else SHADER_DETAIL_FADE
 		var nf: Array = def.near_fade
 		m.set_shader_parameter("near_fade", Vector2(float(nf[0]), float(nf[1])))
 	if def.has("albedo"):
@@ -90,7 +101,72 @@ static func make_material(def: Dictionary) -> Material:
 		var em: Dictionary = def.emission
 		m.set_shader_parameter("emission_color", Color(em.get("color", "#ffbc52")))
 		m.set_shader_parameter("emission_energy", float(em.get("energy", 2.0)))
+	if not layers.is_empty():
+		_set_detail(m, def, layers)
 	return m
+
+
+## 材質の "detail"（層の配列。1 つなら辞書のままでもよい）。4 つを超える分は使わない
+static func detail_layers(def: Dictionary) -> Array:
+	var d = def.get("detail", [])
+	var layers: Array = [d] if d is Dictionary else (d as Array if d is Array else [])
+	if layers.size() > DETAIL_MAX:
+		push_warning("汚れの層は %d つまで（%d 書いてある）" % [DETAIL_MAX, layers.size()])
+		layers = layers.slice(0, DETAIL_MAX)
+	return layers
+
+
+## 汚れ・傷みの層を材質に入れる（kit_detail.gdshaderinc）。層：
+##   { "mask": "grime" | "streaks" | "mottle" | "chips", "color": "#rrggbb", "amount": 0.8, "cover": 0.3, "edge": 0.03,
+##     "uv_m": 2 か [横 m, 縦 m], "offset": [x, y], "mode": "paint" | "multiply", "on": "all" | "floor" | "wall" | "ceiling",
+##     "feet": [濃い高さ, 消える高さ], "top": [濃い深さ, 消える深さ], "seam": [濃い距離, 消える距離], "gate": { "cover": 0.4, "uv_m": 9 } }
+static func _set_detail(m: ShaderMaterial, def: Dictionary, layers: Array) -> void:
+	for pair in [["detail_tex", DETAIL_TEX], ["detail_tex2", DETAIL_TEX2]]:
+		var path := String(def.get(pair[0], pair[1]))
+		if ResourceLoader.exists(path):
+			m.set_shader_parameter(pair[0], load(path))
+		else:
+			push_warning("汚れの型の絵が無い: %s" % path)
+	var col := PackedColorArray()
+	var pick := PackedVector4Array()
+	var uv := PackedVector4Array()
+	var shape := PackedVector4Array()
+	var feet := PackedVector4Array()
+	var gate := PackedVector4Array()
+	for i in DETAIL_MAX:
+		var l: Dictionary = layers[i] if i < layers.size() else {}
+		var c := Color(l.get("color", "#6b5444"))
+		c.a = float(l.get("amount", 0.8)) if i < layers.size() else 0.0
+		col.append(c)
+		var p := Vector4.ZERO
+		p[int(DETAIL_MASKS.get(String(l.get("mask", "grime")), 0))] = 1.0
+		pick.append(p)
+		var u = l.get("uv_m", 2.0)
+		var size := Vector2(float(u[0]), float(u[1])) if u is Array else Vector2(float(u), float(u))
+		# 層ごとに型をずらす（同じ型の層を重ねても斑がそろわない）
+		var off: Array = l.get("offset", [0.37 * i, 0.61 * i])
+		uv.append(Vector4(1.0 / maxf(size.x, 0.01), 1.0 / maxf(size.y, 0.01), float(off[0]), float(off[1])))
+		var ft: Array = _pair(l.get("feet", [0, 0]))
+		var tp: Array = _pair(l.get("top", [0, 0]))
+		var on := String(l.get("on", "wall" if (l.has("feet") or l.has("top")) else "all"))
+		shape.append(Vector4(float(l.get("cover", 0.3)), float(l.get("edge", 0.03)),
+			float(DETAIL_MODES.get(String(l.get("mode", "paint")), 0)), float(DETAIL_FACES.get(on, 0))))
+		feet.append(Vector4(float(ft[0]), float(ft[1]), float(tp[0]), float(tp[1])))
+		var sm: Array = _pair(l.get("seam", [0, 0]))
+		var g: Dictionary = l.get("gate", {})
+		gate.append(Vector4(float(sm[0]), float(sm[1]), float(g.get("cover", 0.0)), 1.0 / maxf(float(g.get("uv_m", 8.0)), 0.01)))
+	m.set_shader_parameter("detail_count", layers.size())
+	m.set_shader_parameter("d_color", col)
+	m.set_shader_parameter("d_pick", pick)
+	m.set_shader_parameter("d_uv", uv)
+	m.set_shader_parameter("d_shape", shape)
+	m.set_shader_parameter("d_feet", feet)
+	m.set_shader_parameter("d_gate", gate)
+
+
+## [濃い, 消える] か、数 h（= [0, h]）
+static func _pair(v) -> Array:
+	return [float(v[0]), float(v[1])] if v is Array else [0.0, float(v)]
 
 
 # ---------------------------------------------------------------- 部屋の面
@@ -115,7 +191,13 @@ static func surfaces(room: Dictionary, kit: Dictionary) -> MeshInstance3D:
 		var tint := Color(s.tint) if s.has("tint") else RoomGeo.DEFAULT_TINT
 		var skin = s.get("skin", null)
 		var do_trim: bool = not trim.is_empty() and s.get("trim", true)
+		# 面の UV2 の基準の高さ：形の箱ごとの (下の端, 上の端)。部屋の箱（shell）は床の上の面から天井の下の面まで
+		# （shell は床・天井の板と壁の区間の箱でできていて、板の厚みや、開口の上の壁の区間の下の端を足元にしないため）
+		var is_shell: bool = s.get("t", "box") == "shell"
+		var shell_y := float(RoomGeo.v3(s.get("pos", [0, 0, 0])).y)
+		var shell_span := Vector2(shell_y, shell_y + float(RoomGeo.v3(s.get("size", [1, 1, 1])).y))
 		for f in RoomGeo.shape(s):
+			var span := shell_span if is_shell else _span([f])
 			var tris: PackedVector3Array = f
 			var n_tri := tris.size() / 3
 			var i := 0
@@ -127,13 +209,13 @@ static func surfaces(room: Dictionary, kit: Dictionary) -> MeshInstance3D:
 				var cls := "floor" if n.y > up else ("ceiling" if n.y < -up else "wall")
 				var surf := _pick(skin, cls, auto)
 				var st := _tool(tools, surf)
-				_tri(st, a, b, c, n, cls, tint)
+				_tri(st, a, b, c, n, cls, tint, span)
 				# 箱の面は 2 つの三角形（a,b,c）（a,c,d）の四角。縦の四角には縁取り（幅木・笠木）を付ける
 				if i + 1 < n_tri and tris[i * 3 + 3] == a and tris[i * 3 + 4] == c:
 					var d := tris[i * 3 + 5]
-					_tri(st, a, c, d, n, cls, tint)
+					_tri(st, a, c, d, n, cls, tint, span)
 					if do_trim and cls == "wall" and absf(n.y) < 0.05 and surf in trim_on:
-						_trim(_tool(tools, String(trim.get("surface", "trim"))), [a, b, c, d], n, trim, tint)
+						_trim(_tool(tools, String(trim.get("surface", "trim"))), [a, b, c, d], n, trim, tint, span)
 					i += 2
 				else:
 					i += 1
@@ -151,6 +233,17 @@ static func surfaces(room: Dictionary, kit: Dictionary) -> MeshInstance3D:
 	mi.name = "KitSurfaces"
 	mi.mesh = mesh
 	return mi
+
+
+## 面の高さの広がり（下の端の y, 上の端の y）。面の UV2（足元・上の端の汚れ）の基準
+static func _span(faces: Array) -> Vector2:
+	var lo := INF
+	var hi := -INF
+	for f in faces:
+		for p in (f as PackedVector3Array):
+			lo = minf(lo, p.y)
+			hi = maxf(hi, p.y)
+	return Vector2(lo, hi) if lo <= hi else Vector2.ZERO
 
 
 static func _pick(skin, cls: String, auto: Dictionary) -> String:
@@ -179,31 +272,33 @@ static func _uv(p: Vector3, n: Vector3, cls: String) -> Vector2:
 	return Vector2(p.dot(t.normalized()), -p.y)
 
 
-## a,b,c は RoomGeo の向き（(b-a)×(c-a) が外向きの法線）。Godot は時計回りが表なので、c と b を入れ替えて足す
-static func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, n: Vector3, cls: String, tint: Color) -> void:
+## a,b,c は RoomGeo の向き（(b-a)×(c-a) が外向きの法線）。Godot は時計回りが表なので、c と b を入れ替えて足す。
+## UV2 = (形の下の端からの高さ, 形の上の端までの深さ)（m。span は形の (下の端の y, 上の端の y)）：汚れの層の足元・上の端
+static func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, n: Vector3, cls: String, tint: Color, span: Vector2) -> void:
 	for p in [a, c, b]:
 		st.set_normal(n)
 		st.set_color(tint)
 		st.set_uv(_uv(p, n, cls))
+		st.set_uv2(Vector2(p.y - span.x, span.y - p.y))
 		st.add_vertex(p)
 
 
 ## 四角（向きの合った 2 つの三角形）を足す。法線 n の向きに表を向ける
-static func _quad(st: SurfaceTool, q: Array, n: Vector3, cls: String, tint: Color) -> void:
+static func _quad(st: SurfaceTool, q: Array, n: Vector3, cls: String, tint: Color, span: Vector2) -> void:
 	var a: Vector3 = q[0]
 	var b: Vector3 = q[1]
 	var c: Vector3 = q[2]
 	var d: Vector3 = q[3]
 	if (b - a).cross(c - a).dot(n) < 0.0:
-		_tri(st, a, c, b, n, cls, tint)
-		_tri(st, a, d, c, n, cls, tint)
+		_tri(st, a, c, b, n, cls, tint, span)
+		_tri(st, a, d, c, n, cls, tint, span)
 	else:
-		_tri(st, a, b, c, n, cls, tint)
-		_tri(st, a, c, d, n, cls, tint)
+		_tri(st, a, b, c, n, cls, tint, span)
+		_tri(st, a, c, d, n, cls, tint, span)
 
 
 ## 縦の四角の下（幅木）と上（笠木）に、壁から out だけ出た帯を付ける。trim：{ base, top, out, min_h }
-static func _trim(st: SurfaceTool, q: Array, n: Vector3, trim: Dictionary, tint: Color) -> void:
+static func _trim(st: SurfaceTool, q: Array, n: Vector3, trim: Dictionary, tint: Color, span: Vector2) -> void:
 	var y0 := INF
 	var y1 := -INF
 	for p in q:
@@ -221,27 +316,27 @@ static func _trim(st: SurfaceTool, q: Array, n: Vector3, trim: Dictionary, tint:
 	if h < float(trim.get("min_h", 0.0)):
 		return
 	if h < base + top + 0.2:
-		_band(st, p0, p1, y1 - minf(top, h), y1, n, out, tint)
+		_band(st, p0, p1, y1 - minf(top, h), y1, n, out, tint, span)
 		return
 	if base > 0.0:
-		_band(st, p0, p1, y0, y0 + base, n, out, tint)
+		_band(st, p0, p1, y0, y0 + base, n, out, tint, span)
 	if top > 0.0:
-		_band(st, p0, p1, y1 - top, y1, n, out, tint)
+		_band(st, p0, p1, y1 - top, y1, n, out, tint, span)
 
 
 ## 帯：壁の面（p0–p1、高さ y0〜y1）から法線の向きに out 出た薄い箱（正面・上・下・両端）
-static func _band(st: SurfaceTool, p0: Vector3, p1: Vector3, y0: float, y1: float, n: Vector3, out: float, tint: Color) -> void:
+static func _band(st: SurfaceTool, p0: Vector3, p1: Vector3, y0: float, y1: float, n: Vector3, out: float, tint: Color, span: Vector2) -> void:
 	var o := n * out
 	var a0 := p0 + Vector3(0, y0, 0)
 	var a1 := p1 + Vector3(0, y0, 0)
 	var b0 := p0 + Vector3(0, y1, 0)
 	var b1 := p1 + Vector3(0, y1, 0)
-	_quad(st, [a0 + o, a1 + o, b1 + o, b0 + o], n, "wall", tint)
-	_quad(st, [b0, b1, b1 + o, b0 + o], Vector3.UP, "floor", tint)
-	_quad(st, [a0, a0 + o, a1 + o, a1], Vector3.DOWN, "ceiling", tint)
+	_quad(st, [a0 + o, a1 + o, b1 + o, b0 + o], n, "wall", tint, span)
+	_quad(st, [b0, b1, b1 + o, b0 + o], Vector3.UP, "floor", tint, span)
+	_quad(st, [a0, a0 + o, a1 + o, a1], Vector3.DOWN, "ceiling", tint, span)
 	var side := (p1 - p0).normalized()
-	_quad(st, [a0, b0, b0 + o, a0 + o], -side, "wall", tint)
-	_quad(st, [a1, a1 + o, b1 + o, b1], side, "wall", tint)
+	_quad(st, [a0, b0, b0 + o, a0 + o], -side, "wall", tint, span)
+	_quad(st, [a1, a1 + o, b1 + o, b1], side, "wall", tint, span)
 
 
 # ---------------------------------------------------------------- 飾りの部品
@@ -325,7 +420,9 @@ static func _light(l: Dictionary, xf: Transform3D) -> Light3D:
 	o.position = xf * RoomGeo.v3(l.get("at", [0, 1, 0]))
 	o.light_color = Color(l.get("color", "#ffbc52"))
 	o.light_energy = float(l.get("energy", 1.0))
-	o.shadow_enabled = bool(l.get("shadow", false))
+	# 影：スマホ・ブラウザ版の描き方（gl_compatibility）では付けない。影つきの光は別の回で描いて sRGB の色の上で足すので、
+	# 光の当たる床が Forward+ より明るく白っぽく出た（遺構 r02 の床で +21。EnvironmentSetup.COMPAT_SHADOW_LIGHT）。軽くもなる
+	o.shadow_enabled = bool(l.get("shadow", false)) and not EnvironmentSetup.is_compat()
 	return o
 
 
@@ -346,9 +443,25 @@ static func part_mesh(part: String, kit: Dictionary) -> Mesh:
 	inst.free()
 	var mesh := ArrayMesh.new()
 	var mats: Dictionary = kit.get("mats", {})
+	# UV2 = (部品の下の端からの高さ, 上の端までの深さ)（m。部品の全体の高さで。汚れの層の足元・上の端：kit_detail.gdshaderinc）
+	var surfs := {}
+	var lo := INF
+	var hi := -INF
 	for name in by_mat:
-		var st: SurfaceTool = by_mat[name][0]
-		st.commit(mesh)
+		var arrays: Array = (by_mat[name][0] as SurfaceTool).commit_to_arrays()
+		surfs[name] = arrays
+		for p in (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array):
+			lo = minf(lo, p.y)
+			hi = maxf(hi, p.y)
+	for name in surfs:
+		var arrays: Array = surfs[name]
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var uv2 := PackedVector2Array()
+		uv2.resize(verts.size())
+		for i in verts.size():
+			uv2[i] = Vector2(verts[i].y - lo, hi - verts[i].y)
+		arrays[Mesh.ARRAY_TEX_UV2] = uv2
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		mesh.surface_set_material(mesh.get_surface_count() - 1, mats.get(name, by_mat[name][1]))
 	_parts[key] = mesh
 	return mesh

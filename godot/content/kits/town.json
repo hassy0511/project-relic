@@ -14,37 +14,88 @@
   "night": {"sky_energy": 0.4, "sun_energy": 0.18, "ambient_color": "#2e3a62", "ambient_energy": 0.42, "fog_color": "#121830", "saturation": 1.1}
  },
  "surfaces": {
-  "floor": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 6.0, "color": "#ebe3d6", "roughness": 0.82, "macro": 0.3},
-  "plaza": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 4.0, "color": "#f6efe4", "roughness": 0.8, "macro": 0.2},
-  "wall": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 8.0, "color": "#fbf5ea", "roughness": 0.8, "macro": 0.25},
+  "floor": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 6.0, "color": "#ebe3d6", "roughness": 0.82, "macro": 0.3,
+            "detail": [
+             {"mask": "mottle", "uv_m": 12.0, "cover": 0.5, "color": "#d9c4a5", "amount": 0.55, "edge": 0.08},
+             {"mask": "grime", "uv_m": 9.0, "cover": 0.5, "color": "#c9a682", "amount": 0.6, "edge": 0.05, "gate": {"cover": 0.65, "uv_m": 19.0}},
+             {"mask": "grime", "uv_m": 3.4, "cover": 0.14, "color": "#a68a6c", "mode": "multiply", "amount": 0.45, "gate": {"cover": 0.4, "uv_m": 11.0}},
+             {"mask": "chips", "uv_m": 2.4, "cover": 0.12, "color": "#9c8870", "amount": 0.65, "gate": {"cover": 0.35, "uv_m": 8.0}}]},
+  "plaza": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 4.0, "color": "#f6efe4", "roughness": 0.8, "macro": 0.2,
+            "detail": [
+             {"mask": "mottle", "uv_m": 12.0, "cover": 0.5, "color": "#d9c4a5", "amount": 0.55, "edge": 0.08},
+             {"mask": "grime", "uv_m": 9.0, "cover": 0.5, "color": "#c9a682", "amount": 0.6, "edge": 0.05, "gate": {"cover": 0.65, "uv_m": 19.0}},
+             {"mask": "grime", "uv_m": 3.4, "cover": 0.14, "color": "#a68a6c", "mode": "multiply", "amount": 0.45, "gate": {"cover": 0.4, "uv_m": 11.0}},
+             {"mask": "chips", "uv_m": 2.4, "cover": 0.12, "color": "#9c8870", "amount": 0.65, "gate": {"cover": 0.35, "uv_m": 8.0}}]},
+  "wall": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 8.0, "color": "#fbf5ea", "roughness": 0.8, "macro": 0.25,
+           "detail": [
+            {"mask": "mottle", "uv_m": 6.0, "cover": 0.5, "color": "#e3d1b5", "amount": 0.6, "edge": 0.07},
+            {"mask": "streaks", "uv_m": [2.0, 3.2], "cover": 0.5, "top": [0.0, 2.6], "color": "#c2a888", "amount": 0.65},
+            {"mask": "grime", "uv_m": 2.5, "cover": 0.95, "feet": [0.0, 1.5], "color": "#ad8f6c", "mode": "multiply", "amount": 0.7},
+            {"mask": "chips", "uv_m": 2.0, "cover": 0.1, "color": "#b4a189", "amount": 0.7, "gate": {"cover": 0.4, "uv_m": 7.0}}]},
   "ceiling": {"albedo": "res://assets/kit/tex/town_rust.jpg", "uv_m": 2.0, "color": "#8a8a84", "roughness": 0.6, "metallic": 0.2},
   "trim": {"albedo": "res://assets/kit/tex/town_wood.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.85},
-  "wood": {"albedo": "res://assets/kit/tex/town_wood.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.85},
+  "wood": {"albedo": "res://assets/kit/tex/town_wood.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.85,
+           "detail": [
+            {"mask": "grime", "uv_m": 1.6, "cover": 0.35, "color": "#8a6a50", "mode": "multiply", "amount": 0.55},
+            {"mask": "grime", "uv_m": 2.0, "cover": 0.9, "feet": [0.0, 0.7], "color": "#9a7a5c", "mode": "multiply", "amount": 0.6}]},
   "rust": {"albedo": "res://assets/kit/tex/town_rust.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.7, "metallic": 0.2},
-  "canvas": {"albedo": "res://assets/kit/tex/town_canvas.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.95},
-  "stone2": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 4.0, "color": "#e3dfd4", "roughness": 0.85, "macro": 0.3},
+  "canvas": {"albedo": "res://assets/kit/tex/town_canvas.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.95,
+             "detail": [
+              {"mask": "grime", "uv_m": 2.2, "cover": 0.35, "color": "#9a7458", "mode": "multiply", "amount": 0.5},
+              {"mask": "streaks", "uv_m": [1.6, 2.4], "cover": 0.3, "color": "#a08060", "mode": "multiply", "amount": 0.45}]},
+  "stone2": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 4.0, "color": "#e3dfd4", "roughness": 0.85, "macro": 0.3,
+             "detail": [
+              {"mask": "mottle", "uv_m": 5.0, "cover": 0.5, "color": "#d6cbb6", "amount": 0.5, "edge": 0.07},
+              {"mask": "grime", "uv_m": 2.0, "cover": 0.9, "feet": [0.0, 0.8], "color": "#b59877", "mode": "multiply", "amount": 0.6},
+              {"mask": "grime", "uv_m": 6.0, "cover": 0.35, "on": "floor", "color": "#d0b493", "amount": 0.5, "edge": 0.05}]},
   "riser": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 4.0, "color": "#e3dfd4", "roughness": 0.85, "macro": 0.3,
-            "seams": {"every": [2.0, 0.3125], "width": 0.06, "color": "#57534c"}},
+            "seams": {"every": [2.0, 0.3125], "width": 0.06, "color": "#57534c"},
+            "detail": [
+             {"mask": "grime", "uv_m": 2.4, "cover": 0.45, "color": "#c9ae8c", "amount": 0.55, "edge": 0.05},
+             {"mask": "grime", "uv_m": 1.6, "cover": 0.5, "seam": [0.02, 0.12], "color": "#a88e70", "mode": "multiply", "amount": 0.5}]},
   "graphite": {"color": "#444641", "roughness": 0.6, "metallic": 0.3}
  },
  "materials": {
-  "flat": {"color": "#ffffff", "tint_mix": 1.0, "roughness": 0.82, "near_fade": [0.8, 1.5]},
-  "metal": {"color": "#ffffff", "tint_mix": 1.0, "roughness": 0.5, "metallic": 0.5, "near_fade": [0.8, 1.5]},
+  "flat": {"color": "#ffffff", "tint_mix": 1.0, "roughness": 0.82, "near_fade": [0.8, 1.5],
+           "detail": [
+            {"mask": "grime", "uv_m": 2.6, "cover": 0.35, "color": "#9c846a", "mode": "multiply", "amount": 0.55, "gate": {"cover": 0.6, "uv_m": 8.0}},
+            {"mask": "grime", "uv_m": 2.0, "cover": 0.9, "feet": [0.0, 1.0], "color": "#a08664", "mode": "multiply", "amount": 0.6}]},
+  "metal": {"color": "#ffffff", "tint_mix": 1.0, "roughness": 0.5, "metallic": 0.5, "near_fade": [0.8, 1.5],
+            "detail": [
+             {"mask": "grime", "uv_m": 2.0, "cover": 0.35, "color": "#8a7460", "mode": "multiply", "amount": 0.5},
+             {"mask": "streaks", "uv_m": [1.2, 2.0], "cover": 0.3, "color": "#9a6a4a", "mode": "multiply", "amount": 0.45}]},
   "ivory": {"color": "#e9dfc9", "roughness": 0.8},
   "ivory2": {"color": "#d3c6ac", "roughness": 0.85},
   "graphite": {"color": "#444641", "roughness": 0.6, "metallic": 0.3},
   "brass": {"color": "#a98749", "roughness": 0.42, "metallic": 0.65},
-  "cloth": {"color": "#b75b43", "roughness": 0.95},
-  "cloth2": {"color": "#93432f", "roughness": 0.95},
-  "wood": {"albedo": "res://assets/kit/tex/town_wood.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.85},
-  "wood2": {"albedo": "res://assets/kit/tex/town_wood.jpg", "uv_m": 2.0, "color": "#ffe2c4", "roughness": 0.85},
+  "cloth": {"color": "#b75b43", "roughness": 0.95,
+            "detail": [
+             {"mask": "grime", "uv_m": 2.0, "cover": 0.35, "color": "#8a6050", "mode": "multiply", "amount": 0.45},
+             {"mask": "streaks", "uv_m": [1.4, 2.2], "cover": 0.3, "color": "#9a7060", "mode": "multiply", "amount": 0.4}]},
+  "cloth2": {"color": "#93432f", "roughness": 0.95,
+             "detail": [
+              {"mask": "grime", "uv_m": 2.0, "cover": 0.35, "color": "#8a6050", "mode": "multiply", "amount": 0.45}]},
+  "wood": {"albedo": "res://assets/kit/tex/town_wood.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.85,
+           "detail": [
+            {"mask": "grime", "uv_m": 1.6, "cover": 0.35, "color": "#8a6a50", "mode": "multiply", "amount": 0.55},
+            {"mask": "grime", "uv_m": 2.0, "cover": 0.9, "feet": [0.0, 0.6], "color": "#9a7a5c", "mode": "multiply", "amount": 0.6}]},
+  "wood2": {"albedo": "res://assets/kit/tex/town_wood.jpg", "uv_m": 2.0, "color": "#ffe2c4", "roughness": 0.85,
+            "detail": [
+             {"mask": "grime", "uv_m": 1.6, "cover": 0.35, "color": "#8a6a50", "mode": "multiply", "amount": 0.55}]},
   "amber": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 3.0}, "near_fade": [0.8, 1.5]},
   "dark": {"color": "#2b2824", "roughness": 0.4},
   "green": {"color": "#6e7a3c", "roughness": 0.9},
   "rope": {"color": "#a08a62", "roughness": 0.95},
-  "linen": {"color": "#e2d5ba", "roughness": 0.95},
+  "linen": {"color": "#e2d5ba", "roughness": 0.95,
+            "detail": [
+             {"mask": "grime", "uv_m": 1.8, "cover": 0.3, "color": "#b49c7c", "mode": "multiply", "amount": 0.5}]},
   "desert": {"color": "#bc5636", "roughness": 1.0},
   "hull": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 24.0, "color": "#ece2cf", "roughness": 0.85},
-  "shell": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 8.0, "color": "#fbf5ea", "roughness": 0.8, "macro": 0.25}
+  "shell": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 8.0, "color": "#fbf5ea", "roughness": 0.8, "macro": 0.25,
+           "detail": [
+            {"mask": "mottle", "uv_m": 6.0, "cover": 0.5, "color": "#e3d1b5", "amount": 0.6, "edge": 0.07},
+            {"mask": "streaks", "uv_m": [2.0, 3.2], "cover": 0.5, "top": [0.0, 2.6], "color": "#c2a888", "amount": 0.65},
+            {"mask": "grime", "uv_m": 2.5, "cover": 0.95, "feet": [0.0, 1.5], "color": "#ad8f6c", "mode": "multiply", "amount": 0.7},
+            {"mask": "chips", "uv_m": 2.0, "cover": 0.1, "color": "#b4a189", "amount": 0.7, "gate": {"cover": 0.4, "uv_m": 7.0}}]}
  }
 }
