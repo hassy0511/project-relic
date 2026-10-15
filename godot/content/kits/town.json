@@ -113,8 +113,8 @@
              {"mask": "grime", "uv_m": 1.8, "cover": 0.3, "color": "#b49c7c", "mode": "multiply", "amount": 0.5}]},
   "desert": {"color": "#bc5636", "roughness": 1.0},
   "skyglass": {"color": "#f2e6cf", "roughness": 0.3, "emission": {"color": "#f4e4c8", "energy": 0.8}},
-  "grime_decal": {"blend": "decal", "color": "#a08367", "amount": 0.58, "cover": 0.85, "edge": 0.05, "uv_m": 4.2, "falloff": [0.2, 1.0]},
-  "oil_decal": {"blend": "decal", "color": "#564c45", "amount": 0.6, "cover": 0.75, "edge": 0.04, "uv_m": 2.6, "falloff": [0.2, 1.0], "roughness": 0.5},
+  "grime_decal": {"blend": "decal", "color": "#93775c", "amount": 0.72, "cover": 0.92, "edge": 0.05, "uv_m": 4.6, "falloff": [0.25, 1.0]},
+  "oil_decal": {"blend": "decal", "color": "#4f463f", "amount": 0.68, "cover": 0.82, "edge": 0.04, "uv_m": 2.8, "falloff": [0.25, 1.0], "roughness": 0.5},
   "hull": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 24.0, "color": "#ece2cf", "roughness": 0.85},
   "shell": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 8.0, "color": "#fbf5ea", "roughness": 0.8, "macro": 0.25,
            "detail": [
