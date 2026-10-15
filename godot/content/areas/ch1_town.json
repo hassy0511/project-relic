@@ -11574,8 +11574,7 @@
       0.0,
       6.917
      ],
-     "solid": true,
-     "shadow": true
+     "solid": true
     },
     {
      "part": "town/planter",
@@ -11625,8 +11624,7 @@
       7.12
      ],
      "yaw": 90,
-     "solid": true,
-     "shadow": true
+     "solid": true
     },
     {
      "part": "town/tent",
@@ -11656,8 +11654,7 @@
       0.0,
       2.593
      ],
-     "solid": true,
-     "shadow": true
+     "solid": true
     },
     {
      "part": "town/sacks",
@@ -11706,8 +11703,7 @@
       0.0,
       10.55
      ],
-     "solid": true,
-     "shadow": true
+     "solid": true
     },
     {
      "part": "cc0/cask",
@@ -11716,8 +11712,7 @@
       0.0,
       10.557
      ],
-     "solid": true,
-     "shadow": true
+     "solid": true
     },
     {
      "part": "cc0/plank_box",
@@ -11726,8 +11721,7 @@
       0.0,
       10.55
      ],
-     "solid": true,
-     "shadow": true
+     "solid": true
     },
     {
      "part": "town/barrel",
@@ -11746,8 +11740,7 @@
       0.0,
       -5.557
      ],
-     "solid": true,
-     "shadow": true
+     "solid": true
     },
     {
      "part": "cc0/plank_box",
@@ -11757,8 +11750,7 @@
       -7.0
      ],
      "yaw": 90,
-     "solid": true,
-     "shadow": true
+     "solid": true
     },
     {
      "part": "town/planter",
@@ -11805,8 +11797,7 @@
       0.0,
       8.123
      ],
-     "solid": true,
-     "shadow": true
+     "solid": true
     },
     {
      "part": "town/crate",
@@ -11968,8 +11959,7 @@
       0.0,
       11.937
      ],
-     "solid": true,
-     "shadow": true
+     "solid": true
     },
     {
      "part": "cc0/plank_box",
@@ -11979,8 +11969,7 @@
       11.32
      ],
      "yaw": 90,
-     "solid": true,
-     "shadow": true
+     "solid": true
     },
     {
      "part": "town/crate",
@@ -12080,8 +12069,7 @@
       0.0,
       12.283
      ],
-     "solid": true,
-     "shadow": true
+     "solid": true
     },
     {
      "part": "town/bollard",

@@ -77,10 +77,10 @@ def common(room, d):
     room["kit"] = "town"
 
 
-# 生活感の小物（2026-10-15）は、木箱・樽と同じ役の CC0 の樽と長持ちだけ影を落とす（部品の種類ごとに影の描画が増えるため。
-# タンク・踏み台・曲がり管・係留柱・携行灯・洗濯物は影なし）
+# 生活感の小物（2026-10-15）は影を落とさない（部品の種類ごとに、影の描画が影の段の数だけ増えるため。CC0 の樽と長持ちに影を付けると
+# 市場の向きで描画が 16 回増え、見た目はほとんど変わらなかった）
 SHADOW = {"stall", "tent", "monument", "workshop_front", "diner_front", "stage", "lamp_post", "lamp_tall", "bench",
-          "stall_table", "crate", "barrel", "junk_pile", "planter_big", "cask", "plank_box"}
+          "stall_table", "crate", "barrel", "junk_pile", "planter_big"}
 
 # 当たり判定を付ける部品（"solid": true。箱の形は tools/dress_solid.py の SOLID）。歩ける所に立つ、手で触れる大きさの物：
 # 木箱・樽・収納箱・鉢植え・ベンチ・卓・工具棚・給水塔・洗濯綱・床の配管・外灯の台・胸壁の角の柱・露店の棚と柱と裏の木箱・
