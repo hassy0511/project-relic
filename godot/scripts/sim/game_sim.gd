@@ -806,6 +806,21 @@ func on_mover(feet: Vector3) -> bool:
 	return false
 
 
+## 動く足場が、乗っていないハルの体の手前で止まる距離（m）。体に触れると、物理が体を押し出す向きで床の板の中へ押し込むことがある
+const MOVER_CLEAR := 0.05
+
+
+## 足場を pos（底の中心）に置くと、ハルの体（半径 Player.RADIUS・高さ Player.HEIGHT の筒とみなす）に MOVER_CLEAR より近づくか
+func _mover_overlaps_player(m: Props.Mover, pos: Vector3) -> bool:
+	var p := player.pos
+	var ex := maxf(absf(p.x - pos.x) - m.size.x * 0.5, 0.0)
+	var ez := maxf(absf(p.z - pos.z) - m.size.z * 0.5, 0.0)
+	var r := Player.RADIUS + MOVER_CLEAR
+	if ex * ex + ez * ez >= r * r:
+		return false
+	return pos.y < p.y + Player.HEIGHT + MOVER_CLEAR and pos.y + m.size.y > p.y + 0.02
+
+
 func _update_movers(dt: float) -> void:
 	for m in movers:
 		var run := Cond.eval(m.cond, self)
@@ -831,6 +846,11 @@ func _update_movers(dt: float) -> void:
 			continue
 		var newpos: Vector3 = m.at_t(nt)
 		var delta: Vector3 = newpos - m.pos
+		if not riding and not player.dead and _mover_overlaps_player(m, newpos):
+			# 乗っていないハルの体に重なる所へは動かない（ハルがどくまで待つ）。前は歯車の間の低いリフトが、下に立ったハルの上へ
+			# 下りてきて体を床の中へ押し込み、床の板の中に挟まって動けなくなった（2026-10-15）
+			m.moving = false
+			continue
 		if riding:
 			phys.move_character(player.body, delta, Phys.TERRAIN | Phys.BREAKABLE | Phys.ENEMY, delta.y <= 0.0)
 			player.pos = phys.feet_of(player.body)

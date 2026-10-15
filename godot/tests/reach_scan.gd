@@ -16,7 +16,10 @@ extends RefCounted
 ## 候補探しの道具（tests/scan_traps.gd）と、回帰のテスト（tests/test_traps.gd）に使う。
 
 ## 第 1 章の部屋 → 本筋の段階の名前 → 立てるフラグ（そこにいるときの扉・住人・使える力。ダッシュは GameSim.has_ability が本筋のフラグから決める）
-const CH1_LATE := ["ch1.ordo_restarted", "ch1.gate_open", "ch1.shortcut_open", "ch1.boss_defeated", "ch1.diagnosis"]
+## 終盤（オルドの再始動のあと）：本筋のフラグ（GameSim.CH1_ORDER の ch1.ordo_restarted まで）と、開いた門・近道
+const CH1_LATE := ["ch1.chores_started", "ch1.nico_rescued", "ch1.scolded", "ch1.debt_scene", "ch1.ordo_stopped", "ch1.got_spark",
+	"ch1.fell_to_b2", "ch1.frame_fitted", "ch1.first_beacon", "ch1.drive_powered", "ch1.shortcut_open", "ch1.diagnosis",
+	"ch1.boss_defeated", "ch1.ordo_restarted", "ch1.gate_open", "ch1.blade_online"]
 const CH1_STATES := {
 	"ch1.opening": {"early": []},
 	"ch1.training": {"early": ["ch1.chores_started"]},

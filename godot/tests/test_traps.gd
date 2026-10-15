@@ -218,3 +218,29 @@ func test_r15_chest_no_hang() -> void:
 	await _walk_off(g, Vector3(9.0, 0.82, 9.6), Vector2(1, 0), mid, "宝箱から東の壁の方へ")
 	await _walk_off(g, Vector3(9.0, 0.82, 10.4), Vector2(1, 0.3), mid, "宝箱から北東の方へ")
 	h.free_game(g)
+
+
+## 歯車の間（r13）：低いリフト lift1（底 0.1〜3.6 m）の下に立っていても、下りてくるリフトはハルの頭の上で止まり、どくとまた下りる
+## （前はリフトがハルの体を床の中へ押し込み、床の板に挟まって動けなくなった。GameSim._mover_overlaps_player）
+func test_r13_lift_does_not_crush() -> void:
+	var g := _game("ch1.r13", ["ch1.drive_powered", "ch1.r13.cleared"])
+	await h.settle()
+	var mv: Props.Mover = g.movers.filter(func(m): return m.id == "ch1.r13.lift1")[0]
+	await h.run_until(g, TestHelpers.seconds(20), {}, func(): return mv.t > 0.95)
+	for spot in [Vector3(-5.5, 0, 5.0), Vector3(-6.9, 0, 6.4)]:
+		g.player.teleport(spot, PI)
+		g.cam.yaw = PI
+		await h.run(g, TestHelpers.seconds(6), {})
+		var p: Vector3 = g.player.pos
+		h.expect(p.y > -0.05 and g.player.grounded, "リフトの下に立っていても、床の上に立ったまま（%.2f, %.2f, %.2f）" % [p.x, p.y, p.z])
+		h.expect(mv.pos.y >= p.y + Player.HEIGHT, "リフトはハルの頭の上で止まる（リフトの底 %.2f）" % mv.pos.y)
+		# 南へどく
+		var out := await h.run_until(g, TestHelpers.seconds(3), func(_i):
+			g.cam.yaw = PI
+			return {"move_y": 1.0}
+		, func(): return g.player.pos.z < 2.5)
+		h.expect(out and g.player.grounded, "リフトの下から歩いて出られる（%.2f, %.2f, %.2f）" % [g.player.pos.x, g.player.pos.y, g.player.pos.z])
+		var down := await h.run_until(g, TestHelpers.seconds(10), {}, func(): return mv.t < 0.02)
+		h.expect(down, "どいたら、リフトは下まで下りる（t %.2f）" % mv.t)
+		await h.run_until(g, TestHelpers.seconds(20), {}, func(): return mv.t > 0.95)
+	h.free_game(g)
