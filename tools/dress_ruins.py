@@ -8,6 +8,7 @@
 
   python3 tools/dress_ruins.py            キットを付ける部屋（ROOMS）を全部
   python3 tools/dress_ruins.py r02        1 部屋だけ
+B1 の r02・r03 はこのファイル、r04〜r20（B1 の残り・B2〜B4）は tools/dress_ruins_deep.py（docs/design/43_遺構の見た目.md）。
 """
 import json
 import math
@@ -382,6 +383,10 @@ ROOMS = {"r02": r02, "r03": r03}
 
 
 def main():
+    # B1 の r04・r05 と、B2〜B4 の部屋（2026-10-15）：tools/dress_ruins_deep.py（この道具の Dress を使う）
+    import dress_ruins_deep
+    dress_ruins_deep.setup(sys.modules[__name__])
+    ROOMS.update(dress_ruins_deep.ROOMS)
     want = sys.argv[1:] or list(ROOMS)
     with open(PATH, encoding="utf-8") as f:
         data = json.load(f)

@@ -216,8 +216,26 @@ def lift_frame():
     return p
 
 
+def orb_base():
+    p = Part('b3_orb_base', '動力の球の台座 0.9×0.9×1.0（白磁の箱、黒鉛の角、真鍮の台、上に球を抱える真鍮の爪 4 本、四隅の琥珀の灯）。'
+             '球（ゲームのスイッチ）の中心は台の上 0.6 m。原点：底の中央')
+    p.cbox(G, (0, 0, 0.08), (1.0, 1.0, 0.16), 0.04)
+    p.cbox(IS, (0, 0, 0.55), (0.8, 0.8, 0.78), 0.04)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.box(G, (sx * 0.4 - 0.06, sy * 0.4 - 0.06, 0.16), (sx * 0.4 + 0.06, sy * 0.4 + 0.06, 0.94))
+            p.box(A, (sx * 0.47 - 0.03, sy * 0.47 - 0.03, 0.2), (sx * 0.47 + 0.03, sy * 0.47 + 0.03, 0.36))
+    p.cbox(B, (0, 0, 0.97), (0.86, 0.86, 0.06), 0.03)
+    p.cyl(G, (0, 0, 1.0), (0, 0, 1.06), 0.3, 12)
+    for k in range(4):
+        a = math.pi / 4 + k * math.pi / 2
+        p.sweep(B, [(0.22 * math.cos(a), 0.22 * math.sin(a), 1.02), (0.42 * math.cos(a), 0.42 * math.sin(a), 1.25),
+                     (0.36 * math.cos(a), 0.36 * math.sin(a), 1.5)], 0.035, 6, smooth=False)
+    return p
+
+
 PARTS = [
     lambda: wall('b3_wall', True), lambda: wall('b3_wall_plain', False), corner, pillar, door, beam, pipe, drive,
     lambda: gear('b3_gear', 2.0, 0.35, 20), lambda: gear('b3_gear_small', 1.0, 0.25, 12), piston,
-    lambda: rib('b3_rib', 8.0), rail, lift_frame,
+    lambda: rib('b3_rib', 8.0), rail, lift_frame, orb_base,
 ]

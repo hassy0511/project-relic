@@ -40,7 +40,8 @@
                 "detail": [
                  {"mask": "grime", "uv_m": 6.0, "cover": 0.5, "color": "#a86a48", "amount": 0.55, "edge": 0.05},
                  {"mask": "chips", "uv_m": 2.2, "cover": 0.16, "color": "#6a4a36", "amount": 0.8, "gate": {"cover": 0.5, "uv_m": 9.0}}]},
-  "glow": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 3.0}}
+  "glow": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 3.0}},
+  "red": {"color": "#d4433d", "roughness": 0.4, "emission": {"color": "#ff3a30", "energy": 4.0}}
  },
  "materials": {
   "ivory": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 3.0, "color": "#ece0c8", "roughness": 0.72, "near_fade": [0.8, 1.5],
@@ -58,30 +59,32 @@
                "detail": [
                 {"mask": "mottle", "uv_m": 3.0, "cover": 0.4, "color": "#5a4a3c", "amount": 0.35, "edge": 0.06},
                 {"mask": "grime", "uv_m": 2.0, "cover": 0.9, "feet": [0.0, 0.9], "color": "#2e2622", "amount": 0.5}]},
-  "pipe": {"albedo": "res://assets/kit/tex/ruins_pipe_metal.jpg", "uv_m": 2.0, "color": "#d0ccc4", "tex_strength": 0.55, "roughness": 0.35, "metallic": 0.4, "near_fade": [0.8, 1.5],
+  "pipe": {"albedo": "res://assets/kit/tex/ruins_pipe_metal.jpg", "uv_m": 2.0, "color": "#d0ccc4", "tex_strength": 0.55, "roughness": 0.45, "metallic": 0.12, "near_fade": [0.8, 1.5],
            "detail": [
             {"mask": "mottle", "uv_m": 2.5, "cover": 0.4, "color": "#3e3a34", "mode": "multiply", "amount": 0.45, "edge": 0.07},
             {"mask": "chips", "uv_m": 1.2, "cover": 0.12, "color": "#8a4a2e", "amount": 0.8}]},
-  "brass": {"color": "#b08c4c", "roughness": 0.42, "metallic": 0.5, "near_fade": [0.8, 1.5],
+  "brass": {"color": "#b08c4c", "roughness": 0.5, "metallic": 0.22, "near_fade": [0.8, 1.5],
             "detail": [{"mask": "mottle", "uv_m": 1.5, "cover": 0.35, "color": "#5e4a2c", "mode": "multiply", "amount": 0.45, "edge": 0.06}]},
   "amber": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 4.0}, "near_fade": [0.8, 1.5]},
-  "glass": {"color": "#ffb44a", "roughness": 0.25, "emission": {"color": "#ffa83a", "energy": 3.2}, "near_fade": [0.8, 1.5]},
+  "glass": {"color": "#ffb44a", "roughness": 0.35, "emission": {"color": "#ffa83a", "energy": 1.7}, "near_fade": [0.8, 1.5]},
   "red": {"color": "#d4433d", "roughness": 0.4, "emission": {"color": "#ff3a30", "energy": 4.0}},
   "sand": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 2.0, "color": "#dcbe9c", "roughness": 0.95, "near_fade": [0.8, 1.5]},
   "cloth": {"color": "#a8503c", "roughness": 0.95, "near_fade": [0.8, 1.5]},
   "grate": {"albedo": "res://assets/kit/tex/ruins_rust_grate.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.7, "metallic": 0.2, "near_fade": [0.8, 1.5]},
   "dark": {"color": "#221e1a", "roughness": 0.8, "near_fade": [0.8, 1.5]},
-  "stain_floor": {"color": "#4a3628", "roughness": 0.6},
-  "stain_rust": {"color": "#86462a", "roughness": 0.8},
-  "stain_soot": {"color": "#2a221c", "roughness": 0.9},
+  "stain_floor": {"blend": "mul", "color": "#8a6448", "strength": 0.55, "uv_m": 1.4, "mottle": 0.5},
+  "stain_rust": {"blend": "mul", "color": "#8a4a2e", "strength": 0.6, "uv_m": 0.9, "mottle": 0.4},
+  "stain_soot": {"blend": "mul", "color": "#3a2e26", "strength": 0.65, "uv_m": 1.2, "mottle": 0.5},
   "flat": {"color": "#ffffff", "tint_mix": 1.0, "roughness": 0.85, "near_fade": [0.8, 1.5],
            "detail": [
             {"mask": "grime", "uv_m": 2.4, "cover": 0.45, "color": "#8a6448", "mode": "multiply", "amount": 0.6, "gate": {"cover": 0.6, "uv_m": 7.0}},
             {"mask": "grime", "uv_m": 2.0, "cover": 0.9, "feet": [0.0, 1.0], "color": "#3e2e24", "mode": "multiply", "amount": 0.7},
             {"mask": "chips", "uv_m": 1.4, "cover": 0.16, "color": "#9a5232", "amount": 0.8, "gate": {"cover": 0.35, "uv_m": 5.0}}]},
-  "metal": {"color": "#ffffff", "tint_mix": 1.0, "roughness": 0.5, "metallic": 0.45, "near_fade": [0.8, 1.5],
+  "metal": {"color": "#ffffff", "tint_mix": 1.0, "roughness": 0.55, "metallic": 0.15, "near_fade": [0.8, 1.5],
             "detail": [
              {"mask": "mottle", "uv_m": 2.5, "cover": 0.4, "color": "#5a4a3c", "amount": 0.35, "edge": 0.06},
-             {"mask": "grime", "uv_m": 2.0, "cover": 0.9, "feet": [0.0, 0.8], "color": "#2e2622", "amount": 0.45}]}
+             {"mask": "grime", "uv_m": 2.0, "cover": 0.9, "feet": [0.0, 0.8], "color": "#2e2622", "amount": 0.45}]},
+  "sky": {"color": "#ffd8a8", "roughness": 0.9, "emission": {"color": "#ffc98a", "energy": 1.4}},
+  "shaft": {"blend": "add", "color": "#ffd9a0", "strength": 0.22, "fade_m": 6.0}
  }
 }

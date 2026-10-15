@@ -124,8 +124,14 @@ def vault(R0=3.6):
     p = Part('b4_vault', f'炉心の扉の丸い枠（外の半径 {R0}、黒鉛の輪に真鍮の留め 12、琥珀の灯 4、両脇の黒鉛の柱と赤い非常灯）。扉の板（ゲームの扉）を囲む。'
              '原点：壁の面の、扉の下の端の中央。輪の中心は 3 m の高さ。壁から 0.3 m まで')
     cz = 3.0
-    ring = [(R0 * 0.9 * math.cos(2 * math.pi * k / 40), -0.16, cz + R0 * 0.9 * math.sin(2 * math.pi * k / 40)) for k in range(41)]
+    # 輪は床から 0.9 m より上だけ（下の弧は扉の口の床に掛かるので描かない。開いた扉の口を通る足元に輪が無い）
+    a0 = math.asin(max(-1.0, (0.9 - cz) / (R0 * 0.9)))
+    ring = [(R0 * 0.9 * math.cos(a0 + (math.pi - 2 * a0) * k / 32), -0.16, cz + R0 * 0.9 * math.sin(a0 + (math.pi - 2 * a0) * k / 32))
+            for k in range(33)]
     p.sweep(G, ring, R0 * 0.1, 8)
+    for sx in (-1, 1):
+        x, z = sx * R0 * 0.9 * math.cos(a0), cz + R0 * 0.9 * math.sin(a0)
+        p.cbox(B, (x, -0.16, z - 0.1), (R0 * 0.28, R0 * 0.24, 0.3), 0.04)
     for k in range(12):
         a = 2 * math.pi * (k + 0.5) / 12
         x, z = R0 * 0.9 * math.cos(a), cz + R0 * 0.9 * math.sin(a)
@@ -190,4 +196,13 @@ def floor_rings():
     return p
 
 
-PARTS = [core, lambda: column('b4_column', 1.0, 9.0), lambda: column('b4_column_wide', 1.4, 8.0), arena_panel, ceiling, vault, floor_rings]
+def band():
+    p = Part('b4_band', '外周の赤い非常灯の帯（2 m、黒鉛の受けと赤い灯の筋、上の真鍮の縁）。壁の上の段に並べる。原点：壁の面・帯の下の端の中央。壁から 0.25 m まで')
+    p.box(G, (-1.0, -0.22, 0.0), (1.0, 0.0, 0.32))
+    p.box(R, (-0.9, -0.235, 0.1), (0.9, -0.22, 0.22))
+    p.box(B, (-1.0, -0.25, 0.32), (1.0, -0.02, 0.37))
+    p.box(G, (-0.06, -0.24, -0.4), (0.06, -0.02, 0.0))
+    return p
+
+
+PARTS = [core, band, lambda: column('b4_column', 1.0, 9.0), lambda: column('b4_column_wide', 1.4, 8.0), arena_panel, ceiling, vault, floor_rings]
