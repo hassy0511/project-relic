@@ -7373,6 +7373,54 @@
     {
      "t": "box",
      "pos": [
+      31.01,
+      0.0,
+      -1.13
+     ],
+     "size": [
+      2.02,
+      0.97,
+      1.06
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 154
+    },
+    {
+     "t": "box",
+     "pos": [
+      29.567,
+      0.0,
+      -1.013
+     ],
+     "size": [
+      0.826,
+      0.629,
+      0.826
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 155
+    },
+    {
+     "t": "box",
+     "pos": [
+      32.675,
+      0.0,
+      -1.055
+     ],
+     "size": [
+      1.27,
+      0.55,
+      0.91
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 156
+    },
+    {
+     "t": "box",
+     "pos": [
       23.3,
       0.0,
       10.55
@@ -7384,7 +7432,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 154
+     "dress": 157
     },
     {
      "t": "box",
@@ -7400,7 +7448,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 155
+     "dress": 158
     },
     {
      "t": "box",
@@ -7416,7 +7464,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 156
+     "dress": 159
     },
     {
      "t": "box",
@@ -7432,7 +7480,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 157
+     "dress": 160
     },
     {
      "t": "box",
@@ -7448,7 +7496,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 158
+     "dress": 161
     },
     {
      "t": "box",
@@ -7464,7 +7512,39 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 159
+     "dress": 162
+    },
+    {
+     "t": "box",
+     "pos": [
+      -11.7,
+      0.0,
+      -7.5
+     ],
+     "size": [
+      0.9,
+      1.45,
+      0.9
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 163
+    },
+    {
+     "t": "box",
+     "pos": [
+      11.7,
+      0.0,
+      -7.5
+     ],
+     "size": [
+      0.9,
+      1.45,
+      0.9
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 164
     },
     {
      "t": "box",
@@ -7480,7 +7560,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 160
+     "dress": 165
     },
     {
      "t": "box",
@@ -7496,7 +7576,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 161
+     "dress": 166
     },
     {
      "t": "box",
@@ -7512,7 +7592,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 162
+     "dress": 167
     },
     {
      "t": "box",
@@ -7528,7 +7608,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 163
+     "dress": 168
     },
     {
      "t": "box",
@@ -7544,7 +7624,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 164
+     "dress": 169
     },
     {
      "t": "box",
@@ -7560,7 +7640,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 165
+     "dress": 170
     },
     {
      "t": "box",
@@ -7576,7 +7656,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 166
+     "dress": 171
     },
     {
      "t": "box",
@@ -7592,7 +7672,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 167
+     "dress": 172
     },
     {
      "t": "box",
@@ -7608,7 +7688,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 171
+     "dress": 176
     },
     {
      "t": "box",
@@ -7625,7 +7705,7 @@
      "cam": false,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 172
+     "dress": 177
     },
     {
      "t": "box",
@@ -7641,7 +7721,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 173
+     "dress": 178
     },
     {
      "t": "box",
@@ -7657,7 +7737,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 174
+     "dress": 179
     },
     {
      "t": "box",
@@ -7673,7 +7753,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 175
+     "dress": 180
     },
     {
      "t": "box",
@@ -7689,7 +7769,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 176
+     "dress": 181
     },
     {
      "t": "box",
@@ -7705,7 +7785,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 177
+     "dress": 182
     },
     {
      "t": "box",
@@ -7721,7 +7801,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 178
+     "dress": 183
     },
     {
      "t": "box",
@@ -7737,7 +7817,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 179
+     "dress": 184
     },
     {
      "t": "box",
@@ -7753,7 +7833,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 180
+     "dress": 185
     },
     {
      "t": "box",
@@ -7769,7 +7849,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 181
+     "dress": 186
     },
     {
      "t": "box",
@@ -7785,7 +7865,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 186
+     "dress": 191
     },
     {
      "t": "box",
@@ -7801,7 +7881,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 186
+     "dress": 191
     },
     {
      "t": "box",
@@ -7818,7 +7898,7 @@
      "cam": false,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 186
+     "dress": 191
     },
     {
      "t": "box",
@@ -7835,7 +7915,7 @@
      "cam": false,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 186
+     "dress": 191
     },
     {
      "t": "box",
@@ -7851,7 +7931,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 187
+     "dress": 192
     },
     {
      "t": "box",
@@ -7867,7 +7947,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 188
+     "dress": 193
     },
     {
      "t": "box",
@@ -7883,7 +7963,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 189
+     "dress": 194
     },
     {
      "t": "box",
@@ -7899,7 +7979,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 190
+     "dress": 195
     },
     {
      "t": "box",
@@ -7915,7 +7995,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 191
+     "dress": 196
     },
     {
      "t": "box",
@@ -7931,7 +8011,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 192
+     "dress": 197
     },
     {
      "t": "box",
@@ -7947,7 +8027,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 193
+     "dress": 198
     },
     {
      "t": "box",
@@ -7963,7 +8043,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 194
+     "dress": 199
     },
     {
      "t": "box",
@@ -7979,7 +8059,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 195
+     "dress": 200
     },
     {
      "t": "box",
@@ -7995,7 +8075,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 196
+     "dress": 201
     },
     {
      "t": "box",
@@ -8011,7 +8091,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 196
+     "dress": 201
     },
     {
      "t": "box",
@@ -8027,7 +8107,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 197
+     "dress": 202
     },
     {
      "t": "box",
@@ -8043,7 +8123,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 197
+     "dress": 202
     },
     {
      "t": "box",
@@ -8059,7 +8139,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 198
+     "dress": 203
     },
     {
      "t": "box",
@@ -8075,7 +8155,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 198
+     "dress": 203
     },
     {
      "t": "box",
@@ -8216,6 +8296,23 @@
     {
      "t": "box",
      "pos": [
+      32.03,
+      0.0,
+      -1.055
+     ],
+     "size": [
+      0.02,
+      0.55,
+      0.91
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 154
+    },
+    {
+     "t": "box",
+     "pos": [
       -13.84,
       0.0,
       0.0
@@ -8313,7 +8410,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 180
+     "dress": 185
     },
     {
      "t": "box",
@@ -8330,7 +8427,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 156
+     "dress": 159
     },
     {
      "t": "box",
@@ -8347,7 +8444,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 159
+     "dress": 162
     },
     {
      "t": "box",
@@ -8364,7 +8461,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 154
+     "dress": 157
     },
     {
      "t": "box",
@@ -8382,6 +8479,23 @@
      "hide": true,
      "tint": "#5a5048",
      "dress": 147
+    },
+    {
+     "t": "box",
+     "pos": [
+      29.99,
+      0.0,
+      -1.013
+     ],
+     "size": [
+      0.02,
+      0.629,
+      0.826
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 154
     },
     {
      "t": "box",
@@ -8415,7 +8529,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 188
+     "dress": 193
     },
     {
      "t": "box",
@@ -8432,7 +8546,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 163
+     "dress": 168
     },
     {
      "t": "box",
@@ -8449,7 +8563,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 177
+     "dress": 182
     },
     {
      "t": "box",
@@ -8483,7 +8597,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 163
+     "dress": 168
     },
     {
      "t": "box",
@@ -8500,7 +8614,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 188
+     "dress": 193
     },
     {
      "t": "box",
@@ -8568,7 +8682,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 175
+     "dress": 180
     },
     {
      "t": "box",
@@ -8585,7 +8699,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 171
+     "dress": 176
     },
     {
      "t": "box",
@@ -8670,7 +8784,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 171
+     "dress": 176
     },
     {
      "t": "box",
@@ -8687,7 +8801,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 189
+     "dress": 194
     },
     {
      "t": "box",
@@ -8721,7 +8835,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 164
+     "dress": 169
     },
     {
      "t": "box",
@@ -8738,7 +8852,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 178
+     "dress": 183
     },
     {
      "t": "box",
@@ -8755,7 +8869,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 161
+     "dress": 166
     },
     {
      "t": "box",
@@ -8772,7 +8886,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 160
+     "dress": 165
     },
     {
      "t": "box",
@@ -8806,7 +8920,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 160
+     "dress": 165
     },
     {
      "t": "box",
@@ -8891,7 +9005,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 192
+     "dress": 197
     },
     {
      "t": "box",
@@ -9112,7 +9226,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 165
+     "dress": 170
     },
     {
      "t": "box",
@@ -9164,6 +9278,42 @@
      "hide": true,
      "tint": "#5a5048",
      "dress": 133
+    },
+    {
+     "t": "box",
+     "pos": [
+      -12.255,
+      0.672,
+      -7.5
+     ],
+     "size": [
+      0.21,
+      0.778,
+      0.28
+     ],
+     "fill": true,
+     "cam": false,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 78
+    },
+    {
+     "t": "box",
+     "pos": [
+      12.255,
+      0.672,
+      -7.5
+     ],
+     "size": [
+      0.21,
+      0.778,
+      0.28
+     ],
+     "fill": true,
+     "cam": false,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 79
     },
     {
      "t": "box",
@@ -11519,6 +11669,37 @@
      "solid": true
     },
     {
+     "part": "town/stall_table",
+     "pos": [
+      31.01,
+      0.0,
+      -1.13
+     ],
+     "solid": true,
+     "shadow": true
+    },
+    {
+     "part": "town/crate",
+     "pos": [
+      29.567,
+      0.0,
+      -1.013
+     ],
+     "yaw": 2,
+     "solid": true,
+     "scale": 0.85,
+     "shadow": true
+    },
+    {
+     "part": "town/sacks",
+     "pos": [
+      32.66,
+      0.0,
+      -0.93
+     ],
+     "solid": true
+    },
+    {
      "part": "cc0/plank_box",
      "pos": [
       23.3,
@@ -11578,6 +11759,24 @@
      "yaw": 90,
      "solid": true,
      "shadow": true
+    },
+    {
+     "part": "town/planter",
+     "pos": [
+      -11.7,
+      0.0,
+      -7.5
+     ],
+     "solid": true
+    },
+    {
+     "part": "town/planter",
+     "pos": [
+      11.7,
+      0.0,
+      -7.5
+     ],
+     "solid": true
     },
     {
      "part": "town/planter_big",
