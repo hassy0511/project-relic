@@ -41,6 +41,13 @@
                  {"mask": "grime", "uv_m": 5.0, "cover": 0.55, "color": "#7a5a44", "mode": "multiply", "amount": 0.6, "edge": 0.05},
                  {"mask": "chips", "uv_m": 2.2, "cover": 0.12, "color": "#5a4a3e", "amount": 0.8, "gate": {"cover": 0.5, "uv_m": 9.0}}]},
   "glow": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 3.0}},
+  "panel": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 4.0, "color": "#e2d6c0", "roughness": 0.72, "macro": 0.35,
+            "seams": {"every": [2.0, 2.0], "width": 0.07, "color": "#3a3934"},
+            "detail": [
+             {"mask": "streaks", "uv_m": [1.8, 3.2], "cover": 0.6, "top": [0.0, 7.0], "color": "#8a4e34", "amount": 0.6},
+             {"mask": "grime", "uv_m": 2.5, "cover": 0.9, "feet": [0.3, 1.6], "color": "#7a5a44", "mode": "multiply", "amount": 0.7},
+             {"mask": "grime", "uv_m": 3.0, "cover": 0.5, "seam": [0.03, 0.3], "color": "#8c6c54", "mode": "multiply", "amount": 0.55},
+             {"mask": "chips", "uv_m": 1.6, "cover": 0.12, "color": "#5a4a3e", "amount": 0.85, "gate": {"cover": 0.4, "uv_m": 6.0}}]},
   "red": {"color": "#d4433d", "roughness": 0.4, "emission": {"color": "#ff3a30", "energy": 4.0}}
  },
  "materials": {

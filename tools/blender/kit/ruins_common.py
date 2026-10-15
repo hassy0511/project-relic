@@ -131,7 +131,98 @@ def soot():
     return p
 
 
+# ---------------------------------------------------------------- 砂の吹きだまり・崩れた物（W2-06b ruins_clutter の 01・02・09・10 の形）
+
+def _heightfield(p: Part, mat, nx, ny, x0, x1, y0, y1, hfn):
+    """高さの格子の面（上向き）と、縁の 0 の高さの裾。hfn(x, y) が高さ（縁は 0 にする）"""
+    import numpy as np
+    xs = np.linspace(x0, x1, nx)
+    ys = np.linspace(y0, y1, ny)
+    v = []
+    for j in range(ny):
+        for i in range(nx):
+            v.append((xs[i], ys[j], max(0.0, hfn(xs[i], ys[j]))))
+    vv = np.asarray(v, float)
+    f = []
+    for j in range(ny - 1):
+        for i in range(nx - 1):
+            a, b, c, d = j * nx + i, j * nx + i + 1, (j + 1) * nx + i + 1, (j + 1) * nx + i
+            if vv[[a, b, c, d], 2].max() <= 0.004:
+                continue          # 平らな 0 の所は描かない（床に重ねない）
+            for tri in ([a, b, c], [a, c, d]):
+                pa, pb, pc = vv[tri]
+                f.append(tri if np.cross(pb - pa, pc - pa)[2] > 0 else tri[::-1])
+    p.pieces.append((mat, vv, f, True))
+
+
+def sand_wall():
+    p = Part('sand_wall', '壁ぎわの砂の吹きだまり（W2-06b の 01）2×1.3 m、壁で高さ 0.5、床の真ん中の側で 0（床から 0.5 cm 浮かせる）。'
+             '原点：壁の面の下の端の中央。正面（+Z）が部屋の内側。当たり判定なし（壁の帯の前は 0.3 m 以下）')
+    def h(x, y):
+        d = -y                                   # 壁からの距離（Blender の -Y が部屋の内側）
+        w = 1.0 - (abs(x) / 1.0) ** 3            # 両端で細る
+        ripple = 0.025 * math.sin(6.0 * d + 1.3 * x) * (1 - d / 1.3)
+        return (0.5 * max(0.0, 1 - d / 1.3) ** 1.6 + ripple) * max(0.0, w) + 0.005
+    _heightfield(p, 'sand', 13, 8, -1.0, 1.0, -1.3, 0.0, h)
+    return p
+
+
+def sand_corner():
+    p = Part('sand_corner', '部屋の隅の砂の吹きだまり（W2-06b の 02）隅から 1.8 m、隅で高さ 0.7。原点：隅（壁 2 面の交わる線の下）。'
+             'yaw 0 で +X・+Z が部屋の内側（b1_corner と同じ向き）。当たり判定なし')
+    def h(x, y):
+        dx, dy = x, -y
+        r = math.hypot(dx, dy)
+        ang = math.atan2(dy, dx)
+        reach = 1.8 * (1 + 0.12 * math.sin(3 * ang + 0.7))
+        return 0.7 * max(0.0, 1 - r / reach) ** 1.7 + 0.005 if r < reach else 0.0
+    _heightfield(p, 'sand', 11, 11, 0.0, 1.9, -1.9, 0.0, h)
+    return p
+
+
+def pipe_broken():
+    p = Part('pipe_broken', '崩れて床に落ちた太い管（W2-06b の 09。黒鉛の管 1.6 m・半径 0.3、片方は割れた口、真鍮の継ぎ輪、まわりのかけら）。'
+             '床に横たえる。原点：底の中央。管は X に沿う。当たり判定は dress_ruins_deep の表（1.75×0.65×0.62）')
+    r = 0.3
+    p.cyl('pipe', (-0.8, 0, r), (0.62, 0, r), r, 14)
+    p.cyl('brass', (-0.8, 0, r), (-0.66, 0, r), r + 0.05, 14)
+    # 割れた口：ぎざぎざの縁（薄い黒鉛の板を輪に）と、暗い中
+    for k in range(10):
+        a = 2 * math.pi * k / 10
+        L = 0.08 + 0.1 * ((k * 7) % 3) / 2
+        p.box('graphite', (0.62, -0.04, -0.04), (0.62 + L, 0.04, 0.04))
+        p.transformed(lambda v, a=a: v + np.array([0, (r - 0.03) * math.cos(a), r + (r - 0.03) * math.sin(a)]), len(p.pieces) - 1)
+    p.cyl('dark', (0.6, 0, r), (0.64, 0, r), r - 0.03, 12)
+    for c, s in (((0.95, 0.25, 0.06), (0.24, 0.18, 0.12)), ((0.85, -0.3, 0.05), (0.18, 0.2, 0.1)), ((-0.95, 0.2, 0.05), (0.16, 0.14, 0.1))):
+        p.cbox('ivory', c, s, 0.03)
+    return p
+
+
+def panel_fallen():
+    p = Part('panel_fallen', '外れて倒れた白磁の外装の板（W2-06b の 10。2×1×0.16 の板が壁にもたれて傾き、足元にかけら）。'
+             '原点：板の下の端の中央（床）。板は X に沿い、背面（壁の側、-Z）へ 0.88 m もたれる（上の端は高さ 0.47）。当たり判定は表')
+    n0 = len(p.pieces)
+    p.cbox('ivory', (0, 0.08, 0.5), (2.0, 0.16, 1.0), 0.04, 'y')
+    p.box('graphite', (-1.0, 0.0, 0.0), (1.0, 0.18, 0.08))
+    p.box('graphite', (-1.0, 0.0, 0.92), (1.0, 0.18, 1.0))
+    p.transformed(apply_rx(-62), n0)
+    for c, s in (((-0.6, -0.75, 0.07), (0.3, 0.24, 0.14)), ((0.3, -0.85, 0.06), (0.22, 0.2, 0.12)), ((0.8, -0.6, 0.05), (0.18, 0.16, 0.1))):
+        p.cbox('ivory', c, s, 0.03)
+    return p
+
+
+def apply_rx(deg):
+    a = math.radians(deg)
+    c, s = math.cos(a), math.sin(a)
+    M = np.array([[1, 0, 0], [0, c, -s], [0, s, c]])
+    return lambda v: v @ M.T
+
+
+import numpy as np  # noqa: E402
+
+
 PARTS = [
+    sand_wall, sand_corner, pipe_broken, panel_fallen,
     lambda: stain_floor('stain_floor', 'stain_floor', 1.0),
     lambda: stain_floor('stain_floor_b', 'stain_floor', 2.7, 0.9, 0.8),
     stain_path, stain_corner,

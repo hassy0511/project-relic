@@ -43,14 +43,14 @@
              {"mask": "streaks", "uv_m": [1.4, 2.4], "cover": 0.35, "top": [0.0, 1.6], "color": "#8a4a2e", "amount": 0.4, "gate": {"cover": 0.55, "uv_m": 6.0}}]},
   "ivory_stain": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 3.0, "color": "#e6d8be", "roughness": 0.72, "near_fade": [0.8, 1.5],
                   "detail": [
-                   {"mask": "grime", "uv_m": 1.6, "cover": 0.95, "feet": [0.0, 1.1], "color": "#4a3628", "mode": "multiply", "amount": 0.75},
-                   {"mask": "chips", "uv_m": 1.2, "cover": 0.24, "color": "#9a5232", "amount": 0.85},
-                   {"mask": "streaks", "uv_m": [0.9, 1.6], "cover": 0.45, "color": "#7a4228", "amount": 0.55}]},
+                   {"mask": "grime", "uv_m": 1.6, "cover": 0.9, "feet": [0.0, 0.9], "color": "#5a4232", "mode": "multiply", "amount": 0.6},
+                   {"mask": "chips", "uv_m": 1.2, "cover": 0.14, "color": "#9a5232", "amount": 0.8},
+                   {"mask": "streaks", "uv_m": [0.9, 1.6], "cover": 0.35, "color": "#7a4228", "amount": 0.45}]},
   "graphite": {"albedo": "res://assets/kit/tex/ruins_pipe_metal.jpg", "uv_m": 2.0, "color": "#ffffff", "tex_strength": 0.35, "roughness": 0.5, "metallic": 0.15, "near_fade": [0.8, 1.5],
                "detail": [
                 {"mask": "mottle", "uv_m": 3.0, "cover": 0.35, "color": "#5a4a3c", "amount": 0.3, "edge": 0.06},
                 {"mask": "grime", "uv_m": 2.0, "cover": 0.9, "feet": [0.0, 0.8], "color": "#2e2622", "amount": 0.45}]},
-  "pipe": {"albedo": "res://assets/kit/tex/ruins_pipe_metal.jpg", "uv_m": 2.0, "color": "#d0ccc4", "tex_strength": 0.55, "roughness": 0.45, "metallic": 0.12, "near_fade": [0.8, 1.5],
+  "pipe": {"albedo": "res://assets/kit/tex/ruins_pipe_metal.jpg", "uv_m": 2.0, "color": "#e0ccb0", "tex_strength": 0.45, "roughness": 0.45, "metallic": 0.12, "near_fade": [0.8, 1.5],
            "detail": [{"mask": "mottle", "uv_m": 2.5, "cover": 0.35, "color": "#3e3a34", "mode": "multiply", "amount": 0.4, "edge": 0.07}]},
   "brass": {"color": "#b8944f", "roughness": 0.5, "metallic": 0.22, "near_fade": [0.8, 1.5]},
   "amber": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 4.5}, "near_fade": [0.8, 1.5]},

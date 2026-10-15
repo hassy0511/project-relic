@@ -56,15 +56,17 @@ def column(name='b4_column', w=1.0, h=9.0):
     hw = w / 2
     p.box(G, (-hw, -hw, 0), (hw, hw, h))
     jw = hw + 0.1
-    for z0, z1, m in ((0.0, 1.3, IS), (2.6, 4.4, I), (5.8, 7.2, I)):
-        if z1 > h:
+    # 白磁の覆いは柱のほぼ全体（絵 ruins_core・ruins_mood_b4 の白磁の柱）。段の間に真鍮の帯と黒鉛の継ぎ目
+    segs = [(0.0, 1.4, IS), (1.52, 4.4, I), (4.52, 7.4, I), (7.52, h - 0.3, I)]
+    for z0, z1, m in segs:
+        if z1 - z0 < 0.3:
             continue
         p.cbox(m, (0, 0, (z0 + z1) / 2), (2 * jw, 2 * jw, z1 - z0), 0.08)
-        p.cbox(B, (0, 0, z1 + 0.06), (2 * jw - 0.1, 2 * jw - 0.1, 0.12), 0.03)
+        p.cbox(B, (0, 0, z1 + 0.06), (2 * jw - 0.06, 2 * jw - 0.06, 0.1), 0.03)
     for k in range(4):
         n0 = len(p.pieces)
-        p.box(A, (-0.05, -jw - 0.012, 3.0), (0.05, -jw + 0.01, 4.0))
-        p.box(G, (-0.14, -hw - 0.05, 1.3), (0.14, -hw + 0.01, 2.6))
+        p.box(A, (-0.05, -jw - 0.012, 2.4), (0.05, -jw + 0.01, 3.6))
+        p.box(A, (-0.05, -jw - 0.012, 5.4), (0.05, -jw + 0.01, 6.6))
         p.transformed(apply(rot('z', 90 * k)), n0)
     return p
 

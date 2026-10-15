@@ -34,6 +34,9 @@ def solid_table():
         "ruins/b2_valve": [B(-0.5, 0.5, -0.5, 0.5, 0.0, 0.34, wall=True)],
         # 壁の足元の駆動梁（壁から 0.35 m、高さ 0.27）。壁の帯の内
         "ruins/b3_drive": [B(-1.0, 1.0, 0.0, 0.3, 0.0, LINER, wall=True)],
+        # 床に落ちた太い管（W2-06b の 09）と、壁にもたれた外装の板（10）
+        "ruins/pipe_broken": [B(-0.82, 0.82, 0.0, 0.62, -0.33, 0.33)],
+        "ruins/panel_fallen": [B(-1.0, 1.0, 0.0, 0.55, -0.95, 0.0)],
     }
 
 
@@ -83,20 +86,11 @@ def corners(d, k, x0, x1, z0, z1, solid=True):
         d.put(KITS[k]["corner"], [x1 if sx > 0 else x0, 0, z1 if sz > 0 else z0], yaw, **kw)
 
 
-def beams(d, k, x0, x1, y, zs, red_every=2):
-    """天井の梁（x0〜x1 を 2 m ずつ）を z の列に"""
+def beams(d, k, x0, x1, y, zs, red=True):
+    """天井の梁（x0〜x1 を 2 m ずつ）を z の列に。部品は 1 種類（赤い非常灯つき）：種類が増えると描画が増える"""
     n = int(round((x1 - x0) / 2.0))
-    for i, z in enumerate(zs):
-        part = KITS[k]["beam_red"] if (red_every and i % red_every == 1) else KITS[k]["beam"]
-        d.row(part, [x0 + 1.0, y, z], [2.0, 0, 0], n)
-
-
-def beams_z(d, k, z0, z1, y, xs, red_every=2):
-    """天井の梁を z の向きに（x の列）"""
-    n = int(round((z1 - z0) / 2.0))
-    for i, x in enumerate(xs):
-        part = KITS[k]["beam_red"] if (red_every and i % red_every == 1) else KITS[k]["beam"]
-        d.row(part, [x, y, z0 + 1.0], [0, 0, 2.0], n, 90)
+    for z in zs:
+        d.row(KITS[k]["beam_red"] if red else KITS[k]["beam"], [x0 + 1.0, y, z], [2.0, 0, 0], n)
 
 
 # ---------------------------------------------------------------- 汚れの置き場所（しみの部品）
@@ -180,6 +174,9 @@ def r04(room):
     for side, plane, xs in (("s", -Z, (-7.5, 7.5)), ("w", -X, (-7.5, 3.5)), ("e", X, (-7.5,))):
         for a in xs:
             d.at_wall(side, plane, a, "b1_lantern", y=2.4, off=0.3, solid=True)
+            # 灯の下の壁の板にさびの筋（灯の金具から垂れる。壁の板の前の面 0.2 m の 1 cm 前）
+            for da in (-0.42, 0.42):
+                drips(d, side, plane, a + da, 2.05, off=0.21)
     d.at_wall("e", X, -4.9, "b1_redlight", y=2.6, off=0.6)
     d.at_wall("e", X, 4.9, "b1_redlight", y=2.6, off=0.6)
     # 弁の台（形 9・10）：正面に弁の輪（撃つ球はその上）
@@ -194,6 +191,11 @@ def r04(room):
         d.put("b1_debris", pos, yaw, solid=True)
     d.put("b1_cables", [8.6, 0, -2.6], 70)
     d.put("b1_cables", [9.4, 0, 0.6], 95)
+    # 砂の吹きだまり（隅と西の壁ぎわ。W2-06b の 01・02）と、ファンの横に落ちた管
+    for x, z, yaw in ((-X, -Z, 0), (-X, 9.2, 90), (X, 9.2, 180)):
+        d.put("sand_corner", [x, 0, z], yaw)
+    d.at_wall("w", -X, -4.0, "sand_wall")
+    d.snug("pipe_broken", 90, x1=X - 0.38, z1=8.0)        # 壁の帯（z 6〜8）の前。扉の壁の帯とは 0.84 m 空ける
     # 生活感の小物：前の整備の一団がファンを直そうとした跡（南東の角に道具箱と灯、箱）
     W = X - 0.38
     d.snug("town/chest", 270, x1=W, z0=-W)
@@ -238,12 +240,23 @@ def r05(room):
     for x, z in ((-4.7, -0.7), (4.7, -0.7), (-4.7, 6.7), (4.7, 6.7)):
         d.put("b1_post_lamp", [x, 0, z], solid=True)
     d.put("b1_cables", [-6.4, 0, 2.0], 90)
+    # 砂の吹きだまり（四隅と、崩れた通路の両脇）と、北の壁から外れて倒れた外装の板
+    for (x, z), yaw in (((-X, -Z), 0), ((-X, Z), 90), ((X, Z), 180), ((X, -Z), 270)):
+        d.put("sand_corner", [x, 0, z], yaw)
+    for a in (-5.2, 5.2):
+        d.at_wall("n", Z, a, "sand_wall")
+    d.put("panel_fallen", [-7.0, 0, Z - 0.38 - 0.02 - 0.95], 180, solid=True)
     # 上：梁と管、壁の灯
     beams(d, k, -X, X, 8.0, (-6.0, 0.0, 6.0))
     for side, plane in (("w", -X), ("e", X)):
         d.along(side, plane, -10.0, 10.0, "b1_pipe", y=6.8, off=0.62, scale=1.4)
         for a in (-6.0, 6.0):
             d.at_wall(side, plane, a, "b1_lantern", y=2.4, off=0.3, solid=True)
+            for da in (-0.42, 0.42):
+                drips(d, side, plane, a + da, 2.05, off=0.21)
+        # 上の管の継ぎ目の下（4 m の壁の板より上の、殻の壁）にさびの垂れ
+        for a in (-7.0, 1.0, 9.0):
+            drips(d, side, plane, a, 6.35, long=True)
     d.along("s", -Z, -8.0, -4.0, "b1_grate", off=0.5, every=4.0)
     d.along("s", -Z, 4.0, 8.0, "b1_grate", off=0.5, every=4.0)
     for pos, yaw, sc in (((-8.6, 0, -10.4), 35, 1.3), ((8.6, 0, -10.2), -30, 1.2), ((-8.8, 0, 6.0), 90, 1.4), ((8.7, 0, -2.0), 90, 1.1)):
@@ -285,8 +298,8 @@ def b2_upper(d, X, Z, H, sides=("w", "e"), y=None, ceiling_z=(), red=True):
         plane = {"w": -X, "e": X, "s": -Z, "n": Z}[side]
         a = Z if side in ("w", "e") else X
         d.along(side, plane, -a + 2.0, a - 2.0, "b2_pipe_drip", y=y, off=0.45, scale=1.25)
-    for i, z in enumerate(ceiling_z):
-        d.row("b2_beam_red" if (red and i % 2 == 1) else "b2_beam", [-X + 1.0, H, z], [2.0, 0, 0], int(round(X)))
+    for z in ceiling_z:
+        d.row("b2_beam_red" if red else "b2_beam", [-X + 1.0, H, z], [2.0, 0, 0], int(round(X)))
 
 
 def r06(room):
@@ -328,6 +341,11 @@ def r06(room):
     for z in (-6.0, 0.0, 6.0):
         for side, plane in (("w", -X), ("e", X)):
             d.at_wall(side, plane, z, "b2_guide")
+    # 上から落ちてきた B1 の外装の板（崩れた床の塊（形 5）にもたれる）と、壁ぎわの割れた管、南の隅の砂
+    d.put("panel_fallen", [-5.0, 0, -5.25 - 0.02 - 0.95], 180, solid=True)
+    d.snug("pipe_broken", 90, x1=X - 0.38, z=4.0)
+    d.put("sand_corner", [-X, 0, -Z], 0)
+    d.put("sand_corner", [X, 0, -Z], 270)
     # 生活感の小物：落ちてきた荷（B1 の回収の箱が一緒に落ちた）。宝箱（-8, 11）から 0.5 m 以上
     d.snug("b1_crate_cloth", 30 - 30, x=6.6, z=-10.6)
     d.put("b1_cables", [5.2, 0, -8.2], 40)
@@ -449,16 +467,13 @@ def r09(room):
         d.put("b2_puddle", pos, yaw, scale=[0.8, 1.0, 0.8])
     for x, z in ((-5.0, -2.0), (5.0, 5.0), (0.0, 1.5)):
         d.put("b2_steam", [x + 0.75, 6.6, z], rot=[180, 0, 0], shadow=False)
-    for side, plane in (("w", -X), ("e", X)):
-        for a in (-8.0, -2.0, 4.0):
-            d.at_wall(side, plane, a, "b2_guide")
     # 生活感の小物：南西の角に、前に誰かが積んだ箱（拾う物のセル（-8.5, -9）から 0.5 m 以上）
     W = X - 0.38
     d.snug("b1_crate", 0, x0=-W, z0=-(Z - 0.38))
     d.snug("cc0/cask", 0, x0=-W + 1.06, z0=-(Z - 0.38))
     # 崩れた白磁のかけら（隅）と、壁ぎわを這うケーブル
-    for pos, yaw in (((8.5, 0, -10.4), 20), ((-8.5, 0, 7.4), 110)):
-        d.put("b1_debris", pos, yaw, solid=True)
+    d.put("b1_debris", [-8.5, 0, 7.4], 110, solid=True)
+    d.snug("pipe_broken", 0, x1=X - 0.38, z0=-(Z - 0.38))
     d.put("b1_cables", [-9.3, 0, -4.0], 90)
     d.put("b1_cables", [9.3, 0, 1.0], 270)
     grime(d, corners_at=[(-X, -Z, 0), (X, -Z, 270), (-X, 9.2, 90), (X, 9.2, 180)], doors_at=[(0.0, -10.6, 0), (0.0, 8.0, 0)],
@@ -502,9 +517,6 @@ def r10(room):
         d.put("b2_puddle", pos, yaw, scale=[0.8, 1.0, 0.8])
     for x, z in ((-8.0, -4.0), (8.0, -4.0)):
         d.put("b2_steam", [x + 0.85, 6.4, z], rot=[180, 0, 0], shadow=False)
-    for side, plane in (("w", -X), ("e", X)):
-        for a in (-8.0, 0.0, 6.0):
-            d.at_wall(side, plane, a, "b2_guide")
     grime(d, corners_at=[(-X, -Z, 0), (X, -Z, 270), (-X, 9.2, 90), (X, 9.2, 180)], doors_at=[(0.0, -10.6, 0), (0.0, 8.0, 0)],
           path=[(0.0, -9.0), (0.0, 2.4), (0.0, 7.6)], spots=[(-6.0, 1.4, 0, 0.9), (6.0, 1.4, 0, 0.9), (0.0, 8.6, 0, 1.0)])
     room["kit"] = KITS[k]["kit"]
@@ -519,7 +531,7 @@ def r11(room):
     d = D.Dress()
     k = "b2"
     X, Z, H = 6.0, 6.0, 24.0
-    g[0]["skin"] = {"wall": "plate", "floor": "floor", "ceiling": "ceiling"}
+    g[0]["skin"] = {"wall": "panel", "floor": "floor", "ceiling": "ceiling"}       # 縦坑の高い壁は白磁の 2 m の板（上から垂れる筋）
     for i in range(1, 11):
         g[i]["skin"] = {"floor": "floor", "wall": "metal"}
     # 底の壁の列（北に出口の扉）
@@ -921,6 +933,7 @@ def r20(room):
     g[2]["skin"] = "metal"
     g[3]["skin"] = "metal"
     d.put("b4_core", [0.0, 0.0, 2.0])
+    d.put("b4_floor_rings", [0.0, 0.0, 2.0], scale=[0.6, 1.0, 0.6])        # 炉心のまわりの床の同心の輪（絵 ruins_core）
     for i in range(4, 12):
         g[i]["hide"] = True
         p = g[i]["pos"]
