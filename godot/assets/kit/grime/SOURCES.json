@@ -1,0 +1,74 @@
+{
+ "masks.png": {
+  "made_by": "tools/grime_masks.py",
+  "made": "2026-10-15",
+  "size": 512,
+  "note": "写真の色は使わず、形だけを 0〜1 に均した型（RGB grime・A chips）。素材はどれも CC0",
+  "sources": [
+   {
+    "channel": "rgb",
+    "mask": "grime",
+    "made_from": "dirty_concrete_520cf6cb/albedo.jpg",
+    "how": "暗い所（明るさの反転）をぼかした大きな斑",
+    "name": "Dirty Concrete",
+    "id": "520cf6cb-3819-4f39-89b1-c131f18e7682",
+    "license": "cc_zero",
+    "author": "Poly Haven",
+    "style": "realistic",
+    "page": "https://www.blenderkit.com/asset-gallery-detail/520cf6cb-3819-4f39-89b1-c131f18e7682/",
+    "fetched": "2026-10-14",
+    "file_type": "resolution_1K"
+   },
+   {
+    "channel": "a",
+    "mask": "chips",
+    "made_from": "white_rusted_metal_5ada52b3/albedo.jpg",
+    "how": "茶の欠けの形（暗い所）の縁をなめらかにしたもの",
+    "name": "White Rusted Metal",
+    "id": "5ada52b3-4c87-47b6-bda5-0ddd6fe9081c",
+    "license": "cc_zero",
+    "author": "Sovereign Artist",
+    "style": "realistic",
+    "page": "https://www.blenderkit.com/asset-gallery-detail/5ada52b3-4c87-47b6-bda5-0ddd6fe9081c/",
+    "fetched": "2026-10-14",
+    "file_type": "resolution_1K"
+   }
+  ]
+ },
+ "masks2.png": {
+  "made_by": "tools/grime_masks.py",
+  "made": "2026-10-15",
+  "size": 256,
+  "note": "写真の色は使わず、形だけを 0〜1 に均した型（RGB mottle・A streaks）。素材はどれも CC0",
+  "sources": [
+   {
+    "channel": "rgb",
+    "mask": "mottle",
+    "made_from": "white_plaster_02_0965c56c/albedo.jpg",
+    "how": "明暗をぼかしたむら",
+    "name": "White Plaster 02",
+    "id": "0965c56c-37d9-4ba4-b99f-ce08db2dce37",
+    "license": "cc_zero",
+    "author": "Poly Haven",
+    "style": "realistic",
+    "page": "https://www.blenderkit.com/asset-gallery-detail/0965c56c-37d9-4ba4-b99f-ce08db2dce37/",
+    "fetched": "2026-10-14",
+    "file_type": "resolution_1K"
+   },
+   {
+    "channel": "a",
+    "mask": "streaks",
+    "made_from": "rusty_metal_sheet_265a5e2e/albedo.jpg",
+    "how": "赤い所（R−B）を縦に長くぼかした筋",
+    "name": "Rusty Metal Sheet",
+    "id": "265a5e2e-151f-48f7-8f04-3348c7f92c1e",
+    "license": "cc_zero",
+    "author": "Poly Haven",
+    "style": "realistic",
+    "page": "https://www.blenderkit.com/asset-gallery-detail/265a5e2e-151f-48f7-8f04-3348c7f92c1e/",
+    "fetched": "2026-10-14",
+    "file_type": "resolution_1K"
+   }
+  ]
+ }
+}
