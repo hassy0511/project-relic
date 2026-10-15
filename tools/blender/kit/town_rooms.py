@@ -1283,6 +1283,34 @@ def gate_door() -> Part:
     return p
 
 
+# ---------------------------------------------------------------- 通りに渡す小旗の綱
+
+def bunting(L=10.0, sag=0.8, step=0.55) -> Part:
+    """通りの上に渡す小旗の綱（town_mood_day の赤い布の町）：たるんだ綱と三角の小旗（赤・濃い赤・麻の色を順に）。
+    原点 = 綱の両端の真ん中（両端は y 0、x ±L/2）。真ん中が sag 下がる。当たり判定なし（頭の上 5 m より高く渡す）"""
+    p = Part('bunting')
+    pts = sag_pts(L, sag, 24)
+    p.add('rope', tube(pts, 0.02, 5))
+    mats = ['cloth', 'cloth2', 'linen']
+    n = int(L / step)
+    for k in range(1, n):
+        x = -L / 2 + k * step
+        t = (x + L / 2) / L
+        y = -sag * 4 * t * (1 - t)
+        w, h = 0.36, 0.42
+        v = np.array([[x - w / 2, y, 0.0], [x + w / 2, y, 0.0], [x, y - h, 0.0]], float)
+        from town_geo import Piece, _orient_dir
+        tri = Piece(np.concatenate([v + [0, 0, 0.006], v - [0, 0, 0.006]]), [[0, 1, 2], [5, 4, 3]])
+        p.add(mats[k % 3], tri)
+    for x in (-L / 2, L / 2):
+        p.add('brass', cyl((x, -0.1, 0.0), (x, 0.1, 0.0), 0.05, 6))
+    return p
+
+
+def sag_pts(L, sag, n):
+    return [np.array([x, -sag * 4 * ((x + L / 2) / L) * (1 - (x + L / 2) / L), 0.0]) for x in np.linspace(-L / 2, L / 2, n + 1)]
+
+
 PARTS = {
     'grime_patch': grime_patch,
     'oil_patch': lambda: grime_patch('oil_decal', 'oil_patch'),
@@ -1295,4 +1323,5 @@ PARTS = {
     'mayor_set': mayor_set,
     'opening_set': opening_set,
     'gate_door': gate_door,
+    'bunting': bunting,
 }

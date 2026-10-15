@@ -478,6 +478,16 @@ def lower(room):
     return finish(room, d)
 
 
+def flags(d, a, b, y, sag=None):
+    """通りに渡す小旗の綱（town/bunting、長さ 10 m の部品を伸ばす）：a・b は両端の (x, z)、y は両端の高さ。真ん中は長さの 1/20 下がる"""
+    import math
+    dx, dz = b[0] - a[0], b[1] - a[1]
+    L = math.hypot(dx, dz)
+    yaw = math.degrees(math.atan2(-dz, dx))
+    sy = (sag if sag is not None else L / 20.0) / 0.8
+    d.put("bunting", [(a[0] + b[0]) / 2, y, (a[1] + b[1]) / 2], round(yaw, 2), scale=[L / 10.0, sy, 1.0])
+
+
 def lived_lower(d):
     """下段の暮らし（town_mood_day・town_facilities）：ハルの家の前のガラクタと鉢植え、訓練場の門の前の的の板と木箱、
     マーサの洗濯物、リフトの荷、胸壁の縁の係留柱とゲンのベンチ、禁足扉の前の柵の木箱。通り・戸口・住人・目印は空ける"""
@@ -523,6 +533,10 @@ def lived_lower(d):
     # 壁の垂れ幕（訓練場の門の西の面、東の棟 B の正面）
     d.put("banner", [-30.0, 4.2, 10.0], 270)
     d.put("banner", [41.0, 5.6, 7.0], 180)
+    # 小旗の綱（家の角から北の段の擁壁の面へ、洗濯屋からハルの家へ。どれも端は壁・屋根の縁に付き、いちばん低い所でも 5 m より上）
+    flags(d, (12.7, 5.8), (8.2, 15.95), 6.4)
+    flags(d, (-17.7, 5.8), (-8.2, 15.95), 6.4)
+    flags(d, (29.9, 2.95), (23.3, 5.8), 5.4, sag=0.4)
 
 
 def grime_lower(d):
@@ -637,6 +651,9 @@ def lived_upper(d):
     d.snug("planter", 0, x1=7.98, z1=27.98)
     d.snug("crate", 0, x0=-7.98, z=20.0)
     d.put("hand_lantern", [-7.51, 0.74, 20.0], solid=True)
+    # 町長の家とギルドの間（広場の上）の小旗の綱
+    flags(d, (-14.8, 4.2), (11.8, 4.2), 7.0, sag=1.2)
+    flags(d, (-14.8, 12.8), (11.8, 12.8), 7.0, sag=1.2)
 
 
 def grime_upper(d):
