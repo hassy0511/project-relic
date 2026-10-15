@@ -95,8 +95,8 @@ def smooth(t):
 
 def z_top(y):
     """背の面の高さ（船首 +30 m・船尾 +22 m へ持ち上がる。町の所は平ら）。絵の持ち上がり（4.5 px/m で +27・+20 m）とほぼ同じ"""
-    if y < -90:
-        z = 30.0 * smooth((-90.0 - y) / 70.0)
+    if y < -100:
+        z = 30.0 * smooth((-100.0 - y) / 62.0)
         if y < -194:
             z -= (-194.0 - y) * 1.0          # 船首の上の角の面取り
         return z
@@ -141,12 +141,17 @@ def z_knee_line(y):
     return min(z_band(y) + 12.0, z_top(y) - 2.5)
 
 
+# 形の関数の折れ目（ここには必ず断面を置く：背の面は y = -100〜118 で正確に平ら）
+KNOTS = (-194.0, -162.0, -150.0, -140.0, -110.0, -100.0, 118.0, 140.0, 150.0, 152.0, 160.0, 194.0)
+
+
 def stations(y0, y1, step=4.0):
-    """y0〜y1 の断面の位置。持ち上がる所・細る所（|y| が大きい所）だけ細かく"""
+    """y0〜y1 の断面の位置。持ち上がる所・細る所（y < -100、y > 118）だけ細かく"""
     ys = {y0, y1}
+    ys |= {k for k in KNOTS if y0 < k < y1}
     k = math.ceil(y0 / step) * step
     while k < y1:
-        if k < -95 or k > 112:
+        if k < -100 or k > 118:
             ys.add(float(k))
         k += step
     return sorted(ys)
@@ -457,7 +462,7 @@ def build_frame(pc):
                 xc = frame_x(y, zc) + 0.7
                 pc['amber'].append(boxr(sx * (xc + 1.15), sx * (xc + 1.5), y - 1.6, y + 1.6, zc - 0.5, zc + 0.5))
         # 船底の突起（下へ尖る）
-        for y in np.arange(-168.0, 190.0, 18.0):
+        for y in np.arange(-146.0, 190.0, 18.0):
             if any(abs(y - ym) < 12.0 for ym in MOUNTS.values()):
                 continue
             zb_ = z_bot(y)
@@ -474,6 +479,14 @@ def build_frame(pc):
                 pa = V3([sx * (half_w(ym) - 3.0), ym + dy, z_knee_line(ym) - 0.5])
                 pb = V3([sx * (frame_x(ym, zb_ - 6.0) + 0.5), ym + dy * 0.75, zb_ - 6.0])
                 pc['graphite'].append(bar(pa, pb, 3.0, 3.0, up=(sx, 0, 0)))
+    # 船首の下の斜めの面（あご）の白磁の板 3 列：前から見て、庇の下が黒い穴に見えないように
+    for y0, y1 in ((-197.0, -175.0), (-174.0, -152.0)):
+        for f0, f1 in ((-1.0, -0.36), (-0.32, 0.32), (0.36, 1.0)):
+            def chin(y, f0=f0, f1=f1):
+                w = half_w(y) - 17.0
+                zb = z_bot(y) - 1.0
+                return [(f1 * w, zb), (f0 * w, zb)]
+            pc['ivory'].append(plate(y0, y1, chin, PLATE_T, step=3.0))
     # 真ん中の竜骨と真鍮の管
     secs = []
     for y in stations(-150.0, 172.0, 8.0):
@@ -760,6 +773,7 @@ def build() -> dict:
     mats = make_materials()
     objs, meshes = {}, []
     tri_by_mat = {k: 0 for k in MAT_COLORS}
+    tri_by_group = {}
     for p in PARTS:
         rot = B.axis_matrix(p['axis'])
         piv = p['pivot'] * 100.0
@@ -768,7 +782,10 @@ def build() -> dict:
             nm = p['name'] if i == 0 else f"{p['name']}_{mk}"
             ob = B.new_object(nm, v * 100.0, f, mats[mk], piv, rot)
             metre_uv(ob)
-            tri_by_mat[mk] += sum(len(pl.vertices) - 2 for pl in ob.data.polygons)
+            nt = sum(len(pl.vertices) - 2 for pl in ob.data.polygons)
+            tri_by_mat[mk] += nt
+            grp = 'legs' if p['name'].startswith('leg_') else ('lift' if p['name'].startswith('lift') else p['name'])
+            tri_by_group[grp] = tri_by_group.get(grp, 0) + nt
             meshes.append(ob)
             if first is None:
                 first = ob
@@ -791,8 +808,11 @@ def build() -> dict:
     bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', export_yup=True, export_apply=False,
                               export_animations=False, use_selection=True)
     # 関節の位置（Godot の座標）
-    rig = {'ground_y': GROUND, 'deck': {'y': 0.0, 'x': [-(60.0 - RIM_W), 60.0 - RIM_W], 'z': [-118.0, 100.0]},
-           'rim_top_y': RIM_H, 'hull_half_width': 60.0, 'legs': {}}
+    deck_x = half_w(0.0) - RIM_W - 1.0      # 背の板の外の列の外の縁（その外は縁の白磁の角材）
+    rig = {'ground_y': GROUND, 'deck': {'y': 0.0, 'x': [-deck_x, deck_x], 'z': [-118.0, 100.0]},
+           'rim': {'x': [half_w(0.0) - RIM_W, half_w(0.0)], 'top_y': RIM_H}, 'hull_half_width': half_w(0.0),
+           'lift_landing': {'x': [-(half_w(LIFT_Y) - RIM_W), -(half_w(LIFT_Y) + 16.0)], 'z': [-(LIFT_Y + 9.0), -(LIFT_Y - 9.0)], 'top_y': 0.0},
+           'legs': {}}
     for p in PARTS:
         if p['name'].endswith('_shoulder') or p['name'].endswith('_knee') or p['name'].endswith('_ankle'):
             rig['legs'][p['name']] = to_gd(p['pivot'])
@@ -800,7 +820,7 @@ def build() -> dict:
     rig['lift'] = {'landing_top_y': 0.0, 'center': to_gd((-(half_w(LIFT_Y) + 10.2), LIFT_Y, -9.5))}
     rig['door'] = {'center': to_gd((0, 201.0, 0)), 'opening_m': [DOOR_W, DOOR_H]}
     os.makedirs(WORK, exist_ok=True)
-    info = {'triangles': tri, 'by_material': tri_by_mat, 'parts': len(PARTS), 'objects': len(meshes),
+    info = {'triangles': tri, 'by_material': tri_by_mat, 'by_group': tri_by_group, 'parts': len(PARTS), 'objects': len(meshes),
             'seconds': round(time.time() - t0, 1)}
     rig['info'] = info
     with open(os.path.join(WORK, 'rig.json'), 'w') as fh:
@@ -876,6 +896,9 @@ def render_review(out_dir):
         sc.render.filepath = rp
         bpy.ops.render.render(write_still=True)
         ren = Image.open(rp).convert('RGBA').resize((TILE_W, TILE_W))
+        if name == 'side_right':
+            # 右舷（リフトの側）を外から見ると船首が右に来る。絵の側面図は船首が左でリフトが見える（左右反転の描き方）ので、並べるために反転
+            ren = ren.transpose(Image.FLIP_LEFT_RIGHT)
         art = Image.open(os.path.join(SRC, f'ordo_3d_{name}.png')).convert('RGBA').resize((TILE_W, TILE_W))
         bg = (150, 155, 165, 255)
         row = Image.new('RGBA', (2 * TILE_W, TILE_W), bg)
@@ -883,7 +906,8 @@ def render_review(out_dir):
         row.alpha_composite(ren, (TILE_W, 0))
         dr = ImageDraw.Draw(row)
         dr.text((8, 8), f'art {name} (4.5 px/m)', fill=(20, 20, 20, 255))
-        dr.text((TILE_W + 8, 8), f'model {name} (same scale; heights follow spec)', fill=(20, 20, 20, 255))
+        note = ' / starboard, flipped like the art' if name == 'side_right' else ''
+        dr.text((TILE_W + 8, 8), f'model {name} (same 4.5 px/m; heights follow spec){note}', fill=(20, 20, 20, 255))
         rows.append(row)
     W = Image.new('RGBA', (2 * TILE_W, TILE_W * len(rows)), (40, 40, 44, 255))
     for k, r in enumerate(rows):
