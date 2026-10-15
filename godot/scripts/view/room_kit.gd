@@ -14,7 +14,6 @@ const SHADER_FADE := preload("res://assets/shaders/kit_surface_fade.gdshader")
 const SHADER_DETAIL := preload("res://assets/shaders/kit_surface_detail.gdshader")
 const SHADER_DETAIL_FADE := preload("res://assets/shaders/kit_surface_detail_fade.gdshader")
 const GLOW := preload("res://assets/shaders/kit_glow.gdshader")
-const DECAL := preload("res://assets/shaders/kit_decal.gdshader")
 ## 汚れ・傷みの層の型の絵（tools/grime_masks.py が CC0 の写真から作る）。1 枚目：RGB 汚れの斑・A 欠け、2 枚目：RGB むら・A 縦の筋
 const DETAIL_TEX := "res://assets/kit/grime/masks.png"
 const DETAIL_TEX2 := "res://assets/kit/grime/masks2.png"
@@ -22,6 +21,8 @@ const DETAIL_MAX := 4
 const DETAIL_MASKS := {"grime": 0, "chips": 1, "mottle": 2, "streaks": 3}
 const DETAIL_FACES := {"all": 0, "floor": 1, "wall": 2, "ceiling": 3}
 const DETAIL_MODES := {"paint": 0, "multiply": 1}
+## 汚れの斑の板（材質の "blend": "decal"。町の部品 town/grime_patch・town/oil_patch。2026-10-15 の町の展開、42 章 14.2.1）
+const DECAL := preload("res://assets/shaders/kit_decal.gdshader")
 
 ## 読んだキットと部品の置き場。終了のときに一緒に消えるよう、static var ではなく木の根（root）のメタに持つ
 ##   kits：キットの id → { id, data, surf: { 面の名前: Material }, mats: { 部品の材質の名前: Material } }
@@ -97,19 +98,15 @@ static func inherit(data: Dictionary) -> Dictionary:
 ##   "tint_mix": 0, "macro": 0, "tex_strength": 1, "seams": { "every": [2, 1.33], "width": 0.04, "color": "#444641" },
 ##   "emission": { "color": "#ffbc52", "energy": 3 } }
 ##   光の筋（"blend": "add"）：{ "blend": "add", "color", "strength": 0.25, "fade_m": 7 }（kit_glow.gdshader）
+##   汚れの斑の板（"blend": "decal"）：{ "blend": "decal", "color", "amount", "cover", "edge", "uv_m", "falloff": [内, 外], "fade_far", "roughness" }（kit_decal.gdshader）
 ##   "near_fade": [0.8, 1.5]：カメラから 0.8 m より近い所を網目で消し、1.5 m で元に戻す（当たり判定の無い飾りの部品の材質に付ける。
 ##   日よけ・柱・灯がカメラの前を塞がない）。網目は discard を使うので、軽さを優先するスマホ・ブラウザ版（gl_compatibility）では付けない
 ##   "detail": [ 層, … ]（4 つまで）：汚れ・傷みの層（_set_detail・42 章 14.2.1）。無ければ今までのシェーダーのまま（見た目は変わらない）
 static func make_material(def: Dictionary) -> Material:
 	var m := ShaderMaterial.new()
-	if def.get("blend", "") == "add":
-		m.shader = GLOW
-		m.set_shader_parameter("color", Color(def.get("color", "#ffd9a0")))
-		m.set_shader_parameter("strength", float(def.get("strength", 0.25)))
-		m.set_shader_parameter("fade_m", float(def.get("fade_m", 7.0)))
-		return m
 	if def.get("blend", "") == "decal":
-		# 汚れの斑の板（town/grime_patch）：下の床の上に汚れの色を半透明で重ねる（kit_decal.gdshader。42 章 14.2.1）
+		# 汚れの斑の板（"blend": "decal"、town/grime_patch・town/oil_patch）：下の床の上に汚れの色を半透明で重ねる
+		# （kit_decal.gdshader。掛け算の半透明はブラウザ版の描き方で黒く塗られたので、光を受ける普通の半透明。42 章 14.2.1）
 		m.shader = DECAL
 		m.set_shader_parameter("detail_tex", load(String(def.get("detail_tex", DETAIL_TEX))))
 		m.set_shader_parameter("color", Color(def.get("color", "#a08a70")))
@@ -121,6 +118,12 @@ static func make_material(def: Dictionary) -> Material:
 		m.set_shader_parameter("falloff", Vector2(float(fo[0]), float(fo[1])))
 		m.set_shader_parameter("fade_far", float(def.get("fade_far", 70.0)))
 		m.set_shader_parameter("roughness_value", float(def.get("roughness", 0.95)))
+		return m
+	if def.get("blend", "") == "add":
+		m.shader = GLOW
+		m.set_shader_parameter("color", Color(def.get("color", "#ffd9a0")))
+		m.set_shader_parameter("strength", float(def.get("strength", 0.25)))
+		m.set_shader_parameter("fade_m", float(def.get("fade_m", 7.0)))
 		return m
 	var layers := detail_layers(def)
 	m.shader = SHADER if layers.is_empty() else SHADER_DETAIL

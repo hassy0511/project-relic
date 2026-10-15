@@ -323,9 +323,8 @@ const SOLID_CLASS := ["ruins/b1_crate", "ruins/b1_crate_cloth", "town/crate", "t
 	"town/bench", "town/stall_table", "town/junk_pile", "town/tool_rack", "town/water_tower", "town/pipes",
 	"town/lamp_post", "town/lamp_tall", "town/tank", "town/stool", "town/pipe_bend", "town/bollard", "ruins/b1_post_lamp",
 	"town/sacks", "cc0/cask", "cc0/plank_box"]
-## 飾りのある部屋（キットの部屋）。町の 9 部屋は 2026-10-15 の展開で足した
-const DRESSED := ["ch1.r02", "ch1.r03", "ch1.mid", "ch1.opening", "ch1.training", "ch1.lower", "ch1.upper", "ch1.home", "ch1.workshop",
-	"ch1.guild", "ch1.mayor", "ch1.r01"]
+## 飾りのある部屋（キットの部屋）
+const DRESSED := ["ch1.r02", "ch1.r03", "ch1.mid"]
 ## 足した箱と、出口・トリガーの箱の間（m）／目印・チェックポイント・敵の出る所から／調べる物・拾う物・住人から（tools/dress_solid.py と同じ）
 const CLEAR_BOX := 0.1
 const CLEAR_MARK := 0.6
@@ -342,6 +341,8 @@ const JUMP_ACROSS := 6.5
 ## 整備通路の溝（z の範囲）と、壁の帯の面（|x|）
 const R03_PITS := [[-13.0, -11.5], [-7.0, -4.5], [-0.5, 3.0], [7.5, 10.5], [13.5, 16.0]]
 const R03_LINER := 2.64
+## 町の残りの 9 部屋（2026-10-15 の町の展開、tools/dress_town.py。42 章 14.7）。test_dress_solid_props で DRESSED と一緒に確かめる
+const DRESSED_TOWN := ["ch1.opening", "ch1.training", "ch1.lower", "ch1.upper", "ch1.home", "ch1.workshop", "ch1.guild", "ch1.mayor", "ch1.r01"]
 
 
 ## 形の床の上の広がり：[中心 x, 中心 z, 半幅 x, 半幅 z, yaw（ラジアン）, 下の y, 上の y]
@@ -513,7 +514,7 @@ func _nogo_reach(room: Dictionary) -> Array:
 ## 整備通路の溝と、溝の縁から 1.5 m（着地・踏み切り・跳んでいる所）では、頭の届く高さに壁の帯より前へ出た箱が無い
 func test_dress_solid_props() -> void:
 	var w := World.load_manifest("res://content/world.json")
-	for rid in DRESSED:
+	for rid in DRESSED + DRESSED_TOWN:
 		var room := w.room(rid)
 		var geo: Array = room.get("geometry", [])
 		var dress: Array = room.get("dress", [])

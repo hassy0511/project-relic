@@ -125,7 +125,7 @@ func _sign_board(game: GameSim, p: Dictionary, m: Dictionary, lb: Label3D) -> vo
 ## 部屋の仕掛け：扉・出口・スイッチ・動く足場・端末・置いてある物
 func _build_world_objects(game: GameSim) -> void:
 	var metal := MeshKit.mat(Color("#8c8478"), 0.4, 0.5)
-	# 扉の "part"（キットの部品。原点 = 扉の箱の下の中心、正面 +Z）：箱と灯の帯の代わりに部品で描く（下段の禁足扉。42 章 14.3）
+	# 扉の "part"（キットの部品。原点 = 扉の箱の下の中心、正面 +Z）：箱と灯の帯の代わりに部品で描く（下段の禁足扉。42 章 14.1）
 	var door_parts := {}
 	for p in game.room.get("props", []):
 		if p.get("type", "") == "door" and p.has("part"):
@@ -157,7 +157,7 @@ func _build_world_objects(game: GameSim) -> void:
 	for m in game.movers:
 		var mi := MeshKit.add(self, MeshKit.box(m.size), MeshKit.mat(Color("#a79b86"), 0.5, 0.3), m.pos + Vector3(0, m.size.y * 0.5, 0))
 		_movers[m] = mi
-	# 端末の "hide": true は、箱と光る画面を描かない（部屋の飾りが同じ所に物を置く：ベッドの横の台・作業台・望遠鏡・リフトの操作盤。42 章 14.3）
+	# 端末の "hide": true は、箱と光る画面を描かない（部屋の飾りが同じ所に物を置く：ベッドの横の台・作業台・望遠鏡・リフトの操作盤。42 章 14.1）
 	var hidden := {}
 	for p in game.room.get("props", []):
 		if p.get("type", "") == "terminal" and p.get("hide", false):
