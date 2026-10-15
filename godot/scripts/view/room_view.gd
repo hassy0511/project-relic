@@ -37,7 +37,11 @@ static func build(world: World, room_id: String) -> Node3D:
 	return root
 
 
-## geometry：{ faces, tints? }。tints が無ければ既定の色
+## geometry：{ faces, tints? }。tints が無ければ既定の色。
+## 面の三角形 a,b,c は RoomGeo の向き（(b-a)×(c-a) が外向きの法線）。Godot は時計回りが表なので、c と b を入れ替えて足す
+## （RoomKit._tri と同じ）。前は a,b,c の順のまま足して表と裏が逆になり、灰色の部屋の箱が裏返しに描かれた
+## （手前の面が消えて奥の面の裏が見え、床は暗く、段・溝・坂の形が読み取りにくかった。2026-10-15、
+## docs/progress_shots/stage/grey_rooms_winding_before_after.jpg）
 static func mesh_node(geo: Dictionary) -> MeshInstance3D:
 	var by_tint := {}
 	var tints: Array = geo.get("tints", [])
@@ -53,7 +57,7 @@ static func mesh_node(geo: Dictionary) -> MeshInstance3D:
 		for faces in by_tint[c]:
 			for i in range(0, faces.size(), 3):
 				var n: Vector3 = (faces[i + 1] - faces[i]).cross(faces[i + 2] - faces[i]).normalized()
-				for k in 3:
+				for k in [0, 2, 1]:
 					st.set_normal(n)
 					st.add_vertex(faces[i + k])
 		var m := ShaderMaterial.new()
