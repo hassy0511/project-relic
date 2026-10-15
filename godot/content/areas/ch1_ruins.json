@@ -29240,8 +29240,8 @@
      ],
      "tint": "#5a4a3a",
      "skin": {
-      "wall": "metal",
-      "floor": "plate"
+      "wall": "plate",
+      "floor": "metal"
      }
     },
     {
@@ -29258,8 +29258,8 @@
      ],
      "tint": "#5a4a3a",
      "skin": {
-      "wall": "metal",
-      "floor": "plate"
+      "wall": "plate",
+      "floor": "metal"
      }
     },
     {
@@ -29275,7 +29275,11 @@
       2.4
      ],
      "tint": "#3d3429",
-     "skin": "metal"
+     "skin": {
+      "wall": "plate",
+      "floor": "metal",
+      "ceiling": "metal"
+     }
     },
     {
      "t": "box",
@@ -29290,7 +29294,11 @@
       2.4
      ],
      "tint": "#3d3429",
-     "skin": "metal"
+     "skin": {
+      "wall": "plate",
+      "floor": "metal",
+      "ceiling": "metal"
+     }
     },
     {
      "t": "box",
@@ -29305,7 +29313,11 @@
       2.4
      ],
      "tint": "#3d3429",
-     "skin": "metal"
+     "skin": {
+      "wall": "plate",
+      "floor": "metal",
+      "ceiling": "metal"
+     }
     },
     {
      "t": "box",
@@ -29320,7 +29332,11 @@
       2.4
      ],
      "tint": "#3d3429",
-     "skin": "metal"
+     "skin": {
+      "wall": "plate",
+      "floor": "metal",
+      "ceiling": "metal"
+     }
     },
     {
      "t": "box",
@@ -29335,7 +29351,11 @@
       2.4
      ],
      "tint": "#3d3429",
-     "skin": "metal"
+     "skin": {
+      "wall": "plate",
+      "floor": "metal",
+      "ceiling": "metal"
+     }
     },
     {
      "t": "box",
@@ -29350,7 +29370,11 @@
       2.4
      ],
      "tint": "#3d3429",
-     "skin": "metal"
+     "skin": {
+      "wall": "plate",
+      "floor": "metal",
+      "ceiling": "metal"
+     }
     },
     {
      "t": "box",
@@ -33043,8 +33067,8 @@
      ],
      "tint": "#5a4a3a",
      "skin": {
-      "wall": "metal",
-      "floor": "plate"
+      "wall": "plate",
+      "floor": "metal"
      }
     },
     {
@@ -33061,8 +33085,8 @@
      ],
      "tint": "#5a4a3a",
      "skin": {
-      "wall": "metal",
-      "floor": "plate"
+      "wall": "plate",
+      "floor": "metal"
      }
     },
     {
@@ -35665,14 +35689,14 @@
     {
      "t": "box",
      "pos": [
-      -4.809,
+      -4.5,
       0.0,
-      5.316
+      5.125
      ],
      "size": [
-      0.686,
-      0.28,
-      0.831
+      2.0,
+      0.55,
+      0.95
      ],
      "hide": true,
      "tint": "#5a5048",
@@ -35681,50 +35705,56 @@
     {
      "t": "box",
      "pos": [
-      -4.915,
+      -4.75,
       0.0,
-      4.586
+      5.62
      ],
      "size": [
-      0.77,
-      0.24,
-      0.733
+      1.5,
+      0.55,
+      0.04
      ],
+     "fill": true,
+     "wall": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 39
+     "dress": 0
     },
     {
      "t": "box",
      "pos": [
-      -4.437,
+      -3.75,
       0.0,
-      5.026
+      5.62
      ],
      "size": [
-      0.566,
-      0.2,
-      0.561
+      0.5,
+      0.55,
+      0.04
      ],
+     "fill": true,
+     "wall": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 39
+     "dress": 1
     },
     {
      "t": "box",
      "pos": [
-      -5.33,
+      -5.57,
       0.0,
-      5.286
+      5.125
      ],
      "size": [
-      0.628,
-      0.3,
-      0.588
+      0.14,
+      0.55,
+      0.95
      ],
+     "fill": true,
+     "wall": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 39
+     "dress": 7
     },
     {
      "t": "box",
@@ -36373,14 +36403,37 @@
      ]
     },
     {
-     "part": "ruins/b1_debris",
+     "part": "ruins/panel_fallen",
      "pos": [
-      -4.8,
+      -4.5,
       0.0,
-      5.0
+      4.65
      ],
-     "yaw": 70,
+     "yaw": 180,
      "solid": true
+    },
+    {
+     "part": "ruins/stain_soot",
+     "pos": [
+      3.6,
+      0.0,
+      6.0
+     ],
+     "yaw": 180,
+     "scale": [
+      1.2,
+      1.0,
+      1.0
+     ]
+    },
+    {
+     "part": "ruins/stain_soot",
+     "pos": [
+      6.0,
+      0.0,
+      2.0
+     ],
+     "yaw": 270
     },
     {
      "part": "ruins/b1_cables",
@@ -39255,6 +39308,33 @@
      ],
      "yaw": 25,
      "solid": true
+    },
+    {
+     "part": "ruins/b1_cables",
+     "pos": [
+      -3.4,
+      0.0,
+      0.6
+     ],
+     "yaw": 10
+    },
+    {
+     "part": "ruins/b1_cables",
+     "pos": [
+      3.4,
+      0.0,
+      -0.4
+     ],
+     "yaw": 190
+    },
+    {
+     "part": "ruins/b1_cables",
+     "pos": [
+      -6.2,
+      0.0,
+      1.4
+     ],
+     "yaw": 20
     },
     {
      "part": "ruins/stain_corner",

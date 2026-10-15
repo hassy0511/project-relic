@@ -29,7 +29,7 @@
   "metal": {"albedo": "res://assets/kit/tex/ruins_pipe_metal.jpg", "uv_m": 2.0, "color": "#ffffff", "tex_strength": 0.35, "roughness": 0.5, "metallic": 0.2,
             "seams": {"every": [1.0, 1.0], "width": 0.04, "color": "#1d1d1b"},
             "detail": [{"mask": "grime", "uv_m": 2.0, "cover": 0.9, "feet": [0.0, 0.8], "color": "#2e2622", "mode": "multiply", "amount": 0.5}]},
-  "rail": {"albedo": "res://assets/kit/tex/ruins_pipe_metal.jpg", "uv_m": 2.0, "color": "#8a7a5a", "tex_strength": 0.3, "roughness": 0.5, "metallic": 0.1,
+  "rail": {"albedo": "res://assets/kit/tex/ruins_pipe_metal.jpg", "uv_m": 2.0, "color": "#9a8458", "tex_strength": 0.3, "roughness": 0.85, "metallic": 0.0,
            "seams": {"every": [2.0, 0.0], "width": 0.05, "color": "#2a2420"}},
   "grate": {"albedo": "res://assets/kit/tex/ruins_rust_grate.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.7, "metallic": 0.2},
   "sand": {"albedo": "res://assets/kit/tex/ruins_sandy_floor.jpg", "uv_m": 4.0, "color": "#e2c2a0", "roughness": 0.95},

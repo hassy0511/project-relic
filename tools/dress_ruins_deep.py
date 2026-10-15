@@ -673,10 +673,11 @@ def r13(room):
     k = "b3"
     X, Z, H = 10.0, 15.0, 12.0
     g[1]["skin"] = {"wall": "plate", "floor": "floor"}
+    # 台と壁の歯車箱は白磁の板（黒鉛の面だと、壁に黒い箱が並んで見えた）
     for i in (2, 3):
-        g[i]["skin"] = {"wall": "metal", "floor": "plate"}
+        g[i]["skin"] = {"wall": "plate", "floor": "metal"}
     for i in range(4, 10):
-        g[i]["skin"] = "metal"
+        g[i]["skin"] = {"wall": "plate", "floor": "metal", "ceiling": "metal"}
     # 壁の列（壁の歯車箱の当たり判定は形のまま。壁の部品は 0〜4 m）
     b3_shell(d, k, X, Z, s_door=0.0, n_door=0.0)
     # 上の段：大きな歯車（北の壁・南の壁の上、届かない高さ）と、壁の歯車箱の横の小さな歯車
@@ -754,7 +755,7 @@ def r15(room):
         p = g[i]["pos"]
         d.put("b3_pillar", [p[0], 0, p[2]], scale=[2.667, 2.25, 2.667])
     for i in (4, 5):
-        g[i]["skin"] = {"wall": "metal", "floor": "plate"}
+        g[i]["skin"] = {"wall": "plate", "floor": "metal"}
     g[6]["skin"] = "metal"
     b3_shell(d, k, X, Z, s_door=0.0, n_door=0.0, skip_e=[(9.0, 11.0)])
     # 伝導路：壁の足元の駆動梁（琥珀の灯）と天井の梁、上の段の管
@@ -811,7 +812,10 @@ def r16(room):
         d.at_wall("w", -X, 0.0, "b1_redlight", y=y, off=0.05)
         d.at_wall("e", X, 0.0, "b1_redlight", y=y, off=0.05)
     beams(d, k, -X, X, H, (-3.0, 3.0))
-    d.put("b1_debris", [-4.8, 0, 5.0], 70, solid=True)
+    # 待ち伏せの跡：北の壁から外れて倒れた外装の板（突撃型がぶつかった）、壁と床のすす、ケーブル
+    d.put("panel_fallen", [-4.5, 0, Z - 0.38 - 0.02 - 0.95], 180, solid=True)
+    d.at_wall("n", Z, 3.6, "stain_soot", y=0.0, scale=[1.2, 1.0, 1.0])
+    d.at_wall("e", X, 2.0, "stain_soot", y=0.0)
     d.put("b1_cables", [4.6, 0, -1.4], 90)
     grime(d, corners_at=[(-X, Z, 90), (X, Z, 180)], doors_at=[(0.0, 4.6, 0)],
           spots=[(0.0, 0.4, 0, 1.2)])
@@ -879,6 +883,9 @@ def r18(room):
     d.along("s", -Z, -9.0, 9.0, "b4_band", y=5.4, every=2.0)
     beams(d, k, -X, X, H, (-8.0, -2.0, 4.0))
     d.put("b1_debris", [-8.6, 0, -10.6], 25, solid=True)
+    # 診断の台（形 3・4）から壁の柱へ這うケーブル（古い整備の跡）
+    for pos, yaw in (((-3.4, 0, 0.6), 10), ((3.4, 0, -0.4), 190), ((-6.2, 0, 1.4), 20)):
+        d.put("b1_cables", pos, yaw)
     grime(d, corners_at=[(-X, -Z, 0), (X, -Z, 270), (-X, 9.3, 90), (X, 9.3, 180)], doors_at=[(0.0, -10.6, 0), (0.0, 8.0, 0)],
           path=[(0.0, -9.0), (0.0, -2.6), (0.0, 7.6)], spots=[(-5.0, 4.4, 0, 0.8)])
     room["kit"] = KITS[k]["kit"]
