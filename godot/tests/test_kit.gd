@@ -187,7 +187,7 @@ func test_kit_detail_materials() -> void:
 				var has: bool = sh == RoomKit.SHADER_DETAIL or sh == RoomKit.SHADER_DETAIL_FADE
 				ok = ok and has == def.has("detail")
 				n += 1 if has else 0
-		h.expect(ok, "キット %s：層を書いた材質（%d）だけが層つきのシェーダー" % [id, n])
+		h.expect(ok and n > 0, "キット %s：層を書いた材質（%d）だけが層つきのシェーダー" % [id, n])
 	# 面の UV2：形の下の端からの高さと、上の端までの深さ
 	var root := RoomView.build(_world(_room({"kit": "ruins_b1", "dress": [{"part": "ruins/b1_crate", "pos": [-4, 0, -4]}]})), "k.a")
 	var surf := root.get_node("KitSurfaces") as MeshInstance3D
