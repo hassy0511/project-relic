@@ -1,4 +1,4 @@
-// キットの面の材質の「汚れ・傷みの層」（材質の "detail"。RoomKit.make_material が値を入れる。書き方は 42 章 14.2）。
+// キットの面の材質の「汚れ・傷みの層」（材質の "detail"。RoomKit.make_material が値を入れる。書き方は 42 章 14.2.1）。
 // kit_surface.gdshaderinc が DETAIL を定義した版（kit_surface_detail*.gdshader）だけで読む。"detail" の無い材質は今までのシェーダーのまま。
 //
 // 型の絵（tools/grime_masks.py が CC0 の写真から作る）は 2 枚に 4 つの型：

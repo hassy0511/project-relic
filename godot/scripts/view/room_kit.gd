@@ -63,7 +63,7 @@ static func load_kit(id: String) -> Dictionary:
 ##   光の筋（"blend": "add"）：{ "blend": "add", "color", "strength": 0.25, "fade_m": 7 }（kit_glow.gdshader）
 ##   "near_fade": [0.8, 1.5]：カメラから 0.8 m より近い所を網目で消し、1.5 m で元に戻す（当たり判定の無い飾りの部品の材質に付ける。
 ##   日よけ・柱・灯がカメラの前を塞がない）。網目は discard を使うので、軽さを優先するスマホ・ブラウザ版（gl_compatibility）では付けない
-##   "detail": [ 層, … ]（4 つまで）：汚れ・傷みの層（_set_detail・42 章 14.2）。無ければ今までのシェーダーのまま（見た目は変わらない）
+##   "detail": [ 層, … ]（4 つまで）：汚れ・傷みの層（_set_detail・42 章 14.2.1）。無ければ今までのシェーダーのまま（見た目は変わらない）
 static func make_material(def: Dictionary) -> Material:
 	var m := ShaderMaterial.new()
 	if def.get("blend", "") == "add":
