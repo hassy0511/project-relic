@@ -5,13 +5,14 @@
 直し方（どれも数値で決まり、何度流しても同じ物ができる）：
   1. 元の材質ごとに、キットの材質の名前（wood・wood2・brass・graphite・ivory・cloth・linen・dark・amber）を決める（表 SPEC の "mats"）。
      写実の物（絵の材質）は、面ごとに絵の色を読んで、明るさと鮮やかさで振り分ける（"classify"）。写真の色・模様は使わない
-  2. 三角形を減らす：同じ平面の細かい面をまとめ（材質の境は残す）、残りを縮約（collapse）で目当ての数まで
+  2. 三角形を減らす：同じ平面の細かい面をまとめ（材質の境は残す）、残りを縮約（collapse）で目当ての数まで。
+     樽（"lathe"）は縮約すると板と輪がばらばらに崩れるので、元の形の高さごとの半径と輪の高さを読み取り、回転体で組み直す
   3. 2 m の格子に合わせた大きさ（"height" か "width"）、原点は底の中心、正面は +Z
   4. town_geo.write_glb で書き出す（平らな色は頂点の色の flat、黒鉛と真鍮は metal、灯の芯は amber。町と遺構のキットの同じ名前の材質と汚れの層が付く）
 出所は godot/assets/kit/cc0/SOURCES.json（名前・id・作者・ライセンス・取得日、作った道具と日付）。CC0 でなければ書かない。
 
-  .venv-blender/bin/python tools/blender/kit/cc0_props.py              全部
-  .venv-blender/bin/python tools/blender/kit/cc0_props.py --only barrel_b
+  .venv-blender/bin/python tools/blender/kit/cc0_props.py              残す物（KEEP）を godot/assets/kit/cc0/ に
+  .venv-blender/bin/python tools/blender/kit/cc0_props.py --only cask
   .venv-blender/bin/python tools/blender/kit/cc0_props.py --all        残さないと決めた物（DROPPED）も build/cc0_props/ に作る（比べの画像用）
   .venv-blender/bin/python tools/blender/kit/cc0_props.py --gallery    確認ページ用の tools/model_viewer/kit_cc0.glb も作る
 """
@@ -46,10 +47,10 @@ def _wood_or_metal(rgb):
 
 # 素材ごとの直し方。mats：元の材質の名前の頭 → キットの材質。tris：三角形の目当て。height / width：大きさ（m）。yaw：正面を +Z へ
 SPEC = {
-    'cask': dict(dir='barrel_053353d1', file='model.glb', height=1.0, tris=4000, dissolve=False,
-                     lathe={'body': 'wood2', 'hoop': 'brass', 'hoop_from': ('graphite', 'brass'), 'lid': 'wood', 'rows': 8, 'segs': 12},
-                     mats={'barrel': 'wood2', 'grid wooden': 'wood', 'wooden clip': 'graphite', 'metal clip': 'brass'},
-                     note='膨らみの大きい樽。縮約すると板と輪が崩れたので、元の輪郭（高さごとの半径）と輪の高さから回転体で組み直した。胴は明るい板、輪は真鍮'),
+    'cask': dict(dir='barrel_053353d1', file='model.glb', height=1.0, tris=300, dissolve=False,
+                 lathe={'body': 'wood2', 'hoop': 'brass', 'hoop_from': ('graphite', 'brass'), 'lid': 'wood', 'rows': 8, 'segs': 12},
+                 mats={'barrel': 'wood2', 'grid wooden': 'wood', 'wooden clip': 'graphite', 'metal clip': 'brass'},
+                 note='膨らみの大きい樽。縮約すると板と輪が崩れたので、元の輪郭（高さごとの半径）と輪の高さから回転体で組み直した。胴は明るい板、輪は真鍮'),
     'slat_crate': dict(dir='lp_box_140d036b', file='model.glb', height=0.62, tris=600, dissolve=False,
                        mats={'Wood_B': 'wood2', 'Wood_C': 'wood', 'Wood_D': 'graphite'},
                        note='板を打ち付けた木箱'),
@@ -65,7 +66,7 @@ SPEC = {
     'wine_barrel': dict(dir='wine_barrel_01_05d7206c', file='model.glb', height=1.0, tris=500, dissolve=False, classify=_wood_or_metal,
                         note='写実の樽を平らな色に（比べ）'),
     'plank_box': dict(dir='wooden_crate_01_bc3c8bf5', file='model.glb', height=0.6, tris=500, dissolve=False, classify=_wood_or_metal,
-                       note='写実の木箱（長持ち形）を平らな色に。絵の色を面ごとに読んで、木と金物に振り分けた'),
+                      note='写実の木箱（長持ち形）を平らな色に。絵の色を面ごとに読んで、木と金物に振り分けた'),
 }
 
 
@@ -217,9 +218,7 @@ def restyle(name, out_path):
         bpy.ops.mesh.dissolve_limited(angle_limit=math.radians(4.0), delimit={'MATERIAL'})
     bpy.ops.mesh.quads_convert_to_tris()
     bpy.ops.object.mode_set(mode='OBJECT')
-    tris = len(me.polygons)
-    print(f'[cc0] {name}: 面をまとめて {tris} 三角形', flush=True)
-    for _ in range(3):
+    for _ in range(0 if spec.get('lathe') else 3):       # 回転体で組み直す物は縮約しない（頂点の位置だけを使う）
         if len(me.polygons) <= spec['tris'] * 1.05:
             break
         mod = ob.modifiers.new('dec', 'DECIMATE')
