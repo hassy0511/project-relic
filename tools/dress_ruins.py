@@ -90,9 +90,9 @@ def light(pos, color="#ffbc52", rng=8.0, energy=1.2):
 def r02(room):
     """ジャンク溜まり（26×26×8 の殻）。南・北に出口の扉、東に近道エレベーター、西の壁に停止した大型ファン"""
     g = room["geometry"]
-    # 形：0 殻、1 エレベーターの扉、2〜9 がらくたの山、10・11 折れた柱
+    # 形：0 殻、1 エレベーターの扉、2〜9 がらくたの山、10・11 折れた柱、12 山の角と柱の角の間をふさぐ箱（山と同じ見た目）
     g[1]["skin"] = "metal"
-    for i in (2, 4, 6, 7, 8, 9):
+    for i in (2, 4, 6, 7, 8, 9, 12):
         g[i]["skin"] = {"wall": "plate", "floor": "sandfloor"}
     for i in (3, 5):
         g[i]["skin"] = {"wall": "metal", "floor": "floor"}
