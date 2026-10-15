@@ -32,6 +32,8 @@ MATERIALS: dict[str, dict] = {
     'desert':   dict(color='#BC5636', rough=1.0),      # 遠景の砂（空の絵の下の砂の色）
     'hull':     dict(color='#E2D6BE', rough=0.85),     # オルドの外殻（遠景。キットで大きな板の絵を貼る）
     'shell':    dict(color='#E9DFC9', rough=0.8),      # 家・擁壁の大きな面（キットで部屋の壁と同じ白磁の絵を貼る。town_terrace）
+    'grime_decal': dict(color='#8A7058', rough=1.0),   # 汚れの斑の板（town_rooms.grime_patch。キットの "blend": "mul" の材質で床の色に掛ける）
+    'oil_decal': dict(color='#4E4640', rough=1.0),     # 油じみの斑の板（town_rooms.oil_patch）
 }
 
 

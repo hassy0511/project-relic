@@ -14,6 +14,7 @@ const SHADER_FADE := preload("res://assets/shaders/kit_surface_fade.gdshader")
 const SHADER_DETAIL := preload("res://assets/shaders/kit_surface_detail.gdshader")
 const SHADER_DETAIL_FADE := preload("res://assets/shaders/kit_surface_detail_fade.gdshader")
 const GLOW := preload("res://assets/shaders/kit_glow.gdshader")
+const DECAL := preload("res://assets/shaders/kit_decal.gdshader")
 ## 汚れ・傷みの層の型の絵（tools/grime_masks.py が CC0 の写真から作る）。1 枚目：RGB 汚れの斑・A 欠け、2 枚目：RGB むら・A 縦の筋
 const DETAIL_TEX := "res://assets/kit/grime/masks.png"
 const DETAIL_TEX2 := "res://assets/kit/grime/masks2.png"
@@ -46,6 +47,8 @@ static func load_kit(id: String) -> Dictionary:
 		_kits[id] = {}
 		return {}
 	var data: Dictionary = U.load_json(path)
+	if data.has("base"):
+		data = inherit(data)
 	var kit := {"id": id, "data": data, "surf": {}, "mats": {}}
 	var surfaces: Dictionary = data.get("surfaces", {})
 	for k in surfaces:
@@ -55,6 +58,39 @@ static func load_kit(id: String) -> Dictionary:
 		kit.mats[k] = make_material(mats[k])
 	_kits[id] = kit
 	return kit
+
+
+## キットの "base"（別のキットの id）：そのキットの JSON を元にして、この JSON の項目で上書きする（"surfaces"・"materials" は名前ごと、
+## ほかの項目は丸ごと）。"detail_scale"：元のキットの面・材質の汚れの層（"detail"）の強さ "amount" に掛ける数
+## （{"amount": 1.2, "cover": 1.1} なら覆う割合 "cover" にも。どれも 1 まで）。この JSON に書いた面・材質には掛けない。
+## 同じ町のキットで、部屋ごとに汚れを強く・弱くする（町長の家・上段は弱く、工房は強く。42 章 14.2.1）
+static func inherit(data: Dictionary) -> Dictionary:
+	var path := KIT_PATH % String(data.base)
+	if not FileAccess.file_exists(path):
+		push_warning("元のキットが無い: %s" % path)
+		return data
+	var base: Dictionary = U.load_json(path)
+	if base.has("base"):
+		base = inherit(base)
+	var out: Dictionary = base.duplicate(true)
+	var sc = data.get("detail_scale", 1.0)
+	var k_amount := float(sc.get("amount", 1.0)) if sc is Dictionary else float(sc)
+	var k_cover := float(sc.get("cover", 1.0)) if sc is Dictionary else 1.0
+	for group in ["surfaces", "materials"]:
+		var g: Dictionary = out.get(group, {})
+		for name in g:
+			for l in detail_layers(g[name]):
+				if l.has("amount") or k_amount != 1.0:
+					l["amount"] = minf(1.0, float(l.get("amount", 0.8)) * k_amount)
+				if k_cover != 1.0:
+					l["cover"] = minf(1.0, float(l.get("cover", 0.3)) * k_cover)
+		for name in data.get(group, {}):
+			g[name] = data[group][name]
+		out[group] = g
+	for k in data:
+		if not k in ["base", "detail_scale", "surfaces", "materials"]:
+			out[k] = data[k]
+	return out
 
 
 ## 材質の定義 → 材質。{ "albedo": "res://…png", "color": "#rrggbb", "uv_m": 2, "roughness": 0.85, "metallic": 0,
@@ -71,6 +107,19 @@ static func make_material(def: Dictionary) -> Material:
 		m.set_shader_parameter("color", Color(def.get("color", "#ffd9a0")))
 		m.set_shader_parameter("strength", float(def.get("strength", 0.25)))
 		m.set_shader_parameter("fade_m", float(def.get("fade_m", 7.0)))
+		return m
+	if def.get("blend", "") == "mul":
+		# 汚れの斑の板（town/grime_patch）：下の床の色に汚れの色を掛ける（kit_decal.gdshader。42 章 14.2.1）
+		m.shader = DECAL
+		m.set_shader_parameter("detail_tex", load(String(def.get("detail_tex", DETAIL_TEX))))
+		m.set_shader_parameter("color", Color(def.get("color", "#a08a70")))
+		m.set_shader_parameter("amount", float(def.get("amount", 0.6)))
+		m.set_shader_parameter("cover", float(def.get("cover", 0.6)))
+		m.set_shader_parameter("edge", float(def.get("edge", 0.04)))
+		m.set_shader_parameter("uv_m", float(def.get("uv_m", 2.0)))
+		var fo: Array = def.get("falloff", [0.3, 1.0])
+		m.set_shader_parameter("falloff", Vector2(float(fo[0]), float(fo[1])))
+		m.set_shader_parameter("fade_far", float(def.get("fade_far", 70.0)))
 		return m
 	var layers := detail_layers(def)
 	m.shader = SHADER if layers.is_empty() else SHADER_DETAIL

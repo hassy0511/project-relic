@@ -34,6 +34,7 @@ WORK = os.path.join(REPO, 'build', 'kit_town')
 def catalog() -> dict:
     import town_backdrop as BD
     import town_parts as P
+    import town_rooms as R
     import town_sets as S
     import town_terrace as T
     return {
@@ -60,6 +61,8 @@ def catalog() -> dict:
         **T.PARTS,
         # 遠景
         **BD.PARTS,
+        # 中段のほかの 9 部屋（2026-10-15 の展開。部屋の座標のまま）と汚れの斑
+        **R.PARTS,
     }
 
 
@@ -87,7 +90,8 @@ def gallery(cat: dict) -> None:
     import bpy
 
     import town_geo as geo
-    skip = {'ordo_far', 'deck_slab', 'plaza_ring', 'terrace_west', 'terrace_east', 'stair_gate', 'stair_well_s'}   # 部屋の座標の大きな組
+    import town_rooms as R
+    skip = {'ordo_far', 'deck_slab', 'plaza_ring', 'terrace_west', 'terrace_east', 'stair_gate', 'stair_well_s', *R.PARTS}   # 部屋の座標の大きな組
     for ob in list(bpy.data.objects):
         bpy.data.objects.remove(ob, do_unlink=True)
     names = [n for n in cat if n not in skip]

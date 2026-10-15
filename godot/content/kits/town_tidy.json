@@ -1,0 +1,6 @@
+{
+ "id": "town_tidy",
+ "name": "オルド背町（汚れの弱い版：町長の家・上段の展望台のまわり。42 章 14.2.1）",
+ "base": "town",
+ "detail_scale": {"amount": 0.55, "cover": 0.8}
+}
