@@ -114,6 +114,8 @@ func _ready() -> void:
 		_steps.append_array(_stage_steps())
 	if not main.args.has("ch1_full"):
 		_steps.append({"ticks": 1, "done": true})
+	# --bk_kit・--bk_props：BlenderKit の素材の比べ（scripts/debug/bk_test.gd）。引数が無ければ何もしない
+	BkTest.wrap(self)
 
 
 ## 試しの部屋の見本：新しい試合を始め、決まった場面を作って確かめる（やられないように god_mode）
