@@ -108,8 +108,8 @@ static func make_material(def: Dictionary) -> Material:
 		m.set_shader_parameter("strength", float(def.get("strength", 0.25)))
 		m.set_shader_parameter("fade_m", float(def.get("fade_m", 7.0)))
 		return m
-	if def.get("blend", "") == "mul":
-		# 汚れの斑の板（town/grime_patch）：下の床の色に汚れの色を掛ける（kit_decal.gdshader。42 章 14.2.1）
+	if def.get("blend", "") == "decal":
+		# 汚れの斑の板（town/grime_patch）：下の床の上に汚れの色を半透明で重ねる（kit_decal.gdshader。42 章 14.2.1）
 		m.shader = DECAL
 		m.set_shader_parameter("detail_tex", load(String(def.get("detail_tex", DETAIL_TEX))))
 		m.set_shader_parameter("color", Color(def.get("color", "#a08a70")))
@@ -120,6 +120,7 @@ static func make_material(def: Dictionary) -> Material:
 		var fo: Array = def.get("falloff", [0.3, 1.0])
 		m.set_shader_parameter("falloff", Vector2(float(fo[0]), float(fo[1])))
 		m.set_shader_parameter("fade_far", float(def.get("fade_far", 70.0)))
+		m.set_shader_parameter("roughness_value", float(def.get("roughness", 0.95)))
 		return m
 	var layers := detail_layers(def)
 	m.shader = SHADER if layers.is_empty() else SHADER_DETAIL

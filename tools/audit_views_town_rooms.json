@@ -3,7 +3,6 @@
  {"name": "op_south", "room": "ch1.opening", "spawn": "start", "at": [0, 0, 4], "look": [0, 0, -16], "pitch": 12},
  {"name": "op_east", "room": "ch1.opening", "spawn": "start", "at": [-8, 0, 0], "look": [16, 0, 2], "pitch": 10},
  {"name": "op_event", "room": "ch1.opening", "spawn": "start", "at": [0, 0, -6], "look": [0, 0, 10], "eye": [0, 4.23, 90.0], "target": [0, 3.09, 95.4]},
-
  {"name": "tr_start", "room": "ch1.training", "spawn": "start", "at": [0, 0, -17], "look": [0, 0, 0], "pitch": 14},
  {"name": "tr_burton", "room": "ch1.training", "spawn": "start", "at": [-1, 0, -17.5], "look": [-6, 0.5, -13], "pitch": 10},
  {"name": "tr_steps", "room": "ch1.training", "spawn": "start", "at": [0, 0, -6], "look": [0, 1, 6], "pitch": 10},
@@ -12,7 +11,6 @@
  {"name": "tr_ditch_in", "room": "ch1.training", "spawn": "start", "at": [8, -1.5, 28], "look": [0, -1, 27.5], "pitch": 10},
  {"name": "tr_debris", "room": "ch1.training", "spawn": "start", "at": [0, 0, 34], "look": [-2, 0, 46], "pitch": 16},
  {"name": "tr_back", "room": "ch1.training", "spawn": "start", "at": [0, 0, 40], "look": [0, 0, -20], "pitch": 14},
-
  {"name": "lo_start", "room": "ch1.lower", "spawn": "start", "at": [0, 0, 0], "look": [0, 0, 16], "pitch": 14},
  {"name": "lo_west", "room": "ch1.lower", "spawn": "start", "at": [-14, 0, 0], "look": [-44, 0, 2], "pitch": 10},
  {"name": "lo_gate", "room": "ch1.lower", "spawn": "start", "at": [-34, 0, 0], "look": [-46, 1, 0], "pitch": 6},
@@ -23,7 +21,6 @@
  {"name": "lo_lift", "room": "ch1.lower", "spawn": "start", "at": [32, 0, -6], "look": [42, 1, -9], "pitch": 10},
  {"name": "lo_south", "room": "ch1.lower", "spawn": "start", "at": [0, 0, 10], "look": [0, 0, -16], "pitch": 14},
  {"name": "lo_stair_top", "room": "ch1.lower", "spawn": "start", "at": [0, 5, 29], "look": [0, 0, 0], "pitch": 30},
-
  {"name": "up_start", "room": "ch1.upper", "spawn": "start", "at": [0, 0, -8], "look": [0, 0, 16], "pitch": 14},
  {"name": "up_mayor", "room": "ch1.upper", "spawn": "start", "at": [-22, 0, -4], "look": [-22, 1, 6], "pitch": 8},
  {"name": "up_guild", "room": "ch1.upper", "spawn": "start", "at": [20, 0, -4], "look": [20, 1, 6], "pitch": 8},
@@ -32,29 +29,35 @@
  {"name": "up_east", "room": "ch1.upper", "spawn": "start", "at": [6, 0, -4], "look": [40, 0, 2], "pitch": 10},
  {"name": "up_south", "room": "ch1.upper", "spawn": "start", "at": [0, 0, 10], "look": [0, -3, -20], "pitch": 16},
  {"name": "up_stair_foot", "room": "ch1.upper", "spawn": "start", "at": [0, -5, -27.5], "look": [0, -2, -14], "pitch": -5},
-
  {"name": "ho_entry", "room": "ch1.home", "spawn": "from_lower", "at": [0, 0, -1.5], "look": [0, 0, 6], "pitch": 14},
  {"name": "ho_bed", "room": "ch1.home", "spawn": "from_lower", "at": [-1, 0, 0], "look": [-5, 0, 4], "pitch": 12},
  {"name": "ho_east", "room": "ch1.home", "spawn": "from_lower", "at": [0, 0, 1], "look": [6, 0, -4], "pitch": 12},
  {"name": "ho_door", "room": "ch1.home", "spawn": "from_lower", "at": [0, 0, 3], "look": [0, 1, -6], "pitch": 10},
-
  {"name": "ws_entry", "room": "ch1.workshop", "spawn": "from_mid", "at": [0, 0, -2.5], "look": [0, 0, 7], "pitch": 14},
  {"name": "ws_bench", "room": "ch1.workshop", "spawn": "from_mid", "at": [-3, 0, 1], "look": [-5, 0.8, 6], "pitch": 12},
  {"name": "ws_yana", "room": "ch1.workshop", "spawn": "from_mid", "at": [1, 0, 0], "look": [3, 1, 3.5], "pitch": 8},
  {"name": "ws_west", "room": "ch1.workshop", "spawn": "from_mid", "at": [2, 0, 1], "look": [-10, 0, 0], "pitch": 10},
  {"name": "ws_door", "room": "ch1.workshop", "spawn": "from_mid", "at": [0, 0, 4], "look": [0, 1, -7], "pitch": 10},
-
  {"name": "gu_entry", "room": "ch1.guild", "spawn": "from_upper", "at": [0, 0, -3.5], "look": [0, 0, 8], "pitch": 14},
  {"name": "gu_counter", "room": "ch1.guild", "spawn": "from_upper", "at": [-3, 0, 1], "look": [-7, 1, 6], "pitch": 10},
  {"name": "gu_board", "room": "ch1.guild", "spawn": "from_upper", "at": [4, 0, 2], "look": [7, 1, 7], "pitch": 8},
  {"name": "gu_door", "room": "ch1.guild", "spawn": "from_upper", "at": [0, 0, 4], "look": [0, 1, -8], "pitch": 10},
-
  {"name": "ma_entry", "room": "ch1.mayor", "spawn": "from_upper", "at": [0, 0, -1.5], "look": [0, 0, 6], "pitch": 14},
  {"name": "ma_west", "room": "ch1.mayor", "spawn": "from_upper", "at": [2, 0, 0], "look": [-7, 0, 0], "pitch": 10},
  {"name": "ma_door", "room": "ch1.mayor", "spawn": "from_upper", "at": [0, 0, 2], "look": [0, 1, -6], "pitch": 10},
-
  {"name": "r1_entry", "room": "ch1.r01", "spawn": "from_town", "at": [0, 0, -9.5], "look": [0, 0, 10], "pitch": 14},
  {"name": "r1_mid", "room": "ch1.r01", "spawn": "from_town", "at": [0, 0, 2], "look": [0, 0, 14], "pitch": 12},
  {"name": "r1_back", "room": "ch1.r01", "spawn": "from_town", "at": [0, 0, 9.5], "look": [0, 0, -14], "pitch": 12},
- {"name": "r1_nico", "room": "ch1.r01", "spawn": "from_town", "at": [2, 0, 5], "look": [6, 1, 9], "pitch": 8}
+ {"name": "r1_nico", "room": "ch1.r01", "spawn": "from_town", "at": [2, 0, 5], "look": [6, 1, 9], "pitch": 8},
+ {"name": "mid_plaza", "room": "ch1.mid", "spawn": "start", "at": [0, 0, -9], "look": [0, 0, 8], "pitch": 14},
+ {"name": "mid_market", "room": "ch1.mid", "spawn": "start", "at": [17, 0, -2], "look": [32, 0, 6], "pitch": 12},
+ {"name": "mid_west", "room": "ch1.mid", "spawn": "start", "at": [-6, 0, -5], "look": [-30, 0, 6], "pitch": 12},
+ {"name": "mid_edge", "room": "ch1.mid", "spawn": "start", "at": [-20, 0, -12.5], "look": [-34, 0, -30], "pitch": 22},
+ {"name": "mid_side", "room": "ch1.mid", "spawn": "start", "at": [-44, 0, -4], "look": [-70, 0, -14], "pitch": 16},
+ {"name": "mid_high", "room": "ch1.mid", "spawn": "start", "at": [0, 5, 29], "look": [0, 0, 0], "pitch": 30},
+ {"name": "mid_stall", "room": "ch1.mid", "spawn": "start", "at": [22, 0, -1.5], "look": [26, 0, 6], "pitch": 6},
+ {"name": "mid_workshop", "room": "ch1.mid", "spawn": "start", "at": [-31, 0, -4.5], "look": [-35, 0, 6], "pitch": 4},
+ {"name": "mid_overlook", "room": "ch1.mid", "spawn": "start", "at": [-46.6, 0, 6], "look": [-80, 0, 0], "pitch": 32},
+ {"name": "mid_diner", "room": "ch1.mid", "spawn": "start", "at": [-20, 0, -9], "look": [-20, 0, 0], "pitch": 18},
+ {"name": "mid_junk", "room": "ch1.mid", "spawn": "start", "at": [33, 0, -3], "look": [40, 0, 4], "pitch": 14}
 ]

@@ -11,7 +11,7 @@
   training_set   訓練場：段の台・的の柱・溝の縁と斜面・残骸・壁の面・入口の門・壁の向こうの家並み
   home_set / workshop_set / guild_set / mayor_set   屋内：壁の柱と帯・天井の梁・赤い布・窓・扉・家具（geometry の箱と同じ大きさ）
   opening_set    夜明けの甲羅：外殻の床の縁・係留柱・通気口・見張りの小さな台
-  grime_patch    汚れの斑（床に置く 1 m の板。材質 grime_decal：キットの "blend": "mul" の材質が床の色に掛ける）
+  grime_patch    汚れの斑（床に置く 1 m の板。材質 grime_decal：キットの "blend": "decal" の材質が床の上に汚れの色を重ねる）
 
 絵：W2-05 town_facilities（工房・ギルド・雑貨屋・ハルの家・訓練場・禁足扉）、town_interiors（工房・ハルの家）、
 town_kit_buildings / town_props、town_mood_day。寸法は部屋の geometry（content/areas/ch1_town.json）に合わせる。
@@ -239,7 +239,7 @@ def canopy_roof(p: Part, x0, x1, z0, z1, y, hgt=2.0, mat='cloth'):
 # ---------------------------------------------------------------- 汚れの斑（床に置く板）
 
 def grime_patch(mat='grime_decal', name='grime_patch') -> Part:
-    """汚れの斑：床の 3 cm 上の 1 m 四方の板（裏は無い）。材質 grime_decal はキットの "blend": "mul"（床の色に汚れの色を掛ける。
+    """汚れの斑：床の 3 cm 上の 1 m 四方の板（裏は無い）。材質 grime_decal はキットの "blend": "decal"（床の上に汚れの色を半透明で重ねる。
     斑の形は汚れの型の絵をワールドの座標で読み、板の真ん中ほど濃く、縁で消える）。大きさは scale で。oil_patch は油じみ（oil_decal）"""
     p = Part(name)
     v = np.array([[-0.5, 0.03, -0.5], [0.5, 0.03, -0.5], [0.5, 0.03, 0.5], [-0.5, 0.03, 0.5]], float)
@@ -1231,6 +1231,45 @@ def opening_set() -> Part:
     return p
 
 
+# ---------------------------------------------------------------- 禁足扉の扉（props の door の "part"）
+
+def gate_door() -> Part:
+    """禁足扉（town_facilities の右下）：黒鉛の両開きの扉、上の角を落とした縁、縦の真鍮の帯と横の帯、真ん中の丸い錠（十字）、
+    鋲。原点 = 扉の箱（6×6×1）の下の中心、正面 +Z。開くと箱ごと床へ沈む（PropsView）"""
+    p = Part('gate_door')
+    p.add('graphite', boxb(-3.0, 3.0, 0.0, 5.4, -0.5, 0.46))
+    p.add('graphite', boxb(-2.4, 2.4, 5.4, 6.0, -0.5, 0.46))
+    # 角を落とした上の縁（斜めの板）
+    from town_geo import Piece, _orient
+    for sx in (-1, 1):
+        v = np.array([[sx * 2.4, 6.0, -0.5], [sx * 3.0, 5.4, -0.5], [sx * 2.4, 5.4, -0.5],
+                      [sx * 2.4, 6.0, 0.46], [sx * 3.0, 5.4, 0.46], [sx * 2.4, 5.4, 0.46]], float)
+        p.add('graphite', _orient(Piece(v, [[0, 1, 2], [3, 5, 4], [0, 3, 4, 1], [1, 4, 5, 2], [2, 5, 3, 0]])))
+    # 扉の継ぎ目と、浮き出た板（縦長の板 2 枚ずつ）
+    p.add('dark', boxb(-0.03, 0.03, 0.1, 5.8, 0.46, 0.5))
+    for sx in (-1, 1):
+        for x0, x1 in ((0.25, 1.35), (1.65, 2.75)):
+            a0, a1 = sorted((sx * x0, sx * x1))
+            p.add('graphite', boxb(a0, a1, 0.4, 2.55, 0.46, 0.52), boxb(a0, a1, 3.15, 5.2, 0.46, 0.52))
+    # 縦の真鍮の帯（左右の扉に 2 本ずつ）と横の帯、真ん中の丸い錠と十字
+    for x in (-2.0, -0.6, 0.6, 2.0):
+        p.add('brass', boxb(x - 0.09, x + 0.09, 0.2, 5.6 if abs(x) < 1 else 5.3, 0.5, 0.56))
+    p.add('brass', boxb(-2.9, 2.9, 2.7, 2.95, 0.5, 0.57))
+    p.add('brass', cyl((0, 2.85, 0.5), (0, 2.85, 0.66), 0.75, 24))
+    p.add('graphite', cyl((0, 2.85, 0.66), (0, 2.85, 0.7), 0.52, 20))
+    p.add('brass', boxb(-0.45, 0.45, 2.78, 2.92, 0.66, 0.74), boxb(-0.07, 0.07, 2.4, 3.3, 0.66, 0.74))
+    p.add('brass', cyl((0, 2.85, 0.7), (0, 2.85, 0.78), 0.14, 10))
+    # 鋲（縁に沿って）と、足元の真鍮の板
+    for x in np.arange(-2.7, 2.8, 0.6):
+        for y in (0.25, 5.2):
+            p.add('brass', cyl((x, y, 0.46), (x, y, 0.53), 0.05, 6))
+    for y in np.arange(0.6, 5.2, 0.6):
+        for x in (-2.85, 2.85):
+            p.add('brass', cyl((x, y, 0.46), (x, y, 0.53), 0.05, 6))
+    p.add('brass', boxb(-3.0, 3.0, 0.0, 0.18, 0.46, 0.55))
+    return p
+
+
 PARTS = {
     'grime_patch': grime_patch,
     'oil_patch': lambda: grime_patch('oil_decal', 'oil_patch'),
@@ -1242,4 +1281,5 @@ PARTS = {
     'guild_set': guild_set,
     'mayor_set': mayor_set,
     'opening_set': opening_set,
+    'gate_door': gate_door,
 }

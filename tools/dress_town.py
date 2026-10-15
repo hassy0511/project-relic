@@ -468,7 +468,11 @@ def lower(room):
                            ([-34, 5, -2], [-12, 5, 0], [0, 5, -2], [18, 5, 0], [36, 5, 0])):
         d.put("lamp_post", [x, 0, z], 0, scale=1.4)
         light(room, old, [x + 0.7, 2.15, z])
-    light(room, [-42, 4, 0], [-41.0, 4.6, 0.0])
+    # 禁足扉の赤い明かりは扉の前の上（前は扉の真ん前 1 m で、扉の面に丸い光の斑ができた）
+    light(room, [-42, 4, 0], [-39.6, 7.0, 0.0], was=[[-41.0, 4.6, 0.0]])
+    for p in room["props"]:
+        if p.get("id") == "ch1.lower.gate":
+            p["part"] = "town/gate_door"        # 扉の見た目（PropsView。開くと床へ沈む）
     lived_lower(d)
     grime_lower(d)
     return finish(room, d)

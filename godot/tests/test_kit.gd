@@ -215,7 +215,7 @@ func test_kit_detail_materials() -> void:
 	root.free()
 
 
-## キットの "base"・"detail_scale"（部屋ごとの汚れの強さ）と、汚れの斑の板（"blend": "mul"）。42 章 14.2.1（2026-10-15）
+## キットの "base"・"detail_scale"（部屋ごとの汚れの強さ）と、汚れの斑の板（"blend": "decal"）。42 章 14.2.1（2026-10-15）
 func test_kit_inherit_and_decal() -> void:
 	var town: Dictionary = U.load_json(RoomKit.KIT_PATH % "town")
 	var tidy := RoomKit.load_kit("town_tidy")
@@ -230,9 +230,9 @@ func test_kit_inherit_and_decal() -> void:
 		"detail_scale が汚れの層の強さ・覆う割合に掛かる（%.3f → %.3f）" % [a0, at])
 	h.expect(is_equal_approx(aw, minf(1.0, a0 * 1.2)) and float(worn.data.materials.flat.detail[0].amount) <= 1.0, "強くしても 1 まで（%.3f）" % aw)
 	h.expect(float(town.surfaces.floor.detail[1].amount) == a0, "元のキットの JSON は変わらない")
-	var dm := RoomKit.make_material({"blend": "mul", "color": "#9c8466", "amount": 0.5, "cover": 0.7, "uv_m": 4.0}) as ShaderMaterial
+	var dm := RoomKit.make_material({"blend": "decal", "color": "#9c8466", "amount": 0.5, "cover": 0.7, "uv_m": 4.0}) as ShaderMaterial
 	h.expect(dm.shader == RoomKit.DECAL and is_equal_approx(float(dm.get_shader_parameter("cover")), 0.7) and dm.get_shader_parameter("detail_tex") is Texture2D,
-		"汚れの斑の材質は掛け算の半透明のシェーダー（kit_decal.gdshader）")
+		"汚れの斑の材質は半透明の汚れのシェーダー（kit_decal.gdshader）")
 	var patch := RoomKit.part_mesh("town/grime_patch", RoomKit.load_kit("town"))
 	h.expect(patch != null and (patch.surface_get_material(0) as ShaderMaterial).shader == RoomKit.DECAL, "汚れの斑の板（town/grime_patch）はキットの grime_decal で描く")
 

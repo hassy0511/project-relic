@@ -1,15 +1,16 @@
-// キットの「汚れの斑」の材質（材質の "blend": "mul"。RoomKit.make_material。42 章 14.2.1）。
-// 床に置いた板の部品（town/grime_patch・town/oil_patch）が、下に描いた床の色に汚れの色を掛ける（掛け算の半透明）。
+// キットの「汚れの斑」の材質（材質の "blend": "decal"。RoomKit.make_material。42 章 14.2.1）。
+// 床に置いた板の部品（town/grime_patch・town/oil_patch）が、下に描いた床の上に汚れの色を重ねる（半透明。床と同じ向きで光・影を受ける）。
 // 斑の形は汚れの型の絵（assets/kit/grime/masks.png の G）をワールドの (x, z) で読み、1 本のしきい値で切る（kit_detail と同じ縁のはっきりした平らな斑）。
 // 覆う割合は板の真ん中で cover、縁へ向かって 0 に下がる（板の四角い形は見えない）。遠く（fade_far）では消す（床とのちらつきを避ける）。
-// 部品の板は床の 3 cm 上。影・霧・光は受けない（下の床の明るさに掛けるだけ）。
+// 掛け算の半透明（blend_mul）は、スマホ・ブラウザ版（gl_compatibility）で板が黒く塗られたので使わない。
 shader_type spatial;
-render_mode unshaded, blend_mul, depth_draw_never, cull_back, fog_disabled, shadows_disabled;
+render_mode blend_mix, depth_draw_never, cull_back;
 
 uniform sampler2D detail_tex : filter_linear_mipmap_anisotropic, repeat_enable, hint_default_black;
-// 掛ける色（パレット）と強さ
-uniform vec4 color : source_color = vec4(0.63, 0.54, 0.44, 1.0);
-uniform float amount = 0.6;
+// 汚れの色（パレット）と、いちばん濃い所の不透明さ
+uniform vec4 color : source_color = vec4(0.66, 0.55, 0.42, 1.0);
+uniform float amount = 0.5;
+uniform float roughness_value = 0.95;
 // 板の真ん中の覆う割合（0〜1）と、縁の幅（型の値で）
 uniform float cover = 0.6;
 uniform float edge = 0.04;
@@ -37,5 +38,7 @@ void fragment() {
 	float th = mix(1.0 + e, -e, clamp(w, 0.0, 1.0));
 	float p = smoothstep(th - e, th + e, m);
 	p *= 1.0 - smoothstep(fade_far * 0.7, fade_far, length(VERTEX));
-	ALBEDO = mix(vec3(1.0), color.rgb, clamp(p * amount, 0.0, 1.0));
+	ALBEDO = color.rgb;
+	ROUGHNESS = roughness_value;
+	ALPHA = clamp(p * amount, 0.0, 1.0);
 }
