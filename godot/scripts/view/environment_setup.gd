@@ -24,6 +24,15 @@ static func is_compat() -> bool:
 static func set_sun_energy(sun: DirectionalLight3D, energy: float) -> void:
 	sun.set_meta("energy", energy)
 	sun.light_energy = energy * (shadow_light_scale() if sun.shadow_enabled else 1.0)
+	_sync_sky_sun(sun)
+
+
+## gl_compatibility の空の太陽（空の円盤だけを描く光。build で作る）を、太陽と同じ色・前の強さにそろえる。向きは子なので同じ
+static func _sync_sky_sun(sun: DirectionalLight3D) -> void:
+	var sky_sun: DirectionalLight3D = sun.get_meta("sky_sun", null)
+	if sky_sun != null:
+		sky_sun.light_color = sun.light_color
+		sky_sun.light_energy = float(sun.get_meta("energy", sun.light_energy))
 
 static func build(parent: Node) -> DirectionalLight3D:
 	var we := WorldEnvironment.new()
@@ -64,6 +73,15 @@ static func build(parent: Node) -> DirectionalLight3D:
 	sun.light_color = Color("#fff1d6")
 	sun.rotation_degrees = Vector3(-52, -150, 0)
 	sun.shadow_enabled = true
+	if is_compat():
+		# 影を落とす太陽は弱める（COMPAT_SHADOW_LIGHT）ので、空に描く太陽の円盤（ProceduralSkyMaterial）は、
+		# 空だけを照らす別の光で前の強さのまま描く（太陽は物だけを照らす。空の明るさ・環境光も前と同じ）
+		sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
+		var sky_sun := DirectionalLight3D.new()
+		sky_sun.name = "SkySun"
+		sky_sun.sky_mode = DirectionalLight3D.SKY_MODE_SKY_ONLY
+		sun.add_child(sky_sun)
+		sun.set_meta("sky_sun", sky_sun)
 	set_sun_energy(sun, 1.6)
 	sun.shadow_bias = 0.03
 	sun.shadow_normal_bias = 1.0
@@ -154,6 +172,7 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 			sun.rotation_degrees = Vector3(-52, -150, 0)
 			env.ambient_light_energy = 0.9
 			env.fog_light_color = Color("#d9b58f")
+	_sync_sky_sun(sun)
 
 
 ## 遠景の空の絵と、その空に合わせた光（キットの "sky"：{ "day": 絵, "night": 絵, "dawn": 絵 } と "light"：{ "night": { … } }）。
@@ -179,6 +198,7 @@ static func apply_sky(sun: DirectionalLight3D, path: String, light: Dictionary =
 		set_sun_energy(sun, float(light.sun_energy))
 	if light.has("sun_color"):
 		sun.light_color = Color(light.sun_color)
+		_sync_sky_sun(sun)
 	if light.has("ambient_color"):
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 		env.ambient_light_color = Color(light.ambient_color)
