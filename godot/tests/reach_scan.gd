@@ -119,6 +119,8 @@ var comp := PackedInt32Array()
 var ncomp := 0
 ## 歩いて行ける隣の柱の向き（_N8 の番号のビット）
 var _wmask := PackedInt32Array()
+## まとまりごとの、歩いて行けない向きのある node（縁）
+var _cedge: Array = []
 ## まとまりの間の道（一方通行）：comp → { comp: 種類 }
 var cedges: Array = []
 var _via := {}
@@ -479,8 +481,13 @@ func _build_comps() -> void:
 		comp[u] = ids[r]
 	ncomp = ids.size()
 	cedges.resize(ncomp)
+	_cedge.resize(ncomp)
 	for i in ncomp:
 		cedges[i] = {}
+		_cedge[i] = PackedInt32Array()
+	for u in n:
+		if _wmask[u] != 255:
+			_cedge[comp[u]].append(u)
 
 
 ## a → b の道。via：[元の node, 先の node]（どこからどこへ。説明用）
@@ -730,7 +737,6 @@ func run() -> Dictionary:
 	_build_nodes()
 	_build_comps()
 	var t1 := Time.get_ticks_msec()
-	_build_drops()
 	var t2 := Time.get_ticks_msec()
 	_prep_jumps()
 	var t3 := Time.get_ticks_msec()
@@ -777,8 +783,9 @@ func _bounds() -> void:
 
 
 ## 縁から歩いて落ちる道：隣の柱へ歩けない node から、その柱の上で落ちた先へ
-func _build_drops() -> void:
-	for u in nx.size():
+## 縁から歩いて落ちる道（まとまり c の縁の node から）。行けるまとまりからだけ調べる（_judge の前へたどる所）
+func _drops_from(c: int) -> void:
+	for u in _cedge[c]:
 		for di in 8:
 			if _wmask[u] & (1 << di):
 				continue
@@ -1019,8 +1026,6 @@ func _judge() -> Dictionary:
 		for s in starts:
 			if absf(p.y - s.y) < 0.6 and Vector2(p.x - s.x, p.z - s.z).length() < 1.0:
 				goal[comp[u]] = 1
-	for c in to_void:
-		goal[c] = 1
 	# 前へ：始まりから行けるまとまり
 	var fwd := PackedByteArray()
 	fwd.resize(ncomp)
@@ -1032,6 +1037,7 @@ func _judge() -> Dictionary:
 	while qi < q.size():
 		var c: int = q[qi]
 		qi += 1
+		_drops_from(c)
 		_jumps_from(c)
 		for b in cedges[c]:
 			if fwd[b] == 0:
@@ -1041,6 +1047,9 @@ func _judge() -> Dictionary:
 	if opts.get("verbose", false):
 		print("    jumps from %d reached groups: %d ms" % [q.size(), Time.get_ticks_msec() - tj])
 	_fwd = fwd
+	# 奈落へ落ちられるまとまり（前へたどる間に、縁から落ちる道で見つかる）も行き先
+	for c in to_void:
+		goal[c] = 1
 	# 後ろへ：行き先へ行けるまとまり
 	var rev: Array = []
 	rev.resize(ncomp)

@@ -82,7 +82,8 @@ func test_ch1_rooms_no_traps() -> void:
 					s.box[0], s.box[2], s.box[1], s.box[3]])
 			var seen := {}
 			for hg in res.hangs:
-				var k := Vector3i(roundi(hg.pos.x * 2), roundi(hg.pos.y * 2), roundi(hg.pos.z * 2))
+				# 0.1 m ごとに 1 つ（近くても止まる所と落ちる所がある：r02 の山の角と柱の角）
+				var k := Vector3i(roundi(hg.pos.x * 10), roundi(hg.pos.y * 10), roundi(hg.pos.z * 10))
 				if seen.has(k):
 					continue
 				seen[k] = true
@@ -244,3 +245,4 @@ func test_r13_lift_does_not_crush() -> void:
 		h.expect(down, "どいたら、リフトは下まで下りる（t %.2f）" % mv.t)
 		await h.run_until(g, TestHelpers.seconds(20), {}, func(): return mv.t > 0.95)
 	h.free_game(g)
+

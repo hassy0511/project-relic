@@ -58,7 +58,7 @@ func _run() -> void:
 					s.box[0], s.box[2], s.box[1], s.box[3], s.pos.x, s.pos.y, s.pos.z, "  動く足場" if s.mover >= 0 else ""])
 			var seen := {}
 			for hg in res.hangs:
-				var k := Vector3i(roundi(hg.pos.x * 2), roundi(hg.pos.y * 2), roundi(hg.pos.z * 2))
+				var k := Vector3i(roundi(hg.pos.x * 10), roundi(hg.pos.y * 10), roundi(hg.pos.z * 10))
 				if seen.has(k):
 					continue
 				seen[k] = true
