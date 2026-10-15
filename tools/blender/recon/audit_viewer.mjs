@@ -61,6 +61,13 @@ const ZONES = {
 // 頭の高さはキャラクターごと（--head-y、身長 1.55m の座標の m。バートンは頭が小さく高い：1.43）
 if (args['head-y']) { ZONES.head.y = parseFloat(args['head-y']); ZONES.face.y = ZONES.head.y; }
 for (const z of Object.values(ZONES)) { z.y *= HS; z.dist *= HS; }
+// 大きな機械（原点が足の裏でない・人の区域が合わない物。オルドは原点が背の面で全長 400 m）：見る所の高さ・距離・画角を直接
+//   node tools/blender/recon/audit_viewer.mjs --model ordo --zones full --target-y -55 --dist 1000 --fov 32
+for (const z of Object.values(ZONES)) {
+  if (args['target-y']) z.y = parseFloat(args['target-y']);
+  if (args.dist) z.dist = parseFloat(args.dist);
+  if (args.fov) z.fov = parseFloat(args.fov);
+}
 const zones = (args.zones || 'full,head,torso,hips,legs').split(',');
 if (args.az) { const az = args.az.split(',').map(Number); for (const z of Object.values(ZONES)) z.az = az; }
 if (args.el) { const el = args.el.split(','); for (const z of Object.values(ZONES)) z.el = z.el.filter((e) => el.includes(e[0])); }
