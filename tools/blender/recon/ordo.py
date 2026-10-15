@@ -61,13 +61,14 @@ V3 = np.array
 # ---------------------------------------------------------------- 寸法（m）
 
 GROUND = -120.0          # 地面（背の面から）
+HULL_HW = 60.0           # 舷の外の面の半幅（町の所）。旧遠景 ordo_far と同じ 120 m。--hull-hw で変えられる（4 章：町の縁から脚を見るなら 51）
 RIM_W, RIM_H = 4.0, 2.5  # 縁（舷）の幅・背の面からの高さ
 PLATE_T = 1.2            # 舷の白磁の板の厚み（芯から浮かせた分。すき間から黒鉛の芯が見える）
 GAP = 1.0                # 板のすき間（前後）
 DECK_T = 1.0             # 背の板の厚み
 SHOULDER_Z = GROUND + 85.0   # 肩の軸（地面から 85 m）
 ANKLE_Z = GROUND + 14.0      # 足首の軸
-XL = 64.0                # 肩の軸の中心の x（左舷。右舷は -XL）
+XL = HULL_HW + 4.0       # 肩の軸の中心の x（左舷。右舷は -XL）。舷の外の面の 4 m 外
 SPLAY_K, SPLAY_A = 8.0, 12.0   # 膝・足首を肩より外へ出す（m）。正面・真上の絵のとおり脚が外へ開き、足が舷の外に着く。
                                # ピッチの軸はどれも x に平行のままなので、横から見た 2 節の IK はそのまま
 L_THIGH, L_SHIN = 48.0, 34.0
@@ -109,13 +110,13 @@ def half_w(y):
     """舷の外の面の半幅（真上の絵の外形を幅 120 m に伸ばした形：船首は丸く細り、船尾は角を落とす）"""
     if y < -110:
         t = min((-110.0 - y) / 90.0, 1.0)
-        return 30.0 + 30.0 * math.sqrt(max(1 - t * t, 0.0))
+        return 0.5 * HULL_HW + 0.5 * HULL_HW * math.sqrt(max(1 - t * t, 0.0))
     if y > 150:
-        w = 60.0 - 8.0 * smooth((y - 150.0) / 40.0)
+        w = HULL_HW - 8.0 * smooth((y - 150.0) / 40.0)
         if y > 194:
             w -= (y - 194.0)
         return w
-    return 60.0
+    return HULL_HW
 
 
 def z_band(y):
@@ -307,8 +308,8 @@ def build_hull(pc):
             hw, zt = half_w(y), z_top(y)
             return [(hw - RIM_W, zt - 1.0), (hw - 1.6, zt - 1.0), (hw - 1.6, zt + RIM_H - 0.15), (hw - RIM_W, zt + RIM_H - 0.15)]
         for sx in (1.0, -1.0):
-            if sx < 0 and lift_segment(a, b):
-                continue
+            if (sx < 0 and lift_segment(a, b)) or RIM_W < 2.5:
+                continue        # 細い縁（RIM_W < 2.5）は舷の板の上の端だけ（内の角材なし）
             pc['ivory'].append(ring_loft(a, b, rim, sx))
     # 舷の板：上の段（縁の上 → 境）と下の段（境 → 帯の下、内へ傾く）
     for y0, y1 in zip(FLANK_BREAKS[:-1], FLANK_BREAKS[1:]):
@@ -471,7 +472,7 @@ def build_frame(pc):
         # 肩の受け（梁から外へ出る黒鉛の筒）
         for ym in MOUNTS.values():
             x_in = frame_x(ym, SHOULDER_Z) - 3.0
-            pc['graphite'].append(K.lathe((sx * x_in, ym, SHOULDER_Z), (sx * 58.5, ym, SHOULDER_Z),
+            pc['graphite'].append(K.lathe((sx * x_in, ym, SHOULDER_Z), (sx * (XL - 5.5), ym, SHOULDER_Z),
                                           [(0, 13.5), (0.85, 13.5), (0.92, 12.6), (1, 12.6)], 24))
             # 受けの上で帯の下の縁を支える腕（帯の下の板を外した所）
             zb_ = z_band(ym)
@@ -632,14 +633,14 @@ def build_leg(tag, y_m, knee_dir):
     xk, xa = Kp[0], A[0]
     # 肩の横振り（黒鉛の首輪）
     pc = pieces()
-    pc['graphite'].append(K.lathe((57.0, y_m, SHOULDER_Z), (61.4, y_m, SHOULDER_Z), [(0, 12.4), (0.8, 13.0), (1, 12.4)], 24))
-    pc['amber'].append(boxr(58.4, 60.2, y_m - 1.4, y_m + 1.4, SHOULDER_Z + 12.6, SHOULDER_Z + 13.3))
+    pc['graphite'].append(K.lathe((XL - 7.0, y_m, SHOULDER_Z), (XL - 2.6, y_m, SHOULDER_Z), [(0, 12.4), (0.8, 13.0), (1, 12.4)], 24))
+    pc['amber'].append(boxr(XL - 5.6, XL - 3.8, y_m - 1.4, y_m + 1.4, SHOULDER_Z + 12.6, SHOULDER_Z + 13.3))
     add(f'leg_{tag}_roll', 'body', S, (0, -1, 0), pc)
     # 肩のピッチ：真鍮の円板・太もも（芯・板 2 枚・ピストン）
     pc = pieces()
-    pc['graphite'].append(K.lathe((60.8, y_m, SHOULDER_Z), (67.2, y_m, SHOULDER_Z), [(0, 11.6), (0.8, 12.2), (1, 11.6)], 24))
-    pc['brass'].append(disc(67.0, 68.8, y_m, SHOULDER_Z, 11.0))
-    pc['brass'].append(disc(61.0, 59.6, y_m, SHOULDER_Z, 8.8, segs=16))
+    pc['graphite'].append(K.lathe((XL - 3.2, y_m, SHOULDER_Z), (XL + 3.2, y_m, SHOULDER_Z), [(0, 11.6), (0.8, 12.2), (1, 11.6)], 24))
+    pc['brass'].append(disc(XL + 3.0, XL + 4.8, y_m, SHOULDER_Z, 11.0))
+    pc['brass'].append(disc(XL - 3.0, XL - 4.4, y_m, SHOULDER_Z, 8.8, segs=16))
     u, v, w = seg_axes(S, Kp, A)
     L1 = float(np.linalg.norm(Kp - S))
     pc['graphite'].append(slab(S + u * (L1 * 0.53), u, v, L1 - 7.0, 9.0, 7.0, 1.8, wdir=w))
@@ -761,7 +762,7 @@ def metre_uv(ob):
             uv.data[li].uv = {0: (c[1], c[2]), 1: (c[0], c[2]), 2: (c[0], c[1])}[ax]
 
 
-def build() -> dict:
+def build(export=True) -> dict:
     import bpy
     t0 = time.time()
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -803,6 +804,8 @@ def build() -> dict:
         ob.matrix_world = mw
     B.smooth_by_angle(meshes, 38.0)
     tri = sum(tri_by_mat.values())
+    if not export:
+        return {'triangles': tri}
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', export_yup=True, export_apply=False,
@@ -919,10 +922,27 @@ def render_review(out_dir):
     small.save(os.path.join(out_dir, 'ordo_compare_small.jpg'), quality=86)
 
 
+def set_hull(hw, rim_w, rim_h):
+    """船体の半幅と縁を変える（形の関数はこの値を読む）"""
+    global HULL_HW, RIM_W, RIM_H, XL
+    HULL_HW, RIM_W, RIM_H = hw, rim_w, rim_h
+    XL = HULL_HW + 4.0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--review', action='store_true')
+    ap.add_argument('--hull-hw', type=float, default=None,
+                    help='舷の外の面の半幅（既定 60 m）。試しの形を作るとき（--out と一緒に。結果の文書 3.3）')
+    ap.add_argument('--rim', type=str, default=None, help='縁の幅,高さ（m。既定 4,2.5）')
+    ap.add_argument('--out', type=str, default=None, help='GLB の書き出し先（既定 godot/assets/models/ordo.glb）')
     args = ap.parse_args()
+    global OUT
+    if args.out:
+        OUT = os.path.abspath(args.out)
+    if args.hull_hw is not None or args.rim:
+        rw, rh = (float(v) for v in args.rim.split(',')) if args.rim else (RIM_W, RIM_H)
+        set_hull(args.hull_hw if args.hull_hw is not None else HULL_HW, rw, rh)
     info = build()
     if args.review:
         fetch_art()
