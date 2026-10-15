@@ -2828,119 +2828,6 @@
     {
      "t": "box",
      "pos": [
-      8.69,
-      0.0,
-      -4.763
-     ],
-     "size": [
-      0.955,
-      0.28,
-      0.995
-     ],
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 119
-    },
-    {
-     "t": "box",
-     "pos": [
-      9.078,
-      0.0,
-      -5.392
-     ],
-     "size": [
-      0.678,
-      0.24,
-      0.597
-     ],
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 119
-    },
-    {
-     "t": "box",
-     "pos": [
-      9.162,
-      0.0,
-      -4.747
-     ],
-     "size": [
-      0.447,
-      0.2,
-      0.48
-     ],
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 119
-    },
-    {
-     "t": "box",
-     "pos": [
-      8.31,
-      0.0,
-      -5.121
-     ],
-     "size": [
-      0.737,
-      0.3,
-      0.743
-     ],
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 119
-    },
-    {
-     "t": "box",
-     "pos": [
-      -5.942,
-      0.7,
-      6.937
-     ],
-     "size": [
-      1.076,
-      1.0,
-      1.086
-     ],
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 121
-    },
-    {
-     "t": "box",
-     "pos": [
-      -4.84,
-      0.7,
-      6.9
-     ],
-     "size": [
-      1.16,
-      1.04,
-      1.16
-     ],
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 122
-    },
-    {
-     "t": "box",
-     "pos": [
-      -4.6,
-      1.74,
-      6.8
-     ],
-     "size": [
-      0.26,
-      0.69,
-      0.26
-     ],
-     "cam": false,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 123
-    },
-    {
-     "t": "box",
-     "pos": [
       3.623,
       1.6,
       -4.377
@@ -2952,7 +2839,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 126
+     "dress": 122
     },
     {
      "t": "box",
@@ -2968,7 +2855,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 127
+     "dress": 123
     },
     {
      "t": "box",
@@ -2984,7 +2871,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 128
+     "dress": 124
     },
     {
      "t": "box",
@@ -3000,7 +2887,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 129
+     "dress": 125
     },
     {
      "t": "box",
@@ -3016,7 +2903,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 130
+     "dress": 126
     },
     {
      "t": "box",
@@ -3032,7 +2919,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 131
+     "dress": 127
     },
     {
      "t": "box",
@@ -3048,7 +2935,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 133
+     "dress": 129
     },
     {
      "t": "box",
@@ -3064,7 +2951,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 133
+     "dress": 129
     },
     {
      "t": "box",
@@ -3080,7 +2967,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 133
+     "dress": 129
     },
     {
      "t": "box",
@@ -3096,7 +2983,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 133
+     "dress": 129
     },
     {
      "t": "box",
@@ -3112,7 +2999,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 134
+     "dress": 130
     },
     {
      "t": "box",
@@ -3128,7 +3015,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 134
+     "dress": 130
     },
     {
      "t": "box",
@@ -3144,7 +3031,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 134
+     "dress": 130
     },
     {
      "t": "box",
@@ -3160,7 +3047,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 134
+     "dress": 130
     },
     {
      "t": "box",
@@ -3263,7 +3150,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 129
+     "dress": 125
     },
     {
      "t": "box",
@@ -3436,7 +3323,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 128
+     "dress": 124
     },
     {
      "t": "box",
@@ -3453,7 +3340,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 128
+     "dress": 124
     },
     {
      "t": "box",
@@ -3558,7 +3445,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 129
+     "dress": 125
     },
     {
      "t": "box",
@@ -3982,7 +3869,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 127
+     "dress": 123
     },
     {
      "t": "box",
@@ -5833,16 +5720,6 @@
      ]
     },
     {
-     "part": "ruins/b1_debris",
-     "pos": [
-      8.9,
-      0.0,
-      -5.0
-     ],
-     "yaw": 30,
-     "solid": true
-    },
-    {
      "part": "ruins/b1_cables",
      "pos": [
       9.9,
@@ -5850,34 +5727,6 @@
       -2.6
      ],
      "yaw": 4
-    },
-    {
-     "part": "ruins/b1_crate",
-     "pos": [
-      -5.942,
-      0.7,
-      6.932
-     ],
-     "yaw": 2,
-     "solid": true
-    },
-    {
-     "part": "ruins/b1_crate_cloth",
-     "pos": [
-      -4.84,
-      0.7,
-      6.9
-     ],
-     "solid": true
-    },
-    {
-     "part": "town/hand_lantern",
-     "pos": [
-      -4.6,
-      1.74,
-      6.8
-     ],
-     "solid": true
     },
     {
      "part": "ruins/b1_cables",

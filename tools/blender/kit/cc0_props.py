@@ -13,6 +13,7 @@
   .venv-blender/bin/python tools/blender/kit/cc0_props.py              全部
   .venv-blender/bin/python tools/blender/kit/cc0_props.py --only barrel_b
   .venv-blender/bin/python tools/blender/kit/cc0_props.py --all        残さないと決めた物（DROPPED）も build/cc0_props/ に作る（比べの画像用）
+  .venv-blender/bin/python tools/blender/kit/cc0_props.py --gallery    確認ページ用の tools/model_viewer/kit_cc0.glb も作る
 """
 from __future__ import annotations
 
@@ -331,10 +332,34 @@ KEEP = ('cask', 'plank_box')
 DROPPED = tuple(n for n in SPEC if n not in KEEP)
 
 
+def gallery():
+    """確認ページ（tools/model_viewer）用：残した部品を横に並べた 1 つの GLB（tools/model_viewer/kit_cc0.glb）"""
+    import bpy
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    x = 0.0
+    for n in KEEP:
+        before = set(bpy.data.objects)
+        bpy.ops.import_scene.gltf(filepath=os.path.join(OUT, f'{n}.glb'))
+        new = [o for o in bpy.data.objects if o not in before]
+        lo, hi = SPEC_BOUNDS[n]
+        for o in new:
+            o.location.x += x - lo
+        x += (hi - lo) + 0.6
+    bpy.ops.object.select_all(action='SELECT')
+    path = os.path.join(REPO, 'tools', 'model_viewer', 'kit_cc0.glb')
+    bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', export_yup=True, use_selection=True, export_animations=False,
+                              export_apply=True, export_vertex_color='ACTIVE', export_active_vertex_color_when_no_material=True)
+    print('[cc0] 確認ページ用', path, flush=True)
+
+
+SPEC_BOUNDS: dict = {}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--only', default='')
     ap.add_argument('--all', action='store_true', help='残さない物も build/cc0_props/ に作る')
+    ap.add_argument('--gallery', action='store_true', help='確認ページ用に残した部品を並べた tools/model_viewer/kit_cc0.glb も作る')
     a = ap.parse_args()
     names = [n for n in a.only.split(',') if n] or (list(SPEC) if a.all else list(KEEP))
     index_path = os.path.join(OUT, 'parts.json')
@@ -349,12 +374,18 @@ def main():
         if keep:
             index[n] = {k: info[k] for k in ('tris', 'mats', 'min', 'max')}
             entries[f'{n}.glb'] = (asset, SPEC[n], info)
+    if a.gallery:
+        idx = json.load(open(index_path)) if os.path.exists(index_path) else index
+        for n in KEEP:
+            SPEC_BOUNDS[n] = (idx[n]['min'][0], idx[n]['max'][0])
     if entries:
         os.makedirs(OUT, exist_ok=True)
         with open(index_path, 'w') as fh:
             json.dump({k: index[k] for k in sorted(index)}, fh, ensure_ascii=False, indent=1)
             fh.write('\n')
         sources(entries)
+    if a.gallery:
+        gallery()
 
 
 if __name__ == '__main__':

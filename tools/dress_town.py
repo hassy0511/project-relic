@@ -287,8 +287,8 @@ def lived_mid(d):
     d.snug("barrel", 0, x0=44.25, z1=2.95)
     d.snug("cc0/cask", 0, x0=44.97, z1=2.95)
     # 雑貨屋・ジャンク屋の裏（奥の箱の山の後ろ）：長持ちと樽
-    d.snug("cc0/plank_box", 0, x0=22.0, z0=10.2)
-    d.snug("cc0/cask", 0, x0=23.42, z0=10.2)
+    d.snug("cc0/plank_box", 0, x0=22.6, z0=10.2)
+    d.snug("cc0/cask", 0, x0=24.02, z0=10.2)
     d.snug("cc0/plank_box", 0, x0=36.4, z0=10.2)
     d.snug("barrel", 0, x0=37.82, z0=10.2)
     # 市場の南（前からの木箱の山の横）：樽と長持ち
@@ -325,7 +325,7 @@ def lived_mid(d):
     d.put("laundry_line", [-26.0, 3.3, 4.7])
     d.put("laundry_line", [-26.0, 3.55, 7.3])
     # --- 西の端（工房の西の面と低い壁の間）：暮らしの角。洗濯綱、壁ぎわにタンク、北の角に木箱と樽と鉢植え
-    d.put("clothesline", [-44.6, 0, 9.0], 90)
+    d.put("clothesline", [-45.5, 0, 11.0], 0)       # 西の端の見晴らしの所（x -46.6, z 6）のカメラの前を空ける
     d.snug("tank", 90, x1=-41.02, z0=1.2)
     d.snug("crate", 0, x0=-47.98, z1=13.6)
     d.snug("planter", 0, x0=-47.02, z1=13.6)
