@@ -812,13 +812,15 @@ def _rug(p: Part, x0, x1, z0, z1, main='cloth', edge='cloth2'):
     """床の敷物（1.5 cm。赤い布に濃い縁と麻の模様の帯）"""
     p.add(edge, boxb(x0, x1, 0.0, 0.012, z0, z1))
     p.add(main, boxb(x0 + 0.12, x1 - 0.12, 0.0, 0.016, z0 + 0.12, z1 - 0.12))
-    for t in (0.3, 0.5, 0.7):
+    for t in (0.22, 0.78):
         zz = z0 + (z1 - z0) * t
-        p.add('linen', boxb(x0 + 0.3, x1 - 0.3, 0.0, 0.018, zz - 0.04, zz + 0.04))
-    for k in range(int((x1 - x0) / 0.5)):
-        xx = x0 + 0.25 + k * 0.5
-        for zz in (z0 + 0.25, z1 - 0.25):
-            p.add('linen', box((xx, 0.009, zz), (0.16, 0.018, 0.16), 45))
+        p.add('ivory2', boxb(x0 + 0.3, x1 - 0.3, 0.0, 0.018, zz - 0.025, zz + 0.025))
+    p.add(edge, boxb(x0 + 0.45, x1 - 0.45, 0.0, 0.018, z0 + (z1 - z0) * 0.3, z1 - (z1 - z0) * 0.3))
+    p.add(main, boxb(x0 + 0.6, x1 - 0.6, 0.0, 0.02, z0 + (z1 - z0) * 0.34, z1 - (z1 - z0) * 0.34))
+    for k in range(int((x1 - x0) / 0.6)):
+        xx = x0 + 0.3 + k * 0.6
+        for zz in (z0 + 0.06, z1 - 0.06):
+            p.add('ivory2', box((xx, 0.009, zz), (0.07, 0.019, 0.07), 45))
 
 
 def _crate_box(p: Part, x0, x1, y0, y1, z0, z1, mat='wood2'):
@@ -1080,6 +1082,19 @@ def workshop_set() -> Part:
             y = 6.0 - k * 0.12
             p.add('graphite', boxb(x - 0.02, x + 0.02, y - 0.1, y, z - (0.04 if k % 2 else 0.01), z + (0.04 if k % 2 else 0.01)))
         p.add('brass', tube([(x, y1, z), (x, y1 - 0.18, z), (x + 0.12, y1 - 0.28, z), (x + 0.2, y1 - 0.18, z)], 0.025, 5))
+    # 北の壁の高い所の大きな歯車（回収した機械の部品）と、東の壁の配管の弁
+    p.add('brass', cyl((4.5, 4.4, 6.94), (4.5, 4.4, 7.0), 1.1, 24))
+    p.add('graphite', cyl((4.5, 4.4, 6.9), (4.5, 4.4, 6.94), 0.35, 12))
+    for k in range(14):
+        a = k * math.pi / 7
+        p.add('brass', box((4.5 + 1.2 * math.cos(a), 4.4 + 1.2 * math.sin(a), 6.97), (0.22, 0.22, 0.06), 0))
+    for z in (-2.0, 2.4):
+        p.add('graphite', boxb(9.82, 10.0, 3.2, 4.6, z - 0.08, z + 0.08))
+        p.add('brass', cyl((9.7, 4.0, z), (9.86, 4.0, z), 0.22, 12))
+    # 西の壁の上の段の棚（板と瓶・箱）
+    p.add('wood2', boxb(-10.0, -9.72, 3.4, 3.47, -2.8, 2.8))
+    for z in np.arange(-2.5, 2.6, 0.45):
+        p.add('ivory' if int(z * 10) % 3 else 'brass', lathe((-9.86, 3.47, z), (-9.86, 3.75, z), [(0, 0.07), (0.6, 0.1), (1, 0.05)], 8))
     # 敷物（入口の前）と、壁の灯
     _rug(p, -2.2, 2.2, -5.6, -3.2, 'cloth2', 'cloth')
     for x in (-6.0, 2.5):
@@ -1141,10 +1156,8 @@ def guild_set() -> Part:
     for k in range(16):
         a = k * math.pi / 8
         p.add('brass', box((11.97, 3.6 + 1.4 * math.sin(a), 2.0 + 1.4 * math.cos(a)), (0.06, 0.24, 0.24), 0))
-    for x in (-6.0, 6.0):
-        p.add('brass', cyl((x - 0.9, 5.3, 7.9), (x + 0.9, 5.3, 7.9), 0.03, 6))
-        p.add('cloth', sheet(lambda u, v, x=x: (x - 0.8 + 1.6 * u, 5.28 - 1.6 * v, 7.88 - 0.03 * math.sin(u * 3)), 3, 3, 0.02))
-        p.add('linen', boxb(x - 0.25, x + 0.25, 4.3, 4.8, 7.84, 7.86))
+    for x in (-9.0, -5.0, 5.0, 10.6):
+        p.place(P.banner(1.0, 1.8), (x, 5.5, 8.0), 180)
     # 回収品の棚（東の壁、z -6〜-1 の高い棚。開いた面は西）
     _shelf_unit(p, 11.0, 11.98, -6.6, -1.4, 2.6, '-x', rng)
     # 天井の吊り灯 2 つ（4.6 m より上）

@@ -62,7 +62,7 @@
                 {"mask": "grime", "uv_m": 1.0, "cover": 0.6, "seam": [0.01, 0.08], "color": "#9a8064", "mode": "multiply", "amount": 0.45},
                 {"mask": "chips", "uv_m": 1.4, "cover": 0.1, "color": "#a6927a", "amount": 0.6}]},
   "hullplate": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 8.0, "color": "#f1e8d8", "roughness": 0.8, "macro": 0.3,
-                "seams": {"every": [4.0, 4.0], "width": 0.08, "color": "#5d574d"},
+                "seams": {"every": [4.0, 4.0], "width": 0.05, "color": "#6e675b"},
                 "detail": [
                  {"mask": "mottle", "uv_m": 10.0, "cover": 0.5, "color": "#dcc8aa", "amount": 0.5, "edge": 0.08},
                  {"mask": "grime", "uv_m": 3.0, "cover": 0.5, "seam": [0.05, 0.6], "color": "#a08466", "mode": "multiply", "amount": 0.5},
@@ -112,7 +112,7 @@
             "detail": [
              {"mask": "grime", "uv_m": 1.8, "cover": 0.3, "color": "#b49c7c", "mode": "multiply", "amount": 0.5}]},
   "desert": {"color": "#bc5636", "roughness": 1.0},
-  "skyglass": {"color": "#f2e6cf", "roughness": 0.3, "emission": {"color": "#f4e4c8", "energy": 1.1}},
+  "skyglass": {"color": "#f2e6cf", "roughness": 0.3, "emission": {"color": "#f4e4c8", "energy": 0.8}},
   "grime_decal": {"blend": "decal", "color": "#a08367", "amount": 0.58, "cover": 0.85, "edge": 0.05, "uv_m": 4.2, "falloff": [0.2, 1.0]},
   "oil_decal": {"blend": "decal", "color": "#564c45", "amount": 0.6, "cover": 0.75, "edge": 0.04, "uv_m": 2.6, "falloff": [0.2, 1.0], "roughness": 0.5},
   "hull": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 24.0, "color": "#ece2cf", "roughness": 0.85},

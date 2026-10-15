@@ -780,9 +780,8 @@ def workshop(room):
     light(room, [-6, 3, 4], [8.3, 1.0, 3.5])           # 橙の明かりは炉の口へ
     # 壁ぎわの道具と材料：樽・タンク・曲がり管・木箱・麻袋・ガラクタ
     d.snug("barrel", 0, x0=-9.98, z1=6.98)
-    d.snug("cc0/cask", 0, x0=-9.98, z1=6.26)
     d.snug("tank", 90, x1=9.98, z0=-6.98)
-    d.snug("pipe_bend", 0, x1=9.98, z0=-5.9)
+    d.snug("pipe_bend", 0, x1=9.98, z0=-5.8)
     d.snug("crate", 0, x0=-9.98, z0=-6.98)
     d.snug("crate", 2, y=0.74, x0=-9.95, z0=-6.95, scale=0.8)
     d.snug("cc0/plank_box", 90, x0=-9.0, z0=-6.98)
@@ -790,6 +789,16 @@ def workshop(room):
     d.snug("junk_pile", 0, x1=9.98, z0=4.6)
     d.snug("crate", 0, x1=3.98, z1=6.98)
     d.snug("barrel", 0, x1=3.02, z1=6.98)
+    # 西の壁ぎわ（棚と作業台の間）：工具棚と木箱の山、東の壁ぎわ（棚と炉の間）：タンクと樽
+    d.snug("tool_rack", 90, x0=-9.98, z1=6.26)
+    d.snug("crate", 0, x0=-9.98, z1=-3.82)
+    d.snug("crate", 3, y=0.74, x0=-9.95, z1=-3.86, scale=0.8)
+    d.snug("tank", 90, x1=9.98, z0=1.62)
+    d.snug("cc0/cask", 0, x1=9.98, z0=-5.24)
+    # 南の壁ぎわ（入口の東）：部品の木箱と麻袋、壊れた機械の部品（ガラクタの山）
+    d.snug("cc0/plank_box", 0, x0=3.0, z0=-6.98)
+    d.snug("sacks", 0, x0=4.5, z0=-6.98)
+    d.snug("junk_pile", 0, x0=5.79, z0=-6.98)
     dirt(d, -5.0, 3.6, 7.0, 3.0, kind="oil_patch")     # 作業台と万力の前
     dirt(d, 6.0, 4.9, 5.0, 2.2, kind="oil_patch")      # 旋盤の前
     dirt(d, 8.0, 3.5, 2.6, 3.0, kind="oil_patch")      # 炉の前（煤）
