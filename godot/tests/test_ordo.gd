@@ -1,5 +1,5 @@
 extends RefCounted
-## 巡礼機オルド（OrdoView・ordo.glb）のテスト：モデルが読める、歩くあいだ関節が可動域（spec の暫定値）の中、
+## 巡礼機オルド（OrdoView・ordo.glb）のテスト：モデルが読める（材質はキットの名前）、歩くあいだ関節が可動域（spec の暫定値）の中、
 ## 着いている足が地面の上で動かない（許す ±5 cm）、止めると 8 本とも肩の真下に着いた停止の姿勢になる、体が止まって地面が動く見方。
 
 var h: TestHelpers
@@ -37,6 +37,12 @@ func test_ordo_model_loads() -> void:
 	var names := mats.keys()
 	names.sort()
 	h.expect(names == ["amber", "brass", "cloth", "graphite", "ivory"], "材質は 5 つ（キットの名前）：%s" % [names])
+	# 材質の名前が町のキットと同じなので、全部の面をキットの材質（あとで汚れの層を足す所）に替えられる
+	var surfaces := 0
+	for mi in o.model.find_children("*", "MeshInstance3D", true, false):
+		surfaces += (mi as MeshInstance3D).mesh.get_surface_count()
+	var swapped := o.apply_kit("town")
+	h.expect(swapped == surfaces, "全部の面をキット town の同じ名前の材質に替えられる（%d / %d）" % [swapped, surfaces])
 	# 元の姿勢：足の裏が地面（y = -120）、肩の軸が地面から 85 m
 	var leg: Dictionary = o.legs[0]
 	h.expect(absf(float(leg.s0.y) - (OrdoView.GROUND_Y + 85.0)) < 0.01, "肩の軸が地面から 85 m（%.2f）" % (float(leg.s0.y) - OrdoView.GROUND_Y))

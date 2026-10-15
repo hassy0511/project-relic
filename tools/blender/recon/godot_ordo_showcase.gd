@@ -50,15 +50,15 @@ func _run() -> void:
 	_run_for(9.0)
 	var views: Array[Image] = []
 	var c := _center()
-	await _shot(views, c + Vector3(-1050, 10, 0), c + Vector3(0, -50, 0), 26.0, "right side (starboard, lift side) / walking")
-	await _shot(views, c + Vector3(-60, 30, 980), c + Vector3(0, -50, 0), 24.0, "front (bow) / walking")
-	await _shot(views, c + Vector3(-620, 90, 560), c + Vector3(0, -55, 10), 28.0, "front-right 3/4 / walking")
+	await _shot(views, c + Vector3(-960, 0, 0), c + Vector3(0, -45, 0), 27.0, "right side (starboard, lift side) / walking")
+	await _shot(views, c + Vector3(-50, 20, 640), c + Vector3(0, -50, 0), 24.0, "front (bow) / walking")
+	await _shot(views, c + Vector3(-530, 80, 470), c + Vector3(0, -50, 10), 28.0, "front-right 3/4 / walking")
 	# 停止の姿勢（8 本とも接地）・夜（非常灯の琥珀だけ）
 	ordo.set_walking(false, true)
 	EnvironmentSetup.apply_mood(sun, "night")
 	env.fog_density = 0.0005
 	c = _center()
-	await _shot(views, c + Vector3(-560, 40, -520), c + Vector3(0, -55, 0), 28.0, "stopped pose (all 8 feet planted) / night")
+	await _shot(views, c + Vector3(-480, 30, -440), c + Vector3(0, -50, 0), 28.0, "stopped pose (all 8 feet planted) / night")
 	_sheet(views, 2, out_dir.path_join("views.jpg"))
 	EnvironmentSetup.apply_mood(sun, "day")
 	env.fog_density = 0.00035
