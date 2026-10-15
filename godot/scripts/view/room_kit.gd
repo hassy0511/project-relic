@@ -14,6 +14,7 @@ const SHADER_FADE := preload("res://assets/shaders/kit_surface_fade.gdshader")
 const SHADER_DETAIL := preload("res://assets/shaders/kit_surface_detail.gdshader")
 const SHADER_DETAIL_FADE := preload("res://assets/shaders/kit_surface_detail_fade.gdshader")
 const GLOW := preload("res://assets/shaders/kit_glow.gdshader")
+const STAIN := preload("res://assets/shaders/kit_stain.gdshader")
 ## 汚れ・傷みの層の型の絵（tools/grime_masks.py が CC0 の写真から作る）。1 枚目：RGB 汚れの斑・A 欠け、2 枚目：RGB むら・A 縦の筋
 const DETAIL_TEX := "res://assets/kit/grime/masks.png"
 const DETAIL_TEX2 := "res://assets/kit/grime/masks2.png"
@@ -71,6 +72,16 @@ static func make_material(def: Dictionary) -> Material:
 		m.set_shader_parameter("color", Color(def.get("color", "#ffd9a0")))
 		m.set_shader_parameter("strength", float(def.get("strength", 0.25)))
 		m.set_shader_parameter("fade_m", float(def.get("fade_m", 7.0)))
+		return m
+	# しみ（"blend": "mul"）：下の色に掛ける（kit_stain.gdshader。遺構の汚れの置き場所の部品）
+	if def.get("blend", "") == "mul":
+		m.shader = STAIN
+		m.set_shader_parameter("color", Color(def.get("color", "#9e7a60")))
+		m.set_shader_parameter("strength", float(def.get("strength", 0.6)))
+		m.set_shader_parameter("uv_m", float(def.get("uv_m", 1.6)))
+		m.set_shader_parameter("mottle", float(def.get("mottle", 0.45)))
+		if ResourceLoader.exists(DETAIL_TEX):
+			m.set_shader_parameter("detail_tex", load(DETAIL_TEX))
 		return m
 	var layers := detail_layers(def)
 	m.shader = SHADER if layers.is_empty() else SHADER_DETAIL

@@ -301,8 +301,12 @@ const SOLID_CLASS := ["ruins/b1_crate", "ruins/b1_crate_cloth", "town/crate", "t
 	"town/bench", "town/stall_table", "town/junk_pile", "town/tool_rack", "town/water_tower", "town/pipes",
 	"town/lamp_post", "town/lamp_tall", "town/tank", "town/stool", "town/pipe_bend", "town/bollard", "ruins/b1_post_lamp",
 	"town/sacks", "cc0/cask", "cc0/plank_box"]
-## 飾りのある部屋（キットの部屋）
-const DRESSED := ["ch1.r02", "ch1.r03", "ch1.mid"]
+## 飾りのある部屋（キットの部屋）。遺構の r04〜r20（2026-10-15、tools/dress_ruins_deep.py）は当たり判定の箱のある部屋だけ
+## （追跡通路 r07 と心臓部 r19 は、すき間・ボスの戦いの場を変えないよう、当たり判定のある飾りを置かない）
+const DRESSED := ["ch1.r02", "ch1.r03", "ch1.mid", "ch1.r04", "ch1.r05", "ch1.r06", "ch1.r08", "ch1.r09", "ch1.r10", "ch1.r11",
+	"ch1.r12", "ch1.r13", "ch1.r14", "ch1.r15", "ch1.r16", "ch1.r17", "ch1.r18", "ch1.r20"]
+## そのうち、箱・樽などの手で触れる小物を必ず置いてある部屋
+const PROP_ROOMS := ["ch1.r02", "ch1.r03", "ch1.mid"]
 ## 足した箱と、出口・トリガーの箱の間（m）／目印・チェックポイント・敵の出る所から／調べる物・拾う物・住人から（tools/dress_solid.py と同じ）
 const CLEAR_BOX := 0.1
 const CLEAR_MARK := 0.6
@@ -513,7 +517,8 @@ func test_dress_solid_props() -> void:
 				n += 1
 				if not geo.any(func(g): return g.get("t", "box") == "box" and _dist(g, p.x, p.z) == 0.0 and p.y >= g.pos[1] and p.y <= g.pos[1] + g.size[1]):
 					loose.append("%s %s" % [d.part, p])
-		h.expect(n > 0 and loose.is_empty(), "%s：箱・樽・鉢植えなど %d 個に当たり判定がある（無い：%s）" % [rid, n, loose])
+		# 箱・樽などの小物を置いていない部屋（遺構の封印室・縦坑・心臓部など）は 0 個でよい
+		h.expect((n > 0 or not rid in PROP_ROOMS) and loose.is_empty(), "%s：箱・樽・鉢植えなど %d 個に当たり判定がある（無い：%s）" % [rid, n, loose])
 		var bad := _blocking(room, added)
 		h.expect(bad.is_empty(), "%s：当たり判定の箱が出口・トリガー・目印・調べる物・住人から離れている（%s）" % [rid, bad])
 		h.expect(added.filter(func(g): return g.get("nogo", false) and g.get("cam", true)).is_empty(), "%s：乗れない柱はどれも体だけの箱（cam: false）" % rid)
