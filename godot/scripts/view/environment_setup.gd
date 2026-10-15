@@ -1,6 +1,30 @@
 class_name EnvironmentSetup
 ## 空・光・空気感。赤い砂の世界の、夕方に近い暖かい光（MVP の試験場用の仮の設定）
 
+## スマホ・ブラウザ版の描き方（gl_compatibility）で、影を落とす太陽に掛ける強さ。
+## この描き方は、影を落とす光を別の回で描き、トーンマップと sRGB に直した色を画面に足す（Godot 4.5 の
+## drivers/gles3/shaders/scene.glsl の USE_ADDITIVE_LIGHTING）。明るい側を詰める曲線を通した色どうしを足すので、
+## 光の当たる所が Forward+ より明るく白っぽく、平らに出た（町の床で +16〜36、遺構の床で +21。汚れの層も薄く見えた）。
+## 太陽を弱めて、光の当たる所の明るさを Forward+ に合わせる（0.35 で昼の床が合い、壁は少し暗くなる。間を取って 0.4）。
+## 部品の影つきの光（遺構の割れ目のスポット）は、この描き方では影を付けない（RoomKit._light。影なしなら同じ明るさになる）
+const COMPAT_SHADOW_LIGHT := 0.4
+
+
+## 影を落とす光の強さに掛ける割合（gl_compatibility だけ COMPAT_SHADOW_LIGHT、ほかは 1）
+static func shadow_light_scale() -> float:
+	return COMPAT_SHADOW_LIGHT if is_compat() else 1.0
+
+
+## スマホ・ブラウザ版の軽い描き方か
+static func is_compat() -> bool:
+	return RenderingServer.get_current_rendering_method() == "gl_compatibility"
+
+
+## 太陽の強さ（影を落とすので、gl_compatibility では shadow_light_scale を掛ける。元の値は "energy" のメタに）
+static func set_sun_energy(sun: DirectionalLight3D, energy: float) -> void:
+	sun.set_meta("energy", energy)
+	sun.light_energy = energy * (shadow_light_scale() if sun.shadow_enabled else 1.0)
+
 static func build(parent: Node) -> DirectionalLight3D:
 	var we := WorldEnvironment.new()
 	var env := Environment.new()
@@ -38,9 +62,9 @@ static func build(parent: Node) -> DirectionalLight3D:
 
 	var sun := DirectionalLight3D.new()
 	sun.light_color = Color("#fff1d6")
-	sun.light_energy = 1.6
 	sun.rotation_degrees = Vector3(-52, -150, 0)
 	sun.shadow_enabled = true
+	set_sun_energy(sun, 1.6)
 	sun.shadow_bias = 0.03
 	sun.shadow_normal_bias = 1.0
 	sun.directional_shadow_max_distance = 60.0
@@ -66,7 +90,7 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 			sky.ground_horizon_color = Color("#c98a62")
 			sky.ground_bottom_color = Color("#3a2a24")
 			sun.light_color = Color("#ffc08a")
-			sun.light_energy = 1.4
+			set_sun_energy(sun, 1.4)
 			sun.rotation_degrees = Vector3(-9, -150, 0)
 			env.ambient_light_energy = 0.7
 			env.fog_light_color = Color("#e5a782")
@@ -77,7 +101,7 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 			sky.sky_horizon_color = Color("#f0a679")
 			sky.ground_horizon_color = Color("#b98a6a")
 			sun.light_color = Color("#ffc08a")
-			sun.light_energy = 1.1
+			set_sun_energy(sun, 1.1)
 			sun.rotation_degrees = Vector3(-14, -150, 0)
 			env.ambient_light_energy = 0.7
 			env.fog_light_color = Color("#e5a782")
@@ -87,7 +111,7 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 			sky.ground_bottom_color = Color("#0a0a12")
 			sky.ground_horizon_color = Color("#1e2238")
 			sun.light_color = Color("#8fa6ff")
-			sun.light_energy = 0.7
+			set_sun_energy(sun, 0.7)
 			sun.rotation_degrees = Vector3(-60, -150, 0)
 			# 空が暗いと環境光も暗くなりすぎるので、夜は青みの色で与える
 			env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
@@ -105,7 +129,7 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 			sky.sky_top_color = Color(pal[0])
 			sky.sky_horizon_color = Color(pal[1])
 			sun.light_color = Color(pal[2])
-			sun.light_energy = pal[3]
+			set_sun_energy(sun, pal[3])
 			sun.rotation_degrees = Vector3(-60, -150, 0)
 			# 屋内は空の色に頼らず、階層ごとの色の環境光で与える
 			env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
@@ -116,7 +140,7 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 			sky.sky_top_color = Color("#6d6358")
 			sky.sky_horizon_color = Color("#a08a6c")
 			sun.light_color = Color("#ffe2b8")
-			sun.light_energy = 0.8
+			set_sun_energy(sun, 0.8)
 			sun.rotation_degrees = Vector3(-60, -150, 0)
 			env.ambient_light_energy = 0.8
 			env.fog_light_color = Color("#8a7660")
@@ -126,7 +150,7 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 			sky.ground_bottom_color = Color("#5a4636")
 			sky.ground_horizon_color = Color("#c9a27e")
 			sun.light_color = Color("#fff1d6")
-			sun.light_energy = 1.6
+			set_sun_energy(sun, 1.6)
 			sun.rotation_degrees = Vector3(-52, -150, 0)
 			env.ambient_light_energy = 0.9
 			env.fog_light_color = Color("#d9b58f")
@@ -152,7 +176,7 @@ static func apply_sky(sun: DirectionalLight3D, path: String, light: Dictionary =
 		env.sky.sky_material = mat
 		env.fog_sky_affect = 0.0
 	if light.has("sun_energy"):
-		sun.light_energy = float(light.sun_energy)
+		set_sun_energy(sun, float(light.sun_energy))
 	if light.has("sun_color"):
 		sun.light_color = Color(light.sun_color)
 	if light.has("ambient_color"):

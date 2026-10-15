@@ -420,7 +420,9 @@ static func _light(l: Dictionary, xf: Transform3D) -> Light3D:
 	o.position = xf * RoomGeo.v3(l.get("at", [0, 1, 0]))
 	o.light_color = Color(l.get("color", "#ffbc52"))
 	o.light_energy = float(l.get("energy", 1.0))
-	o.shadow_enabled = bool(l.get("shadow", false))
+	# 影：スマホ・ブラウザ版の描き方（gl_compatibility）では付けない。影つきの光は別の回で描いて sRGB の色の上で足すので、
+	# 光の当たる床が Forward+ より明るく白っぽく出た（遺構 r02 の床で +21。EnvironmentSetup.COMPAT_SHADOW_LIGHT）。軽くもなる
+	o.shadow_enabled = bool(l.get("shadow", false)) and not EnvironmentSetup.is_compat()
 	return o
 
 
