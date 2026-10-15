@@ -1,4 +1,6 @@
 // キットの面の材質（RoomKit）の中身。kit_surface.gdshader と kit_surface_fade.gdshader（近くを網目に消す版）が読む。
+// 汚れ・傷みの層（材質の "detail"）のある材質は、DETAIL を定義した kit_surface_detail.gdshader・kit_surface_detail_fade.gdshader
+// （中身は kit_detail.gdshaderinc）。DETAIL の無い版は前と同じ。
 // 部屋の灰色の地形と、飾りの部品（GLB）の両方に使う。
 // UV はメートル（部屋の面は RoomKit がワールド座標から、部品は Blender で付けた値）。1 枚の絵 = uv_m メートル。
 // seam_every を 0 より大きくすると、その間隔（m）で板の継ぎ目の線を描く（壁の白磁の板など）。
@@ -22,6 +24,9 @@ uniform float emission_energy = 0.0;
 #ifdef NEAR_FADE
 // カメラのすぐ近くを網目に消す距離（m）：x より近いと全部消え、y より遠いと全部見える（kit_surface_fade.gdshader）
 uniform vec2 near_fade = vec2(0.8, 1.5);
+#endif
+#ifdef DETAIL
+#include "res://assets/shaders/kit_detail.gdshaderinc"
 #endif
 
 float seam(vec2 uvm) {
@@ -56,6 +61,10 @@ void fragment() {
 		c *= mix(1.0, clamp(l * 1.6, 0.6, 1.25), macro);
 	}
 	c = mix(c, c * COLOR.rgb, tint_mix);
+#ifdef DETAIL
+	// 汚れ・傷みの層（継ぎ目の線は、その上に描く）
+	c = kit_detail(c, UV, UV2, normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz));
+#endif
 	if (seam_every.x > 0.0 || seam_every.y > 0.0) {
 		c = mix(c, seam_color.rgb, seam(UV));
 	}
