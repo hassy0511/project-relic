@@ -117,7 +117,8 @@ func _setup_leg(tag: String) -> Dictionary:
 	var leg := {
 		"tag": tag, "side": 1.0 if tag.begins_with("l") else -1.0, "nodes": nodes,
 		"s0": s0, "k0": k0, "a0": a0,
-		"l1": (k0 - s0).length(), "l2": (a0 - k0).length(),
+		# 横から見た（YZ 面の）長さ。膝・足首は肩より外へ開いている（x）が、ピッチの軸は x に平行なので x は角度に効かない
+		"l1": _yz(k0 - s0).length(), "l2": _yz(a0 - k0).length(),
 		"knee_sign": signf(sa.angle_to(sk)),
 		"inner0": _yz(s0 - k0).angle_to(_yz(a0 - k0)),
 		"offset": PHASE[tag],

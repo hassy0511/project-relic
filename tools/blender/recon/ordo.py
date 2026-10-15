@@ -67,7 +67,9 @@ GAP = 1.0                # 板のすき間（前後）
 DECK_T = 1.0             # 背の板の厚み
 SHOULDER_Z = GROUND + 85.0   # 肩の軸（地面から 85 m）
 ANKLE_Z = GROUND + 14.0      # 足首の軸
-XL = 64.0                # 脚の面（左舷。右舷は -XL）
+XL = 64.0                # 肩の軸の中心の x（左舷。右舷は -XL）
+SPLAY_K, SPLAY_A = 8.0, 12.0   # 膝・足首を肩より外へ出す（m）。正面・真上の絵のとおり脚が外へ開き、足が舷の外に着く。
+                               # ピッチの軸はどれも x に平行のままなので、横から見た 2 節の IK はそのまま
 L_THIGH, L_SHIN = 48.0, 34.0
 MOUNTS = {1: -140.0, 2: -48.0, 3: 48.0, 4: 140.0}   # 脚の取付（y。船首 -200 から 15・38・62・85 %）
 FOOT_L, FOOT_W = 38.0, 24.0
@@ -76,7 +78,7 @@ DOOR_W, DOOR_H = 22.0, 30.0
 MAT_COLORS = {   # 名前は town.json の materials と同じ（あとでキットの材質に替えられる）
     'ivory': ('#E9DFC9', 0.8, 0.0),      # 白磁（spec #F3E9D2。閂・町のキットと同じ清書の色）
     'graphite': ('#444641', 0.6, 0.3),
-    'brass': ('#A98749', 0.42, 0.65),
+    'brass': ('#A98749', 0.55, 0.4),     # つや消しの真鍮（spec）。つやを強くすると平らな円板が空を映して玉に見える
     'cloth': ('#B75B43', 0.95, 0.0),
     'amber': ('#FFBC52', 0.4, 0.0),
 }
@@ -219,11 +221,17 @@ def cylx(x0, x1, y, z, r, segs=16):
     return K.lathe((x0, y, z), (x1, y, z), [(0, r), (1, r)], segs)
 
 
-def disc(x_in, x_out, y, z, r, segs=24, boss=0.45, rim=0.86):
-    """真鍮の円板（x_in → x_out へ張り出す）：縁の段・中の盛り上がり（ボス）"""
-    d = x_out - x_in
-    prof = [(0, r * 0.96), (0.2, r), (0.6, r), (0.6, r * rim), (0.82, r * rim), (0.82, r * boss), (1.0, r * boss * 0.9), (1.0, 0.0)]
-    return K.lathe((x_in, y, z), (x_in + d, y, z), prof, segs)
+def disc(x_in, x_out, y, z, r, segs=24):
+    """真鍮の円板（x_in → x_out へ張り出す。絵の肩・膝・足首の円板）：面取りした外の縁の輪・一段へこんだ面・中の盛り上がり（ボス）。
+    段の高さは 0.4〜0.9 m（遠くからでも輪と影が読める。平らな 1 枚だと、つやの映り込みで丸い玉に見えた）"""
+    d = abs(x_out - x_in)
+    s = 1.0 if x_out > x_in else -1.0
+    rec, boss = min(0.6, 0.35 * d), 0.9
+    L = d + boss - rec
+    pts = [(0.0, r), (d - 0.3, r), (d, r - 0.3), (d, 0.8 * r), (d - rec, 0.78 * r), (d - rec, 0.42 * r),
+           (d - rec + boss, 0.36 * r), (d - rec + boss, 0.0)]
+    prof = [(t / L, rr) for t, rr in pts]
+    return K.lathe((x_in, y, z), (x_in + s * L, y, z), prof, segs)
 
 
 def slab(c, u, v, lu, lv, tw, ch, wdir=(1, 0, 0)):
@@ -389,6 +397,11 @@ def build_stern(pc):
     for sx in (1.0, -1.0):
         pc['amber'].append(boxr(sx * 2.0, sx * 8.0, y + T + 1.6, y + T + 1.9, oz + 1.6, oz + 2.4))
     pc['amber'].append(boxr(-3.0, 3.0, y + T + 1.6, y + T + 1.9, -oz - 2.4, -oz - 1.6))
+    # 外枠の両脇の黒鉛の柱（絵：扉の左右の縦の帯）と、上の真鍮の横木
+    for sx in (1.0, -1.0):
+        pc['graphite'].append(boxr(sx * (fx + 2.5), sx * (fx + 5.5), y + T - 0.2, y + T + 1.2, zb + 3.0, top - 3.0))
+        pc['brass'].append(boxr(sx * (fx + 2.2), sx * (fx + 5.8), y + T - 0.2, y + T + 1.5, fz + 1.0, fz + 2.6))
+    pc['brass'].append(boxr(-fx - 2.0, fx + 2.0, y + T - 0.2, y + T + 2.2, fz + 0.6, fz + 2.2))
     # 開口の奥（黒鉛の芯の面より少し奥の暗い壁）
     pc['graphite'].append(boxr(-ox, ox, y - 3.0, y - 2.0, -oz, oz))
     # 船尾の上：禁足扉の機械の箱、両脇の塔
@@ -529,15 +542,19 @@ def build_body():
 
 
 def build_door():
+    """禁足扉：縦長の 2 枚の扉（白磁の板・黒鉛の縦の溝）と真ん中の真鍮の桟。外枠は船体側（build_stern）"""
     pc = pieces()
     y = 200.0
     ox, oz = DOOR_W / 2, DOOR_H / 2
     pc['graphite'].append(boxr(-ox, ox, y - 0.4, y + 0.4, -oz, oz))
     for sx in (1.0, -1.0):
-        for z0, z1 in ((-oz, -oz / 3 - 0.3), (-oz / 3 + 0.3, oz / 3 - 0.3), (oz / 3 + 0.3, oz)):
-            pc['ivory'].append(boxr(sx * 0.7, sx * (ox - 0.4), y + 0.4, y + 1.6, z0 + 0.2, z1 - 0.2))
-    pc['brass'].append(boxr(-0.7, 0.7, y + 0.4, y + 2.1, -oz, oz))
-    pc['brass'].append(boxr(-ox + 0.4, ox - 0.4, y + 0.4, y + 1.9, -oz + 0.6, -oz + 2.0))
+        # 扉 1 枚 = 縦の板 2 枚（間に黒鉛の溝）
+        for x0, x1 in ((0.9, ox / 2 - 0.3), (ox / 2 + 0.3, ox - 0.5)):
+            pc['ivory'].append(boxr(sx * x0, sx * x1, y + 0.4, y + 1.6, -oz + 0.6, oz - 0.6))
+        pc['brass'].append(boxr(sx * (ox / 2 - 0.9), sx * (ox / 2 + 0.9), y + 0.4, y + 1.9, -oz + 3.0, -oz + 4.6))   # 取っ手の受け
+    pc['brass'].append(boxr(-0.9, 0.9, y + 0.4, y + 2.3, -oz, oz))
+    for zz in (-oz + 0.3, oz - 0.3):
+        pc['brass'].append(boxr(-ox + 0.3, ox - 0.3, y + 0.4, y + 2.0, zz - 0.5, zz + 0.5))
     add('door', 'body', (0, y + 1.0, 0), (0, 0, -1), pc, kind='slide')
 
 
@@ -572,94 +589,101 @@ def build_lift_parts():
 
 
 def leg_frame(y_m, knee_dir):
-    """脚の関節の位置（左舷・x = XL の面）。knee_dir：+1 = 膝が船尾（+Y）へ、-1 = 船首へ"""
+    """脚の関節の位置（左舷）。knee_dir：+1 = 膝が船尾（+Y）へ、-1 = 船首へ。横から見た長さ（y・z）が太もも 48 m・すね 34 m"""
     S = V3([XL, y_m, SHOULDER_Z])
-    A = V3([XL, y_m, ANKLE_Z])
-    D = np.linalg.norm(A - S)
+    A = V3([XL + SPLAY_A, y_m, ANKLE_Z])
+    D = abs(A[2] - S[2])
     ca = (L_THIGH ** 2 + D ** 2 - L_SHIN ** 2) / (2 * L_THIGH * D)
     al = math.acos(ca)
-    Kp = S + L_THIGH * V3([0.0, knee_dir * math.sin(al), -math.cos(al)])
+    Kp = V3([XL + SPLAY_K, y_m + knee_dir * L_THIGH * math.sin(al), SHOULDER_Z - L_THIGH * math.cos(al)])
     return S, Kp, A
 
 
 def seg_axes(p0, p1, toward):
-    """節の向き u（p0 → p1）と、YZ 面で u に直角で toward の側を向く v"""
+    """節の向き u（p0 → p1、外へ開いた分の x も含む）、u に直角で YZ 面の中の v（toward の側）、横の向き w = u × v（外向き）"""
     u = (p1 - p0) / np.linalg.norm(p1 - p0)
     v = V3([0.0, -u[2], u[1]])
+    v = v / np.linalg.norm(v)
     if v @ (toward - p0) < 0:
         v = -v
-    return u, v
+    w = np.cross(u, v)
+    if w[0] < 0:
+        w = -w
+    return u, v, w
 
 
 def build_leg(tag, y_m, knee_dir):
     """左舷の脚 1 本（tag = 'l1' など）。右舷・後ろの 2 対は鏡写し。
-    太さは絵の脚（板 2 枚と黒鉛の芯、真鍮の円板・ピストン）を肩 85 m に合わせた：太ももの板 15.5 m、すねの板 13.5 m、肩の円板の半径 11.6 m"""
+    太さは絵の脚（板 2 枚と黒鉛の芯、真鍮の円板・ピストン）を肩 85 m に合わせた：太ももの板 15.5 m、すねの板 13.5 m、肩の円板の半径 11 m"""
     S, Kp, A = leg_frame(y_m, knee_dir)
+    xk, xa = Kp[0], A[0]
     # 肩の横振り（黒鉛の首輪）
     pc = pieces()
     pc['graphite'].append(K.lathe((57.0, y_m, SHOULDER_Z), (61.4, y_m, SHOULDER_Z), [(0, 12.4), (0.8, 13.0), (1, 12.4)], 24))
     pc['amber'].append(boxr(58.4, 60.2, y_m - 1.4, y_m + 1.4, SHOULDER_Z + 12.6, SHOULDER_Z + 13.3))
     add(f'leg_{tag}_roll', 'body', S, (0, -1, 0), pc)
-    # 肩のピッチ：真鍮の円板・太もも
+    # 肩のピッチ：真鍮の円板・太もも（芯・板 2 枚・ピストン）
     pc = pieces()
     pc['graphite'].append(K.lathe((60.8, y_m, SHOULDER_Z), (67.2, y_m, SHOULDER_Z), [(0, 11.6), (0.8, 12.2), (1, 11.6)], 24))
     pc['brass'].append(disc(67.0, 68.8, y_m, SHOULDER_Z, 11.0))
     pc['brass'].append(disc(61.0, 59.6, y_m, SHOULDER_Z, 8.8, segs=16))
-    u, v = seg_axes(S, Kp, A)
-    pc['graphite'].append(slab(S + u * (L_THIGH * 0.53), u, v, L_THIGH - 7.0, 9.0, 7.0, 1.8))
+    u, v, w = seg_axes(S, Kp, A)
+    L1 = float(np.linalg.norm(Kp - S))
+    pc['graphite'].append(slab(S + u * (L1 * 0.53), u, v, L1 - 7.0, 9.0, 7.0, 1.8, wdir=w))
     for sx in (1.0, -1.0):
-        pc['ivory'].append(slab(S + u * 26.0 + V3([sx * 4.8, 0, 0]), u, v, 27.0, 15.5, 2.6, 3.0))
-    p0, p1 = S + u * 8.0 + v * 9.2, S + u * (L_THIGH - 8.0) + v * 9.2
+        pc['ivory'].append(slab(S + u * 26.0 + w * (sx * 4.8), u, v, 27.0, 15.5, 2.6, 3.0, wdir=w))
+    p0, p1 = S + u * 8.0 + v * 9.2, S + u * (L1 - 8.0) + v * 9.2
     pc['brass'].append(K.lathe(p0, p1, [(0, 1.7), (1, 1.7)], 12))
     pc['graphite'].append(K.lathe(p0 - u * 0.5, p0 + u * 15.0, [(0, 2.6), (0.92, 2.6), (1, 2.0)], 12))
-    pc['graphite'].append(bar(S + u * 7.0 + v * 4.5, p0 - u * 0.2, 2.4, 2.4, up=(1, 0, 0)))
-    pc['graphite'].append(bar(Kp - u * 7.0 + v * 4.0, p1 + u * 0.2, 2.4, 2.4, up=(1, 0, 0)))
-    q = S + u * 11.0          # 太ももの板の上の小さな琥珀の灯
-    pc['amber'].append(boxr(XL + 6.1, XL + 6.4, q[1] - 0.7, q[1] + 0.7, q[2] - 1.8, q[2] - 0.7))
+    pc['graphite'].append(bar(S + u * 7.0 + v * 4.5, p0 - u * 0.2, 2.4, 2.4, up=tuple(w)))
+    pc['graphite'].append(bar(Kp - u * 7.0 + v * 4.0, p1 + u * 0.2, 2.4, 2.4, up=tuple(w)))
+    q = S + u * 11.0 + w * 6.1   # 太ももの板の上の小さな琥珀の灯
+    pc['amber'].append(slab(q + w * 0.15 - v * 4.0, u, v, 1.2, 1.4, 0.3, 0.2, wdir=w))
     add(f'leg_{tag}_shoulder', f'leg_{tag}_roll', S, (1, 0, 0), pc)
     # 膝：円板（両側）・膝頭の真鍮の筒・すね
     pc = pieces()
-    pc['graphite'].append(K.lathe((XL - 7.2, Kp[1], Kp[2]), (XL + 7.2, Kp[1], Kp[2]), [(0, 8.4), (0.1, 9.4), (0.9, 9.4), (1, 8.4)], 24))
-    pc['brass'].append(disc(XL + 7.0, XL + 8.6, Kp[1], Kp[2], 7.4, segs=22))
-    pc['brass'].append(disc(XL - 7.0, XL - 8.6, Kp[1], Kp[2], 7.4, segs=22))
+    pc['graphite'].append(K.lathe((xk - 7.2, Kp[1], Kp[2]), (xk + 7.2, Kp[1], Kp[2]), [(0, 8.4), (0.1, 9.4), (0.9, 9.4), (1, 8.4)], 24))
+    pc['brass'].append(disc(xk + 7.0, xk + 8.6, Kp[1], Kp[2], 7.4, segs=22))
+    pc['brass'].append(disc(xk - 7.0, xk - 8.6, Kp[1], Kp[2], 7.4, segs=22))
     pt = Kp + V3([0, knee_dir, 0]) * 8.4
-    pc['brass'].append(K.lathe((XL - 5.6, pt[1], pt[2] + 0.5), (XL + 5.6, pt[1], pt[2] + 0.5), [(0, 2.9), (0.12, 3.4), (0.88, 3.4), (1, 2.9)], 14))
-    u, v = seg_axes(Kp, A, S)
-    pc['graphite'].append(slab(Kp + u * (L_SHIN * 0.5), u, v, L_SHIN - 5.0, 7.6, 6.4, 1.4))
+    pc['brass'].append(K.lathe((xk - 5.6, pt[1], pt[2] + 0.5), (xk + 5.6, pt[1], pt[2] + 0.5), [(0, 2.9), (0.12, 3.4), (0.88, 3.4), (1, 2.9)], 14))
+    u, v, w = seg_axes(Kp, A, S)
+    L2 = float(np.linalg.norm(A - Kp))
+    pc['graphite'].append(slab(Kp + u * (L2 * 0.5), u, v, L2 - 5.0, 7.6, 6.4, 1.4, wdir=w))
     for sx in (1.0, -1.0):
-        pc['ivory'].append(slab(Kp + u * 18.5 + V3([sx * 4.6, 0, 0]), u, v, 17.0, 13.5, 2.4, 2.6))
-    p0, p1 = Kp + u * 7.0 - v * 7.6, Kp + u * (L_SHIN - 7.0) - v * 7.6
+        pc['ivory'].append(slab(Kp + u * 18.5 + w * (sx * 4.6), u, v, 17.0, 13.5, 2.4, 2.6, wdir=w))
+    p0, p1 = Kp + u * 7.0 - v * 7.6, Kp + u * (L2 - 7.0) - v * 7.6
     pc['brass'].append(K.lathe(p0, p1, [(0, 1.4), (1, 1.4)], 10))
     pc['graphite'].append(K.lathe(p1 - u * 9.0, p1 + u * 0.4, [(0, 2.1), (1, 2.1)], 10))
-    pc['graphite'].append(bar(Kp + u * 6.0 - v * 3.6, p0 - u * 0.2, 2.0, 2.0, up=(1, 0, 0)))
-    pc['amber'].append(boxr(XL + 7.3, XL + 7.6, Kp[1] - 0.8, Kp[1] + 0.8, Kp[2] - 8.4, Kp[2] - 7.4))
+    pc['graphite'].append(bar(Kp + u * 6.0 - v * 3.6, p0 - u * 0.2, 2.0, 2.0, up=tuple(w)))
+    pc['amber'].append(boxr(xk + 7.3, xk + 7.6, Kp[1] - 0.8, Kp[1] + 0.8, Kp[2] - 8.4, Kp[2] - 7.4))
     add(f'leg_{tag}_knee', f'leg_{tag}_shoulder', Kp, (1, 0, 0), pc)
     # 足首と足（足の裏 38 × 24 m）
     pc = pieces()
     ya, za = A[1], A[2]
     g = GROUND
-    pc['graphite'].append(K.lathe((XL - 6.2, ya, za), (XL + 6.2, ya, za), [(0, 5.4), (0.12, 6.2), (0.88, 6.2), (1, 5.4)], 20))
-    pc['brass'].append(disc(XL + 6.0, XL + 7.3, ya, za, 4.8, segs=18))
-    pc['brass'].append(disc(XL - 6.0, XL - 7.3, ya, za, 4.8, segs=18))
+    pc['graphite'].append(K.lathe((xa - 6.2, ya, za), (xa + 6.2, ya, za), [(0, 5.4), (0.12, 6.2), (0.88, 6.2), (1, 5.4)], 20))
+    pc['brass'].append(disc(xa + 6.0, xa + 7.3, ya, za, 4.8, segs=18))
+    pc['brass'].append(disc(xa - 6.0, xa - 7.3, ya, za, 4.8, segs=18))
     hl, hw_ = FOOT_L / 2, FOOT_W / 2
-    pc['graphite'].append(boxr(XL - hw_ + 0.5, XL + hw_ - 0.5, ya - hl + 1.0, ya + hl - 1.0, g, g + 1.6))
-    pc['graphite'].append(boxr(XL - 8.5, XL + 8.5, ya - 5.5, ya + 5.5, g + 1.6, za - 1.5))
+    pc['graphite'].append(boxr(xa - hw_ + 0.5, xa + hw_ - 0.5, ya - hl + 1.0, ya + hl - 1.0, g, g + 1.6))
+    pc['graphite'].append(boxr(xa - 8.5, xa + 8.5, ya - 5.5, ya + 5.5, g + 1.6, za - 1.5))
     for sy in (1.0, -1.0):
         # 踏み板（白磁）：外の端の上を斜めに落とす
         yi, yo = ya + sy * 6.0, ya + sy * (hl - 2.4)
         prof = [(yi, g + 1.6), (yo, g + 1.6), (yo, g + 4.4), (yo - sy * 3.6, g + 7.6), (yi, g + 7.6)]
-        vs = [(x, yy, zz) for x in (XL - 11.0, XL + 11.0) for yy, zz in prof]
+        vs = [(x, yy, zz) for x in (xa - 11.0, xa + 11.0) for yy, zz in prof]
         n = len(prof)
         ff = [[k, (k + 1) % n, n + (k + 1) % n, n + k] for k in range(n)] + [list(range(n))[::-1], list(range(n, 2 * n))]
         vs = V3(vs, float)
         pc['ivory'].append((vs, K.orient(vs, ff)))
         # 真鍮の縁金具（端の帯と四隅）
-        pc['brass'].append(boxr(XL - 11.6, XL + 11.6, ya + sy * (hl - 2.4), ya + sy * hl, g, g + 3.6))
+        pc['brass'].append(boxr(xa - 11.6, xa + 11.6, ya + sy * (hl - 2.4), ya + sy * hl, g, g + 3.6))
         for sx in (1.0, -1.0):
-            pc['brass'].append(boxr(XL + sx * 10.4, XL + sx * 12.0, ya + sy * (hl - 4.0), ya + sy * (hl - 0.2), g, g + 6.2))
-        pc['amber'].append(boxr(XL - 3.5, XL + 3.5, ya + sy * 5.5, ya + sy * 5.9, g + 4.2, g + 5.2))
+            pc['brass'].append(boxr(xa + sx * 10.4, xa + sx * 12.0, ya + sy * (hl - 4.0), ya + sy * (hl - 0.2), g, g + 6.2))
+        pc['amber'].append(boxr(xa - 3.5, xa + 3.5, ya + sy * 5.5, ya + sy * 5.9, g + 4.2, g + 5.2))
         # 足首の台から踏み板へ下りる黒鉛の支え
-        pc['graphite'].append(bar(V3([XL, ya + sy * 4.5, za - 2.0]), V3([XL, ya + sy * 8.0, g + 7.4]), 6.0, 2.4, up=(0, sy, 0)))
+        pc['graphite'].append(bar(V3([xa, ya + sy * 4.5, za - 2.0]), V3([xa, ya + sy * 8.0, g + 7.4]), 6.0, 2.4, up=(0, sy, 0)))
     add(f'leg_{tag}_ankle', f'leg_{tag}_knee', A, (1, 0, 0), pc)
 
 
