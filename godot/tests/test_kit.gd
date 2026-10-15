@@ -215,6 +215,28 @@ func test_kit_detail_materials() -> void:
 	root.free()
 
 
+## キットの "base"・"detail_scale"（部屋ごとの汚れの強さ）と、汚れの斑の板（"blend": "decal"）。42 章 14.2.1（2026-10-15）
+func test_kit_inherit_and_decal() -> void:
+	var town: Dictionary = U.load_json(RoomKit.KIT_PATH % "town")
+	var tidy := RoomKit.load_kit("town_tidy")
+	var worn := RoomKit.load_kit("town_worn")
+	h.expect(not tidy.is_empty() and tidy.data.get("sky", {}) == town.get("sky", {}) and tidy.surf.has("floor") and tidy.mats.has("flat"),
+		"元のキット（town）の空・面・材質を受け継ぐ")
+	var a0 := float(town.surfaces.floor.detail[1].amount)
+	var c0 := float(town.surfaces.floor.detail[1].cover)
+	var at := float(tidy.data.surfaces.floor.detail[1].amount)
+	var aw := float(worn.data.surfaces.floor.detail[1].amount)
+	h.expect(is_equal_approx(at, a0 * 0.55) and is_equal_approx(float(tidy.data.surfaces.floor.detail[1].cover), c0 * 0.8),
+		"detail_scale が汚れの層の強さ・覆う割合に掛かる（%.3f → %.3f）" % [a0, at])
+	h.expect(is_equal_approx(aw, minf(1.0, a0 * 1.2)) and float(worn.data.materials.flat.detail[0].amount) <= 1.0, "強くしても 1 まで（%.3f）" % aw)
+	h.expect(float(town.surfaces.floor.detail[1].amount) == a0, "元のキットの JSON は変わらない")
+	var dm := RoomKit.make_material({"blend": "decal", "color": "#9c8466", "amount": 0.5, "cover": 0.7, "uv_m": 4.0}) as ShaderMaterial
+	h.expect(dm.shader == RoomKit.DECAL and is_equal_approx(float(dm.get_shader_parameter("cover")), 0.7) and dm.get_shader_parameter("detail_tex") is Texture2D,
+		"汚れの斑の材質は半透明の汚れのシェーダー（kit_decal.gdshader）")
+	var patch := RoomKit.part_mesh("town/grime_patch", RoomKit.load_kit("town"))
+	h.expect(patch != null and (patch.surface_get_material(0) as ShaderMaterial).shader == RoomKit.DECAL, "汚れの斑の板（town/grime_patch）はキットの grime_decal で描く")
+
+
 ## 足場の箱（中心・大きさ）だけの地形（下は奈落）
 func _ledges(boxes: Array) -> Dictionary:
 	var faces := []
@@ -323,6 +345,8 @@ const JUMP_ACROSS := 6.5
 ## 整備通路の溝（z の範囲）と、壁の帯の面（|x|）
 const R03_PITS := [[-13.0, -11.5], [-7.0, -4.5], [-0.5, 3.0], [7.5, 10.5], [13.5, 16.0]]
 const R03_LINER := 2.64
+## 町の残りの 9 部屋（2026-10-15 の町の展開、tools/dress_town.py。42 章 14.7）。test_dress_solid_props で DRESSED と一緒に確かめる
+const DRESSED_TOWN := ["ch1.opening", "ch1.training", "ch1.lower", "ch1.upper", "ch1.home", "ch1.workshop", "ch1.guild", "ch1.mayor", "ch1.r01"]
 
 
 ## 形の床の上の広がり：[中心 x, 中心 z, 半幅 x, 半幅 z, yaw（ラジアン）, 下の y, 上の y]
@@ -494,7 +518,7 @@ func _nogo_reach(room: Dictionary) -> Array:
 ## 整備通路の溝と、溝の縁から 1.5 m（着地・踏み切り・跳んでいる所）では、頭の届く高さに壁の帯より前へ出た箱が無い
 func test_dress_solid_props() -> void:
 	var w := World.load_manifest("res://content/world.json")
-	for rid in DRESSED:
+	for rid in DRESSED + DRESSED_TOWN:
 		var room := w.room(rid)
 		var geo: Array = room.get("geometry", [])
 		var dress: Array = room.get("dress", [])

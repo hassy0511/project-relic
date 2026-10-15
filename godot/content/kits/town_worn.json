@@ -1,0 +1,6 @@
+{
+ "id": "town_worn",
+ "name": "オルド背町（汚れの強い版：ヤーナの工房。42 章 14.2.1）",
+ "base": "town",
+ "detail_scale": {"amount": 1.2, "cover": 1.25}
+}

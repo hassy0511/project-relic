@@ -125,13 +125,24 @@ func _sign_board(game: GameSim, p: Dictionary, m: Dictionary, lb: Label3D) -> vo
 ## 部屋の仕掛け：扉・出口・スイッチ・動く足場・端末・置いてある物
 func _build_world_objects(game: GameSim) -> void:
 	var metal := MeshKit.mat(Color("#8c8478"), 0.4, 0.5)
+	# 扉の "part"（キットの部品。原点 = 扉の箱の下の中心、正面 +Z）：箱と灯の帯の代わりに部品で描く（下段の禁足扉。42 章 14.1）
+	var door_parts := {}
+	for p in game.room.get("props", []):
+		if p.get("type", "") == "door" and p.has("part"):
+			door_parts[String(p.get("id", ""))] = String(p.part)
 	for d in game.doors:
 		var root := Node3D.new()
 		root.position = d.pos
 		root.rotation.y = d.yaw
 		add_child(root)
-		MeshKit.add(root, MeshKit.box(d.size), metal, Vector3(0, d.size.y * 0.5, 0))
-		MeshKit.add(root, MeshKit.box(Vector3(d.size.x * 0.8, 0.12, d.size.z + 0.04)), MeshKit.glow(Color("#ffb23e"), 1.5), Vector3(0, d.size.y * 0.55, 0))
+		var part_mesh: Mesh = RoomKit.part_mesh(door_parts[d.id], RoomKit.load_kit(String(game.room.get("kit", "")))) if door_parts.has(d.id) else null
+		if part_mesh != null:
+			var mi := MeshInstance3D.new()
+			mi.mesh = part_mesh
+			root.add_child(mi)
+		else:
+			MeshKit.add(root, MeshKit.box(d.size), metal, Vector3(0, d.size.y * 0.5, 0))
+			MeshKit.add(root, MeshKit.box(Vector3(d.size.x * 0.8, 0.12, d.size.z + 0.04)), MeshKit.glow(Color("#ffb23e"), 1.5), Vector3(0, d.size.y * 0.55, 0))
 		_doors[d] = root
 		_door_amt[d] = 1.0 if d.is_open else 0.0
 		root.visible = not d.is_open
@@ -146,7 +157,14 @@ func _build_world_objects(game: GameSim) -> void:
 	for m in game.movers:
 		var mi := MeshKit.add(self, MeshKit.box(m.size), MeshKit.mat(Color("#a79b86"), 0.5, 0.3), m.pos + Vector3(0, m.size.y * 0.5, 0))
 		_movers[m] = mi
+	# 端末の "hide": true は、箱と光る画面を描かない（部屋の飾りが同じ所に物を置く：ベッドの横の台・作業台・望遠鏡・リフトの操作盤。42 章 14.1）
+	var hidden := {}
+	for p in game.room.get("props", []):
+		if p.get("type", "") == "terminal" and p.get("hide", false):
+			hidden[String(p.get("id", ""))] = true
 	for t in game.terminals:
+		if hidden.has(t.id):
+			continue
 		MeshKit.add(self, MeshKit.box(Vector3(0.8, 1.2, 0.6)), metal, t.pos + Vector3(0, 0.6, 0))
 		MeshKit.add(self, MeshKit.box(Vector3(0.6, 0.4, 0.05)), MeshKit.glow(Color("#ffb23e"), 2.0), t.pos + Vector3(0, 1.0, 0.3))
 	for lt in game.loot:

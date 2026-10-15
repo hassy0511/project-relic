@@ -22,6 +22,8 @@ const DETAIL_MAX := 4
 const DETAIL_MASKS := {"grime": 0, "chips": 1, "mottle": 2, "streaks": 3}
 const DETAIL_FACES := {"all": 0, "floor": 1, "wall": 2, "ceiling": 3}
 const DETAIL_MODES := {"paint": 0, "multiply": 1}
+## 汚れの斑の板（材質の "blend": "decal"。町の部品 town/grime_patch・town/oil_patch。2026-10-15 の町の展開、42 章 14.2.1）
+const DECAL := preload("res://assets/shaders/kit_decal.gdshader")
 
 ## 読んだキットと部品の置き場。終了のときに一緒に消えるよう、static var ではなく木の根（root）のメタに持つ
 ##   kits：キットの id → { id, data, surf: { 面の名前: Material }, mats: { 部品の材質の名前: Material } }
@@ -47,6 +49,8 @@ static func load_kit(id: String) -> Dictionary:
 		_kits[id] = {}
 		return {}
 	var data: Dictionary = U.load_json(path)
+	if data.has("base"):
+		data = inherit(data)
 	var kit := {"id": id, "data": data, "surf": {}, "mats": {}}
 	var surfaces: Dictionary = data.get("surfaces", {})
 	for k in surfaces:
@@ -58,15 +62,64 @@ static func load_kit(id: String) -> Dictionary:
 	return kit
 
 
+## キットの "base"（別のキットの id）：そのキットの JSON を元にして、この JSON の項目で上書きする（"surfaces"・"materials" は名前ごと、
+## ほかの項目は丸ごと）。"detail_scale"：元のキットの面・材質の汚れの層（"detail"）の強さ "amount" に掛ける数
+## （{"amount": 1.2, "cover": 1.1} なら覆う割合 "cover" にも。どれも 1 まで）。この JSON に書いた面・材質には掛けない。
+## 同じ町のキットで、部屋ごとに汚れを強く・弱くする（町長の家・上段は弱く、工房は強く。42 章 14.2.1）
+static func inherit(data: Dictionary) -> Dictionary:
+	var path := KIT_PATH % String(data.base)
+	if not FileAccess.file_exists(path):
+		push_warning("元のキットが無い: %s" % path)
+		return data
+	var base: Dictionary = U.load_json(path)
+	if base.has("base"):
+		base = inherit(base)
+	var out: Dictionary = base.duplicate(true)
+	var sc = data.get("detail_scale", 1.0)
+	var k_amount := float(sc.get("amount", 1.0)) if sc is Dictionary else float(sc)
+	var k_cover := float(sc.get("cover", 1.0)) if sc is Dictionary else 1.0
+	for group in ["surfaces", "materials"]:
+		var g: Dictionary = out.get(group, {})
+		for name in g:
+			for l in detail_layers(g[name]):
+				if l.has("amount") or k_amount != 1.0:
+					l["amount"] = minf(1.0, float(l.get("amount", 0.8)) * k_amount)
+				if k_cover != 1.0:
+					l["cover"] = minf(1.0, float(l.get("cover", 0.3)) * k_cover)
+		for name in data.get(group, {}):
+			g[name] = data[group][name]
+		out[group] = g
+	for k in data:
+		if not k in ["base", "detail_scale", "surfaces", "materials"]:
+			out[k] = data[k]
+	return out
+
+
 ## 材質の定義 → 材質。{ "albedo": "res://…png", "color": "#rrggbb", "uv_m": 2, "roughness": 0.85, "metallic": 0,
 ##   "tint_mix": 0, "macro": 0, "tex_strength": 1, "seams": { "every": [2, 1.33], "width": 0.04, "color": "#444641" },
 ##   "emission": { "color": "#ffbc52", "energy": 3 } }
 ##   光の筋（"blend": "add"）：{ "blend": "add", "color", "strength": 0.25, "fade_m": 7 }（kit_glow.gdshader）
+##   汚れの斑の板（"blend": "decal"）：{ "blend": "decal", "color", "amount", "cover", "edge", "uv_m", "falloff": [内, 外], "fade_far", "roughness" }（kit_decal.gdshader）
 ##   "near_fade": [0.8, 1.5]：カメラから 0.8 m より近い所を網目で消し、1.5 m で元に戻す（当たり判定の無い飾りの部品の材質に付ける。
 ##   日よけ・柱・灯がカメラの前を塞がない）。網目は discard を使うので、軽さを優先するスマホ・ブラウザ版（gl_compatibility）では付けない
 ##   "detail": [ 層, … ]（4 つまで）：汚れ・傷みの層（_set_detail・42 章 14.2.1）。無ければ今までのシェーダーのまま（見た目は変わらない）
 static func make_material(def: Dictionary) -> Material:
 	var m := ShaderMaterial.new()
+	if def.get("blend", "") == "decal":
+		# 汚れの斑の板（"blend": "decal"、town/grime_patch・town/oil_patch）：下の床の上に汚れの色を半透明で重ねる
+		# （kit_decal.gdshader。掛け算の半透明はブラウザ版の描き方で黒く塗られたので、光を受ける普通の半透明。42 章 14.2.1）
+		m.shader = DECAL
+		m.set_shader_parameter("detail_tex", load(String(def.get("detail_tex", DETAIL_TEX))))
+		m.set_shader_parameter("color", Color(def.get("color", "#a08a70")))
+		m.set_shader_parameter("amount", float(def.get("amount", 0.6)))
+		m.set_shader_parameter("cover", float(def.get("cover", 0.6)))
+		m.set_shader_parameter("edge", float(def.get("edge", 0.04)))
+		m.set_shader_parameter("uv_m", float(def.get("uv_m", 2.0)))
+		var fo: Array = def.get("falloff", [0.3, 1.0])
+		m.set_shader_parameter("falloff", Vector2(float(fo[0]), float(fo[1])))
+		m.set_shader_parameter("fade_far", float(def.get("fade_far", 70.0)))
+		m.set_shader_parameter("roughness_value", float(def.get("roughness", 0.95)))
+		return m
 	if def.get("blend", "") == "add":
 		m.shader = GLOW
 		m.set_shader_parameter("color", Color(def.get("color", "#ffd9a0")))
