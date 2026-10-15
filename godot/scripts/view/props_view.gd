@@ -146,7 +146,14 @@ func _build_world_objects(game: GameSim) -> void:
 	for m in game.movers:
 		var mi := MeshKit.add(self, MeshKit.box(m.size), MeshKit.mat(Color("#a79b86"), 0.5, 0.3), m.pos + Vector3(0, m.size.y * 0.5, 0))
 		_movers[m] = mi
+	# 端末の "hide": true は、箱と光る画面を描かない（部屋の飾りが同じ所に物を置く：ベッドの横の台・作業台・望遠鏡・リフトの操作盤。42 章 14.3）
+	var hidden := {}
+	for p in game.room.get("props", []):
+		if p.get("type", "") == "terminal" and p.get("hide", false):
+			hidden[String(p.get("id", ""))] = true
 	for t in game.terminals:
+		if hidden.has(t.id):
+			continue
 		MeshKit.add(self, MeshKit.box(Vector3(0.8, 1.2, 0.6)), metal, t.pos + Vector3(0, 0.6, 0))
 		MeshKit.add(self, MeshKit.box(Vector3(0.6, 0.4, 0.05)), MeshKit.glow(Color("#ffb23e"), 2.0), t.pos + Vector3(0, 1.0, 0.3))
 	for lt in game.loot:

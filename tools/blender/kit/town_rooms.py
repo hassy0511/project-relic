@@ -114,7 +114,7 @@ def deco(spec: dict, w: float, h: float) -> Part:
     for x, y in spec.get('high', ()):
         S._window(p, x, y, 0.01)
     for x, y in spec.get('lit', ()):
-        p.add('amber', boxb(x - 0.4, x + 0.4, y, y + 0.9, 0.0, 0.012))
+        p.add('skyglass', boxb(x - 0.4, x + 0.4, y, y + 0.9, 0.0, 0.012))
         p.add('graphite', boxb(x - 0.48, x + 0.48, y + 0.9, y + 0.98, 0, 0.05), boxb(x - 0.48, x - 0.4, y, y + 0.9, 0, 0.05),
               boxb(x + 0.4, x + 0.48, y, y + 0.9, 0, 0.05), boxb(x - 0.02, x + 0.02, y, y + 0.9, 0, 0.03),
               boxb(x - 0.4, x + 0.4, y + 0.43, y + 0.47, 0, 0.03))
@@ -744,10 +744,502 @@ def training_set() -> Part:
     return p
 
 
+# ---------------------------------------------------------------- 屋内（town_interiors：白磁の壁に黒鉛の柱と真鍮の金具、天井の下の赤い布、明るい窓、木の家具）
+
+def _interior(p: Part, x0, x1, z0, z1, h, door=(-1.5, 1.5), lit=None, band=2.4, beam_every=3.0, beam_axis='x', drapes='nwe',
+              posts_every=2.4):
+    """屋内の壁と天井の飾り。壁の内の面：x0・x1・z0・z1（南の壁 z0 に扉 door の幅）、天井 h。
+    lit：{'n'|'e'|'w': [(面に沿ったワールドの座標, 下の y)]} の明るい窓。手の届く高さの物は面から 6 cm まで"""
+    lit = lit or {}
+    walls = {'s': ('+z', ((x0 + x1) / 2, z0), x1 - x0, x0, x1), 'n': ('-z', ((x0 + x1) / 2, z1), x1 - x0, x0, x1),
+             'w': ('+x', (x0, (z0 + z1) / 2), z1 - z0, z0, z1), 'e': ('-x', (x1, (z0 + z1) / 2), z1 - z0, z0, z1)}
+    for key, (normal, c, w, a0, a1) in walls.items():
+        n = max(1, int(round(w / posts_every)))
+        posts = [a0 + 0.1 + k * (w - 0.2) / n for k in range(n + 1)]
+        if key == 's':
+            posts = [u for u in posts if u < door[0] - 0.35 or u > door[1] + 0.35] + [door[0] - 0.25, door[1] + 0.25]
+        spec = {'posts': posts, 'bands': [band, h - 0.1], 'plates': [(a0, a1, 0.4, band)]}
+        if key in lit:
+            spec['lit'] = lit[key]
+        put(p, normal, c, 0.0, spec, w, h)
+    # 扉の上の飾り板
+    p.add('graphite', boxb(door[0] - 0.3, door[1] + 0.3, 3.35, 3.55, z0, z0 + 0.05))
+    # 天井の梁（黒鉛、両端に真鍮）と真ん中の管
+    if beam_axis == 'x':
+        zs = np.arange(z0 + beam_every / 2, z1 - 0.5, beam_every)
+        for z in zs:
+            p.add('graphite', boxb(x0, x1, h - 0.24, h, z - 0.12, z + 0.12))
+            for x in (x0, x1):
+                p.add('brass', boxb(min(x, x + (0.3 if x == x0 else -0.3)), max(x, x + (0.3 if x == x0 else -0.3)), h - 0.3, h, z - 0.15, z + 0.15))
+        P.pipe_run(p, ((x0 + x1) / 2 + 1.2, h - 0.45, z0 + 0.2), ((x0 + x1) / 2 + 1.2, h - 0.45, z1 - 0.2), 0.09, 1.5)
+    # 天井の下の赤い布（壁ぎわにたるませて張る。下の端は h - 0.75 より上）
+    for key in drapes:
+        if key in ('n',):
+            for k, (xa, xb) in enumerate(_spans(x0 + 0.3, x1 - 0.3, 3.2)):
+                p.add('cloth' if k % 2 == 0 else 'cloth2', sheet(lambda u, v, xa=xa, xb=xb: (xa + (xb - xa) * u, h - 0.12 - (0.55 * math.sin(math.pi * u)) * v - 0.08 * v,
+                                                                         z1 - 0.08 - 0.25 * v * math.sin(math.pi * u)), 6, 2, 0.02))
+        if key in ('w', 'e'):
+            x = x0 if key == 'w' else x1
+            s_ = 1 if key == 'w' else -1
+            for k, (za, zb) in enumerate(_spans(z0 + 0.3, z1 - 0.3, 3.2)):
+                p.add('cloth2' if k % 2 == 0 else 'cloth', sheet(lambda u, v, za=za, zb=zb, x=x, s_=s_: (x + s_ * (0.08 + 0.25 * v * math.sin(math.pi * u)),
+                                                                                       h - 0.12 - (0.55 * math.sin(math.pi * u)) * v - 0.08 * v,
+                                                                                       za + (zb - za) * u), 6, 2, 0.02))
+
+
+def _spans(a, b, every):
+    n = max(1, int(round((b - a) / every)))
+    return [(a + k * (b - a) / n, a + (k + 1) * (b - a) / n) for k in range(n)]
+
+
+def _door_in(p: Part, x0, x1, z, h=3.2, depth=0.2):
+    """部屋の入口の扉（geometry の扉の板 x0〜x1・z〜z+depth・高さ h と同じ所）：木の両開きの扉、黒鉛の枠、真鍮の帯"""
+    p.add('wood', boxb(x0, x1, 0.0, h, z, z + depth))
+    w = x1 - x0
+    for k in range(1, 6):
+        xx = x0 + k * w / 6
+        p.add('dark', boxb(xx - 0.012, xx + 0.012, 0.1, h - 0.1, z + depth, z + depth + 0.01))
+    p.add('graphite', boxb(x0 - 0.12, x0 + 0.06, 0.0, h + 0.12, z, z + depth + 0.05), boxb(x1 - 0.06, x1 + 0.12, 0.0, h + 0.12, z, z + depth + 0.05),
+          boxb(x0 - 0.12, x1 + 0.12, h - 0.06, h + 0.12, z, z + depth + 0.05))
+    for y in (0.5, h - 0.7):
+        p.add('graphite', boxb(x0 + 0.08, x1 - 0.08, y, y + 0.1, z + depth, z + depth + 0.03))
+    p.add('brass', boxb((x0 + x1) / 2 - 0.25, (x0 + x1) / 2 - 0.05, 1.0, 1.3, z + depth, z + depth + 0.05),
+          boxb((x0 + x1) / 2 + 0.05, (x0 + x1) / 2 + 0.25, 1.0, 1.3, z + depth, z + depth + 0.05))
+    p.add('dark', boxb((x0 + x1) / 2 - 0.01, (x0 + x1) / 2 + 0.01, 0.05, h - 0.05, z + depth, z + depth + 0.012))
+
+
+def _rug(p: Part, x0, x1, z0, z1, main='cloth', edge='cloth2'):
+    """床の敷物（1.5 cm。赤い布に濃い縁と麻の模様の帯）"""
+    p.add(edge, boxb(x0, x1, 0.0, 0.012, z0, z1))
+    p.add(main, boxb(x0 + 0.12, x1 - 0.12, 0.0, 0.016, z0 + 0.12, z1 - 0.12))
+    for t in (0.3, 0.5, 0.7):
+        zz = z0 + (z1 - z0) * t
+        p.add('linen', boxb(x0 + 0.3, x1 - 0.3, 0.0, 0.018, zz - 0.04, zz + 0.04))
+    for k in range(int((x1 - x0) / 0.5)):
+        xx = x0 + 0.25 + k * 0.5
+        for zz in (z0 + 0.25, z1 - 0.25):
+            p.add('linen', box((xx, 0.009, zz), (0.16, 0.018, 0.16), 45))
+
+
+def _crate_box(p: Part, x0, x1, y0, y1, z0, z1, mat='wood2'):
+    """箱形の家具の箱（木の面、黒鉛の角、真鍮の角金具）。外の大きさが x0〜x1・y0〜y1・z0〜z1（geometry の箱に合わせる）"""
+    p.add(mat, boxb(x0 + 0.02, x1 - 0.02, y0, y1 - 0.02, z0 + 0.02, z1 - 0.02))
+    e = 0.06
+    for x in (x0, x1 - e):
+        for z in (z0, z1 - e):
+            p.add('graphite', boxb(x, x + e, y0, y1, z, z + e))
+    for y in (y0, y1 - e):
+        p.add('graphite', boxb(x0, x1, y, y + e, z0, z0 + e), boxb(x0, x1, y, y + e, z1 - e, z1),
+              boxb(x0, x0 + e, y, y + e, z0, z1), boxb(x1 - e, x1, y, y + e, z0, z1))
+    for x in (x0, x1):
+        for z in (z0, z1):
+            for y in (y0, y1 - 0.12):
+                p.add('brass', boxb(x - (0.0 if x == x0 else 0.1) - 0.01, x + (0.1 if x == x0 else 0.0) + 0.01, y, y + 0.12,
+                                    z - (0.0 if z == z0 else 0.1) - 0.01, z + (0.1 if z == z0 else 0.0) + 0.01))
+
+
+def _shelf_unit(p: Part, x0, x1, z0, z1, h, facing, rng, items=True, boards=None):
+    """棚（geometry の箱と同じ外の大きさ）：黒鉛の枠、木の段板、段の上の小物（壺・瓶・本・歯車・箱）。facing：開いた面の向き '+x' '-x' '+z' '-z'"""
+    boards = boards or [0.1, h * 0.36, h * 0.66, h - 0.06]
+    # 背板と枠
+    if facing in ('+x', '-x'):
+        xb0, xb1 = (x0, x0 + 0.06) if facing == '+x' else (x1 - 0.06, x1)
+        p.add('wood', boxb(xb0, xb1, 0.0, h, z0, z1))
+        for z in (z0, z1 - 0.07):
+            p.add('graphite', boxb(x0, x1, 0.0, h, z, z + 0.07))
+        for y in boards:
+            p.add('wood2', boxb(x0, x1, y - 0.05, y, z0 + 0.07, z1 - 0.07))
+        L = z1 - z0
+    else:
+        zb0, zb1 = (z0, z0 + 0.06) if facing == '+z' else (z1 - 0.06, z1)
+        p.add('wood', boxb(x0, x1, 0.0, h, zb0, zb1))
+        for x in (x0, x1 - 0.07):
+            p.add('graphite', boxb(x, x + 0.07, 0.0, h, z0, z1))
+        for y in boards:
+            p.add('wood2', boxb(x0 + 0.07, x1 - 0.07, y - 0.05, y, z0, z1))
+        L = x1 - x0
+    p.add('graphite', boxb(x0 - 0.02, x1 + 0.02, h - 0.06, h, z0 - 0.02, z1 + 0.02))
+    if not items:
+        return
+    depth = (x1 - x0) if facing in ('+x', '-x') else (z1 - z0)
+    for yb, yt in zip(boards[:-1], boards[1:]):
+        room_h = yt - yb - 0.08
+        t = 0.12
+        while t < L - 0.25:
+            kind = int(rng.integers(0, 6))
+            u = t
+            mid = 0.5 * depth
+            if facing in ('+x', '-x'):
+                cx, cz = (x0 + mid if facing == '+x' else x1 - mid), z0 + u
+            else:
+                cx, cz = x0 + u, (z0 + mid if facing == '+z' else z1 - mid)
+            hh = min(room_h, float(rng.uniform(0.18, 0.4)))
+            if kind == 0:
+                r = float(rng.uniform(0.07, 0.12))
+                p.add('ivory' if rng.random() < 0.5 else 'brass', lathe((cx, yb, cz), (cx, yb + hh, cz), [(0, r * 0.7), (0.5, r), (0.85, r * 0.55), (1, r * 0.45)], 8))
+                t += 2 * r + 0.08
+            elif kind == 1:
+                n = int(rng.integers(3, 7))
+                for j in range(n):
+                    bw = 0.05
+                    mat = ['cloth', 'cloth2', 'wood', 'linen', 'green'][int(rng.integers(0, 5))]
+                    bh = min(room_h, float(rng.uniform(0.18, 0.3)))
+                    if facing in ('+x', '-x'):
+                        p.add(mat, boxb(cx - depth * 0.3, cx + depth * 0.3, yb, yb + bh, cz + j * bw, cz + j * bw + bw - 0.005))
+                    else:
+                        p.add(mat, boxb(cx + j * bw, cx + j * bw + bw - 0.005, yb, yb + bh, cz - depth * 0.3, cz + depth * 0.3))
+                t += n * 0.05 + 0.1
+            elif kind == 2:
+                r = float(rng.uniform(0.1, 0.16))
+                axis = (1, 0, 0) if facing in ('+x', '-x') else (0, 0, 1)
+                c = np.array([cx, yb + r, cz])
+                p.add('brass', cyl(c - np.array(axis) * 0.03, c + np.array(axis) * 0.03, r, 12))
+                p.add('graphite', cyl(c - np.array(axis) * 0.04, c + np.array(axis) * 0.04, r * 0.35, 8))
+                t += 2 * r + 0.08
+            elif kind == 3:
+                bw = float(rng.uniform(0.2, 0.35))
+                p.add('wood2' if rng.random() < 0.5 else 'ivory2', box((cx, yb + min(room_h, 0.2) / 2, cz), (bw if facing in ('+z', '-z') else depth * 0.6, min(room_h, 0.2), depth * 0.6 if facing in ('+z', '-z') else bw), 0))
+                t += bw + 0.08
+            elif kind == 4:
+                for j in range(3):
+                    off = j * 0.09
+                    if facing in ('+x', '-x'):
+                        p.add('dark' if j == 1 else 'green', cyl((cx, yb, cz + off), (cx, yb + hh * 0.8, cz + off), 0.035, 6))
+                    else:
+                        p.add('dark' if j == 1 else 'green', cyl((cx + off, yb, cz), (cx + off, yb + hh * 0.8, cz), 0.035, 6))
+                t += 0.32
+            else:
+                t += float(rng.uniform(0.1, 0.3))
+
+
+def _table(p: Part, x0, x1, z0, z1, h, top='wood2', legs='graphite', cloth=None):
+    """机・卓（geometry の箱と同じ外の大きさ）：天板、脚、前の板（引き出し）"""
+    p.add(top, boxb(x0, x1, h - 0.08, h, z0, z1))
+    p.add('graphite', boxb(x0 - 0.01, x1 + 0.01, h - 0.11, h - 0.08, z0 - 0.01, z1 + 0.01))
+    for x in (x0 + 0.04, x1 - 0.12):
+        for z in (z0 + 0.04, z1 - 0.12):
+            p.add(legs, boxb(x, x + 0.08, 0.0, h - 0.08, z, z + 0.08))
+    p.add('wood', boxb(x0 + 0.1, x1 - 0.1, h - 0.36, h - 0.11, z0 + 0.06, z1 - 0.06))
+    p.add('wood', boxb(x0 + 0.08, x1 - 0.08, 0.12, 0.2, z0 + 0.1, z1 - 0.1))
+    if cloth:
+        p.add(cloth, sheet(lambda u, v: (x0 + 0.2 + (x1 - x0 - 0.4) * u if (x1 - x0) > (z1 - z0) else (x0 + x1) / 2 - 0.3 + 0.6 * u,
+                                         h + 0.005 - (0.0 if v < 0.8 else (v - 0.8) * 2.0),
+                                         z0 - 0.02 + (z1 - z0 + 0.04) * min(v, 0.8) / 0.8 if (x1 - x0) > (z1 - z0) else z0 + (z1 - z0) * v), 3, 5, 0.01))
+
+
+def _desk_items(p: Part, x0, x1, z, y, rng, n=6):
+    """机の上の物（本・紙・携行灯・小さな鉢・部品）。x0〜x1 に並べる、奥 z"""
+    x = x0 + 0.15
+    k = 0
+    while x < x1 - 0.2 and k < n:
+        kind = k % 5
+        if kind == 0:
+            for j in range(3):
+                p.add(['cloth', 'wood', 'linen'][j], boxb(x, x + 0.32, y + j * 0.06, y + j * 0.06 + 0.055, z - 0.22, z + 0.02))
+            x += 0.42
+        elif kind == 1:
+            p.add('linen', box((x + 0.18, y + 0.004, z - 0.15), (0.36, 0.008, 0.26), float(rng.uniform(-20, 20))))
+            x += 0.42
+        elif kind == 2:
+            p.place(P.hand_lantern(), (x + 0.15, y, z - 0.1), 0, 0.6)
+            x += 0.35
+        elif kind == 3:
+            T.pot(p, x + 0.15, y, z - 0.12, 0.35)
+            x += 0.35
+        else:
+            p.add('brass', cyl((x + 0.12, y, z - 0.1), (x + 0.12, y + 0.04, z - 0.1), 0.11, 10))
+            p.add('graphite', cyl((x + 0.12, y + 0.04, z - 0.1), (x + 0.12, y + 0.14, z - 0.1), 0.04, 6))
+            x += 0.32
+        k += 1
+
+
+def _sconce(p: Part, x, y, z, normal):
+    """壁の灯（平たい：真鍮の板と琥珀のガラス、面から 12 cm）"""
+    lp = Part('sconce')
+    lp.add('brass', boxb(-0.12, 0.12, -0.25, 0.25, 0.0, 0.03))
+    lp.add('amber', boxb(-0.07, 0.07, -0.16, 0.12, 0.03, 0.11))
+    lp.add('brass', boxb(-0.09, 0.09, 0.12, 0.17, 0.03, 0.13), boxb(-0.09, 0.09, -0.21, -0.16, 0.03, 0.13))
+    p.place(lp, (x, y, z), YAW[normal])
+
+
+def home_set() -> Part:
+    """ハルの家（ch1.home：14×4.5×12、壁の内 x ±7・z ±6）。town_interiors の右：木箱で組んだベッド（赤い掛け布と枕）、
+    ベッドの横の台と携行灯（調べるとベッド。端末の箱と同じ所）、机（本・灯・鉢）、ガラクタの棚（歯車・瓶・ロボの頭）、
+    衣装箱、父の写真、明るい窓、赤い敷物、天井の梁と赤い布、扉"""
+    p = Part('home_set')
+    rng = np.random.default_rng(41)
+    _interior(p, -7.0, 7.0, -6.0, 6.0, 4.5, door=(-1.5, 1.5), lit={'e': [(1.2, 1.3), (-1.6, 1.3)], 'n': [(1.6, 1.4)]}, band=2.4)
+    _door_in(p, -1.5, 1.5, -6.05, 3.2, 0.2)
+    # ベッド（geometry：x -7〜-4・z 1.5〜6・高さ 0.6、上に掛け布の巻き x -6.2〜-5.0・z 2.7〜4.3・y 0.6〜0.9）
+    _crate_box(p, -7.0, -4.0, 0.0, 0.42, 1.5, 6.0, 'wood')
+    for z in (1.5, 3.0, 4.5):
+        p.add('graphite', boxb(-4.06, -4.0, 0.05, 0.37, z + 0.05, z + 1.45))
+    p.add('linen', boxb(-6.95, -4.05, 0.42, 0.56, 1.55, 5.95))
+    p.add('cloth', sheet(lambda u, v: (-7.0 + 3.05 * u, 0.6 + 0.012 - (0.0 if u < 0.94 else (u - 0.94) * 4.0), 1.45 + 3.2 * v), 5, 6, 0.015))
+    p.add('cloth2', boxb(-6.2, -5.0, 0.6, 0.88, 2.7, 4.3))
+    p.add('linen', boxb(-6.15, -5.05, 0.62, 0.9, 2.95, 3.25))
+    for x in (-6.4, -5.1):
+        p.add('linen', boxb(x - 0.45, x + 0.45, 0.58, 0.7, 5.2, 5.85))
+    p.add('cloth', boxb(-5.2, -4.4, 0.6, 0.7, 5.25, 5.85))
+    # 頭の板（北の壁ぎわ。壁から 12 cm）と、その上の父の写真
+    p.add('wood', boxb(-6.95, -4.05, 0.42, 1.5, 5.88, 6.0))
+    p.add('graphite', boxb(-7.0, -4.0, 1.44, 1.52, 5.86, 6.0))
+    p.add('graphite', boxb(-6.05, -4.95, 2.15, 2.95, 5.95, 6.0))
+    p.add('brass', boxb(-6.0, -5.0, 2.2, 2.9, 5.93, 5.96))
+    p.add('linen', boxb(-5.93, -5.07, 2.27, 2.83, 5.91, 5.93))
+    # ベッドの横の台（端末の箱：x -4.8〜-4.2・z 3.1〜3.9・高さ 1.2）：木箱を 2 段、上に携行灯（ベッドの明かり）
+    _crate_box(p, -4.8, -4.2, 0.0, 0.6, 3.1, 3.9, 'wood2')
+    _crate_box(p, -4.8, -4.2, 0.6, 1.2, 3.1, 3.9, 'ivory2')
+    p.place(P.hand_lantern(), (-4.5, 1.2, 3.5), 0, 0.62)
+    # 机（x 2〜5・z -2.6〜-1.4・高さ 0.9）と上の物、前の踏み台は dress_town.py（当たり判定つき）
+    _table(p, 2.0, 5.0, -2.6, -1.4, 0.9)
+    _desk_items(p, 2.05, 4.95, -1.55, 0.9, rng, 7)
+    # ガラクタの棚（x 4.7〜6.3・z -5〜-4・高さ 2.2、開いた面は北）
+    _shelf_unit(p, 4.7, 6.3, -5.0, -4.0, 2.2, '+z', rng)
+    p.add('ivory', lathe((5.5, 2.2, -4.5), (5.5, 2.6, -4.5), [(0, 0.2), (0.5, 0.24), (1, 0.12)], 10))      # 棚の上のロボの頭（ガラクタ）
+    p.add('amber', cyl((5.42, 2.4, -4.26), (5.42, 2.4, -4.24), 0.04, 6), cyl((5.6, 2.4, -4.26), (5.6, 2.4, -4.24), 0.04, 6))
+    # 衣装箱（x -6.1〜-4.9・z -4〜-2・高さ 1.6）
+    _crate_box(p, -6.1, -4.9, 0.0, 1.6, -4.0, -2.0, 'wood')
+    for y in (0.4, 0.95):
+        p.add('brass', boxb(-4.9, -4.86, y, y + 0.08, -3.3, -2.7))
+    # 敷物と、セーブビーコンの台の真鍮の輪
+    _rug(p, -2.6, 2.4, -1.2, 3.2)
+    p.add('brass', cyl((4.5, 0.0, 3.0), (4.5, 0.02, 3.0), 0.95, 20))
+    p.add('graphite', cyl((4.5, 0.0, 3.0), (4.5, 0.025, 3.0), 0.75, 20))
+    # 東の壁の高い棚（3.2 m）と瓶、北の壁の鉢植え、壁の灯
+    p.add('wood2', boxb(6.72, 7.0, 3.15, 3.22, -3.6, -0.4))
+    for z in np.arange(-3.4, -0.6, 0.38):
+        p.add('ivory' if int(z * 10) % 2 else 'green', lathe((6.86, 3.22, z), (6.86, 3.5, z), [(0, 0.06), (0.6, 0.09), (1, 0.04)], 8))
+    _sconce(p, 6.0, 2.9, 6.0, '-z')
+    _sconce(p, -3.2, 2.9, 6.0, '-z')
+    _sconce(p, -7.0, 2.9, -0.8, '+x')
+    _hanging(p, 0.0, 0.0, 4.5, 3.95)
+    return p
+
+
+def _hanging(p: Part, x, z, top, y, s=1.2):
+    """天井から鎖で吊った灯（芯の高さ y）"""
+    for k in range(int((top - y - 0.35) / 0.12)):
+        yy = top - k * 0.12
+        p.add('graphite', boxb(x - 0.02, x + 0.02, yy - 0.1, yy, z - (0.03 if k % 2 else 0.01), z + (0.03 if k % 2 else 0.01)))
+    P.lantern(p, x, y, z, s)
+
+
+def workshop_set() -> Part:
+    """ヤーナの工房（ch1.workshop：20×6×14、壁の内 x ±10・z ±7）。town_interiors の左：大きな作業台と工具の板、
+    台の前の万力の台（調べると作業台。端末の箱と同じ所）、旋盤、部品の棚、炉、天井の配管と鎖、赤い布、明るい窓"""
+    p = Part('workshop_set')
+    rng = np.random.default_rng(43)
+    _interior(p, -10.0, 10.0, -7.0, 7.0, 6.0, door=(-1.5, 1.5), lit={'w': [(-4.6, 2.8), (4.6, 2.8)], 'e': [(3.6, 2.8)]}, band=3.0,
+              beam_every=3.5, posts_every=2.5)
+    _door_in(p, -1.5, 1.5, -7.05, 3.2, 0.2)
+    # 作業台（x -8〜-2・z 5.2〜6.8・高さ 1.0）：厚い木の天板、黒鉛の脚、下の引き出しと木箱、上の工具・部品・灯
+    _table(p, -8.0, -2.0, 5.2, 6.8, 1.0)
+    for x in (-7.6, -6.4, -3.4):
+        _crate_box(p, x - 0.45, x + 0.45, 0.22, 0.72, 5.35, 6.65, 'wood2')
+    _desk_items(p, -7.9, -2.1, 6.65, 1.0, rng, 9)
+    p.add('graphite', boxb(-4.2, -3.1, 1.0, 1.32, 5.5, 6.2))                       # 台の上の小さな機械（計器）
+    p.add('brass', cyl((-3.65, 1.32, 5.85), (-3.65, 1.38, 5.85), 0.2, 12))
+    # 工具の板（北の壁、台の上 1.4〜3.2 m、面から 6 cm）：板と掛けた工具
+    p.add('wood', boxb(-8.0, -2.0, 1.4, 3.2, 6.94, 7.0))
+    p.add('graphite', boxb(-8.05, -1.95, 1.36, 1.42, 6.9, 7.0), boxb(-8.05, -1.95, 3.18, 3.24, 6.9, 7.0))
+    for k, x in enumerate(np.arange(-7.6, -2.3, 0.42)):
+        L = 0.35 + 0.25 * ((k * 7) % 3) / 2
+        p.add('graphite' if k % 3 else 'brass', boxb(x - 0.025, x + 0.025, 2.9 - L, 2.9, 6.88, 6.93))
+        p.add('graphite', boxb(x - 0.07, x + 0.07, 2.9 - L - 0.08, 2.9 - L, 6.88, 6.93))
+    for x in np.arange(-7.4, -2.5, 0.9):
+        p.add('brass', boxb(x - 0.12, x + 0.12, 1.65, 1.71, 6.86, 6.94))
+    # 万力の台（端末の箱 x -5.4〜-4.6・z 4.2〜4.8・高さ 1.2 と、geometry の箱 z 4.8〜5.2・高さ 1.1）：黒鉛の台、上に真鍮の万力
+    p.add('graphite', boxb(-5.4, -4.6, 0.0, 1.05, 4.2, 5.2))
+    p.add('brass', boxb(-5.42, -4.58, 0.0, 0.12, 4.18, 5.22), boxb(-5.42, -4.58, 0.9, 1.0, 4.18, 5.22))
+    p.add('graphite', boxb(-5.3, -4.7, 1.05, 1.2, 4.3, 4.9))
+    p.add('brass', boxb(-5.25, -4.75, 1.05, 1.15, 4.2, 4.3), cyl((-5.0, 1.12, 4.12), (-5.0, 1.12, 4.25), 0.035, 6))
+    # 旋盤（x 4〜8・z 5.6〜6.8・高さ 1.2）
+    p.add('graphite', boxb(4.02, 7.98, 0.0, 0.85, 5.62, 6.78))
+    p.add('ivory2', boxb(4.1, 7.9, 0.85, 0.95, 5.65, 6.75))
+    p.add('graphite', boxb(4.2, 5.2, 0.95, 1.2, 5.75, 6.65), boxb(6.9, 7.8, 0.95, 1.15, 5.8, 6.6))
+    p.add('brass', cyl((5.2, 1.08, 6.2), (6.9, 1.08, 6.2), 0.05, 8), cyl((4.0, 0.7, 6.2), (4.02, 0.7, 6.2), 0.32, 14))
+    for k in range(10):
+        a = k * math.pi / 5
+        p.add('brass', box((4.01, 0.7 + 0.34 * math.sin(a), 6.2 + 0.34 * math.cos(a)), (0.02, 0.07, 0.07), 0))
+    # 部品の棚（西 x -9.2〜-7.8・z -3〜3・高さ 2.4 は東向き、東 x 7.8〜9.2・z -3.5〜1.5・高さ 2.0 は西向き）
+    _shelf_unit(p, -9.2, -7.8, -3.0, 3.0, 2.4, '+x', rng)
+    _shelf_unit(p, 7.8, 9.2, -3.5, 1.5, 2.0, '-x', rng, boards=[0.1, 0.7, 1.35, 1.94])
+    # 炉（北東の角：x 8.4〜10・z 4〜7 の外の壁ぎわ、煙突は天井へ。橙の明かりの芯）
+    p.add('graphite', boxb(8.8, 9.98, 0.0, 1.6, 2.6, 4.4))
+    p.add('ivory2', boxb(8.75, 9.98, 1.6, 1.75, 2.55, 4.45))
+    p.add('amber', boxb(8.74, 8.8, 0.35, 0.95, 3.0, 4.0))
+    p.add('graphite', boxb(8.72, 8.8, 0.3, 0.38, 2.95, 4.05), boxb(8.72, 8.8, 0.92, 1.0, 2.95, 4.05))
+    P.pipe_run(p, (9.4, 1.75, 3.5), (9.4, 5.95, 3.5), 0.22, 1.0)
+    # 天井の配管（両側の壁の上、5 m より上）と鎖と鉤（作業台と旋盤の上）
+    for x in (-9.6, 9.6):
+        P.pipe_run(p, (x, 5.2, -6.8), (x, 5.2, 6.8), 0.14, 1.4)
+    P.pipe_run(p, (-9.8, 4.75, 6.6), (9.8, 4.75, 6.6), 0.11, 1.4)
+    for x, z, y1 in ((-5.0, 6.0, 2.6), (6.0, 6.2, 2.9)):
+        for k in range(int((6.0 - y1) / 0.12)):
+            y = 6.0 - k * 0.12
+            p.add('graphite', boxb(x - 0.02, x + 0.02, y - 0.1, y, z - (0.04 if k % 2 else 0.01), z + (0.04 if k % 2 else 0.01)))
+        p.add('brass', tube([(x, y1, z), (x, y1 - 0.18, z), (x + 0.12, y1 - 0.28, z), (x + 0.2, y1 - 0.18, z)], 0.025, 5))
+    # 敷物（入口の前）と、壁の灯
+    _rug(p, -2.2, 2.2, -5.6, -3.2, 'cloth2', 'cloth')
+    for x in (-6.0, 2.5):
+        _sconce(p, x, 3.6, 7.0, '-z')
+    _sconce(p, -10.0, 3.8, -1.0, '+x')
+    _sconce(p, 10.0, 3.8, -4.5, '-x')
+    _hanging(p, 0.0, 0.0, 6.0, 5.1, 1.3)
+    return p
+
+
+def guild_set() -> Part:
+    """回収屋ギルド（ch1.guild：24×6×16、壁の内 x ±12・z ±8）：受付台 2 つ（つなぎの箱つき）、バートンの前の小さな台、
+    依頼板（端末の箱と、その後ろの箱が書見台）、壁の地図と大きな歯車、回収品の棚、ギルドの旗、天井の吊り灯"""
+    p = Part('guild_set')
+    rng = np.random.default_rng(47)
+    _interior(p, -12.0, 12.0, -8.0, 8.0, 6.0, door=(-1.5, 1.5), lit={'w': [(-4.0, 2.6), (2.0, 2.6)], 'e': [(-4.0, 2.6)]}, band=3.0,
+              beam_every=4.0, posts_every=2.6)
+    _door_in(p, -1.5, 1.5, -8.05, 3.2, 0.2)
+    # 受付台：左（x -10.5〜-3.5・z 6.4〜7.6）、真ん中（x -3〜3・z 5.9〜7.1）、つなぎ（x -3.5〜-3・z 6.4〜7.1）、
+    # バートンの前の小さな台（x -0.3〜0.3・z 5.3〜5.9）。どれも高さ 1.1
+    for x0, x1, z0, z1 in ((-10.5, -3.5, 6.4, 7.6), (-3.0, 3.0, 5.9, 7.1), (-3.5, -3.0, 6.4, 7.1), (-0.3, 0.3, 5.3, 5.9)):
+        p.add('graphite', boxb(x0 + 0.02, x1 - 0.02, 0.0, 0.98, z0 + 0.02, z1 - 0.02))
+        p.add('wood2', boxb(x0, x1, 0.98, 1.1, z0, z1))
+        p.add('brass', boxb(x0 - 0.01, x1 + 0.01, 0.92, 0.98, z0 - 0.01, z1 + 0.01), boxb(x0 - 0.01, x1 + 0.01, 0.0, 0.1, z0 - 0.01, z1 + 0.01))
+        for x in np.arange(x0 + 0.5, x1 - 0.3, 1.0):
+            p.add('wood', boxb(x - 0.4, x + 0.4, 0.2, 0.85, z0 - 0.01, z0 + 0.02))
+    # 台の上：帳面・判子・天秤・ランプ（1.1 m の上、端から 0.1 m。上に乗る所は dress_town.py の乗れない柱）
+    for x in (-9.6, -7.2, -5.0):
+        p.add('linen', box((x, 1.105, 7.0), (0.42, 0.01, 0.3), float(rng.uniform(-15, 15))))
+        p.add('cloth', boxb(x + 0.3, x + 0.52, 1.1, 1.16, 6.8, 7.1))
+    p.place(P.hand_lantern(), (-8.4, 1.1, 7.3), 0, 0.6)
+    p.add('brass', cyl((1.8, 1.1, 6.7), (1.8, 1.5, 6.7), 0.02, 6), boxb(1.45, 2.15, 1.5, 1.52, 6.69, 6.71))
+    for x in (1.48, 2.12):
+        p.add('brass', cyl((x, 1.38, 6.7), (x, 1.4, 6.7), 0.1, 10))
+    p.add('linen', box((-1.4, 1.105, 6.5), (0.5, 0.01, 0.34), 8))
+    # 依頼板（geometry：x 5〜9・z 7.4〜7.8・高さ 2.4）：真鍮の枠の板と紙、上にギルドの丸い紋
+    p.add('wood', boxb(5.0, 9.0, 0.0, 2.4, 7.42, 7.8))
+    p.add('graphite', boxb(4.95, 9.05, 0.0, 2.45, 7.38, 7.44))
+    p.add('dark', boxb(5.15, 8.85, 0.5, 2.25, 7.36, 7.38))
+    p.add('brass', boxb(4.92, 9.08, 2.4, 2.5, 7.36, 7.8), boxb(4.92, 9.08, 0.42, 0.5, 7.36, 7.45))
+    for k in range(14):
+        x = 5.4 + (k % 7) * 0.5 + float(rng.uniform(-0.05, 0.05))
+        y = 0.75 + (k // 7) * 0.75 + float(rng.uniform(-0.08, 0.08))
+        p.add('linen', box((x, y, 7.35), (0.36, 0.48, 0.01), float(rng.uniform(-6, 6))))
+        p.add('cloth', box((x, y + 0.2, 7.34), (0.05, 0.05, 0.01), 0))
+    _notice_ring(p, 7.0, 3.6, 7.98, 0.75)
+    # 書見台（端末の箱 x 6.6〜7.4・z 6.2〜6.8・高さ 1.2 と、後ろの箱 x 6.6〜7.4・z 6.8〜7.4・高さ 1.2）
+    p.add('graphite', boxb(6.62, 7.38, 0.0, 1.0, 6.22, 7.38))
+    p.add('wood2', boxb(6.6, 7.4, 1.0, 1.2, 6.2, 7.4))
+    p.add('linen', box((7.0, 1.21, 6.6), (0.5, 0.01, 0.36), 0))
+    p.add('brass', boxb(6.58, 7.42, 0.0, 0.1, 6.18, 7.42))
+    # 壁：西の壁の大きな地図（オルドの背の町の配置図）、東の壁の大きな歯車（回収の誇り）、北の壁の上の旗
+    p.add('graphite', boxb(-12.0, -11.95, 1.4, 3.6, -2.0, 2.0))
+    p.add('linen', boxb(-11.95, -11.93, 1.5, 3.5, -1.9, 1.9))
+    for z, y in ((-1.2, 2.2), (0.0, 2.8), (0.9, 2.0), (-0.4, 3.1), (1.4, 3.0)):
+        p.add('cloth', boxb(-11.93, -11.92, y - 0.12, y + 0.12, z - 0.12, z + 0.12))
+    p.add('brass', cyl((11.94, 3.6, 2.0), (12.0, 3.6, 2.0), 1.3, 24))
+    p.add('graphite', cyl((11.9, 3.6, 2.0), (11.94, 3.6, 2.0), 0.4, 12))
+    for k in range(16):
+        a = k * math.pi / 8
+        p.add('brass', box((11.97, 3.6 + 1.4 * math.sin(a), 2.0 + 1.4 * math.cos(a)), (0.06, 0.24, 0.24), 0))
+    for x in (-6.0, 6.0):
+        p.add('brass', cyl((x - 0.9, 5.3, 7.9), (x + 0.9, 5.3, 7.9), 0.03, 6))
+        p.add('cloth', sheet(lambda u, v, x=x: (x - 0.8 + 1.6 * u, 5.28 - 1.6 * v, 7.88 - 0.03 * math.sin(u * 3)), 3, 3, 0.02))
+        p.add('linen', boxb(x - 0.25, x + 0.25, 4.3, 4.8, 7.84, 7.86))
+    # 回収品の棚（東の壁、z -6〜-1 の高い棚。開いた面は西）
+    _shelf_unit(p, 11.0, 11.98, -6.6, -1.4, 2.6, '-x', rng)
+    # 天井の吊り灯 2 つ（4.6 m より上）
+    for x in (-5.0, 5.0):
+        for k in range(8):
+            y = 6.0 - k * 0.12
+            p.add('graphite', boxb(x - 0.02, x + 0.02, y - 0.1, y, -0.03, 0.03))
+        p.add('brass', cyl((x - 0.6, 4.95, 0.0), (x + 0.6, 4.95, 0.0), 0.03, 6), cyl((x, 4.95, -0.6), (x, 4.95, 0.6), 0.03, 6))
+        for dx, dz in ((-0.6, 0.0), (0.6, 0.0), (0.0, -0.6), (0.0, 0.6)):
+            P.lantern(p, x + dx, 4.75, dz, 0.9)
+    _rug(p, -2.0, 2.0, -6.8, -1.0, 'cloth', 'cloth2')
+    return p
+
+
+def mayor_set() -> Part:
+    """町長の家（ch1.mayor：14×4.8×12、壁の内 x ±7・z ±6）：大きな机（町長トルーデの前）、本棚、鉢植えの多い明るい部屋、
+    オルドの絵図、敷物、扉。手入れの行き届いた家（汚れの弱いキット town_tidy）"""
+    p = Part('mayor_set')
+    rng = np.random.default_rng(53)
+    _interior(p, -7.0, 7.0, -6.0, 6.0, 4.8, door=(-1.5, 1.5), lit={'e': [(-2.6, 1.2), (0.0, 1.2), (2.6, 1.2)], 'n': [(-3.6, 1.3), (3.6, 1.3)]},
+              band=2.5, drapes='nwe')
+    _door_in(p, -1.5, 1.5, -6.05, 3.2, 0.2)
+    # 机（x -2.5〜2.5・z 4.3〜5.7・高さ 0.9）：彫りのある木の机、緑の布、書類・判子・灯
+    _table(p, -2.5, 2.5, 4.3, 5.7, 0.9, top='wood', legs='wood')
+    p.add('green', boxb(-1.6, 1.6, 0.9, 0.912, 4.5, 5.5))
+    _desk_items(p, -2.4, 2.4, 5.6, 0.9, rng, 7)
+    for x in (-2.5, 2.48):
+        p.add('brass', boxb(x, x + 0.02, 0.3, 0.8, 4.4, 5.6))
+    # 本棚（x -6.1〜-4.9・z -3〜3・高さ 2.2、開いた面は東）
+    _shelf_unit(p, -6.1, -4.9, -3.0, 3.0, 2.2, '+x', rng, boards=[0.1, 0.62, 1.12, 1.62, 2.14])
+    # オルドの絵図（北の壁、机の上）：額と、白磁の亀の形
+    p.add('graphite', boxb(-1.6, 1.6, 1.7, 3.5, 5.94, 6.0))
+    p.add('linen', boxb(-1.5, 1.5, 1.8, 3.4, 5.92, 5.94))
+    p.add('ivory2', box((0.0, 2.6, 5.915), (1.9, 0.9, 0.01), 0))
+    p.add('brass', boxb(-1.65, 1.65, 3.45, 3.55, 5.9, 6.0), boxb(-1.65, 1.65, 1.65, 1.75, 5.9, 6.0))
+    # 敷物（部屋の真ん中）と、壁の灯
+    _rug(p, -3.2, 3.2, -3.4, 2.8)
+    _sconce(p, -3.2, 2.9, 6.0, '-z')
+    _sconce(p, 3.2, 2.9, 6.0, '-z')
+    _sconce(p, 7.0, 3.0, 4.2, '-x')
+    _hanging(p, 0.0, 0.0, 4.8, 4.05)
+    return p
+
+
+# ---------------------------------------------------------------- 夜明けの甲羅（ch1.opening）
+
+def opening_set() -> Part:
+    """夜明けの甲羅（40×40 の外殻の上、縁は ±20 の低い壁 1.2 m）：床の点検口と通気口（床の上 4 cm まで）、
+    北の縁の見張りの台（木の床板と旗竿・携行灯）、縁の外の面の黒鉛の帯。プレイヤーが立つ真ん中は空ける"""
+    p = Part('opening_set')
+    rng = np.random.default_rng(61)
+    # 点検口（真鍮の縁・黒鉛のふた・4 つの留め金）と通気口（黒鉛の格子）
+    for x, z, w in ((-12.0, 8.0, 1.6), (12.0, -10.0, 1.6), (-10.0, -14.0, 1.2), (14.0, 12.0, 1.2)):
+        p.add('brass', boxb(x - w / 2 - 0.1, x + w / 2 + 0.1, 0.0, 0.03, z - w / 2 - 0.1, z + w / 2 + 0.1))
+        p.add('graphite', boxb(x - w / 2, x + w / 2, 0.0, 0.04, z - w / 2, z + w / 2))
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                p.add('brass', cyl((x + sx * (w / 2 - 0.12), 0.04, z + sz * (w / 2 - 0.12)), (x + sx * (w / 2 - 0.12), 0.06, z + sz * (w / 2 - 0.12)), 0.05, 6))
+    for x, z in ((-16.0, -2.0), (16.0, 2.0), (-4.0, 16.0), (6.0, -16.0), (16.0, -16.0), (-16.0, 15.0)):
+        p.add('graphite', boxb(x - 0.8, x + 0.8, 0.0, 0.03, z - 0.5, z + 0.5))
+        for k in range(6):
+            xx = x - 0.65 + k * 0.26
+            p.add('dark', boxb(xx - 0.06, xx + 0.06, 0.03, 0.035, z - 0.4, z + 0.4))
+    # 外殻の継ぎ目の真鍮の留め金（4 m の板の角）
+    for x in np.arange(-16.0, 17.0, 8.0):
+        for z in np.arange(-16.0, 17.0, 8.0):
+            if abs(x) < 6 and abs(z + 6) < 6:
+                continue
+            p.add('brass', cyl((x, 0.0, z), (x, 0.03, z), 0.14, 8))
+    # 北の縁の見張りの台（床の上の板 4 cm、旗竿と旗、携行灯）：夜明けの地平線を見る所
+    p.add('wood', boxb(-4.0, 4.0, 0.0, 0.04, 16.4, 19.9))
+    p.add('graphite', boxb(-4.05, 4.05, 0.0, 0.045, 16.35, 16.45))
+    for x in (-3.6, 3.6):
+        p.add('brass', cyl((x, 1.2, 20.3), (x, 5.6, 20.3), 0.06, 8))
+        p.add('brass', lathe((x, 5.6, 20.3), (x, 5.85, 20.3), [(0, 0.11), (1, 0.02)], 8))
+        p.add('cloth', sheet(lambda u, v, x=x: (x + (0.1 + 1.2 * u) * (1 if x < 0 else -1), 5.45 - 0.85 * v, 20.3 + 0.08 * math.sin(u * 4 + v)), 4, 2, 0.02))
+    # 縁の低い壁の外の面（|x|・|z| 21）の黒鉛の帯（下の外殻へ続く継ぎ目）
+    for a0, a1, c, axis in ((-21.0, 21.0, -21.0, 'z'), (-21.0, 21.0, 21.0, 'z'), (-21.0, 21.0, -21.0, 'x'), (-21.0, 21.0, 21.0, 'x')):
+        for t in np.arange(a0 + 2.0, a1 - 1.0, 4.0):
+            if axis == 'z':
+                p.add('graphite', boxb(t - 0.1, t + 0.1, -2.0, 1.2, min(c, c + (0.06 if c > 0 else -0.06)), max(c, c + (0.06 if c > 0 else -0.06))))
+            else:
+                p.add('graphite', boxb(min(c, c + (0.06 if c > 0 else -0.06)), max(c, c + (0.06 if c > 0 else -0.06)), -2.0, 1.2, t - 0.1, t + 0.1))
+    return p
+
+
 PARTS = {
     'grime_patch': grime_patch,
     'oil_patch': lambda: grime_patch('oil_decal', 'oil_patch'),
     'lower_set': lower_set,
     'upper_set': upper_set,
     'training_set': training_set,
+    'home_set': home_set,
+    'workshop_set': workshop_set,
+    'guild_set': guild_set,
+    'mayor_set': mayor_set,
+    'opening_set': opening_set,
 }

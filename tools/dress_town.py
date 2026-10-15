@@ -697,7 +697,251 @@ def grime_training(d):
     dirt(d, 20.6, 54.0, 3.0, 4.0)           # 北の奥の隅
 
 
-ROOMS = {"mid": mid, "lower": lower, "upper": upper, "training": training}
+# ---------------------------------------------------------------- 屋内（ハルの家・ヤーナの工房・回収屋ギルド・町長の家）
+
+def interior(room, kit, set_part, hide, terminals=(), floor="floor_in"):
+    """屋内の共通：キット、部屋の箱の面（床は継ぎ目のある白磁の板 floor_in）、geometry の家具の箱を描かず set_part の家具、
+    端末の箱（調べる所）を描かない（"hide"：家具が同じ所にある。props_view）"""
+    d = Dress()
+    common(room, d)
+    room["kit"] = kit
+    G = lambda pos, size: geo_index(room, pos, size)  # noqa: E731
+    for g in room["geometry"]:
+        if g.get("t") == "shell":
+            g["skin"] = {"floor": floor, "wall": "wall", "ceiling": "ceiling"}
+    for pos, size in hide:
+        G(pos, size)["hide"] = True
+    for p in room["props"]:
+        if p.get("type") == "terminal" and p.get("id") in terminals:
+            p["hide"] = True
+    return d, G
+
+
+def home(room):
+    """ハルの家：town_interiors の右（木箱のベッド・ガラクタの棚・父の写真・机・赤い敷物と布）。汚れは町の既定"""
+    d, G = interior(room, "town", "home_set",
+                    [([0, 0, -5.95], [3, 3.2, 0.2]), ([-5.5, 0, 3.75], [3.0, 0.6, 4.5]), ([-5.6, 0.6, 3.5], [1.2, 0.3, 1.6]),
+                     ([3.5, 0, -2], [3, 0.9, 1.2]), ([5.5, 0, -4.5], [1.6, 2.2, 1.0]), ([-5.5, 0, -3], [1.2, 1.6, 2])],
+                    terminals=("ch1.home.bed",))
+    # 机の上の物（奥の半分）は乗れない柱（机に跳び乗ると本・灯の中に立った）
+    d.put("home_set", [0, 0, 0], solid=[dress_solid.B(2.0, 5.0, 0.9, 4.5, -1.85, -1.4, cam=False, nogo=True)])
+    sign(room, "ハルの家", "sign_wall_2", 0, 2.2)
+    # ガラクタ（ハルが集めた物）：北東の隅のガラクタの山、西の壁ぎわの木箱、机の前の踏み台、東の窓の下の鉢植え
+    d.snug("junk_pile", 0, x1=6.98, z1=5.98)
+    d.snug("crate", 0, x0=-6.98, z0=-1.2)
+    d.snug("crate", 3, y=0.74, x0=-6.95, z0=-1.17, scale=0.8)
+    d.snug("cc0/cask", 0, x0=-6.98, z0=-0.24)
+    d.snug("stool", 180, x=3.5, z0=-1.38)
+    d.snug("planter", 0, x1=6.98, z1=-2.3)
+    d.snug("sacks", 0, x1=6.98, z0=4.0)
+    dirt(d, 0.0, -4.6, 3.6, 2.2)            # 入口
+    dirt(d, 5.6, 4.6, 2.6, 2.6, kind="oil_patch")   # ガラクタの山のまわり
+    dirt(d, 3.5, -0.9, 2.4, 1.4)            # 机の前
+    return finish(room, d)
+
+
+def workshop(room):
+    """ヤーナの工房：town_interiors の左（作業台と工具の板・万力・旋盤・部品の棚・炉・鎖）。汚れの強いキット（town_worn）に油じみ"""
+    d, G = interior(room, "town_worn", "workshop_set",
+                    [([0, 0, -6.95], [3, 3.2, 0.2]), ([-5, 0, 6], [6, 1.0, 1.6]), ([6, 0, 6.2], [4, 1.2, 1.2]),
+                     ([-8.5, 0, 0], [1.4, 2.4, 6]), ([8.5, 0, -1], [1.4, 2.0, 5]), ([-5, 0, 5.0], [0.8, 1.1, 0.4])],
+                    terminals=("ch1.workshop.bench",))
+    # 作業台の上の物（奥）・旋盤の上は乗れない柱、炉（x 8.75〜10・z 2.55〜4.45・高さ 1.75）は箱、天井の鎖は体だけ
+    d.put("workshop_set", [0, 0, 0], solid=[
+        dress_solid.B(-8.0, -2.0, 1.0, 6.0, 6.3, 6.8, cam=False, nogo=True),
+        dress_solid.B(8.75, 10.0, 0.0, 1.75, 2.55, 4.45)])
+    sign(room, "ヤーナの工房", "sign_wall_3", 0, 3.0)
+    light(room, [-6, 3, 4], [8.3, 1.0, 3.5])           # 橙の明かりは炉の口へ
+    # 壁ぎわの道具と材料：樽・タンク・曲がり管・木箱・麻袋・ガラクタ
+    d.snug("barrel", 0, x0=-9.98, z1=6.98)
+    d.snug("cc0/cask", 0, x0=-9.98, z1=6.26)
+    d.snug("tank", 90, x1=9.98, z0=-6.98)
+    d.snug("pipe_bend", 0, x1=9.98, z0=-5.9)
+    d.snug("crate", 0, x0=-9.98, z0=-6.98)
+    d.snug("crate", 2, y=0.74, x0=-9.95, z0=-6.95, scale=0.8)
+    d.snug("cc0/plank_box", 90, x0=-9.0, z0=-6.98)
+    d.snug("sacks", 0, x0=-8.28, z0=-6.98)
+    d.snug("junk_pile", 0, x1=9.98, z0=4.6)
+    d.snug("crate", 0, x1=3.98, z1=6.98)
+    d.snug("barrel", 0, x1=3.02, z1=6.98)
+    dirt(d, -5.0, 3.6, 7.0, 3.0, kind="oil_patch")     # 作業台と万力の前
+    dirt(d, 6.0, 4.9, 5.0, 2.2, kind="oil_patch")      # 旋盤の前
+    dirt(d, 8.0, 3.5, 2.6, 3.0, kind="oil_patch")      # 炉の前（煤）
+    dirt(d, 0.0, -5.6, 3.6, 2.2)            # 入口
+    dirt(d, 0.0, 1.0, 9.0, 6.0)             # 真ん中の踏み跡
+    dirt(d, -7.0, 0.0, 1.6, 5.0)            # 西の棚の前
+    return finish(room, d)
+
+
+def guild(room):
+    """回収屋ギルド：受付台・依頼板・地図・大きな歯車・回収品の棚・旗・吊り灯。汚れは町の既定（入口と受付の前に泥）"""
+    d, G = interior(room, "town", "guild_set",
+                    [([0, 0, -7.95], [3, 3.2, 0.2]), ([-7, 0, 7], [7, 1.1, 1.2]), ([0, 0, 6.5], [6, 1.1, 1.2]), ([7, 0, 7.6], [4, 2.4, 0.4]),
+                     ([0, 0, 5.6], [0.6, 1.1, 0.6]), ([-3.25, 0, 6.75], [0.5, 1.1, 0.7]), ([7, 0, 7.1], [0.8, 1.2, 0.6])],
+                    terminals=("ch1.guild.board",))
+    # 東の壁の回収品の棚（x 11〜12・z -6.6〜-1.4・高さ 2.6）は箱
+    d.put("guild_set", [0, 0, 0], solid=[dress_solid.B(11.0, 12.0, 0.0, 2.6, -6.6, -1.4)])
+    sign(room, "回収屋ギルド", "sign_wall_3", 0, 3.0)
+    # 待合のベンチ（西の壁ぎわ）、回収の木箱と樽（南東）、入口の鉢植え
+    d.snug("bench", 90, x0=-11.98, z=-3.5)
+    d.snug("bench", 90, x0=-11.98, z=0.5)
+    d.snug("crate", 0, x0=-11.98, z0=-7.98)
+    d.snug("crate", 3, y=0.74, x0=-11.95, z0=-7.95, scale=0.8)
+    d.snug("barrel", 0, x0=-11.02, z0=-7.98)
+    d.snug("cc0/plank_box", 90, x1=11.98, z0=-0.6)
+    d.snug("junk_pile", 0, x1=11.98, z1=7.98)
+    for x in (-3.0, 3.0):
+        d.snug("planter", 0, x=x, z0=-7.98)
+    dirt(d, 0.0, -6.6, 4.0, 2.4)            # 入口（泥の足跡）
+    dirt(d, -4.0, 4.6, 9.0, 2.0)            # 受付の前
+    dirt(d, 7.0, 5.6, 3.0, 2.0)             # 依頼板の前
+    dirt(d, 10.0, -5.0, 2.6, 4.0, kind="oil_patch")    # 回収品のまわり
+    return finish(room, d)
+
+
+def mayor(room):
+    """町長の家：大きな机・本棚・絵図・鉢植え・敷物。汚れの弱いキット（town_tidy）。汚れの斑は入口だけ、ごく薄く"""
+    d, G = interior(room, "town_tidy", "mayor_set",
+                    [([0, 0, -5.95], [3, 3.2, 0.2]), ([0, 0, 5], [5, 0.9, 1.4]), ([-5.5, 0, 0], [1.2, 2.2, 6])])
+    d.put("mayor_set", [0, 0, 0])
+    sign(room, "町長の家", "sign_wall_2", 0, 2.2)
+    # 鉢植え（四隅と窓の間）、腰掛け（ベンチ 2 つを向かい合わせ）、収納箱
+    d.snug("planter_big", 0, x1=6.98, z1=5.98)
+    d.snug("planter_big", 0, x0=-6.98, z1=5.98)
+    d.snug("planter", 0, x1=6.98, z0=-5.98)
+    d.snug("planter", 0, x0=-6.98, z0=-5.98)
+    d.snug("planter", 0, x1=6.98, z=1.3)
+    d.snug("bench", 270, x1=6.0, z=-2.6)
+    d.snug("chest", 0, x0=3.6, z1=5.98)
+    return finish(room, d)
+
+
+# ---------------------------------------------------------------- 禁足扉の前室（遺構 B1 外殻層の入口。遺構のキット ruins_b1 の部品で）
+
+R01_SIDES = {"s": ("z", 0), "n": ("z", 180), "w": ("x", 90), "e": ("x", 270)}
+
+
+def r01(room):
+    """禁足扉の前室（20×8×28 の殻、遺構 B1 外殻層の入口）：遺構 B1 のキット（ruins_b1）と部品（遺構の担当の部品を読むだけ）。
+    壁の列（下 4 m は管つきと無地を交互、上 4 m は無地）、四隅の柱、両端の扉、天井の梁、壁の灯。
+    箱（形）は白磁の板・黒鉛の面、柱は遺構の柱。ニコの隠れた隅（北東）に木箱と携行灯。トリガー（z -7.5〜-4.5）の中には当たり判定を置かない"""
+    d = Dress()
+    room["kit"] = "ruins_b1"
+    G = lambda pos, size: geo_index(room, pos, size)  # noqa: E731
+    for pos, size in (([0, 0, -13.9], [6, 4, 0.3]), ([0, 0, 13.9], [6, 4, 0.3])):
+        G(pos, size)["hide"] = True
+    for pos, size in (([-5, 0, 0], [2, 2.4, 2]), ([5.5, 0, 2], [2.4, 1.6, 2]), ([-6, 0, 7], [3, 1.2, 1.4]), ([7.5, 0, -6], [2, 1.2, 3])):
+        G(pos, size)["skin"] = {"wall": "plate", "floor": "sandfloor"}
+    G([0, 0, -5], [1.4, 3.4, 1.4])["hide"] = True
+    X, Z = 10.0, 14.0
+
+    def run(side, plane, a0, a1, y=0.0, plain=False):
+        axis, yaw = R01_SIDES[side]
+        n = int(round((a1 - a0) / 2.0)) + 1
+        if plain:
+            pos = [a0, y, plane] if axis == "z" else [plane, y, a0]
+            d.put("ruins/b1_wall_plain", pos, yaw, count=n, step=[2.0, 0, 0] if axis == "z" else [0, 0, 2.0], solid=True)
+            return
+        for k, part in enumerate(("ruins/b1_wall", "ruins/b1_wall_plain")):
+            c = (n - k + 1) // 2
+            if c <= 0:
+                continue
+            a = a0 + 2.0 * k
+            pos = [a, y, plane] if axis == "z" else [plane, y, a]
+            kw = {"count": c, "step": [4.0, 0, 0] if axis == "z" else [0, 0, 4.0]} if c > 1 else {}
+            d.put(part, pos, yaw, solid=True, **kw)
+
+    for side, plane in (("w", -X), ("e", X)):
+        run(side, plane, -13.0, 13.0)
+        run(side, plane, -13.0, 13.0, y=4.0, plain=True)
+    for side, plane in (("s", -Z), ("n", Z)):
+        run(side, plane, -9.0, -5.0)
+        run(side, plane, 5.0, 9.0)
+        run(side, plane, -9.0, 9.0, y=4.0, plain=True)
+        axis, yaw = R01_SIDES[side]
+        d.put("ruins/b1_door", [0, 0, plane], yaw, scale=[3.0, 1.0, 1.0], solid=True)
+        for x in (-3.5, 3.5):
+            d.put("ruins/b1_pillar", [x, 0, plane + (0.36 if side == "s" else -0.36)], 0, scale=[0.8, 1.0, 0.8], solid=True)
+    for (x, z), yaw in (((-X, -Z), 0), ((-X, Z), 90), ((X, Z), 180), ((X, -Z), 270)):
+        d.put("ruins/b1_corner", [x, 0, z], yaw, solid=True)
+    # 天井の梁（8 m）と壁の上の管、壁の琥珀の灯（ニコの戦いのトリガーの中には当たり判定の灯を付けない）
+    for z in (-10.0, -4.0, 2.0, 8.0):
+        d.put("ruins/b1_beam_red" if z in (-4.0, 8.0) else "ruins/b1_beam", [-9.0, 8.0, z], 0, count=10, step=[2.0, 0, 0])
+    for side, plane in (("w", -X), ("e", X)):
+        axis, yaw = R01_SIDES[side]
+        d.put("ruins/b1_pipe", [plane + (0.62 if side == "w" else -0.62), 7.1, -12.0], yaw, count=13, step=[0, 0, 2.0], scale=1.4)
+        for z in (-11.0, 0.0, 10.5):
+            d.put("ruins/b1_lantern", [plane + (0.3 if side == "w" else -0.3), 2.4, z], yaw, solid=True)
+    # 真ん中の折れた柱（形 (0, 0, -5) 1.4×3.4×1.4 の代わり。当たり判定は形のまま）
+    d.put("ruins/b1_pillar", [0, 0, -5], 0, scale=[2.33, 0.85, 2.33])
+    # 床：砂の吹きだまりとかけら（トリガーの外）、排水格子
+    for pos, yaw, sc in (((-7.5, 0, -11.0), 20, 1.2), ((7.0, 0, 11.4), -15, 1.3), ((-8.0, 0, 3.0), 90, 1.0), ((2.5, 0, 9.0), 40, 0.9),
+                         ((8.4, 0, -11.5), 0, 1.0)):
+        d.put("ruins/b1_sand", pos, yaw, scale=[sc, 1.0, sc])
+    for pos, yaw in (((-3.0, 0, 4.0), 30), ((3.4, 0, -10.5), -60), ((-7.4, 0, -1.2), 100)):
+        d.put("ruins/b1_debris", pos, yaw, solid=True)
+    for side, plane in (("w", -X), ("e", X)):
+        axis, yaw = R01_SIDES[side]
+        d.put("ruins/b1_grate", [plane + (0.5 if side == "w" else -0.5), 0, -8.0], yaw, count=3, step=[0, 0, 2.0])
+    # ニコの隠れた北東の隅：木箱と布の箱、床の携行灯（ニコの明かり）、ケーブル
+    W = X - 0.38
+    d.snug("ruins/b1_crate_cloth", 0, x1=W, z1=Z - 0.38)
+    d.snug("ruins/b1_crate", 0, x1=W, z1=12.44)
+    d.snug("town/crate", 3, y=1.04, x1=W - 0.06, z1=Z - 0.44, scale=0.8)
+    d.put("town/hand_lantern", [6.6, 0, 8.3], solid=True)
+    d.put("ruins/b1_cables", [7.2, 0, 6.0], 80)
+    # 南西の隅：町から持ち込んだ物（禁足扉の見張りの名残）
+    d.snug("town/crate", 0, x0=-W, z0=-Z + 0.38)
+    d.snug("town/barrel", 0, x0=-W + 0.96, z0=-Z + 0.38)
+    room["dress"] = d.items
+    # 明かり：天井の青い外光はそのまま、ニコの携行灯の明かりを灯の上へ
+    light(room, [6, 1.4, 8], [6.6, 0.9, 8.3])
+    dress_solid.apply(room)
+    return room
+
+
+# ---------------------------------------------------------------- 夜明けの甲羅（オープニング）
+
+def opening(room):
+    """夜明けの甲羅：外殻の床（4 m の板の継ぎ目の面 hullplate）、縁の低い壁の上の真鍮の手すりと角の柱、点検口・通気口、北の縁の見張りの台。
+    遠くの砂漠の箱（形）は描かない（キットの夜明けの空の絵の砂漠と遺跡が見える。当たり判定は残る）。
+    始めの場面のカメラ（ch1.opening：96 m 前の空から北の地平線を見る）の前に物を置かない"""
+    d = Dress()
+    common(room, d)
+    G = lambda pos, size: geo_index(room, pos, size)  # noqa: E731
+    G([0, -2, 0], [40, 2, 40])["skin"] = {"floor": "hullplate", "wall": "stone2"}
+    for pos, size in (([-80, -30, 160], [120, 34, 60]), ([70, -30, 210], [160, 38, 60]), ([0, -30, 320], [400, 44, 80])):
+        G(pos, size)["hide"] = True
+    # 縁の低い壁（1 m 厚、上 1.2）：手すりと角の柱（南は yaw 0、北は 180、西は 90、東は 270）
+    for x in (-16.0, -8.0, 0.0, 8.0, 16.0):
+        d.put("parapet_rail_8", [x, 1.2, -20.5])
+        d.put("parapet_rail_8", [x, 1.2, 20.5], 180)
+    for z in (-16.0, -8.0, 0.0, 8.0, 16.0):
+        d.put("parapet_rail_8", [-20.5, 1.2, z], 90)
+        d.put("parapet_rail_8", [20.5, 1.2, z], 270)
+    for x in (-20.5, 20.5):
+        for z in (-20.5, 20.5):
+            d.put("parapet_corner", [x, 1.2, z])
+    # 北の縁の旗竿（壁の上 1.2〜5.6 m：体だけの柱）
+    d.put("opening_set", [0, 0, 0], solid=[dress_solid.P(-3.6, 20.3, 0.16, 1.2, 5.6), dress_solid.P(3.6, 20.3, 0.16, 1.2, 5.6)])
+    # 見張りの台：外を向いたベンチ、木箱と携行灯、係留柱
+    d.snug("bench", 0, x=-1.6, z1=19.09)
+    d.snug("crate", 0, x0=1.2, z1=19.87)
+    d.put("hand_lantern", [1.67, 0.74, 19.4], solid=True)
+    for z in (-12.0, 4.0):
+        d.snug("bollard", 90, x0=-19.87, z=z)
+        d.snug("bollard", 270, x1=19.87, z=z)
+    # 明かり：夜明けの外灯（北の 2 つは背の高い外灯の芯へ、真ん中は見張りの台の携行灯の上）
+    d.put("lamp_tall", [-8.0, 0, 18.6])
+    d.put("lamp_tall", [8.0, 0, 18.6], 180)
+    light(room, [-8, 2, 14], [-7.45, 3.92, 18.6])
+    light(room, [8, 2, 14], [7.45, 3.92, 18.6])
+    dirt(d, 0.0, 18.0, 8.0, 3.0)            # 見張りの台の前
+    return finish(room, d)
+
+
+ROOMS = {"mid": mid, "lower": lower, "upper": upper, "training": training, "home": home, "workshop": workshop, "guild": guild,
+         "mayor": mayor, "r01": r01, "opening": opening}
 
 
 def main():
