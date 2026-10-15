@@ -10,3 +10,6 @@ dist-artifact/
 .tools/
 godot/.godot/
 /build/
+
+# エージェントの作業場所（git worktree）
+.claude/worktrees/
