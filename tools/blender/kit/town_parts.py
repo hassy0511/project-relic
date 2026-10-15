@@ -587,6 +587,57 @@ def bollard() -> Part:
     return p
 
 
+def sacks() -> Part:
+    """麻袋の山（3 袋。2 つを寝かせ、1 つを立てる。黄土色の麻と口紐）：市場・食堂の前・物置き（town_mood_day の露店のまわりの袋）。
+    原点は底の中心。1.1×0.8×0.62 の中に収まる"""
+    p = Part('sacks')
+
+    def sack(c, rx, rz, h, yaw, tilt=0.0):
+        prof = [(0.0, 0.62), (0.12, 0.92), (0.45, 1.0), (0.78, 0.86), (0.92, 0.5), (1.0, 0.18)]
+        body = lathe((0, 0, 0), (0, h, 0), [(t, r) for t, r in prof], 8)
+        v = body.v.copy()
+        v[:, 0] *= rx
+        v[:, 2] *= rz
+        if tilt:
+            a = math.radians(tilt)
+            y, z = v[:, 1].copy(), v[:, 2].copy()
+            v[:, 1], v[:, 2] = y * math.cos(a) - z * math.sin(a), y * math.sin(a) + z * math.cos(a)
+            v[:, 1] -= v[:, 1].min()
+        body.v = v
+        p.add('rope', body.moved(c, yaw))          # 麻の袋は綱と同じ黄土色（白い麻布 linen だと日なたで白く飛んだ）
+        top = float(v[:, 1].max())
+        if not tilt:
+            p.add('wood2', cyl((0, h * 0.86, 0), (0, h * 0.9, 0), 0.5 * min(rx, rz) * 0.55, 8, cap=False).moved(c, yaw))
+            p.add('rope', lathe((0, h * 0.9, 0), (0, h * 1.05, 0), [(0, 0.06), (1, 0.1)], 6).moved(c, yaw))
+        return top
+
+    sack((-0.28, 0, 0.05), 0.3, 0.26, 0.55, 15, tilt=-78)
+    sack((0.3, 0, -0.08), 0.28, 0.25, 0.52, -20, tilt=-80)
+    sack((0.05, 0, 0.12), 0.24, 0.22, 0.52, 40)
+    return p
+
+
+def banner(w=0.9, h=1.6) -> Part:
+    """壁の垂れ幕（帆布の赤、下に濃い赤の帯と白い紋、上に真鍮の竿と留め金）。原点 = 壁の面・竿の高さの中心。壁から 0.08 m まで
+    （壁から 0.15 m 以内の薄い物なので当たり判定は付けない：42 の 14.3）。手前（+Z）を向く"""
+    p = Part('banner')
+    hw = w / 2
+    p.add('brass', cyl((-hw - 0.06, 0, 0.05), (hw + 0.06, 0, 0.05), 0.022, 8))
+    for x in (-hw - 0.08, hw + 0.08):
+        p.add('brass', lathe((x, 0, 0.05), (x + (0.03 if x > 0 else -0.03), 0, 0.05), [(0, 0.035), (1, 0.035)], 8))
+        p.add('graphite', boxb(x - 0.03, x + 0.03, -0.05, 0.05, 0.0, 0.05))
+
+    def f(u, v):
+        x = -hw + w * u
+        return (x, -0.03 - h * v, 0.045 + 0.012 * math.sin(u * math.pi * 3 + v * 2))
+    p.add('cloth', sheet(f, 3, 4, 0.015))
+    # 下の帯と紋（布の表から 1.5 cm 前：面が重ならない）
+    p.add('cloth2', boxb(-hw + 0.02, hw - 0.02, -h + 0.04, -h + 0.26, 0.055, 0.07))
+    p.add('linen', boxb(-0.09, 0.09, -h * 0.45 - 0.12, -h * 0.45 + 0.12, 0.06, 0.072),
+          boxb(-0.2, 0.2, -h * 0.45 - 0.03, -h * 0.45 + 0.03, 0.06, 0.072))
+    return p
+
+
 def stool() -> Part:
     """20 折り畳み踏み台 1 m"""
     p = Part('stool')

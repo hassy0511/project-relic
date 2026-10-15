@@ -49,7 +49,7 @@ def catalog() -> dict:
         'water_tower': P.water_tower, 'bench': P.bench, 'junk_pile': P.junk_pile, 'tool_rack': P.tool_rack, 'chest': P.chest,
         'tank': P.tank, 'pipe_bend': P.pipe_bend, 'canvas_roll': P.canvas_roll, 'sand_screen': P.sand_screen,
         'hand_lantern': P.hand_lantern, 'stool': P.stool, 'bollard': P.bollard, 'laundry_line': P.laundry_line,
-        'laundry_line_8': lambda: P.laundry_line(8.0),
+        'laundry_line_8': lambda: P.laundry_line(8.0), 'sacks': P.sacks, 'banner': P.banner,
         # 看板（文字はゲームが板に貼る）
         'sign_wall_2': lambda: P.sign_board(2.2, mount='wall'), 'sign_wall_3': lambda: P.sign_board(3.0, mount='wall'),
         'sign_post_2': lambda: P.sign_board(2.2, mount='post', post_len=1.75), 'sign_post_3': lambda: P.sign_board(3.0, mount='post', post_len=1.75),

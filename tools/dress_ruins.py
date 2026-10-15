@@ -226,6 +226,7 @@ def lived_r02(d):
     d.snug("town/chest", 0, x0=-8.24, z1=W)
     d.snug("town/stool", 0, x0=-7.18, z1=W)
     d.snug("cc0/cask", 0, x=-8.85, z1=11.44)
+    d.snug("town/sacks", 0, x0=-8.48, z1=11.44)
     d.put_any("town/hand_lantern", [-10.5, 0.6, 12.42], solid=True)
     d.put("b1_cables", [-6.9, 0, 10.8], 172)
     # 南西：仕分けの山。布の箱と箱、上に町の木箱、長持ち、樽、かけら、床のケーブル（入ったときのトリガー x -6〜6 の外）
@@ -253,6 +254,7 @@ def lived_r02(d):
     d.snug("b1_crate", 0, x0=6.12, z1=-2.6)
     d.snug("town/crate", 3, y=1.0, x=6.62, z=-3.12)
     d.snug("cc0/plank_box", 0, x0=6.12, z1=-3.67)
+    d.snug("town/sacks", 0, x0=7.54, z1=-3.67)
     d.put("b1_sand", [8.6, 0, -3.9], 20, scale=[1.0, 1.0, 1.0])
     d.put("b1_cables", [9.9, 0, -2.6], 4)
     # 真ん中の西：ファンの足元から床にケーブル（低い山（-4, 6）の上には置かない：東を見るカメラの真ん前になり、ハルが隠れた）

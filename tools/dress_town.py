@@ -95,7 +95,7 @@ SOLID = {"crate", "barrel", "chest", "planter", "planter_big", "bench", "stall_t
          "pipes", "lamp_post", "lamp_tall", "parapet_corner", "goods_shelf_general", "goods_shelf_junk", "stall", "tent",
          "workshop_front", "diner_front", "stage", "stair_rail_12", "stair_rail_12_r", "parapet_rail_8", "parapet_rail_4",
          "terrace_west", "terrace_east", "window_flush", "canvas_roll", "monument", "stair_well_s",
-         "tank", "stool", "pipe_bend", "bollard", "hand_lantern", "cask", "plank_box"}
+         "tank", "stool", "pipe_bend", "bollard", "hand_lantern", "cask", "plank_box", "sacks"}
 
 
 # ---------------------------------------------------------------- 中段（広場と市場）
@@ -278,6 +278,7 @@ def lived_mid(d):
     d.snug("crate", 0, x1=17.94, z0=5.6, scale=0.9)
     d.snug("cc0/cask", 0, x1=18.9, z0=6.56)
     d.snug("planter", 0, x1=18.9, z0=8.1)
+    d.snug("sacks", 0, x1=17.07, z0=5.6)
     # 露店の間（工具棚の前）：配達の木箱の山と長持ち（工具棚と洗濯綱の前の通り道 x 31.4〜33 は空ける）
     d.snug("crate", 0, x0=29.6, z1=8.78)
     d.snug("crate", 2, y=0.74, x0=29.66, z1=8.76, scale=0.8)
@@ -286,6 +287,7 @@ def lived_mid(d):
     d.put("tent", [45.7, 0, 5.6], 270)
     d.snug("barrel", 0, x0=44.25, z1=2.95)
     d.snug("cc0/cask", 0, x0=44.97, z1=2.95)
+    d.snug("sacks", 0, x0=45.69, z1=2.95)
     # 雑貨屋・ジャンク屋の裏（奥の箱の山の後ろ）：長持ちと樽
     d.snug("cc0/plank_box", 0, x0=22.6, z0=10.2)
     d.snug("cc0/cask", 0, x0=24.02, z0=10.2)
@@ -303,6 +305,11 @@ def lived_mid(d):
     d.snug("crate", 2, y=0.74, x0=-14.94, z0=2.24, scale=0.8)
     # --- 食堂の前：東の角の樽の横に鉢植え（西の角の木箱の上に積むと、上から食堂の角の方へ下りた体が角と箱の間に挟まった）
     d.snug("planter", 0, x1=-14.57, z0=-1.3)
+    d.snug("sacks", 0, x0=-13.83, z0=-0.35)
+    # 食堂の東の面（広場から見える白い壁）と工房の西の面に垂れ幕（壁から 0.08 m の薄い物）
+    for z in (1.1, 5.0):
+        d.put("banner", [-15.0, 3.6, z], 90)
+    d.put("banner", [-41.0, 3.8, 8.5], 270)
     # --- ヤーナの工房の前：西に作業台（台・タンク・踏み台・携行灯）、東に部品の山（ガラクタの山と曲がり管）。
     # 入口の前（目印 from_workshop と工房の口）と、工房の見える向きの真ん中は空ける
     d.snug("stall_table", 0, x0=-40.2, z0=0.4)
