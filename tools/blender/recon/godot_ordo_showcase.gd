@@ -3,7 +3,7 @@ extends SceneTree
 ##   tools/godot.sh shot --resolution 1920x1080 --script /abs/tools/blender/recon/godot_ordo_showcase.gd -- <出力のフォルダ>
 ## 出力：views.jpg（右舷の真横・正面・右前 3/4・停止の姿勢の夜）、town_edge.jpg（背の上の町の代わりの箱の縁・リフトの踊り場・
 ## 船首寄りの縁から見下ろす 3 枚。体は止まり、120 m 下の砂の床が流れる見方 body_fixed）、walk.jpg（右舷の脚 2 対の歩き 8 こま、
-## 地面は止まり体が進む見方。カメラは体について行く）。
+## 地面は止まり体が進む見方。カメラは体について行く。5 秒から 10 秒ごと）。
 ## 座標は OrdoView と同じ：背の面 y = 0、地面 y = -120、+Z が船首、-X が右舷（リフトの側）。
 
 const TILE := Vector2i(960, 540)
@@ -108,7 +108,7 @@ func _run() -> void:
 	var walk: Array[Image] = []
 	var t := 0.0
 	for k in 8:
-		var target := 10.0 * k
+		var target := 5.0 + 10.0 * k      # 振り出しの途中（各脚の振り出しは 19.2 秒）が写るよう、10 秒ごとの 5 秒ずらし
 		_run_for(target - t)
 		t = target
 		var z := ordo.travel
