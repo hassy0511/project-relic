@@ -473,6 +473,8 @@ def lower(room):
     for p in room["props"]:
         if p.get("id") == "ch1.lower.gate":
             p["part"] = "town/gate_door"        # 扉の見た目（PropsView。開くと床へ沈む）
+        if p.get("id") == "ch1.lower.lift":
+            p["hide"] = True                    # 操作盤は lower_set（端末の箱と同じ所）
     lived_lower(d)
     grime_lower(d)
     return finish(room, d)

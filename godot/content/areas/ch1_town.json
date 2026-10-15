@@ -8178,7 +8178,8 @@
      ],
      "yaw": 0,
      "event": "ch1.lift",
-     "prompt": "調べる"
+     "prompt": "調べる",
+     "hide": true
     },
     {
      "type": "npc",
