@@ -440,12 +440,23 @@ const _N8 := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), 
 const _OPP := [1, 0, 3, 2, 7, 6, 5, 4]
 
 
-## u から隣の柱の v へ歩けるか（段差 0.35 m まで）。どちらの点にも体が入るので、間に壁は無い
+## u から隣の柱の v へ歩けるか（段差 0.35 m まで。ただし BAD_STEP の段は上れない）。どちらの点にも体が入るので、間に壁は無い
 ## （壁の両側の点は、体の太さ 0.7 m より離れていて隣の柱にならない）
 func _walkable(u: int, v: int) -> bool:
 	if nmv[u] != nmv[v] or (nmv[u] >= 0 and nmt[u] != nmt[v]):
 		return false
-	return absf(ny[v] - ny[u]) <= STEP + 0.01
+	var dy := absf(ny[v] - ny[u])
+	return dy <= STEP + 0.01 and not _bad_step(dy)
+
+
+## 歩いては上れない段（約 0.18〜0.24 m）：体の丸い底が段の角に当たる向きが、段差の乗り越え（壁とみなす向き）にも床にもならず、
+## 角に押し当てたまま止まる（Phys.move_character。2026-10-15 に平らな床の箱で測った）。下りるのと、跳んで上がるのはできる
+const BAD_STEP_LO := 0.175
+const BAD_STEP_HI := 0.245
+
+
+func _bad_step(dy: float) -> bool:
+	return dy > BAD_STEP_LO and dy < BAD_STEP_HI
 
 
 func _build_comps() -> void:
@@ -790,6 +801,10 @@ func _drops_from(c: int) -> void:
 			if _wmask[u] & (1 << di):
 				continue
 			var d: Vector2i = _N8[di]
+			# 上れない段（BAD_STEP）は、下りる向きなら歩いて行ける
+			for v in _cols.get(ncol[u] + d, PackedInt32Array()):
+				if nmv[v] == nmv[u] and nmv[u] < 0 and _bad_step(ny[u] - ny[v]):
+					_link(comp[u], comp[v], "drop", u, v)
 			# 隣の柱の上（縁の外）へ出られるか。体が入らなければ、壁に触れるまで（短く）出る：
 			# 壁と箱の間の細いすき間（体の太さより狭い）では、壁に触れた所が縁の外になる
 			var dir := Vector2(d.x, d.y).normalized()

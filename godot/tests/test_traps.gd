@@ -246,3 +246,22 @@ func test_r13_lift_does_not_crush() -> void:
 		await h.run_until(g, TestHelpers.seconds(20), {}, func(): return mv.t > 0.95)
 	h.free_game(g)
 
+
+
+## ヤーナの工房：作業台の端末の上から作業台の方へ下りても、端末と作業台の間（前は 0.4 m）に引っかからない
+func test_workshop_bench_no_hang() -> void:
+	var g := _game("ch1.workshop", ["ch1.chores_started"])
+	await h.settle()
+	# ヤーナ・端末のそばでは跳ぶボタンが「話す・調べる」になるので、戻るときは跳ばない
+	await _walk_off(g, Vector3(-5.25, 1.22, 4.5), Vector2(0, 1), Vector3(-5.0, 0, 0), "作業台の端末から作業台の方へ", false)
+	await _walk_off(g, Vector3(-4.75, 1.22, 4.5), Vector2(0, 1), Vector3(-5.0, 0, 0), "作業台の端末から作業台の方へ（右寄り）", false)
+	h.free_game(g)
+
+
+## ジャンク溜まり（r02）：折れた柱の上から南西（がらくたの山の角）へ下りても、山の角と柱の間に引っかからない
+func test_r02_pile_corner_no_hang() -> void:
+	var g := _game("ch1.r02", ["ch1.got_spark"])
+	await h.settle()
+	await _walk_off(g, Vector3(-5.5, 3.22, -1.5), Vector2(-1, -1), Vector3(-2.0, 0, -4.0), "折れた柱の上から南西へ")
+	await _walk_off(g, Vector3(-5.3, 3.22, -1.3), Vector2(-1, -1), Vector3(-2.0, 0, -4.0), "折れた柱の上から南西へ（奥から）")
+	h.free_game(g)
