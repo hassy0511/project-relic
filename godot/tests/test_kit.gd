@@ -215,6 +215,28 @@ func test_kit_detail_materials() -> void:
 	root.free()
 
 
+## キットの "base"・"detail_scale"（部屋ごとの汚れの強さ）と、汚れの斑の板（"blend": "mul"）。42 章 14.2.1（2026-10-15）
+func test_kit_inherit_and_decal() -> void:
+	var town: Dictionary = U.load_json(RoomKit.KIT_PATH % "town")
+	var tidy := RoomKit.load_kit("town_tidy")
+	var worn := RoomKit.load_kit("town_worn")
+	h.expect(not tidy.is_empty() and tidy.data.get("sky", {}) == town.get("sky", {}) and tidy.surf.has("floor") and tidy.mats.has("flat"),
+		"元のキット（town）の空・面・材質を受け継ぐ")
+	var a0 := float(town.surfaces.floor.detail[1].amount)
+	var c0 := float(town.surfaces.floor.detail[1].cover)
+	var at := float(tidy.data.surfaces.floor.detail[1].amount)
+	var aw := float(worn.data.surfaces.floor.detail[1].amount)
+	h.expect(is_equal_approx(at, a0 * 0.55) and is_equal_approx(float(tidy.data.surfaces.floor.detail[1].cover), c0 * 0.8),
+		"detail_scale が汚れの層の強さ・覆う割合に掛かる（%.3f → %.3f）" % [a0, at])
+	h.expect(is_equal_approx(aw, minf(1.0, a0 * 1.2)) and float(worn.data.materials.flat.detail[0].amount) <= 1.0, "強くしても 1 まで（%.3f）" % aw)
+	h.expect(float(town.surfaces.floor.detail[1].amount) == a0, "元のキットの JSON は変わらない")
+	var dm := RoomKit.make_material({"blend": "mul", "color": "#9c8466", "amount": 0.5, "cover": 0.7, "uv_m": 4.0}) as ShaderMaterial
+	h.expect(dm.shader == RoomKit.DECAL and is_equal_approx(float(dm.get_shader_parameter("cover")), 0.7) and dm.get_shader_parameter("detail_tex") is Texture2D,
+		"汚れの斑の材質は掛け算の半透明のシェーダー（kit_decal.gdshader）")
+	var patch := RoomKit.part_mesh("town/grime_patch", RoomKit.load_kit("town"))
+	h.expect(patch != null and (patch.surface_get_material(0) as ShaderMaterial).shader == RoomKit.DECAL, "汚れの斑の板（town/grime_patch）はキットの grime_decal で描く")
+
+
 ## 足場の箱（中心・大きさ）だけの地形（下は奈落）
 func _ledges(boxes: Array) -> Dictionary:
 	var faces := []
@@ -301,8 +323,9 @@ const SOLID_CLASS := ["ruins/b1_crate", "ruins/b1_crate_cloth", "town/crate", "t
 	"town/bench", "town/stall_table", "town/junk_pile", "town/tool_rack", "town/water_tower", "town/pipes",
 	"town/lamp_post", "town/lamp_tall", "town/tank", "town/stool", "town/pipe_bend", "town/bollard", "ruins/b1_post_lamp",
 	"town/sacks", "cc0/cask", "cc0/plank_box"]
-## 飾りのある部屋（キットの部屋）
-const DRESSED := ["ch1.r02", "ch1.r03", "ch1.mid"]
+## 飾りのある部屋（キットの部屋）。町の 9 部屋は 2026-10-15 の展開で足した
+const DRESSED := ["ch1.r02", "ch1.r03", "ch1.mid", "ch1.opening", "ch1.training", "ch1.lower", "ch1.upper", "ch1.home", "ch1.workshop",
+	"ch1.guild", "ch1.mayor", "ch1.r01"]
 ## 足した箱と、出口・トリガーの箱の間（m）／目印・チェックポイント・敵の出る所から／調べる物・拾う物・住人から（tools/dress_solid.py と同じ）
 const CLEAR_BOX := 0.1
 const CLEAR_MARK := 0.6

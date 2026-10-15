@@ -365,6 +365,24 @@ def lived_mid(d):
     d.snug("bench", 270, x0=-47.09, z=-8.0)
 
 
+def corner(d, x, z, ends):
+    """胸壁・低い壁の角の柱（parapet_corner）と、角へ来る手すりの端から柱の真ん中までの体だけの箱（手すりの線をつなぐ）。
+    ends：{'-x': 端までの距離, …}（手すりが来る向きと、手すりの端から柱の真ん中までの m）。
+    前は手すりが柱の手前 0.5 m で終わり、手すりの上から角へ下りると、2 本の手すりの端と柱の間に体の丸い底が挟まって宙に止まった"""
+    boxes = [dress_solid.B(-0.71, 0.71, -8.2, 0.04, -0.71, 0.71)]
+    for side, L in ends.items():
+        L = L + 0.1
+        if side == '-x':
+            boxes.append(dress_solid.B(-L, 0.07, 0.0, 0.7, -0.07, 0.07, cam=False))
+        elif side == '+x':
+            boxes.append(dress_solid.B(-0.07, L, 0.0, 0.7, -0.07, 0.07, cam=False))
+        elif side == '-z':
+            boxes.append(dress_solid.B(-0.07, 0.07, 0.0, 0.7, -L, 0.07, cam=False))
+        else:
+            boxes.append(dress_solid.B(-0.07, 0.07, 0.0, 0.7, -0.07, L, cam=False))
+    d.put("parapet_corner", [x, 1.2, z], solid=boxes)
+
+
 # ---------------------------------------------------------------- 汚れの斑（42 章 14.2.1。汚れるべき所だけ濃く）
 
 def dirt(d, x, z, sx, sz=None, y=0.0, yaw=0, kind="grime_patch"):
@@ -420,7 +438,10 @@ def lower(room):
     d.put("lower_set", [0, 0, 0], solid=[
         dress_solid.B(-42.0, -41.55, 0.0, 9.0, -5.4, -3.0), dress_solid.B(-42.0, -41.55, 0.0, 9.0, 3.0, 5.4),
         dress_solid.B(-41.55, -41.18, 0.0, 3.4, -5.3, -3.1), dress_solid.B(-41.55, -41.18, 0.0, 3.4, 3.1, 5.3),
-        dress_solid.P(22.75, 5.85, 0.32, 0.0, 3.95)])
+        dress_solid.P(22.75, 5.85, 0.32, 0.0, 3.95),
+        # 物置（C、高さ 4）の屋上は乗れない柱（東の低い壁の手すりの上 1.9 から跳ぶと屋上に乗れ、そこから洗濯屋（A）の屋上、
+        # 北の段の通路の縁の乗れない柱の上へと渡れた。2026-10-15 の詰みの確かめ）
+        dress_solid.B(44.0, 48.0, 4.0, 6.4, 1.0, 7.0, cam=False, nogo=True)])
     d.put("ordo_far", [0, -2.0, 20.0], shadow=False)
     # --- 北の階段（中段へ）：中段の北の階段と同じ手すり・段鼻・上り口の鉢植え
     d.put("stair_rail_12", [-4.0, 0, 16.0], solid="town/stair_rail_12_foot")
@@ -434,10 +455,10 @@ def lower(room):
     for k in range(11):
         d.put("parapet_rail_8", [-38.0 + 8.0 * k, 1.2, -14.5])
     d.put("parapet_rail_4", [46.9, 1.2, -14.5], 0, scale=[0.45, 1, 1])
-    for z, sc in ((-10.0, 1.0), (-2.5, 0.875), (11.0, 1.0)):
+    for z, sc in ((-10.0, 1.0), (-2.75, 0.8125), (8.75, 0.3125), (13.0, 0.75)):
         d.put("parapet_rail_8", [48.5, 1.2, z], 270, **({"scale": [sc, 1, 1]} if sc != 1.0 else {}))
-    for z in (15.5, -14.5):
-        d.put("parapet_corner", [48.5, 1.2, z])
+    d.put("parapet_corner", [48.5, 1.2, 15.5])
+    corner(d, 48.5, -14.5, {'-x': 0.7, '+z': 0.5})
     # --- 看板の板（浮いた文字の代わり。文字の位置は変えない）
     sign(room, "訓練場", "sign_wall_2", 180, 2.2)
     sign(room, "ハルの家", "sign_wall_2", 180, 2.2)
@@ -470,7 +491,7 @@ def lived_lower(d):
     # マーサの洗濯屋（A の正面 z=3）：洗濯綱 2 本と籠（麻袋）・たらい（樽）。マーサ（30, 3）の前は空ける
     d.put("clothesline", [26.0, 0, 0.6], 0)
     d.put("clothesline", [26.0, 0, -1.6], 0)
-    d.snug("sacks", 0, x=23.9, z=-0.5)
+    d.snug("sacks", 0, x=23.0, z=-0.5)
     d.snug("barrel", 0, x1=37.94, z1=2.98)
     d.snug("cc0/cask", 0, x1=37.2, z1=2.98)
     # リフト：床の上の荷（停止したまま）と、東の壁ぎわの木箱
@@ -488,7 +509,7 @@ def lived_lower(d):
         d.snug("bollard", 0, x=x, z0=-13.87)
     d.snug("bench", 180, x=-9.4, z0=-13.09)
     d.snug("bench", 180, x=20.0, z0=-13.09)
-    for x in (-36.0, 26.0):
+    for x in (-36.0, 27.2):
         d.put("planter", [x, 0, -13.2])
     # 禁足扉の前（北と南の門の塊の前）：通行止めの木箱と樽（ヤーナの立つ所・扉の前は空ける）
     d.snug("crate", 0, x0=-41.98, z0=6.4)
@@ -559,8 +580,9 @@ def upper(room):
         for z in (-10, -2, 6):
             d.put("parapet_rail_8", [sx * 40.5, 1.2, z], yaw)
         d.put("parapet_rail_8", [sx * 40.5, 1.2, 13.0], yaw, scale=[0.75, 1, 1])
-        for z in (16.5, -14.5):
-            d.put("parapet_corner", [sx * 40.5, 1.2, z])
+        inner = '-x' if sx > 0 else '+x'
+        corner(d, sx * 40.5, 16.5, {inner: 0.5, '-z': 0.5})
+        corner(d, sx * 40.5, -14.5, {inner: 0.5, '+z': 0.5})
     # --- 看板の板
     sign(room, "町長の家", "sign_wall_2", 180, 2.2)
     sign(room, "回収屋ギルド", "sign_wall_3", 180, 3.0)
@@ -724,7 +746,7 @@ def home(room):
                      ([3.5, 0, -2], [3, 0.9, 1.2]), ([5.5, 0, -4.5], [1.6, 2.2, 1.0]), ([-5.5, 0, -3], [1.2, 1.6, 2])],
                     terminals=("ch1.home.bed",))
     # 机の上の物（奥の半分）は乗れない柱（机に跳び乗ると本・灯の中に立った）
-    d.put("home_set", [0, 0, 0], solid=[dress_solid.B(2.0, 5.0, 0.9, 4.5, -1.85, -1.4, cam=False, nogo=True)])
+    d.put("home_set", [0, 0, 0], solid=[dress_solid.B(2.0, 5.0, 0.9, 5.6, -1.85, -1.4, cam=False, nogo=True)])      # 上の端は天井の板の中（扉の板の上 3.2 から跳んで届く 5.4 より上）
     sign(room, "ハルの家", "sign_wall_2", 0, 2.2)
     # ガラクタ（ハルが集めた物）：北東の隅のガラクタの山、西の壁ぎわの木箱、机の前の踏み台、東の窓の下の鉢植え
     d.snug("junk_pile", 0, x1=6.98, z1=5.98)
@@ -921,7 +943,7 @@ def opening(room):
         d.put("parapet_rail_8", [20.5, 1.2, z], 270)
     for x in (-20.5, 20.5):
         for z in (-20.5, 20.5):
-            d.put("parapet_corner", [x, 1.2, z])
+            corner(d, x, z, {('-x' if x > 0 else '+x'): 0.5, ('-z' if z > 0 else '+z'): 0.5})
     # 北の縁の旗竿（壁の上 1.2〜5.6 m：体だけの柱）
     d.put("opening_set", [0, 0, 0], solid=[dress_solid.P(-3.6, 20.3, 0.16, 1.2, 5.6), dress_solid.P(3.6, 20.3, 0.16, 1.2, 5.6)])
     # 見張りの台：外を向いたベンチ、木箱と携行灯、係留柱
