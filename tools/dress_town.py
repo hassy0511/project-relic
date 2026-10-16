@@ -85,7 +85,8 @@ def common(room, d):
 
 
 # 町の下の巡礼機オルド（2026-10-16。旧遠景 ordo_far の入れ替え）。部屋の "ordo"：{"pos": 部屋の座標でのオルドの原点（背の歩行面の真ん中）}。
-# 体は部屋と一緒に止まり、120 m 下の砂の床が流れる（OrdoView、RoomView が作る）。背の上の遠くの町は飾り（ordo_back・ordo_town）で同じ所に置く。
+# 体は部屋と一緒に止まり、120 m 下の砂の床が流れる（OrdoView、RoomView が作る）。背の上の遠くの町（キットの部品 ordo_back・ordo_town）は
+# "back" に書き、オルドと同じ 3 つの面にまとめて描く（飾りにすると面が 3 つ増える。中段のいちばん重い向きが前より重くなった）。
 # 部屋ごとの位置（docs/art_orders/W2_オルド3D化の結果.md 9 章）：
 #   中段 mid    [0, -6.5, 0]    背の面は下の段の床（y = -5.02）の 1.5 m 下。町の真ん中（オルドの z = 0）
 #   下段 lower  [0, -1.5, 8]    背の面は床の 1.5 m 下。リフトの端末（z = -4）・昇降機（z = -9）をオルドの左舷のリフト（z = -12、踊り場 -21〜-3）に合わせる
@@ -96,9 +97,9 @@ ORDO_POS = {"mid": [0, -6.5, 0], "lower": [0, -1.5, 8], "opening": [0, -39.5, -1
 
 def ordo(room, d, name, back="ordo_back", ground=True):
     """ground=False：砂の床を描かない（夜明けの甲羅：始めの場面のカメラが空から見る地平線の砂漠は空の絵のまま）"""
-    pos = ORDO_POS[name]
-    room["ordo"] = {"pos": pos} if ground else {"pos": pos, "ground": False}
-    d.put(back, pos, shadow=False)
+    room["ordo"] = {"pos": ORDO_POS[name], "back": "town/" + back}
+    if not ground:
+        room["ordo"]["ground"] = False
 
 
 # 生活感の小物（2026-10-15）は影を落とさない（部品の種類ごとに、影の描画が影の段の数だけ増えるため。CC0 の樽と長持ちに影を付けると
