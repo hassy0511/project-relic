@@ -36,7 +36,7 @@ func test_ordo_model_loads() -> void:
 	h.expect(tri > 10000 and tri <= 60000, "三角形が 6 万以内（%d）" % tri)
 	var names := mats.keys()
 	names.sort()
-	h.expect(names == ["amber", "brass", "cloth", "graphite", "ivory"], "材質は 5 つ（キットの名前）：%s" % [names])
+	h.expect(names == ["amber", "brass", "cloth", "dark", "graphite", "ivory"], "材質は 6 つ（キットの名前）：%s" % [names])
 	# 材質の名前が町のキットと同じなので、全部の面をキットの材質（あとで汚れの層を足す所）に替えられる
 	var surfaces := 0
 	for mi in o.model.find_children("*", "MeshInstance3D", true, false):
