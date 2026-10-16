@@ -557,8 +557,12 @@ def build_lift(pc):
     X = lambda a, b: (S * a, S * b)                     # noqa: E731
     pc['graphite'].append(boxr(*X(xi, xo), y0, y1, L - 3.4, L - 0.6))
     pc['ivory'].append(boxr(*X(xi + 0.4, xo - 0.6), y0 + 0.6, y1 - 0.6, L - 0.6, L))
-    # かごの通る口（踊り場の外の端の切り欠き：黒鉛の枠。上の面とほぼ同じ高さ）
-    pc['graphite'].append(boxr(*X(hw + 6.2, hw + 14.2), LIFT_Y - 5.6, LIFT_Y + 5.6, L - 0.3, L + 0.03))
+    # かごの通る口のふた（踊り場の外寄り）：真鍮の枠と黒鉛の格子（上の面から 3 cm。歩ける。前は黒鉛の板 1 枚で、大きな黒い敷物に見えた）
+    xa, xb, ya, yb = hw + 6.2, hw + 14.2, LIFT_Y - 5.6, LIFT_Y + 5.6
+    for x0, x1, y_0, y_1 in ((xa, xb, ya, ya + 0.5), (xa, xb, yb - 0.5, yb), (xa, xa + 0.5, ya, yb), (xb - 0.5, xb, ya, yb)):
+        pc['brass'].append(boxr(*X(x0, x1), y_0, y_1, L - 0.2, L + 0.03))
+    for x in np.arange(xa + 1.3, xb - 0.9, 1.2):
+        pc['graphite'].append(boxr(*X(x - 0.2, x + 0.2), ya + 0.5, yb - 0.5, L - 0.2, L + 0.02))
     # 手すり（外の縁と前後の縁、高さ 1.45 m。前後の縁は内の端から：下の段の部屋では、この線に当たり判定の柵がある）
     for x in np.arange(xi + 0.6, xo - 0.8, 3.0):
         for y in (y0 + 0.5, y1 - 0.5):
