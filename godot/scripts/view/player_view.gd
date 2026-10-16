@@ -14,7 +14,6 @@ var pose: HaruPose
 var blade: Node3D = null
 var blade_mat: BaseMaterial3D = null
 var muzzle: Node3D = null
-var charge_glow: MeshInstance3D
 var meshes: Array[MeshInstance3D] = []
 var face_mats: Array[BaseMaterial3D] = []
 var body_mats: Array[BaseMaterial3D] = []
@@ -33,6 +32,8 @@ var frame_nodes := {}
 var _frame_state := Vector3i(-1, -1, -1)
 ## いま隠しているフレームの部品（点滅の処理が見せてしまわないように）
 var _frame_off := {}
+## 付いたばかりで、まだ隠しているフレームの部品（群の名前 → 残りの秒数）
+var _reveal := {}
 
 
 func load_model(path: String, shade: String = "soft") -> void:
@@ -86,25 +87,7 @@ func load_model(path: String, shade: String = "soft") -> void:
 			if anim.has_animation(n):
 				anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
 		_play("idle", 0.0)
-	# チャージの光（銃口）
-	charge_glow = MeshInstance3D.new()
-	var sph := SphereMesh.new()
-	sph.radius = 0.12
-	sph.height = 0.24
-	charge_glow.mesh = sph
-	var gm := StandardMaterial3D.new()
-	gm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	gm.albedo_color = Color("#ffb23e")
-	gm.emission_enabled = true
-	gm.emission = Color("#ffb23e")
-	gm.emission_energy_multiplier = 3.0
-	charge_glow.material_override = gm
-	charge_glow.visible = false
-	if muzzle:
-		muzzle.add_child(charge_glow)
-	else:
-		add_child(charge_glow)
-		charge_glow.position = Vector3(-0.3, 1.1, 0.45)
+	# 主武器の溜めの光は Fx が銃口（muzzle）に描く（W2-09 の shot_charge）
 	set_shading(shade)
 
 
@@ -145,6 +128,25 @@ func set_frame_parts(core: bool, arm: bool, legs: bool) -> void:
 		fn.visible = on[k]
 		if not on[k]:
 			_frame_off[fn] = true
+
+
+## フレームの部品を secs 秒のあいだ隠す（Fx のフレームの装着：光の粒と陶器のかけらが集まってから現れる）
+func reveal_later(part: String, secs: float) -> void:
+	var fn := frame_nodes.get(part) as Node3D
+	if fn == null or not fn.visible:
+		return
+	_reveal[part] = secs
+	fn.visible = false
+	_frame_off[fn] = true
+
+
+func _part_on(part: String) -> bool:
+	match part:
+		"core":
+			return _frame_state.x == 1
+		"arm":
+			return _frame_state.y == 1
+	return _frame_state.z == 1
 
 
 func _is_frame_off(m: Node) -> bool:
@@ -229,16 +231,15 @@ func sync(p: Player, game: GameSim, dt: float, aim_dir: Vector3) -> void:
 	# 表情：被弾と倒れたときは痛みの顔
 	set_expression(3 if p.dead or a == "hurt" else 0)
 
-	# チャージの光
-	charge_glow.visible = p.gun_charge > 0.15
-	if charge_glow.visible:
-		var cfg: Dictionary = game.tuning.gun
-		var lv := 2 if p.gun_charge >= cfg.chargeLv2Time else (1 if p.gun_charge >= cfg.chargeLv1Time else 0)
-		var s := 0.6 + lv * 0.5 + sin(Time.get_ticks_msec() / 50.0) * 0.1
-		charge_glow.scale = Vector3.ONE * s
-		var col := Color.WHITE if lv == 2 else (Color("#ffd27a") if lv == 1 else Color("#ffb23e"))
-		(charge_glow.material_override as StandardMaterial3D).albedo_color = col
-		(charge_glow.material_override as StandardMaterial3D).emission = col
+	# フレームの装着のエフェクトの間は、付いたばかりの部品を隠しておく（reveal_later）
+	for k in _reveal.keys():
+		_reveal[k] -= dt
+		if _reveal[k] <= 0.0:
+			_reveal.erase(k)
+			var fn := frame_nodes.get(k) as Node3D
+			if fn != null and _part_on(k):
+				fn.visible = true
+				_frame_off.erase(fn)
 
 	# 被弾後の無敵時間は点滅
 	_flash_time += dt

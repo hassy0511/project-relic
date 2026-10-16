@@ -112,6 +112,13 @@ func _ready() -> void:
 	if main.args.has("stage_shots"):
 		_steps.clear()
 		_steps.append_array(_stage_steps())
+	# --vfx_shots：エフェクト（W2-09）の場面を撮る。--vfx_bench=r09,r15,r19,arena：戦闘の重い場面の描画の回数（scripts/debug/vfx_shots.gd）
+	if main.args.has("vfx_shots") or main.args.has("vfx_bench"):
+		_steps.clear()
+		if main.args.has("vfx_shots"):
+			_steps.append_array(VfxShots.steps(self))
+		if main.args.has("vfx_bench"):
+			_steps.append_array(VfxShots.bench_steps(self, Array(String(main.args.vfx_bench).split(",", false))))
 	if not main.args.has("ch1_full"):
 		_steps.append({"ticks": 1, "done": true})
 	# --bk_kit・--bk_props：BlenderKit の素材の比べ（scripts/debug/bk_test.gd）。引数が無ければ何もしない
