@@ -929,5 +929,51 @@
     ]
    }
   ]
+ },
+ "ch1.ordo_legs": {
+  "steps": [
+   {
+    "freeze": true
+   },
+   {
+    "camera": {
+     "pos": [
+      62,
+      -66,
+      -4
+     ],
+     "eye": [
+      150,
+      -45,
+      -4
+     ],
+     "height": 0,
+     "time": 30.0,
+     "wait": false
+    }
+   },
+   {
+    "wait": 1.5
+   },
+   {
+    "if": "ch1.night",
+    "then": [
+     {
+      "say": "ch1.ordo_legs.night"
+     }
+    ],
+    "else": [
+     {
+      "say": "ch1.ordo_legs.day"
+     }
+    ]
+   },
+   {
+    "camera": {}
+   },
+   {
+    "freeze": false
+   }
+  ]
  }
 }

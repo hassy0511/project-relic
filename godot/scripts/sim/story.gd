@@ -171,10 +171,13 @@ func _run_step(step: Dictionary) -> void:
 		if c.has("at") or c.has("pos"):
 			h.cam_focus = h.place(c).pos + Vector3(0, float(c.get("height", 1.5)), 0)
 			h.cam_focus_time = float(c.get("time", 2.0))
+			# "eye": [x,y,z]：カメラをその場所へ置いて注視点を見る（部屋の外から見せる。町の下のオルドの脚など）
+			h.cam_eye = RoomGeo.v3(c.eye) if c.has("eye") else null
 			_wait_time = float(c.get("time", 2.0)) if c.get("wait", true) else 0.0
 		else:
 			h.cam_focus = null
 			h.cam_focus_time = 0.0
+			h.cam_eye = null
 	elif step.has("freeze"):
 		h.player_locked = bool(step.freeze)
 	elif step.has("mark"):

@@ -81,6 +81,8 @@ var focus = null
 ## イベントの注視点（カメラ）と、イベント中の操作ロック
 var cam_focus = null
 var cam_focus_time := 0.0
+## 台本のカメラの置き場所（"camera" の "eye"。null ならふだんどおりプレイヤーの後ろ）。注視（cam_focus）と一緒に終わる
+var cam_eye = null
 var player_locked := false
 ## 部屋の移動の予約 { room, spawn?, at?, yaw?, autosave }。刻みの最後に実行する
 var _pending_room := {}
@@ -521,6 +523,7 @@ func step(frame: InputFrame) -> void:
 		cam_focus_time -= DT
 		if cam_focus_time <= 0.0:
 			cam_focus = null
+			cam_eye = null
 	if player_locked:
 		# イベント中は操作を受け付けない（ボタンの押し直しの扱いのため、空の入力を 1 刻み分入れる）
 		frame = InputFrame.new()
