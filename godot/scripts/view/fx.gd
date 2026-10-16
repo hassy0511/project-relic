@@ -402,8 +402,10 @@ func _draw_shot(s, info: Dictionary) -> void:
 			_wave_step(s, info)
 		"enemy":
 			# 芯は普通の半透明（明るい床の上でも珊瑚色が残る）、まわりは足し合わせのにじみ
-			vfx.streak(Vfx.DOT, p - d * 0.45, p + d * 0.1, 0.28, Color(CORAL, 0.95))
-			vfx.streak(Vfx.GRAIN, p - d * 1.1, p + d * 0.15, 0.6, _c(CORAL, 0.6))
+			# 芯は普通の半透明の珊瑚色（明るい床でも色が残る）、真ん中に熱い細い線、まわりに薄いにじみ
+			vfx.streak(Vfx.GRAIN, p - d * 1.0, p + d * 0.15, 0.55, _c(CORAL, 0.35))
+			vfx.streak(Vfx.DOT, p - d * 0.6, p + d * 0.12, 0.3, Color(CORAL, 1.0))
+			vfx.streak(Vfx.SPARK, p - d * 0.45, p + d * 0.1, 0.14, _c(Color(1.0, 0.75, 0.6), 0.6))
 		"debris":
 			vfx.sprite(Vfx.SHARD, p, info.rad, Color(ROCK, 1.0), Vfx.FACE, Basis.IDENTITY, info.rot + _time * info.spin)
 			vfx.streak(Vfx.GRAIN, p - d * 1.8, p, info.rad * 0.9, _c(CORAL, 0.55))
@@ -722,7 +724,7 @@ func _slash(p: Player, move: String) -> void:
 			life = 0.32
 	swing = (swing - mid * swing.dot(mid)).normalized()
 	# 帯：琥珀の地の色（普通の半透明。明るい床の上でも色が残る）を 2 枚ずらして太くし、その上に光の芯（足し合わせ）
-	for k in [[1.0, Vfx.SLASH_MIX, Color(AMBER, 0.95), life], [0.93, Vfx.SLASH_MIX, Color(AMBER, 0.75), life * 0.85],
+	for k in [[1.0, Vfx.SLASH_MIX, Color(AMBER, 0.95), life], [0.93, Vfx.SLASH_MIX, Color(AMBER, 0.8), life * 0.85], [0.87, Vfx.SLASH_MIX, Color(AMBER, 0.55), life * 0.75],
 			[0.985, Vfx.SLASH, _cf(PALE, b * 1.2) if b >= 0.85 else _c(PALE, b * 1.2), life * 0.7], [0.95, Vfx.SLASH, _c(AMBER, b), life * 0.8]]:
 		var fr := Vfx.slash_frame(c, radius * k[0], mid, swing)
 		var q := vfx.emit(k[1], fr[0], Vector3.ZERO, k[3], 1.0, 1.03, k[2])
@@ -937,9 +939,9 @@ func _banki(game: GameSim, e, prev: String) -> void:
 		var m := _enemy_muzzle(e)
 		var b := 0.25 + 0.5 * k
 		var pulse := 0.8 + 0.2 * sin(_time * 30.0)
-		vfx.sprite(Vfx.SOFT, m, (0.4 + 0.35 * k) * pulse, Color(CORAL, 0.35 + 0.3 * k))
-		vfx.sprite(Vfx.GRAIN, m, (0.5 + 0.5 * k) * pulse, _c(CORAL, b))
-		vfx.sprite(Vfx.DOT, m, 0.15 + 0.12 * k, Color(CORAL, 0.9))
+		vfx.sprite(Vfx.GRAIN, m, (0.5 + 0.5 * k) * pulse, _c(CORAL, b * 0.7))
+		vfx.sprite(Vfx.SOFT, m, (0.4 + 0.35 * k) * pulse, Color(CORAL, 0.45 + 0.3 * k))
+		vfx.sprite(Vfx.DOT, m, 0.18 + 0.14 * k, Color(CORAL, 1.0))
 		if k > 0.4:
 			vfx.sprite(Vfx.RING, m, (0.25 + 0.35 * (1.0 - fmod(_time * 3.0, 1.0))) / Vfx.RING_FRAC, _c(CORAL, b * 0.7))
 		if _frame % 2 == 0:

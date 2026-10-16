@@ -453,9 +453,13 @@ static func steps(d) -> Array:
 		{"ticks": 30, "input": {}},
 		_shot("g2_beacon"),
 		{"ticks": 2, "setup": func():
+			# 扉の前（部屋の中の側：ハルの今いる側）に立つ
 			var dr = m.game.doors[0]
-			d._stand(dr.pos + U.yaw_to_dir(dr.yaw) * 4.0, dr.pos)
-			_view(d, 0.5)
+			var f := U.yaw_to_dir(dr.yaw)
+			var here: Vector3 = m.game.player.pos
+			var at: Vector3 = dr.pos + f * 3.5 if (dr.pos + f * 3.5).distance_to(here) < (dr.pos - f * 3.5).distance_to(here) else dr.pos - f * 3.5
+			d._stand(Vector3(at.x, dr.pos.y, at.z), dr.pos)
+			_view(d, 0.4)
 			m.fx._seal_open(dr)},
 		{"ticks": 30, "input": {}},
 		_shot("g3_seal_open"),

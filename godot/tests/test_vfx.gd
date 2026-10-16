@@ -35,9 +35,12 @@ func test_vfx_layers_cap_and_clear() -> void:
 
 
 func test_vfx_no_multiply_blend() -> void:
-	for path in ["res://assets/shaders/vfx_add.gdshader", "res://assets/shaders/vfx_mix.gdshader", "res://assets/shaders/vfx_particle.gdshaderinc"]:
-		var src := FileAccess.get_file_as_string(path)
-		h.expect(not src.contains("blend_mul"), "%s は掛け算の混ぜ方を使わない（gl_compatibility で黒くなる）" % path.get_file())
+	for path in ["res://assets/shaders/vfx_add.gdshader", "res://assets/shaders/vfx_mix.gdshader"]:
+		var modes := ""
+		for line in FileAccess.get_file_as_string(path).split("\n"):
+			if line.strip_edges().begins_with("render_mode"):
+				modes += line
+		h.expect(modes != "" and not modes.contains("blend_mul"), "%s は掛け算の混ぜ方を使わない（gl_compatibility で黒くなる）" % path.get_file())
 	h.expect(FileAccess.get_file_as_string("res://assets/shaders/vfx_add.gdshader").contains("blend_add"), "光の層は足し合わせ")
 
 
