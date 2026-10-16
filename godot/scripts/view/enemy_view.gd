@@ -87,6 +87,8 @@ const POSE := {
 
 var _built := {}
 var _time := 0.0
+## 外れた部品が床に着いたとき（Fx.debris_landed）：(位置, 閂か)
+var on_land: Callable
 var PORCELAIN := MeshKit.mat(Color("#e9e3d6"), 0.35)
 var BRASS := MeshKit.mat(Color("#b08a4a"), 0.4, 0.6)
 var DARK := MeshKit.mat(Color("#3a3530"), 0.7)
@@ -116,6 +118,7 @@ class Built:
 	var brass: StandardMaterial3D = null
 	var hot := 0.0           # 過熱の度合い
 	var arm_gone := {}
+	var alert_k := 0.0       # センサーの警戒の色（0 琥珀 → 1 珊瑚。0.35 秒で移る）
 
 
 # ---------------------------------------------------------------- GLB のモデル
@@ -193,9 +196,10 @@ func _animate_glb(b: Built, e, dt: float) -> void:
 	var tele_target := 1.0 if e.telegraphing() or (b.kind == "sentry" and e.state == "attack") else 0.0
 	b.tele = move_toward(b.tele, tele_target, dt * 4.0)
 	var hostile: bool = e.state != "idle"
-	# センサー：通常は琥珀、見つけてからは赤。予備動作中は明滅（避ける合図）
+	# センサー：通常は琥珀（0.25）、見つけてからは 0.35 秒で珊瑚色（0.8）へ（W2-09 の banki_alert）。予備動作中は明滅（避ける合図）
+	b.alert_k = move_toward(b.alert_k, 1.0 if hostile else 0.0, dt / 0.35)
 	var blink := 0.5 + 0.5 * sin(_time * 30.0) if e.telegraphing() else 0.0
-	_set_glow(b.sensor, SENSOR_ALERT if hostile else SENSOR_NORMAL, 2.0 + blink * 4.0)
+	_set_glow(b.sensor, SENSOR_NORMAL.lerp(SENSOR_ALERT, b.alert_k), lerpf(1.2, 2.6, b.alert_k) + blink * 3.0)
 	# 被弾の光
 	b.shell.emission_enabled = e.flash > 0.01
 	b.shell.emission = Color(e.flash, e.flash * 0.9, e.flash * 0.7)
@@ -394,11 +398,11 @@ func _anim_kannuki(b: Built, e, dt: float, P: Dictionary) -> void:
 	_pose(b, "keyplate", P.key_open * b.open)
 	var pulse := 0.5 + 0.5 * sin(_time * 10.0)
 	_set_glow(b.core, SENSOR_NORMAL.lerp(Color(1.0, 0.9, 0.6), b.open * pulse), 1.2 + b.open * (3.0 + pulse * 4.0))
-	# 過熱：真鍮の部分が赤熱する
+	# 過熱：真鍮の継手・外装の隙間が珊瑚色に赤熱する（第 3 段階だけ。錠前核は琥珀のまま。W2-09 の kannuki_overheat）
 	b.hot = move_toward(b.hot, 1.0 if e.overheat else 0.0, dt * 0.8)
 	if b.brass != null:
 		b.brass.emission_enabled = b.hot > 0.01
-		b.brass.emission = Color("#ff4a1a") * (0.6 + 0.4 * sin(_time * 6.0))
+		b.brass.emission = SENSOR_ALERT * (0.6 + 0.4 * sin(_time * 6.0))
 		b.brass.emission_energy_multiplier = b.hot * 2.5
 	_pose(b, "body", 0.0, Vector3(0, 0.03 * sin(_time * 1.6), 0))
 	b.alert.visible = false
@@ -413,6 +417,8 @@ func _break_glb(b: Built, e, dt: float) -> void:
 		b.shell.emission_enabled = false
 		b.shell.albedo_color = b.shell.albedo_color.darkened(0.25)
 		for m in [b.sensor, b.core]:
+			if m == b.core and b.kind == "kannuki":
+				continue   # 閂の錠前核は撃破のあとも琥珀に光って残る（W2-09 の kannuki_destroy）
 			m.emission_enabled = false
 			m.albedo_color = GLASS_OFF
 		var i := 0
@@ -467,7 +473,7 @@ func _break_glb(b: Built, e, dt: float) -> void:
 	b.root.visible = t < vanish
 
 
-## 外れた部品を落とす（撃破・腕の破壊）
+## 外れた部品を落とす（撃破・腕の破壊）。床に着いた瞬間に on_land（Fx の土煙）を呼ぶ
 func _update_debris(b: Built, dt: float) -> void:
 	for d in b.debris:
 		var n: Node3D = d.node
@@ -477,6 +483,10 @@ func _update_debris(b: Built, dt: float) -> void:
 			n.rotate(d.axis, d.spin * dt)
 		else:
 			n.position.y = 0.04
+			if not d.get("landed", false):
+				d["landed"] = true
+				if on_land.is_valid() and n.is_inside_tree():
+					on_land.call(n.global_position, b.kind == "kannuki")
 
 
 # ---------------------------------------------------------------- 仮の形（GLB がないとき）
@@ -590,6 +600,30 @@ func _animate_fallback(b: Built, e) -> void:
 		b.legs[i].rotation.x = sin(_time * 12.0 + i * 2.0) * 0.4 if moving else 0.0
 
 
+# ---------------------------------------------------------------- エフェクトの付く所
+
+## 部品の世界の位置（Fx が予兆・センサー・核の光を付ける）。部品が無い（仮の形）・外れているなら null
+func part_pos(e, name: String) -> Variant:
+	var b: Built = _built.get(e)
+	if b == null:
+		return null
+	var n: Node3D = b.parts.get(name)
+	if n == null or not n.is_inside_tree():
+		return null
+	return n.global_position
+
+
+## 部品の世界の変換（閂の削岩腕の先）。無ければ null
+func part_xform(e, name: String) -> Variant:
+	var b: Built = _built.get(e)
+	if b == null:
+		return null
+	var n: Node3D = b.parts.get(name)
+	if n == null or not n.is_inside_tree() or n.get_parent() == b.root:
+		return null
+	return n.global_transform
+
+
 # ---------------------------------------------------------------- 毎刻み
 
 func sync(enemies: Array, dt: float) -> void:
@@ -639,67 +673,70 @@ func sync(enemies: Array, dt: float) -> void:
 var _haz := {}
 
 
-func _hazard(key: String, mesh: Mesh, color: Color) -> MeshInstance3D:
-	var mi: MeshInstance3D = _haz.get(key)
-	if mi == null:
-		var m := MeshKit.glow(color, 2.0, 0.3)
-		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-		m.cull_mode = BaseMaterial3D.CULL_DISABLED
-		mi = MeshKit.add(self, mesh, m)
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_haz[key] = mi
+func _hazard(key: String, mesh: Mesh, color: Color, vertex_alpha := false) -> MeshInstance3D:
+	var m := MeshKit.glow(color, 2.0, 0.3)
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.disable_fog = true
+	m.vertex_color_use_as_albedo = vertex_alpha
+	var mi := MeshKit.add(self, mesh, m)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.visible = false
+	_haz[key] = mi
 	return mi
 
 
-## 避ける合図を床に出す：突進の通り道・回転薙ぎの範囲・衝撃波の輪・過熱する床
-func _sync_hazards(e) -> void:
-	var red := Color("#ff4a2a")
+## 範囲の表示の形は 1 度だけ作る（毎刻み新しく作らない）。色は敵の攻撃の珊瑚色（W2-09）
+func _build_hazards(e) -> void:
 	var cyl := CylinderMesh.new()
 	cyl.top_radius = 1.0
 	cyl.bottom_radius = 1.0
 	cyl.height = 0.04
 	cyl.radial_segments = 40
-	var spin := _hazard("spin", _haz_mesh("spin", cyl), red)
+	_hazard("spin", cyl, SENSOR_ALERT)
+	var lane_box := BoxMesh.new()
+	lane_box.size = Vector3(3.5, 0.04, 24.0)
+	_hazard("lane", lane_box, SENSOR_ALERT)
+	# 過熱する外周：内の縁（境界）が明るく、外へ少し薄くなる平らな輪
+	var rin := float(e.game.tuning.boss.heat.radiusIn)
+	var rout := float(e.game.tuning.boss.arenaRadius)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := 64
+	for i in n:
+		var a0 := TAU * i / n
+		var a1 := TAU * (i + 1) / n
+		var d0 := Vector3(sin(a0), 0, cos(a0))
+		var d1 := Vector3(sin(a1), 0, cos(a1))
+		var ci := Color(1, 1, 1, 1.0)
+		var co := Color(1, 1, 1, 0.55)
+		for v in [[d0 * rin, ci], [d1 * rin, ci], [d1 * rout, co], [d0 * rin, ci], [d1 * rout, co], [d0 * rout, co]]:
+			st.set_color(v[1])
+			st.add_vertex(v[0])
+	_hazard("heat", st.commit(), SENSOR_ALERT, true)
+
+
+## 避ける合図を床に出す：回転薙ぎの範囲・突進の通り道・過熱する外周。叩きつけの輪と、範囲の縁の光る輪は Fx が描く
+func _sync_hazards(e) -> void:
+	if _haz.is_empty():
+		_build_hazards(e)
+	var spin: MeshInstance3D = _haz.spin
 	spin.visible = e.alive and e.spin_r > 0.0
 	if spin.visible:
 		spin.position = Vector3(e.pos.x, e.pos.y + 0.06, e.pos.z)
 		spin.scale = Vector3(e.spin_r, 1.0, e.spin_r)
-		(spin.material_override as StandardMaterial3D).albedo_color.a = 0.22 if e.state == "spin_windup" else 0.4
-	var lane_box := BoxMesh.new()
-	lane_box.size = Vector3(3.5, 0.04, 24.0)
-	var lane := _hazard("lane", _haz_mesh("lane", lane_box), red)
+		(spin.material_override as StandardMaterial3D).albedo_color.a = 0.16 if e.state == "spin_windup" else 0.3
+	var lane: MeshInstance3D = _haz.lane
 	lane.visible = e.alive and e.lane
 	if lane.visible:
 		var f: Vector3 = e.forward()
 		lane.position = Vector3(e.pos.x + f.x * 12.0, e.pos.y + 0.06, e.pos.z + f.z * 12.0)
 		lane.rotation.y = e.yaw
 		(lane.material_override as StandardMaterial3D).albedo_color.a = 0.15 + 0.2 * (0.5 + 0.5 * sin(_time * 30.0))
-	var wave := _hazard("wave", _haz_mesh("wave", TorusMesh.new()), Color("#ffb23e"))
-	wave.visible = e.alive and e.wave_r > 0.0
-	if wave.visible:
-		var tm: TorusMesh = wave.mesh
-		tm.inner_radius = maxf(0.1, e.wave_r - 0.5)
-		tm.outer_radius = e.wave_r + 0.5
-		wave.position = Vector3(e.pos.x, e.pos.y + 0.1, e.pos.z)
-		wave.scale = Vector3(1.0, 0.25, 1.0)
-	var heat_mesh := TorusMesh.new()
-	heat_mesh.inner_radius = 11.5
-	heat_mesh.outer_radius = 16.0
-	heat_mesh.rings = 48
-	var heat := _hazard("heat", _haz_mesh("heat", heat_mesh), Color("#ff6a1a"))
+	var heat: MeshInstance3D = _haz.heat
 	heat.visible = e.alive and e.heat_state > 0
 	if heat.visible:
 		heat.position = Vector3(e.arena.x, e.arena.y + 0.05, e.arena.z)
-		heat.scale = Vector3(1.0, 0.02, 1.0)
-		var a := 0.12 + 0.12 * (0.5 + 0.5 * sin(_time * 14.0)) if e.heat_state == 1 else 0.45 + 0.1 * sin(_time * 8.0)
+		# 予告の間は薄く（境界の輪が先に脈打つ）、熱い間ははっきり
+		var a := 0.06 + 0.06 * (0.5 + 0.5 * sin(_time * 14.0)) if e.heat_state == 1 else 0.38 + 0.08 * sin(_time * 8.0)
 		(heat.material_override as StandardMaterial3D).albedo_color.a = a
-
-
-## 範囲の表示の形は 1 度だけ作る（毎刻み新しく作らない）
-var _haz_meshes := {}
-
-
-func _haz_mesh(key: String, m: Mesh) -> Mesh:
-	if not _haz_meshes.has(key):
-		_haz_meshes[key] = m
-	return _haz_meshes[key]
