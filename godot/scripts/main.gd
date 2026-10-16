@@ -118,6 +118,7 @@ func _rebuild_room_views() -> void:
 		level = RoomView.build(game.world, game.room_id)
 	add_child(level)
 	_apply_mood()
+	_sync_ordo(true)
 	if enemy_view != null and is_instance_valid(enemy_view):
 		enemy_view.queue_free()
 	enemy_view = EnemyView.new()
@@ -138,10 +139,33 @@ func _apply_mood() -> void:
 		if mood == "outdoor" or mood == "day":
 			mood = "night" if game.flag("ch1.night") else "day"
 	EnvironmentSetup.apply_mood(sun, mood)
+	var ordo := _ordo()
+	if ordo != null:
+		ordo.set_mood(mood)
 	# キットの遠景の空（content/kits/<id>.json の "sky"。町は bg_desert_* の砂漠）
 	if arena_kind == "" and game.room.has("kit"):
 		var kd: Dictionary = RoomKit.load_kit(String(game.room.kit)).get("data", {})
 		EnvironmentSetup.apply_sky(sun, String(kd.get("sky", {}).get(mood, "")), kd.get("light", {}).get(mood, {}))
+
+
+## 町の下のオルド（部屋の "ordo"。RoomView が作る OrdoView）
+func _ordo() -> OrdoView:
+	if level == null or not is_instance_valid(level):
+		return null
+	return level.get_node_or_null("Ordo") as OrdoView
+
+
+## オルドの歩き：停止の夜（ch1.ordo_stopped）から再始動（ch1.ordo_restarted）までは 8 本の足が肩の真下に着いた停止の姿勢、
+## ほかは歩く。部屋を作ったとき（immediate）はすぐにその姿勢、部屋にいる間にフラグが立ったら 1 周かけて止まる・歩き出す
+func _sync_ordo(immediate: bool) -> void:
+	var ordo := _ordo()
+	if ordo == null or game == null:
+		return
+	var walk := not game.flag("ch1.ordo_stopped") or game.flag("ch1.ordo_restarted")
+	if immediate and not walk:
+		ordo.set_walking(false, true)
+	elif ordo.walking != walk:
+		ordo.set_walking(walk)
 
 
 ## 試しの部屋に切り替えて始め直す（見本・確認用）
@@ -472,6 +496,8 @@ func _handle_events() -> void:
 			"flagSet":
 				if e.name == "ch1.night":
 					_apply_mood()
+				elif e.name in ["ch1.ordo_stopped", "ch1.ordo_restarted"]:
+					_sync_ordo(false)
 			"ui":
 				open_economy_ui(e.kind, e.id)
 			"music":
