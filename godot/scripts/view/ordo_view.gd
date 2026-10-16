@@ -19,6 +19,10 @@ extends Node3D
 ##   body_fixed = false（既定）：地面が止まっていて体が進む。子の "ordo" が +Z へ travel だけ進み、上下する（遠くから見る場面）。
 ##   body_fixed = true ：体（町）が止まっていて地面が動く（町の縁から見下ろす場面）。地面に ground_offset() を足す。
 ## 軽さ：毎フレーム、脚 8 本 × 関節 4 つの Transform を置くだけ（三角関数が十数回）。
+##   描くのは、部品のメッシュを 1 つにまとめた皮つきメッシュ（merged。部品のノードを骨にした Skeleton3D で動かす）で、描画は材質の数（6）だけ。
+##   GLB の部品のノード（model）は骨の姿勢を決める見えない骨組みとして残す（テスト・撮影が部品の位置を読む）。遠景では影を落とさない。
+## 町の部屋に置く（部屋の "ordo"：docs/design/42_コンテンツの書き方.md 14.5）：body_fixed = true、ground = true（120 m 下の砂の床が
+##   体の進みだけ後ろへ流れ、遠くは空の絵の下の帯へ溶ける）。歩く・止まるは main.gd がフラグ（ch1.ordo_stopped・ch1.ordo_restarted）から決める。
 
 const MODEL_PATH := "res://assets/models/ordo.glb"
 const LEGS := ["l1", "l2", "l3", "l4", "r1", "r2", "r3", "r4"]
@@ -39,6 +43,9 @@ const ANKLE_SWING_MAX := 15.0    ## 浮いている足の足首の角の上限�
 @export var bob_m := 0.5         ## 体の上下（片振幅）
 @export var body_fixed := false
 @export var walking := true
+@export var merged := true       ## 部品のメッシュを 1 つの皮つきメッシュにまとめて描く（描画は材質の数だけ）
+@export var cast_shadows := false  ## 影を落とすか（町の遠景では落とさない）
+@export var ground := false      ## 120 m 下の砂の床（body_fixed のとき体の進みだけ流れる。遠くは透明にして空の絵の下の帯へつなぐ）
 
 var model: Node3D
 var body: Node3D
@@ -50,6 +57,21 @@ var parts := {}                  ## 部品の名前 → Node3D（door・lift_gui
 var legs: Array = []             ## 脚ごとの辞書（_setup_leg）
 var _crouch := 1.0
 var _rest := {}
+var skeleton: Skeleton3D         ## merged のときの骨（部品のノードと同じ並び）
+var skin_mesh: MeshInstance3D    ## merged のときの 1 つのメッシュ
+var ground_node: MeshInstance3D  ## ground のときの砂の床
+var _bones: Array = []           ## 骨の番号 → 部品のノード
+var _root_pose := Transform3D.IDENTITY
+static var _merged_cache := {}   ## MODEL_PATH → { "mesh", "skin" }（部屋を移るたびに作り直さない）
+
+const JOINTS := ["body", "door", "lift_guide", "lift_cage"]
+const GROUND_SIZE := 6000.0
+## 雰囲気ごとの砂の床の色（近く・暗い所・遠く・風紋の濃さ）。遠くの色は空の絵（sky_*.jpg）の地平線の 3〜10 度下の色
+const GROUND_MOODS := {
+	"day": ["#dc7c50", "#8e4129", "#d4958c", 0.2],
+	"night": ["#2a3560", "#161d3a", "#13285a", 0.08],
+	"dawn": ["#b8604c", "#7a3634", "#8a4458", 0.10],
+}
 
 
 func _ready() -> void:
@@ -68,6 +90,10 @@ func _ready() -> void:
 		var leg := _setup_leg(tag)
 		if not leg.is_empty():
 			legs.append(leg)
+	if merged:
+		_build_skinned()
+	if ground:
+		_make_ground()
 	if walking:
 		_init_gait()
 	else:
@@ -214,6 +240,8 @@ func _apply() -> void:
 		model.position = Vector3(0.0, body_h, travel)
 	for leg in legs:
 		_solve(leg)
+	_sync_bones()
+	_sync_ground()
 
 
 func _solve(leg: Dictionary) -> void:
@@ -319,6 +347,7 @@ func _slide(nm: String, m: float) -> void:
 		return
 	var r: Transform3D = _rest[nm]
 	n.transform = Transform3D(r.basis, r.origin + r.basis.x * m)
+	_sync_bones()
 
 
 ## 材質をキット（content/kits/<id>.json の "materials"）の同じ名前の材質に替える（ivory・graphite・brass・cloth・amber）。
@@ -336,4 +365,226 @@ func apply_kit(kit_id: String) -> int:
 			if mat != null and mats.has(mat.resource_name):
 				(mi as MeshInstance3D).set_surface_override_material(s, mats[mat.resource_name])
 				n += 1
+	# 描いている 1 つのメッシュも同じ材質に（数には入れない：数は部品の面の数）
+	if skin_mesh != null:
+		for s in skin_mesh.mesh.get_surface_count():
+			var mat := skin_mesh.mesh.surface_get_material(s)
+			if mat != null and mats.has(mat.resource_name):
+				skin_mesh.set_surface_override_material(s, mats[mat.resource_name])
 	return n
+
+
+# ---------------------------------------------------------------- 1 つのメッシュにまとめる（描画の回数を材質の数に）
+
+## 部品のノード（body・door・lift_guide・lift_cage・脚の関節）を骨にした Skeleton3D と、部品のメッシュを材質ごとに 1 面へまとめた
+## 皮つきメッシュを作る。頂点は model の座標（元の姿勢）、骨の重みは部品の骨に 1。元の部品のメッシュ（model）は見えなくして、
+## 姿勢を決める骨組みとしてだけ使う（部品のノードの姿勢を骨へ写す：_sync_bones）
+func _build_skinned() -> void:
+	var names := {}
+	for n in JOINTS:
+		names[n] = true
+	for tag in LEGS:
+		for k in ["roll", "shoulder", "knee", "ankle"]:
+			names["leg_%s_%s" % [tag, k]] = true
+	var joints: Array = []
+	_walk_joints(model, names, joints)
+	if joints.is_empty():
+		return
+	skeleton = Skeleton3D.new()
+	skeleton.name = "OrdoSkeleton"
+	var index := {}
+	for j in joints:
+		var bi := skeleton.get_bone_count()
+		skeleton.add_bone(String(j.name))
+		var pj := _parent_joint(j, index)
+		if pj != null:
+			skeleton.set_bone_parent(bi, int(index[pj]))
+			skeleton.set_bone_rest(bi, _to_model(pj).affine_inverse() * _to_model(j))
+		else:
+			_root_pose = _to_model(j)
+			skeleton.set_bone_rest(bi, _root_pose)
+		index[j] = bi
+		_bones.append(j)
+	if not _merged_cache.has(MODEL_PATH):
+		_merged_cache[MODEL_PATH] = _merge_meshes(joints, index)
+	var c: Dictionary = _merged_cache[MODEL_PATH]
+	add_child(skeleton)
+	skin_mesh = MeshInstance3D.new()
+	skin_mesh.name = "OrdoMesh"
+	skin_mesh.mesh = c.mesh
+	skin_mesh.skin = c.skin
+	skeleton.add_child(skin_mesh)
+	skin_mesh.skeleton = NodePath("..")
+	skin_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if cast_shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	model.visible = false
+
+
+func _walk_joints(n: Node, names: Dictionary, out: Array) -> void:
+	for c in n.get_children():
+		if names.has(String(c.name)):
+			out.append(c)
+		_walk_joints(c, names, out)
+
+
+func _parent_joint(j: Node, index: Dictionary) -> Node:
+	var p := j.get_parent()
+	while p != null and p != model:
+		if index.has(p):
+			return p
+		p = p.get_parent()
+	return null
+
+
+## ノードの model の中の変換（今の姿勢）
+func _to_model(n: Node) -> Transform3D:
+	var xf := Transform3D.IDENTITY
+	var cur: Node = n
+	while cur != null and cur != model:
+		xf = (cur as Node3D).transform * xf
+		cur = cur.get_parent()
+	return xf
+
+
+func _merge_meshes(joints: Array, index: Dictionary) -> Dictionary:
+	# 材質の名前 → 部品ごとの塊（Packed*Array は値渡しなので、塊の配列に足して最後に 1 本につなぐ）
+	var acc := {}
+	var order: Array = []
+	var skin := Skin.new()
+	for j in joints:
+		var bi: int = index[j]
+		skin.add_bind(bi, _to_model(j).affine_inverse())
+		var meshes: Array = []
+		if j is MeshInstance3D:
+			meshes.append(j)
+		for c in j.get_children():
+			if c is MeshInstance3D and not index.has(c) and String(c.name).begins_with(String(j.name) + "_"):
+				meshes.append(c)
+		for mi in meshes:
+			var m: Mesh = (mi as MeshInstance3D).mesh
+			if m == null:
+				continue
+			var xf := _to_model(mi)
+			var nx := Transform3D(xf.basis.inverse().transposed(), Vector3.ZERO)
+			for s in m.get_surface_count():
+				var mat := m.surface_get_material(s)
+				var key := mat.resource_name if mat != null else "default"
+				if not acc.has(key):
+					acc[key] = {"v": [], "n": [], "uv": [], "b": [], "w": [], "i": [], "count": 0, "mat": mat}
+					order.append(key)
+				var a: Dictionary = acc[key]
+				var arr := m.surface_get_arrays(s)
+				var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+				var cnt := v.size()
+				var base: int = a.count
+				a.count = base + cnt
+				a.v.append(xf * v)
+				var nr = arr[Mesh.ARRAY_NORMAL]
+				if nr is PackedVector3Array and (nr as PackedVector3Array).size() == cnt:
+					a.n.append(nx * (nr as PackedVector3Array))
+				else:
+					var z := PackedVector3Array()
+					z.resize(cnt)
+					a.n.append(z)
+				var uv = arr[Mesh.ARRAY_TEX_UV]
+				if uv is PackedVector2Array and (uv as PackedVector2Array).size() == cnt:
+					a.uv.append(uv)
+				else:
+					var z2 := PackedVector2Array()
+					z2.resize(cnt)
+					a.uv.append(z2)
+				var bo := PackedInt32Array()
+				bo.resize(cnt * 4)
+				var we := PackedFloat32Array()
+				we.resize(cnt * 4)
+				for i in cnt:
+					bo[i * 4] = bi
+					we[i * 4] = 1.0
+				a.b.append(bo)
+				a.w.append(we)
+				var ix = arr[Mesh.ARRAY_INDEX]
+				var idx := PackedInt32Array()
+				if ix is PackedInt32Array and not (ix as PackedInt32Array).is_empty():
+					idx = (ix as PackedInt32Array).duplicate()
+				else:
+					idx.resize(cnt)
+					for i in cnt:
+						idx[i] = i
+				for i in idx.size():
+					idx[i] += base
+				a.i.append(idx)
+	var mesh := ArrayMesh.new()
+	for key in order:
+		var a: Dictionary = acc[key]
+		var pv := PackedVector3Array()
+		var pn := PackedVector3Array()
+		var pu := PackedVector2Array()
+		var pb := PackedInt32Array()
+		var pw := PackedFloat32Array()
+		var pi := PackedInt32Array()
+		for k in a.v.size():
+			pv.append_array(a.v[k])
+			pn.append_array(a.n[k])
+			pu.append_array(a.uv[k])
+			pb.append_array(a.b[k])
+			pw.append_array(a.w[k])
+			pi.append_array(a.i[k])
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = pv
+		arrays[Mesh.ARRAY_NORMAL] = pn
+		arrays[Mesh.ARRAY_TEX_UV] = pu
+		arrays[Mesh.ARRAY_BONES] = pb
+		arrays[Mesh.ARRAY_WEIGHTS] = pw
+		arrays[Mesh.ARRAY_INDEX] = pi
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		mesh.surface_set_material(mesh.get_surface_count() - 1, a.mat)
+	return {"mesh": mesh, "skin": skin}
+
+
+## 部品のノードの今の姿勢を骨へ写す（脚 32・扉・リフト 2・体）
+func _sync_bones() -> void:
+	if skeleton == null:
+		return
+	skeleton.position = model.position
+	for i in _bones.size():
+		var t: Transform3D = _root_pose if i == 0 else (_bones[i] as Node3D).transform
+		skeleton.set_bone_pose_position(i, t.origin)
+		skeleton.set_bone_pose_rotation(i, t.basis.get_rotation_quaternion())
+
+
+# ---------------------------------------------------------------- 砂の床
+
+func _make_ground() -> void:
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(GROUND_SIZE, GROUND_SIZE)
+	ground_node = MeshInstance3D.new()
+	ground_node.name = "OrdoGround"
+	ground_node.mesh = pm
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://assets/shaders/ordo_ground.gdshader")
+	ground_node.material_override = mat
+	ground_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(ground_node)
+	set_mood("day")
+
+
+## 砂の床の位置と流れ（body_fixed のときは体の上下の逆に動き、模様が体の進みだけ後ろへ流れる）
+func _sync_ground() -> void:
+	if ground_node == null:
+		return
+	var g := ground_offset() if body_fixed else Vector3.ZERO
+	ground_node.position = Vector3(0.0, GROUND_Y + g.y, 0.0)
+	(ground_node.material_override as ShaderMaterial).set_shader_parameter("travel", -g.z)
+
+
+## 雰囲気（day・night・dawn。main.gd の _apply_mood と同じ名前）に合わせて砂の床の色を替える
+func set_mood(mood: String) -> void:
+	if ground_node == null:
+		return
+	var c: Array = GROUND_MOODS.get(mood, GROUND_MOODS.day)
+	var m := ground_node.material_override as ShaderMaterial
+	m.set_shader_parameter("near_color", Color(c[0]))
+	m.set_shader_parameter("dark_color", Color(c[1]))
+	m.set_shader_parameter("far_color", Color(c[2]))
+	m.set_shader_parameter("ripple", float(c[3]))
+
