@@ -26,12 +26,15 @@ const DUST := 8
 const SHARD := 9
 const SHARD_GLOW := 10
 const DOT := 11
+const SOFT := 12
+const SLASH_MIX := 13
 
-## 層：tex（マスク）、add（足し合わせ）、窓（center・scale・rot（度）：マスクの絵のある所を四角いっぱいに使う）、
+## 層：tex（マスク）、add（足し合わせ＝光。明るい床の上では白っぽくなる）か普通の半透明（色がそのまま残る：
+## 煙・破片・敵弾の芯 DOT・やわらかい色の光 SOFT・斬撃の帯の地の色 SLASH_MIX）、窓（center・scale・rot（度）：マスクの絵のある所を四角いっぱいに使う）、
 ## 濃さの整え（lo・hi・pow）、shade（色にマスクの濃淡を残す割合）、max（同時に描く粒の上限）
 const LAYERS := [
-	{"tex": "spark", "add": true, "center": Vector2(0.514, 0.469), "scale": 0.4, "rot": 38.0, "max": 192},
-	{"tex": "grain", "add": true, "center": Vector2(0.5, 0.496), "scale": 0.34, "max": 192},
+	{"tex": "spark", "add": true, "center": Vector2(0.514, 0.469), "scale": 0.4, "rot": 38.0, "max": 256},
+	{"tex": "grain", "add": true, "center": Vector2(0.5, 0.496), "scale": 0.34, "max": 320},
 	{"tex": "glint", "add": true, "center": Vector2(0.498, 0.492), "scale": 0.2, "max": 48},
 	{"tex": "shock_ring", "add": true, "max": 48},
 	{"tex": "slash", "add": true, "max": 16, "wipe": true},
@@ -41,7 +44,9 @@ const LAYERS := [
 	{"tex": "dust", "add": false, "center": Vector2(0.5, 0.48), "scale": 0.8, "lo": 0.02, "hi": 0.6, "shade": 0.3, "max": 64},
 	{"tex": "shard", "add": false, "center": Vector2(0.5, 0.48), "scale": 0.8, "lo": 0.05, "hi": 0.22, "shade": 0.55, "max": 96},
 	{"tex": "shard", "add": true, "center": Vector2(0.5, 0.48), "scale": 0.8, "lo": 0.03, "hi": 0.6, "max": 48},
-	{"tex": "grain", "add": false, "center": Vector2(0.5, 0.496), "scale": 0.3, "lo": 0.25, "hi": 0.6, "max": 64},
+	{"tex": "grain", "add": false, "center": Vector2(0.5, 0.496), "scale": 0.3, "lo": 0.25, "hi": 0.6, "max": 96},
+	{"tex": "grain", "add": false, "center": Vector2(0.5, 0.496), "scale": 0.34, "lo": 0.02, "hi": 0.7, "max": 96},
+	{"tex": "slash", "add": false, "lo": 0.04, "hi": 0.45, "max": 16, "wipe": true},
 ]
 ## 斬撃の帯（vfx_tex_slash.png）の円弧：中心（UV）・半径（UV）・尾の角度・刃先の角度（rad。UV は下向きが +y）
 const SLASH_CENTER := Vector2(0.397, -0.139)

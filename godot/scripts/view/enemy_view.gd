@@ -16,6 +16,8 @@ const MODELS := {
 const SENSOR_NORMAL := Color("#FFBC52")
 const SENSOR_ALERT := Color("#E26A4A")
 const GLASS_OFF := Color("#302F2B")
+## 危険な範囲の床の色：珊瑚色 #E26A4A が画面でそう見える、少し濃い色（Fx.CORAL と同じ）
+const HAZARD := Color(0.95, 0.30, 0.16)
 
 ## 型ごとの動きの数値（角度は度、長さは m）。部品の名前は banki.py の PARTS と同じ
 const POSE := {
@@ -402,8 +404,8 @@ func _anim_kannuki(b: Built, e, dt: float, P: Dictionary) -> void:
 	b.hot = move_toward(b.hot, 1.0 if e.overheat else 0.0, dt * 0.8)
 	if b.brass != null:
 		b.brass.emission_enabled = b.hot > 0.01
-		b.brass.emission = SENSOR_ALERT * (0.6 + 0.4 * sin(_time * 6.0))
-		b.brass.emission_energy_multiplier = b.hot * 2.5
+		b.brass.emission = HAZARD * (0.6 + 0.4 * sin(_time * 6.0))
+		b.brass.emission_energy_multiplier = b.hot * 1.2
 	_pose(b, "body", 0.0, Vector3(0, 0.03 * sin(_time * 1.6), 0))
 	b.alert.visible = false
 
@@ -693,10 +695,10 @@ func _build_hazards(e) -> void:
 	cyl.bottom_radius = 1.0
 	cyl.height = 0.04
 	cyl.radial_segments = 40
-	_hazard("spin", cyl, SENSOR_ALERT)
+	_hazard("spin", cyl, HAZARD)
 	var lane_box := BoxMesh.new()
 	lane_box.size = Vector3(3.5, 0.04, 24.0)
-	_hazard("lane", lane_box, SENSOR_ALERT)
+	_hazard("lane", lane_box, HAZARD)
 	# 過熱する外周：内の縁（境界）が明るく、外へ少し薄くなる平らな輪
 	var rin := float(e.game.tuning.boss.heat.radiusIn)
 	var rout := float(e.game.tuning.boss.arenaRadius)
@@ -713,7 +715,7 @@ func _build_hazards(e) -> void:
 		for v in [[d0 * rin, ci], [d1 * rin, ci], [d1 * rout, co], [d0 * rin, ci], [d1 * rout, co], [d0 * rout, co]]:
 			st.set_color(v[1])
 			st.add_vertex(v[0])
-	_hazard("heat", st.commit(), SENSOR_ALERT, true)
+	_hazard("heat", st.commit(), HAZARD, true)
 
 
 ## 避ける合図を床に出す：回転薙ぎの範囲・突進の通り道・過熱する外周。叩きつけの輪と、範囲の縁の光る輪は Fx が描く

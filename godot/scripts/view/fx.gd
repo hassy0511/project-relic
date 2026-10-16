@@ -6,16 +6,18 @@ extends Node3D
 ## 閂の錠前核は琥珀のまま、第 3 段階（過熱）だけ珊瑚色。ふだんの銃口・命中は小さく、弱点と大技だけ短く明るく。長い全画面の光はしない。
 ## 明るさは見本の表（spec.md）の 0〜1 を GAIN 倍した色の強さ。大きな光（弱点・破断・撃破）は flash_scale（低フラッシュ設定用）を掛ける。
 
-const AMBER := Color("#FFBC52")
+## 琥珀 #FFBC52・珊瑚色 #E26A4A（見本の色）。環境の色調（AgX）は明るい色をくすませる（#FFBC52 をそのまま渡すと黄土色に見える）ので、
+## 画面で見本の色に見える、少し濃い色を渡す（ゲームと同じ環境に色を並べて写して合わせた。docs/art_orders/W2_エフェクトの結果.md）
+const AMBER := Color(1.0, 0.62, 0.16)
 const PALE := Color("#F3E9D2")
-const CORAL := Color("#E26A4A")
+const CORAL := Color(0.95, 0.30, 0.16)
 const BRASS := Color("#A98749")
 const GRAPHITE := Color("#444641")
 const IVORY := Color("#E9E3D6")
 const ROCK := Color("#5c5650")
 const DUST := Color("#cdbd9f")
 const SMOKE := Color("#8f877d")
-const GAIN := 1.6
+const GAIN := 1.3
 ## 閂の削岩腕の先（部品 arm_*_drill の原点から、軸（ローカル X）の向きに 1.6 m）。向きの符号は腕ごと（kannuki.glb）
 const DRILL_TIP := {"fl": 1.6, "fr": -1.6, "rl": -1.6, "rr": 1.6}
 const ARMS := ["fl", "fr", "rl", "rr"]
@@ -52,6 +54,10 @@ var _picks := {}
 var _scan_target = null
 var _scan_done := false
 var _frame_state := Vector3i(-1, -1, -1)
+## ノードの記憶の取り込み（会話 ch1.node の間）：残りの秒数と、光の出る所
+var _dlg_id := ""
+var _node_t := 0.0
+var _node_from := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -176,6 +182,14 @@ func _flash(layer: int, at: Vector3, s0: float, s1: float, life: float, col: Col
 	return q
 
 
+## 色の残るやわらかい光（普通の半透明。明るい床の上でも琥珀・珊瑚色が白くならない）
+func _soft(at: Vector3, s0: float, s1: float, life: float, col: Color, a := 0.6) -> Vfx.P:
+	var q := vfx.emit(Vfx.SOFT, at, Vector3.ZERO, life, s0, s1, Color(col, a))
+	q.fin = 0.12
+	q.fpow = 1.3
+	return q
+
+
 ## 広がる輪（rad0 → rad1 m。basis = null ならカメラを向く）
 func _ring(at: Vector3, rad0: float, rad1: float, life: float, col: Color, basis = null) -> Vfx.P:
 	var q := vfx.emit(Vfx.RING, at, Vector3.ZERO, life, rad0 / Vfx.RING_FRAC, rad1 / Vfx.RING_FRAC, col)
@@ -185,6 +199,17 @@ func _ring(at: Vector3, rad0: float, rad1: float, life: float, col: Color, basis
 		q.mode = Vfx.FLAT
 		q.basis = basis
 	return q
+
+
+## 床の上の細い光の線の輪（大きな輪は輪の素材だと帯が太くぼやけるので、短い筋を並べる）。その刻みだけ
+func _circle(c: Vector3, r: float, width: float, col: Color, phase := 0.0) -> void:
+	var n := clampi(int(r * 3.0), 16, 48)
+	var prev := c + Vector3(sin(phase), 0, cos(phase)) * r
+	for i in n:
+		var a := phase + TAU * (i + 1) / n
+		var cur := c + Vector3(sin(a), 0, cos(a)) * r
+		vfx.streak(Vfx.GRAIN, prev, cur, width, col)
+		prev = cur
 
 
 ## 粉じんを床に（at の高さが床）
@@ -205,6 +230,11 @@ func handle(e: Dictionary) -> void:
 				return
 			if _game != null and _game.player.drilling and _is_wall_center(e.at):
 				return
+			if _game != null and e.kind == "armor" and not _game.player.drilling:
+				for b in _game.breakables:
+					if not b.broken and b.distance_to(e.at) < 0.35:
+						_mark_wrong(b, e.at)
+						return
 			_hit(e.at, e.kind)
 		"enemyDestroyed":
 			var bs = _game.boss if _game != null else null
@@ -241,9 +271,15 @@ func handle(e: Dictionary) -> void:
 				for c in _game.chests:
 					if c.id == e.id:
 						_chest_open(c)
+		"doorOpened":
+			if _game != null and String(e.id).contains("seal"):
+				for dr in _game.doors:
+					if dr.id == e.id:
+						_seal_open(dr)
 		"roomChanged":
 			if not e.first:
 				vfx.clear()
+				_band.visible = false
 				_shots.clear()
 				_est.clear()
 				_picks.clear()
@@ -281,7 +317,7 @@ func sync(game: GameSim, dt: float, pv: PlayerView = null, ev: EnemyView = null)
 	_sync_shots(game)
 	_sync_player(game, dt)
 	_sync_enemies(game, dt)
-	_sync_world(game)
+	_sync_world(game, dt)
 	vfx.step(dt)
 	shake = maxf(0.0, shake - dt * 2.5)
 
@@ -325,17 +361,18 @@ func _new_shot(game: GameSim, s) -> Dictionary:
 
 ## 銃口の光：小さな星と、前へ散る火花 2 つ（見本 shot_rapid：0.25 m、0→0.75→0.25→0、0.14 秒）
 func _muzzle(at: Vector3, d: Vector3, col: Color, b: float, size: float) -> void:
-	_flash(Vfx.GLINT, at, size * 1.6, size * 1.1, 0.07, _c(col, b))
-	_flash(Vfx.GRAIN, at, size * 1.4, size * 0.8, 0.06, _c(col, b * 0.6))
+	_flash(Vfx.GLINT, at, size * 2.4, size * 1.4, 0.08, _c(col, b))
+	_soft(at, size * 1.4, size * 0.7, 0.07, col, 0.55)
 	for i in 2:
-		_spark(Vfx.SPARK, at, _cone(d, 0.35) * _rng.randf_range(5, 8), 0.07, 0.05, _c(col, b * 0.8), 0.02, 0.0)
+		_spark(Vfx.SPARK, at, _cone(d, 0.35) * _rng.randf_range(5, 8), 0.08, 0.07, _c(col, b * 0.8), 0.02, 0.0)
 
 
 ## 溜め撃ちを放つ：銃口の輪がはじけ、星が光る（shot_charge：1 段 0.35 m、2 段 0.8 m）
 func _charge_release(at: Vector3, d: Vector3, lv: int) -> void:
 	var k := 1.0 if lv == 1 else 2.0
-	_ring(at, 0.15 * k, 0.45 * k, 0.16, _cf(AMBER, 0.6 + 0.2 * lv), _facing(d))
-	_flash(Vfx.GLINT, at, 0.5 * k, 0.4 * k, 0.12, _cf(PALE, 0.85))
+	_ring(at, 0.08 * k, 0.28 * k, 0.16, _cf(AMBER, 0.6 + 0.2 * lv), _facing(d))
+	_flash(Vfx.GLINT, at, 0.6 * k, 0.4 * k, 0.12, _cf(PALE, 0.85))
+	_soft(at, 0.3 * k, 0.5 * k, 0.12, AMBER, 0.6)
 	for i in 4 * lv:
 		_spark(Vfx.SPARK, at, _cone(d, 0.6) * _rng.randf_range(4, 9), 0.14, 0.06, _c(AMBER, 0.7), 0.025, 2.0)
 
@@ -345,15 +382,18 @@ func _draw_shot(s, info: Dictionary) -> void:
 	var p: Vector3 = s.pos
 	match info.style:
 		"normal":
-			vfx.streak(Vfx.GRAIN, p - d * 0.6, p + d * 0.06, 0.16, _c(AMBER, 0.75))
-			vfx.sprite(Vfx.GRAIN, p, 0.14, _c(PALE, 0.55))
+			vfx.streak(Vfx.DOT, p - d * 0.4, p + d * 0.05, 0.11, Color(AMBER, 0.95))
+			vfx.streak(Vfx.GRAIN, p - d * 0.9, p + d * 0.08, 0.26, _c(AMBER, 0.75))
+			vfx.sprite(Vfx.GRAIN, p, 0.18, _c(PALE, 0.55))
 		"charge1":
-			vfx.streak(Vfx.GRAIN, p - d * 1.3, p + d * 0.15, 0.38, _c(AMBER, 0.8))
+			vfx.streak(Vfx.SOFT, p - d * 1.0, p + d * 0.12, 0.3, Color(AMBER, 0.8))
+			vfx.streak(Vfx.GRAIN, p - d * 1.3, p + d * 0.15, 0.45, _c(AMBER, 0.8))
 			vfx.sprite(Vfx.GLINT, p, 0.6, _c(PALE, 0.7), Vfx.FACE, Basis.IDENTITY, _time * 5.0)
 			if _frame % 2 == 0:
 				_spark(Vfx.SPARK, p, _sphere() * 2.0 - d * 2.0, 0.15, 0.04, _c(AMBER, 0.5), 0.03, 0.0)
 		"charge2":
-			vfx.streak(Vfx.GRAIN, p - d * 2.6, p + d * 0.3, 0.8, _c(AMBER, 0.85))
+			vfx.streak(Vfx.SOFT, p - d * 2.2, p + d * 0.3, 0.7, Color(AMBER, 0.8))
+			vfx.streak(Vfx.GRAIN, p - d * 2.6, p + d * 0.3, 0.9, _c(AMBER, 0.85))
 			vfx.streak(Vfx.SPARK, p - d * 0.9, p + d * 0.55, 0.9, _c(PALE, 0.7))
 			vfx.sprite(Vfx.GLINT, p + d * 0.2, 1.1, _c(PALE, 0.7), Vfx.FACE, Basis.IDENTITY, _time * 4.0)
 			for i in 2:
@@ -362,8 +402,8 @@ func _draw_shot(s, info: Dictionary) -> void:
 			_wave_step(s, info)
 		"enemy":
 			# 芯は普通の半透明（明るい床の上でも珊瑚色が残る）、まわりは足し合わせのにじみ
-			vfx.streak(Vfx.DOT, p - d * 0.32, p + d * 0.08, 0.2, Color(CORAL, 0.95))
-			vfx.streak(Vfx.GRAIN, p - d * 0.9, p + d * 0.12, 0.42, _c(CORAL, 0.6))
+			vfx.streak(Vfx.DOT, p - d * 0.45, p + d * 0.1, 0.28, Color(CORAL, 0.95))
+			vfx.streak(Vfx.GRAIN, p - d * 1.1, p + d * 0.15, 0.6, _c(CORAL, 0.6))
 		"debris":
 			vfx.sprite(Vfx.SHARD, p, info.rad, Color(ROCK, 1.0), Vfx.FACE, Basis.IDENTITY, info.rot + _time * info.spin)
 			vfx.streak(Vfx.GRAIN, p - d * 1.8, p, info.rad * 0.9, _c(CORAL, 0.55))
@@ -402,8 +442,8 @@ func _end_shot(game: GameSim, s, info: Dictionary) -> void:
 			_shard(Vfx.SHARD, s.pos + Vector3(0, 0.2, 0), _cone(Vector3.UP, 0.9) * _rng.randf_range(3, 6), 0.7, _rng.randf_range(0.1, 0.25), Color(ROCK, 1.0), s.pos.y)
 	else:
 		# 敵弾の着弾（banki_shot：着弾 0.45、0.5 m）
-		_flash(Vfx.GLINT, s.pos, 0.55, 0.4, 0.1, _c(CORAL, 0.45))
-		_flash(Vfx.DOT, s.pos, 0.22, 0.05, 0.12, Color(CORAL, 0.9))
+		_flash(Vfx.GLINT, s.pos, 0.8, 0.5, 0.1, _c(CORAL, 0.45))
+		_soft(s.pos, 0.3, 0.6, 0.15, CORAL, 0.7)
 		for i in 5:
 			_spark(Vfx.SPARK, s.pos, _sphere() * _rng.randf_range(2, 5), 0.18, 0.05, _c(CORAL, 0.5))
 		_puff(Vfx.DUST, s.pos, Vector3(0, 0.6, 0), 0.5, 0.25, 0.7, Color(SMOKE, 0.4))
@@ -424,9 +464,10 @@ func _hit(at: Vector3, kind: String) -> void:
 		return
 	match kind:
 		"weak":
-			_flash(Vfx.GLINT, at, 0.8, 0.5, 0.14, _cf(PALE, 0.9))
-			_flash(Vfx.GRAIN, at, 0.5, 0.9, 0.12, _cf(AMBER, 0.6))
-			_ring(at, 0.15, 0.5, 0.15, _cf(AMBER, 0.6))
+			_flash(Vfx.GLINT, at, 1.2, 0.7, 0.14, _cf(PALE, 0.9))
+			_soft(at, 0.5, 1.0, 0.14, AMBER, 0.75)
+			_flash(Vfx.GRAIN, at, 0.6, 1.1, 0.12, _cf(AMBER, 0.6))
+			_ring(at, 0.15, 0.7, 0.16, _cf(AMBER, 0.6))
 			for i in 9:
 				_spark(Vfx.SPARK, at, _sphere() * _rng.randf_range(3, 7), _rng.randf_range(0.15, 0.3), 0.06, _c(AMBER, 0.75))
 			for i in 4:
@@ -437,16 +478,17 @@ func _hit(at: Vector3, kind: String) -> void:
 				_spark(Vfx.SPARK, at, _sphere() * _rng.randf_range(2, 5), 0.14, 0.04, _c(PALE, 0.3))
 			_puff(Vfx.DUST, at, Vector3(0, 0.4, 0), 0.35, 0.15, 0.45, Color(SMOKE, 0.35))
 		_:
-			_flash(Vfx.GLINT, at, 0.45, 0.3, 0.09, _c(AMBER, 0.5))
-			_flash(Vfx.GRAIN, at, 0.3, 0.45, 0.07, _c(AMBER, 0.35))
+			_flash(Vfx.GLINT, at, 0.75, 0.45, 0.09, _c(AMBER, 0.5))
+			_soft(at, 0.35, 0.55, 0.09, AMBER, 0.6)
 			for i in 6:
-				_spark(Vfx.SPARK, at, _sphere() * _rng.randf_range(2.5, 5.5), _rng.randf_range(0.12, 0.22), 0.05, _c(AMBER, 0.55))
+				_spark(Vfx.SPARK, at, _sphere() * _rng.randf_range(2.5, 5.5), _rng.randf_range(0.12, 0.22), 0.07, _c(AMBER, 0.55))
 
 
 ## 撃破（banki_destroy：核 0.3→0.9→残光 0.15→0、約 1.2 秒、機体のまわり約 2.5 m）
 func _banki_destroy(at: Vector3) -> void:
-	_flash(Vfx.GRAIN, at, 0.4, 1.6, 0.35, _cf(AMBER, 0.9))
-	_flash(Vfx.GLINT, at, 1.0, 0.6, 0.5, _cf(PALE, 0.6))
+	_flash(Vfx.GRAIN, at, 0.5, 2.0, 0.35, _cf(AMBER, 0.9))
+	_soft(at, 0.6, 1.6, 0.3, AMBER, 0.75)
+	_flash(Vfx.GLINT, at, 1.5, 0.8, 0.5, _cf(PALE, 0.6))
 	var after := _flash(Vfx.GRAIN, at, 0.7, 0.5, 1.2, _c(AMBER, 0.15))
 	after.fin = 0.25
 	_ring(at, 0.3, 1.3, 0.3, _cf(AMBER, 0.5))
@@ -505,6 +547,44 @@ func _wall_break(b) -> void:
 	for i in 7:
 		var at2 := Vector3(c.x, base_y, c.z) + Vector3(_rng.randf_range(-0.6, 0.6) * w, 0.4, _rng.randf_range(-0.6, 0.6) * w) + to_p * 0.6
 		_puff(Vfx.DUST, at2, to_p * _rng.randf_range(0.5, 2.0) + Vector3(0, 0.5, 0), _rng.randf_range(0.8, 1.2), 0.9, 2.4, Color(DUST, 0.6))
+
+
+## 目印の反応・不正解（mark_react：0→0.2→0、0.5 秒）：壊せる壁を弾で撃っても、印が小さく光って弾くだけ（正解のドリルは _drill の印と _wall_break）
+func _mark_wrong(b, at: Vector3) -> void:
+	var n := Vector3(at.x - b.center.x, 0, at.z - b.center.z)
+	n = n.normalized() if n.length() > 0.01 else Vector3.BACK
+	var q := vfx.emit(Vfx.HEX, at + n * 0.05, Vector3.ZERO, 0.5, 0.5, 0.55, _c(AMBER, 0.2))
+	q.mode = Vfx.FLAT
+	q.basis = _facing(n)
+	q.fin = 0.2
+	for i in 3:
+		_spark(Vfx.SPARK, at, _cone(n, 0.7) * _rng.randf_range(2, 4), 0.14, 0.04, _c(PALE, 0.3))
+
+
+## 封印の解除（seal_open：接触 0→文様 0.55→解除 0.8→0、約 1.5 秒、扉約 2 m）：扉の文様の輪と十字の光、開く瞬間に短く光る
+func _seal_open(dr) -> void:
+	var c: Vector3 = dr.pos + Vector3(0, dr.size.y * 0.5, 0)
+	var f := U.yaw_to_dir(dr.yaw)
+	if _game != null and f.dot(_game.player.pos - c) < 0.0:
+		f = -f
+	var at: Vector3 = c + f * (dr.size.z * 0.5 + 0.06)
+	var q := vfx.emit(Vfx.HEX, at, Vector3.ZERO, 1.5, 1.1, 1.3, _c(AMBER, 0.55))
+	q.mode = Vfx.FLAT
+	q.basis = _facing(f)
+	q.fin = 0.35
+	_ring(at, 0.3, 1.4, 0.8, _c(AMBER, 0.5), _facing(f))
+	var up := _flash(Vfx.PILLAR, at, dr.size.y * 0.5, dr.size.y * 0.55, 1.2, _c(AMBER, 0.6))
+	up.aspect = 2.0
+	up.rot = 0.0
+	up.fin = 0.4
+	var side := _flash(Vfx.PILLAR, at, dr.size.x * 0.4, dr.size.x * 0.45, 1.2, _c(AMBER, 0.5))
+	side.aspect = 2.0
+	side.rot = PI * 0.5
+	side.fin = 0.4
+	_flash(Vfx.GLINT, at, 2.0, 1.2, 0.3, _cf(PALE, 0.8))
+	for i in 12:
+		var g := vfx.emit(Vfx.GRAIN, at + _sphere() * 0.8, f * _rng.randf_range(0.5, 1.5) + Vector3(0, 0.8, 0), _rng.randf_range(0.6, 1.2), 0.12, 0.05, _c(AMBER, 0.55))
+		g.fin = 0.3
 
 
 ## 外れた部品が床に落ちた（EnemyView が呼ぶ）。big：閂の腕
@@ -601,14 +681,14 @@ func _slash(p: Player, move: String) -> void:
 	var c := p.pos + Vector3(0, 1.0, 0)
 	var radius := 1.8
 	var b := 0.55
-	var mid := f
-	var swing := -r + up * 0.15
+	var mid := (f + up * 0.1).normalized()
+	var swing := -r + up * 0.55
 	var life := 0.2
 	var dust := p.grounded
 	match move:
 		"combo2":
 			radius = 2.2
-			swing = r + up * 0.35
+			swing = r + up * 0.65
 		"combo3":
 			radius = 3.1
 			b = 0.85
@@ -641,21 +721,16 @@ func _slash(p: Player, move: String) -> void:
 			swing = r * 0.7 + up * 0.7
 			life = 0.32
 	swing = (swing - mid * swing.dot(mid)).normalized()
-	var fr := Vfx.slash_frame(c, radius, mid, swing)
-	var q := vfx.emit(Vfx.SLASH, fr[0], Vector3.ZERO, life, 1.0, 1.03, _cf(AMBER, b) if b >= 0.85 else _c(AMBER, b))
-	q.mode = Vfx.FLAT
-	q.basis = fr[1]
-	q.wipe = 0.06
-	q.fin = 0.22
-	q.fpow = 1.6
-	# 刃の線の芯（淡い白磁の色、少し内側）
-	var fr2 := Vfx.slash_frame(c, radius * 0.97, mid, swing)
-	var q2 := vfx.emit(Vfx.SLASH, fr2[0], Vector3.ZERO, life * 0.7, 0.98, 1.0, _c(PALE, b * 0.55))
-	q2.mode = Vfx.FLAT
-	q2.basis = fr2[1]
-	q2.wipe = 0.06
-	q2.fin = 0.25
-	q2.fpow = 2.0
+	# 帯：琥珀の地の色（普通の半透明。明るい床の上でも色が残る）を 2 枚ずらして太くし、その上に光の芯（足し合わせ）
+	for k in [[1.0, Vfx.SLASH_MIX, Color(AMBER, 0.95), life], [0.93, Vfx.SLASH_MIX, Color(AMBER, 0.75), life * 0.85],
+			[0.985, Vfx.SLASH, _cf(PALE, b * 1.2) if b >= 0.85 else _c(PALE, b * 1.2), life * 0.7], [0.95, Vfx.SLASH, _c(AMBER, b), life * 0.8]]:
+		var fr := Vfx.slash_frame(c, radius * k[0], mid, swing)
+		var q := vfx.emit(k[1], fr[0], Vector3.ZERO, k[3], 1.0, 1.03, k[2])
+		q.mode = Vfx.FLAT
+		q.basis = fr[1]
+		q.wipe = 0.06
+		q.fin = 0.22
+		q.fpow = 1.6
 	# 刃先から散る火花と光のかけら
 	for i in (8 if b >= 0.85 else 5):
 		var ang := _rng.randf_range(-0.7, 0.7)
@@ -677,10 +752,10 @@ func _afterimage(p: Player, b: float) -> void:
 	var f := U.yaw_to_dir(p.yaw)
 	for i in 2:
 		var at := p.pos + Vector3(_rng.randf_range(-0.3, 0.3), _rng.randf_range(0.3, 1.4), _rng.randf_range(-0.3, 0.3)) - f * 0.6
-		var q := vfx.emit(Vfx.SPARK, at, -f * 0.02, 0.14, 0.05, 0.02, _c(AMBER, b))
+		var q := vfx.emit(Vfx.SPARK, at, -f * 0.02, 0.16, 0.09, 0.04, _c(AMBER, b * 1.3))
 		q.mode = Vfx.STREAK
 		q.basis = Basis(Vector3.RIGHT, f, Vector3.BACK)
-		q.aspect = 28.0
+		q.aspect = 20.0
 
 
 ## 光刃の溜め：左の籠手に琥珀の光が集まる（blade_charge：0→0.4→0.9→0）
@@ -694,8 +769,10 @@ func _blade_charge(p: Player, full: bool) -> void:
 		var off := _sphere() * 0.5
 		var q := vfx.emit(Vfx.GRAIN, g + off, -off / 0.22, 0.22, 0.07, 0.03, _c(AMBER, b))
 		q.fin = 0.4
-	vfx.sprite(Vfx.GRAIN, g, (0.45 if full else 0.3) * (0.9 + 0.1 * sin(_time * 20.0)), _c(AMBER, b * 0.8))
-	if full and _frame % 3 == 0:
+	var pl := 0.9 + 0.1 * sin(_time * 20.0)
+	vfx.sprite(Vfx.SOFT, g, (0.55 if full else 0.35) * pl, Color(AMBER, 0.75 if full else 0.5))
+	vfx.sprite(Vfx.GRAIN, g, (0.9 if full else 0.55) * pl, _c(AMBER, b))
+	if full and _frame % 2 == 0:
 		var a := _sphere() * 0.25
 		_spark(Vfx.SPARK, g + a, a.cross(Vector3.UP).normalized() * 3.0, 0.1, 0.04, _c(PALE, 0.6), 0.02, 0.0)
 
@@ -709,22 +786,34 @@ func _drill(game: GameSim, p: Player) -> void:
 	_drill_tip = tip
 	for i in 3:
 		var k := float(i)
-		vfx.sprite(Vfx.RING, tip - f * (0.12 + 0.2 * k), (0.1 + 0.08 * k) / Vfx.RING_FRAC, _c(AMBER, 0.6 - 0.15 * k), Vfx.FLAT, _facing(f, _time * 30.0 + k))
-	vfx.sprite(Vfx.GRAIN, tip, 0.4, _c(PALE, 0.6))
-	for i in 2:
+		vfx.sprite(Vfx.RING, tip - f * (0.1 + 0.22 * k), (0.12 + 0.1 * k) / Vfx.RING_FRAC, _c(AMBER, 0.6 - 0.12 * k), Vfx.FLAT, _facing(f, _time * 30.0 + k))
+	vfx.sprite(Vfx.SOFT, tip, 0.35, Color(AMBER, 0.7))
+	vfx.sprite(Vfx.GRAIN, tip, 0.6, _c(PALE, 0.6))
+	for i in 3:
 		_spark(Vfx.SPARK, tip, _cone(-f + _sphere() * 0.2, 1.1) * _rng.randf_range(3, 7), _rng.randf_range(0.12, 0.22), 0.045, _c(AMBER, 0.6))
 	# 壁を削っている：壁の印が光る（drill_wall：印 0.15→0.65）
 	for b in game.breakables:
 		if b.broken or b.distance_to(tip) > float(game.tuning.drill.range) * 0.7:
 			continue
 		var k2: float = clampf(b.progress / maxf(b.toughness, 0.01), 0.0, 1.0)
-		vfx.sprite(Vfx.HEX, tip + f * 0.05, 0.55 + 0.15 * k2, _c(AMBER, 0.15 + 0.5 * k2), Vfx.FLAT, _facing(-f, _time * 0.8))
+		var hit := _box_point(b, tip) - f * 0.06
+		vfx.sprite(Vfx.HEX, hit, 0.55 + 0.15 * k2, _c(AMBER, 0.15 + 0.5 * k2), Vfx.FLAT, _facing(-f, _time * 0.8))
+		vfx.sprite(Vfx.SOFT, hit, 0.3 + 0.2 * k2, Color(AMBER, 0.3 + 0.4 * k2))
+		_spark(Vfx.SPARK, hit, _cone(-f, 0.9) * _rng.randf_range(4, 8), 0.2, 0.06, _c(PALE, 0.6))
 		if _frame % 2 == 0:
-			_spark(Vfx.SPARK, tip, _cone(-f, 0.9) * _rng.randf_range(4, 8), 0.2, 0.05, _c(PALE, 0.6))
-			_shard(Vfx.SHARD, tip, _cone(-f + Vector3.UP * 0.5, 0.8) * _rng.randf_range(2, 4), 0.6, _rng.randf_range(0.06, 0.14), Color(DUST.darkened(0.1), 1.0), p.pos.y)
+			_shard(Vfx.SHARD, hit, _cone(-f + Vector3.UP * 0.5, 0.8) * _rng.randf_range(2, 4), 0.6, _rng.randf_range(0.06, 0.14), Color(DUST.darkened(0.1), 1.0), p.pos.y)
 		if _frame % 6 == 0:
-			_puff(Vfx.DUST, tip, -f * 0.8 + Vector3(0, 0.3, 0), 0.6, 0.3, 0.9, Color(DUST, 0.4))
+			_puff(Vfx.DUST, hit, -f * 0.8 + Vector3(0, 0.3, 0), 0.6, 0.3, 0.9, Color(DUST, 0.4))
 		break
+
+
+## 壁（壊せる箱。y 軸まわりに回っている）の、点 p にいちばん近い点（外なら表面の上）
+static func _box_point(b, p: Vector3) -> Vector3:
+	var rot := Basis(Vector3.UP, b.yaw)
+	var l: Vector3 = rot.inverse() * (p - b.center)
+	var h: Vector3 = b.size * 0.5
+	l = Vector3(clampf(l.x, -h.x, h.x), clampf(l.y, -h.y, h.y), clampf(l.z, -h.z, h.z))
+	return b.center + rot * l
 
 
 ## ダッシュ：踏み出しの光と、後ろへ流れる筋（dash：0→0.8（最初の 0.12 秒）→0.3→0、約 0.4 秒、後方約 2.5 m）
@@ -745,12 +834,17 @@ func _dash(game: GameSim, p: Player) -> void:
 		for i in 2:
 			_puff(Vfx.DUST, foot - d * 0.3, -d * _rng.randf_range(1, 2) + Vector3(0, 0.4, 0), 0.5, 0.4, 1.1, Color(DUST, 0.5))
 	var b := 0.8 if since < 0.12 else 0.3
-	for i in 2:
+	for i in 3:
 		var at := p.pos + Vector3(0, _rng.randf_range(0.1, 1.3), 0) + Vector3(-d.z, 0, d.x) * _rng.randf_range(-0.3, 0.3) - d * 0.4
-		var q := vfx.emit(Vfx.SPARK, at, d * 0.02, 0.12, 0.05, 0.02, _c(AMBER, b))
+		var q := vfx.emit(Vfx.SPARK, at, d * 0.02, 0.16, 0.13, 0.05, _c(AMBER, b * 1.25))
 		q.mode = Vfx.STREAK
 		q.basis = Basis(Vector3.RIGHT, d, Vector3.BACK)
-		q.aspect = 30.0
+		q.aspect = 18.0
+	if since < 0.12:
+		var tr := vfx.emit(Vfx.SOFT, p.pos + Vector3(0, 0.25, 0) - d * 0.5, d * 0.02, 0.18, 0.3, 0.12, Color(AMBER, 0.45))
+		tr.mode = Vfx.STREAK
+		tr.basis = Basis(Vector3.RIGHT, d, Vector3.BACK)
+		tr.aspect = 8.0
 
 
 ## 被弾（hurt：衝突 0.55→0.15、小 0.5 秒／大 1.2 秒、体のまわり約 1.7 m）。当てたのは敵なので珊瑚色
@@ -761,8 +855,8 @@ func _hurt() -> void:
 	var heavy := p.hurt_time > 0.5
 	var c := p.chest()
 	var away := Vector3(p.vel.x, 0, p.vel.z).normalized()
-	_flash(Vfx.GLINT, c, 1.1 if heavy else 0.8, 0.5, 0.14, _cf(CORAL, 0.55))
-	_flash(Vfx.DOT, c, 0.35, 0.1, 0.1, Color(CORAL, 0.85))
+	_flash(Vfx.GLINT, c, 1.4 if heavy else 1.0, 0.6, 0.14, _cf(CORAL, 0.55))
+	_soft(c, 0.5, 1.1 if heavy else 0.8, 0.16, CORAL, 0.7)
 	for i in (12 if heavy else 7):
 		_spark(Vfx.SPARK, c, _cone(away + Vector3.UP * 0.3, 0.8) * _rng.randf_range(3, 7), _rng.randf_range(0.15, 0.3), 0.06, _c(CORAL, 0.55))
 	for i in 3:
@@ -833,8 +927,9 @@ func _banki(game: GameSim, e, prev: String) -> void:
 	if prev == "idle" and e.state == "alert":
 		var s = _part_pos(e, "sensor")
 		var at: Vector3 = s if s != null else e.center() + Vector3(0, e.height * 0.3, 0) + f * e.radius
-		_flash(Vfx.GLINT, at, 0.5, 0.35, 0.35, _c(CORAL, 0.8))
-		_ring(at, 0.08, 0.35, 0.25, _c(CORAL, 0.5))
+		_flash(Vfx.GLINT, at, 0.9, 0.5, 0.35, _c(CORAL, 0.8))
+		_soft(at, 0.3, 0.45, 0.35, CORAL, 0.6)
+		_ring(at, 0.1, 0.45, 0.25, _c(CORAL, 0.5))
 	# 予兆（banki_windup：0→0.25→0.7 以上→発射で 0、0.4 秒以上）：砲口・衝角・拳に珊瑚色の光が集まる
 	if e.telegraphing():
 		var wt: float = float(game.tuning.enemies.get(e.kind, {}).get("windup", 0.5))
@@ -842,10 +937,11 @@ func _banki(game: GameSim, e, prev: String) -> void:
 		var m := _enemy_muzzle(e)
 		var b := 0.25 + 0.5 * k
 		var pulse := 0.8 + 0.2 * sin(_time * 30.0)
-		vfx.sprite(Vfx.GRAIN, m, (0.3 + 0.35 * k) * pulse, _c(CORAL, b))
-		vfx.sprite(Vfx.DOT, m, 0.1 + 0.08 * k, Color(CORAL, 0.9))
+		vfx.sprite(Vfx.SOFT, m, (0.4 + 0.35 * k) * pulse, Color(CORAL, 0.35 + 0.3 * k))
+		vfx.sprite(Vfx.GRAIN, m, (0.5 + 0.5 * k) * pulse, _c(CORAL, b))
+		vfx.sprite(Vfx.DOT, m, 0.15 + 0.12 * k, Color(CORAL, 0.9))
 		if k > 0.4:
-			vfx.sprite(Vfx.RING, m, (0.2 + 0.25 * (1.0 - fmod(_time * 3.0, 1.0))) / Vfx.RING_FRAC, _c(CORAL, b * 0.7))
+			vfx.sprite(Vfx.RING, m, (0.25 + 0.35 * (1.0 - fmod(_time * 3.0, 1.0))) / Vfx.RING_FRAC, _c(CORAL, b * 0.7))
 		if _frame % 2 == 0:
 			var off := _sphere() * 0.5
 			var q := vfx.emit(Vfx.GRAIN, m + off, -off / 0.2, 0.2, 0.08, 0.03, _c(CORAL, b))
@@ -935,17 +1031,21 @@ func _boss(game: GameSim, e, prev: String, dt: float) -> void:
 			k = clampf(e.state_time / (float(c.spin.windup) * (0.75 if e.overheat else 1.0)), 0.0, 1.0)
 			for t in tips:
 				_tip_warn(t, 0.25 + 0.2 * k, false)
-			vfx.sprite(Vfx.RING, Vector3(e.pos.x, e.pos.y + 0.08, e.pos.z), e.spin_r / Vfx.RING_FRAC, _c(CORAL, 0.25 + 0.2 * k), Vfx.FLAT, _flat())
+			_circle(Vector3(e.pos.x, e.pos.y + 0.08, e.pos.z), e.spin_r, 0.3, _c(CORAL, 0.35 + 0.3 * k))
 		"spin":
-			vfx.sprite(Vfx.RING, Vector3(e.pos.x, e.pos.y + 0.08, e.pos.z), e.spin_r / Vfx.RING_FRAC, _c(CORAL, 0.5), Vfx.FLAT, _flat(_time))
+			_circle(Vector3(e.pos.x, e.pos.y + 0.08, e.pos.z), e.spin_r, 0.35, _c(CORAL, 0.7), _time)
 			for t in tips:
 				var rel: Vector3 = t[1] - e.pos
 				var tang := Vector3(rel.z, 0, -rel.x).normalized() * signf(e.spin_speed)
-				var q2 := vfx.emit(Vfx.SPARK, t[1], tang * 0.02, 0.2, 0.22, 0.1, _c(CORAL, 0.7))
+				var q2 := vfx.emit(Vfx.SPARK, t[1], tang * 0.02, 0.22, 0.34, 0.12, _c(CORAL, 0.9))
 				q2.mode = Vfx.STREAK
 				q2.basis = Basis(Vector3.RIGHT, tang, Vector3.BACK)
-				q2.aspect = 9.0
+				q2.aspect = 10.0
 				q2.fin = 0.05
+				var q5 := vfx.emit(Vfx.SOFT, t[1], tang * 0.02, 0.25, 0.45, 0.2, Color(CORAL, 0.45))
+				q5.mode = Vfx.STREAK
+				q5.basis = Basis(Vector3.RIGHT, tang, Vector3.BACK)
+				q5.aspect = 6.0
 				if _frame % 3 == 0:
 					var g := Vector3(t[1].x, e.pos.y, t[1].z)
 					_puff(Vfx.DUST, g + Vector3(0, 0.3, 0), rel.normalized() * 2.0 + Vector3(0, 0.6, 0), 0.7, 0.6, 1.6, Color(DUST, 0.5))
@@ -972,13 +1072,15 @@ func _boss(game: GameSim, e, prev: String, dt: float) -> void:
 				_slam_impact(e, tips)
 		"summon_windup":
 			k = clampf(e.state_time / float(c.summon.windup), 0.0, 1.0)
-			if _frame % 2 == 0:
+			var belly: Vector3 = e.axis_center() + Vector3(0, -1.2, 0)
+			vfx.sprite(Vfx.SOFT, belly, 1.2 + 0.6 * k, Color(AMBER, 0.25 + 0.3 * k))
+			vfx.sprite(Vfx.GRAIN, belly, 2.0 + 1.0 * k, _c(AMBER, 0.25 + 0.35 * k))
+			for i in 2:
 				var ang := _rng.randf() * TAU
 				var to := Vector3(e.pos.x + sin(ang) * 6.0, e.pos.y + 0.1, e.pos.z + cos(ang) * 6.0)
-				var from: Vector3 = e.axis_center() + Vector3(0, -1.0, 0)
-				var q3 := vfx.emit(Vfx.GRAIN, from, (to - from) / 0.45, 0.45, 0.2, 0.12, _c(AMBER, 0.25 + 0.35 * k))
+				var q3 := vfx.emit(Vfx.GRAIN, belly, (to - belly) / 0.45, 0.45, 0.3, 0.15, _c(AMBER, 0.35 + 0.35 * k))
 				q3.mode = Vfx.STREAK
-				q3.stretch = 0.05
+				q3.stretch = 0.06
 				q3.fin = 0.2
 	# 叩きつけの輪（跳べる低い輪：輪 0.55、高さ約 0.4 m）
 	_slam_wave(e)
@@ -996,7 +1098,7 @@ func _boss(game: GameSim, e, prev: String, dt: float) -> void:
 		var a2: String = ARMS[_rng.randi() % 4]
 		if not e.arm_broken[a2]:
 			var root: Vector3 = e.axis_center().lerp(e.arm_center(a2), 0.55)
-			_puff(Vfx.SMOKE, root + Vector3(0, 0.6, 0), Vector3(_rng.randf_range(-0.3, 0.3), 1.4, _rng.randf_range(-0.3, 0.3)), 1.4, 0.6, 2.2, Color(PALE, 0.28))
+			_puff(Vfx.SMOKE, root + Vector3(0, 0.6, 0), Vector3(_rng.randf_range(-0.3, 0.3), 1.4, _rng.randf_range(-0.3, 0.3)), 1.4, 0.7, 2.4, Color(0.78, 0.76, 0.72, 0.45))
 	_heat(game, e)
 	# 壊れた腕の付け根の煙（1.4 秒）
 	for a3 in _arm_smoke.keys():
@@ -1006,7 +1108,7 @@ func _boss(game: GameSim, e, prev: String, dt: float) -> void:
 			continue
 		if _frame % 4 == 0:
 			var stump: Vector3 = e.axis_center().lerp(e.arm_center(a3), 0.4)
-			_puff(Vfx.SMOKE, stump, Vector3(_rng.randf_range(-0.4, 0.4), 1.2, _rng.randf_range(-0.4, 0.4)), 1.2, 0.5, 1.8, Color(GRAPHITE, 0.5))
+			_puff(Vfx.SMOKE, stump, Vector3(_rng.randf_range(-0.4, 0.4), 1.2, _rng.randf_range(-0.4, 0.4)), 1.3, 0.8, 2.6, Color(GRAPHITE, 0.7))
 			if _rng.randf() < 0.5:
 				_spark(Vfx.SPARK, stump, _sphere() * 3.0, 0.15, 0.05, _c(AMBER, 0.4))
 
@@ -1014,8 +1116,9 @@ func _boss(game: GameSim, e, prev: String, dt: float) -> void:
 ## 削岩腕の先の予兆：珊瑚色の光と、先を囲む弧
 func _tip_warn(t: Array, b: float, ring: bool) -> void:
 	var pulse := 0.85 + 0.15 * sin(_time * 24.0)
-	vfx.sprite(Vfx.GRAIN, t[1], 0.9 * pulse, _c(CORAL, b))
-	vfx.sprite(Vfx.DOT, t[1], 0.22, Color(CORAL, 0.85))
+	vfx.sprite(Vfx.SOFT, t[1], 0.9 * pulse, Color(CORAL, 0.55))
+	vfx.sprite(Vfx.GRAIN, t[1], 1.3 * pulse, _c(CORAL, b))
+	vfx.sprite(Vfx.DOT, t[1], 0.3, Color(CORAL, 0.85))
 	if ring:
 		var ph := fmod(_time * 2.0, 1.0)
 		vfx.sprite(Vfx.RING, t[1] - t[2] * (0.6 * ph), (0.45 + 0.5 * ph) / Vfx.RING_FRAC, _c(CORAL, b * (1.0 - ph)), Vfx.FLAT, _facing(t[2]))
@@ -1026,10 +1129,10 @@ func _boss_rush(e, f: Vector3, b: float) -> void:
 	var side := Vector3(-f.z, 0, f.x)
 	for i in 3:
 		var at: Vector3 = e.axis_center() + side * _rng.randf_range(-2.4, 2.4) + Vector3(0, _rng.randf_range(-1.6, 1.4), 0) - f * _rng.randf_range(0.0, 4.0)
-		var q := vfx.emit(Vfx.SPARK, at, f * 0.02, 0.16, 0.09, 0.04, _c(CORAL, b))
+		var q := vfx.emit(Vfx.SPARK, at, f * 0.02, 0.18, 0.14, 0.05, _c(CORAL, b * 1.2))
 		q.mode = Vfx.STREAK
 		q.basis = Basis(Vector3.RIGHT, f, Vector3.BACK)
-		q.aspect = 40.0
+		q.aspect = 28.0
 	var nose: Vector3 = e.axis_center() + f * 4.6
 	var g := Vector3(nose.x, e.pos.y, nose.z)
 	if _frame % 2 == 0:
@@ -1075,14 +1178,19 @@ func _slam_impact(e, tips: Array) -> void:
 ## 叩きつけの輪：床の輪の帯（珊瑚色）と、高さ 0.4 m の低い光の壁、輪の上の土煙
 func _slam_wave(e) -> void:
 	var on: bool = e.wave_r > 0.0
+	var was := _band.visible
 	_band.visible = on
 	if not on:
 		return
 	var r: float = e.wave_r
 	var y: float = e.pos.y
-	vfx.sprite(Vfx.RING, Vector3(e.pos.x, y + 0.07, e.pos.z), r / Vfx.RING_FRAC, _c(CORAL, 0.55), Vfx.FLAT, _flat())
+	_circle(Vector3(e.pos.x, y + 0.07, e.pos.z), r, 0.4, _c(CORAL, 0.6))
+	if r < 6.0:
+		vfx.sprite(Vfx.RING, Vector3(e.pos.x, y + 0.07, e.pos.z), r / Vfx.RING_FRAC, _c(CORAL, 0.55 * (1.0 - r / 6.0)), Vfx.FLAT, _flat())
 	_band.position = Vector3(e.pos.x, y + 0.02, e.pos.z)
 	_band.scale = Vector3(r, 0.42, r)
+	if not was:
+		_band.reset_physics_interpolation()
 	_band_mat.albedo_color = _c(CORAL, 0.55)
 	for i in 2:
 		var ang := _rng.randf() * TAU
@@ -1103,9 +1211,9 @@ func _heat(game: GameSim, e) -> void:
 	var ctr: Vector3 = e.arena + Vector3(0, 0.06, 0)
 	if e.heat_state == 1:
 		var pulse := 0.5 + 0.5 * sin(_time * 14.0)
-		vfx.sprite(Vfx.RING, ctr, rin / Vfx.RING_FRAC, _c(CORAL, 0.3 + 0.35 * pulse), Vfx.FLAT, _flat())
+		_circle(ctr, rin, 0.35, _c(CORAL, 0.3 + 0.45 * pulse))
 	else:
-		vfx.sprite(Vfx.RING, ctr, rin / Vfx.RING_FRAC, _c(CORAL, 0.65), Vfx.FLAT, _flat(_time * 0.3))
+		_circle(ctr, rin, 0.35, _c(CORAL, 0.75))
 		for i in 3:
 			var ang := _rng.randf() * TAU
 			var rr := _rng.randf_range(rin + 0.3, rout - 0.3)
@@ -1177,8 +1285,12 @@ func _boss_dead(e, dt: float) -> void:
 		vfx.sprite(Vfx.GRAIN, core, 1.2 + 0.8 * k, _c(AMBER, 0.35 + 0.3 * k))
 		for i in 4:
 			vfx.sprite(Vfx.PILLAR, core, 0.9, _c(AMBER, 0.3 * k), Vfx.FACE, Basis.IDENTITY, i * PI / 4.0 + t, 4.0)
+	var top := core + Vector3(0, 0.7, 0)
 	if t >= 0.3 and t0 < 0.3:
-		_flash(Vfx.GLINT, core, 4.0, 2.0, 0.3, _cf(PALE, 0.9))
+		_flash(Vfx.GLINT, top, 4.0, 2.0, 0.3, _cf(PALE, 0.9))
+		var beam := _flash(Vfx.PILLAR, top + Vector3(0, 3.0, 0), 2.0, 1.4, 0.6, _cf(AMBER, 0.7))
+		beam.aspect = 4.0
+		beam.rot = 0.0
 		_flash(Vfx.GRAIN, core, 2.0, 5.0, 0.4, _cf(AMBER, 0.6))
 		_ring(core, 1.0, 6.0, 0.45, _cf(AMBER, 0.55))
 		for i in 24:
@@ -1186,25 +1298,29 @@ func _boss_dead(e, dt: float) -> void:
 		for i in 10:
 			_shard(Vfx.SHARD_GLOW, core, _sphere() * _rng.randf_range(3, 6) + Vector3(0, 3, 0), 1.0, _rng.randf_range(0.12, 0.25), _c(AMBER, 0.6), e.pos.y)
 	if t >= 0.3 and t < 0.7:
-		vfx.sprite(Vfx.GRAIN, core, 2.0, _c(AMBER, 0.6))
+		vfx.sprite(Vfx.GRAIN, top, 2.4, _c(AMBER, 0.6))
+		vfx.sprite(Vfx.SOFT, top, 1.2, Color(AMBER, 0.6))
 	if t >= 0.7 and t < 1.6:
 		# 崩落：胴の長さに沿って土煙と破片
 		if _frame % 2 == 0:
 			var along: Vector3 = e.pos + f * _rng.randf_range(-5.0, 5.0) + Vector3(-f.z, 0, f.x) * _rng.randf_range(-2.0, 2.0)
 			_puff(Vfx.SMOKE, along + Vector3(0, 0.6, 0), Vector3(_rng.randf_range(-0.8, 0.8), 1.2, _rng.randf_range(-0.8, 0.8)), 1.4, 1.6, 3.8, Color(DUST.darkened(0.15), 0.55))
-		var top: Vector3 = e.pos + f * _rng.randf_range(-4.5, 4.5) + Vector3(0, 3.5, 0)
-		_shard(Vfx.SHARD, top, _sphere() * 2.0, 1.2, _rng.randf_range(0.2, 0.5), Color(IVORY if _rng.randf() < 0.6 else ROCK, 1.0), e.pos.y)
+		var drop: Vector3 = e.pos + f * _rng.randf_range(-4.5, 4.5) + Vector3(0, 3.5, 0)
+		_shard(Vfx.SHARD, drop, _sphere() * 2.0, 1.2, _rng.randf_range(0.2, 0.5), Color(IVORY if _rng.randf() < 0.6 else ROCK, 1.0), e.pos.y)
 	if t >= 0.7:
 		# 残る核（琥珀 0.3）：沈んで消えるまで
 		var vanish := 8.0
 		if t < vanish:
 			var fade := clampf((vanish - t) / 1.5, 0.0, 1.0)
-			vfx.sprite(Vfx.GRAIN, core, 1.1 * (0.9 + 0.1 * sin(_time * 3.0)), _c(AMBER, (0.45 if t < 1.6 else 0.3) * fade))
+			var pl := 0.9 + 0.1 * sin(_time * 3.0)
+			vfx.sprite(Vfx.SOFT, top, 0.9 * pl, Color(AMBER, 0.55 * fade))
+			vfx.sprite(Vfx.GRAIN, top, 1.6 * pl, _c(AMBER, (0.45 if t < 1.6 else 0.3) * fade))
 
 
 # ---------------------------------------------------------------- 仕掛け・拾い物
 
-func _sync_world(game: GameSim) -> void:
+func _sync_world(game: GameSim, dt: float) -> void:
+	_node_memory(game, dt)
 	# 拾い物：吸い寄せられて取れた所から、ハルの胸へ光の筋（pickup：輪 0.25→吸引 0.5→0、0.55 秒／種）
 	var alive := {}
 	for k in game.pickups:
@@ -1242,6 +1358,31 @@ func _sync_world(game: GameSim) -> void:
 		if fs.z > _frame_state.z:
 			_frame_fit(game.player, "legs")
 	_frame_state = fs
+
+
+## ノードの記憶の取り込み（node_memory：ノード 0→0.45→殻内 0.65→0、1.4 秒、流路約 2 m）：
+## ナゴミが「ch1.node」を話し始めたら、注視点（台本のカメラ。無ければハルの前）からナゴミへ光の点が流れ込む
+func _node_memory(game: GameSim, dt: float) -> void:
+	var d: Dictionary = game.story.dialogue
+	var did := "" if d.is_empty() else String(d.get("id", ""))
+	if did == "ch1.node" and _dlg_id != "ch1.node" and game.nagomi_present():
+		_node_t = 1.4
+		var p := game.player
+		_node_from = game.cam_focus if game.cam_focus is Vector3 else p.pos + U.yaw_to_dir(p.yaw) * 2.0 + Vector3(0, 1.2, 0)
+	_dlg_id = did
+	if _node_t <= 0.0:
+		return
+	_node_t -= dt
+	var pl := game.player
+	var to := pl.pos + Vector3(-cos(pl.yaw), 0.0, sin(pl.yaw)) * 0.4 + Vector3(0, 1.32, 0) - U.yaw_to_dir(pl.yaw) * 0.08
+	var k := clampf(1.0 - _node_t / 1.4, 0.0, 1.0)
+	vfx.sprite(Vfx.GRAIN, _node_from, 0.6, _c(AMBER, 0.45 * (1.0 - k * 0.6)))
+	vfx.sprite(Vfx.SOFT, _node_from, 0.3, Color(AMBER, 0.5 * (1.0 - k * 0.6)))
+	if _node_t > 0.35 and _frame % 2 == 0:
+		var q := vfx.emit(Vfx.GRAIN, _node_from + _sphere() * 0.1, (to - _node_from) / 0.5, 0.5, 0.12, 0.07, _c(AMBER, 0.55))
+		q.fin = 0.2
+	if k > 0.4:
+		vfx.sprite(Vfx.GRAIN, to, 0.5, _c(AMBER, 0.65 * minf(1.0, (k - 0.4) * 3.0)))
 
 
 func _pickup(at: Vector3, to: Vector3) -> void:
