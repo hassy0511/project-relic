@@ -154,3 +154,97 @@ func test_ordo_body_fixed() -> void:
 	var g := o.ground_offset()
 	h.expect(g.z < -10.0 and absf(g.z + o.travel) < 0.001, "地面が後ろへ流れる（%.1f m）" % g.z)
 	o.free()
+
+
+## 町の部屋に置いたオルド（部屋の "ordo"、RoomView が作る）：体が止まり砂の床が流れる見方、描くのは 1 つのメッシュ（面は材質の数）で影なし。
+## 上段には置かない（展望台の前の地平線を船首の頭が隠すため）
+func test_ordo_in_town_rooms() -> void:
+	var world := World.load_manifest("res://content/world.json")
+	for rid in ["ch1.mid", "ch1.lower", "ch1.opening", "ch1.upper"]:
+		var root := RoomView.build(world, rid)
+		h.tree.root.add_child(root)
+		var o := root.get_node_or_null("Ordo") as OrdoView
+		if rid == "ch1.upper":
+			h.expect(o == null, "上段にはオルドを置かない")
+			root.free()
+			continue
+		h.expect(o != null and o.body_fixed, "%s にオルドがある（体が止まり地面が流れる見方）" % rid)
+		if o == null:
+			root.free()
+			continue
+		var surfaces := o.skin_mesh.mesh.get_surface_count() if o.skin_mesh != null else 99
+		h.expect(surfaces <= 6, "%s：描くのは 1 つのメッシュ（面 %d）" % [rid, surfaces])
+		h.expect(o.skin_mesh != null and o.skin_mesh.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "%s：影を落とさない" % rid)
+		h.expect(not o.model.visible, "%s：部品のメッシュは描かない（骨組みだけ）" % rid)
+		var ank := o.leg_angles("r2")
+		h.expect(not ank.is_empty(), "%s：脚が動く" % rid)
+		if rid == "ch1.opening":
+			h.expect(o.ground_node == null, "夜明けの甲羅は砂の床を描かない（空のカメラの砂漠は空の絵）")
+		else:
+			h.expect(o.ground_node != null, "%s：砂の床がある" % rid)
+			var p0 := o.body.global_transform.origin
+			o.advance(30.0)
+			var mat := o.ground_node.material_override as ShaderMaterial
+			var travel := float(mat.get_shader_parameter("travel"))
+			h.expect(travel > 5.0 and absf(travel - o.travel) < 0.01, "%s：床の模様が体の進みだけ流れる（%.1f m）" % [rid, travel])
+			h.expect((o.body.global_transform.origin - p0).length() < 0.001, "%s：体（町）は動かない" % rid)
+		root.free()
+
+
+## 下段のリフトの踊り場の「見下ろす」：部屋の外のカメラ（台本の "eye"）になり、操作が止まる
+func test_ordo_lookout_event() -> void:
+	var world := World.load_manifest("res://content/world.json")
+	var g := GameSim.new()
+	var vp := SubViewport.new()
+	vp.own_world_3d = true
+	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	vp.size = Vector2i(2, 2)
+	h.tree.root.add_child(vp)
+	vp.add_child(g)
+	g.setup({"world": world, "tuning": TestHelpers.default_tuning(), "seed": 1})
+	g.load_room("ch1.lower")
+	var term := {}
+	for p in g.room.get("props", []):
+		if p.get("id", "") == "ch1.lower.lookout":
+			term = p
+	h.expect(not term.is_empty() and term.get("event", "") == "ch1.ordo_legs", "踊り場に「見下ろす」の端末がある")
+	g.story.start_event("ch1.ordo_legs")
+	for i in 10:
+		g.step(InputFrame.of({}))
+	h.expect(g.cam_eye != null and (g.cam_eye as Vector3).x > 100.0, "カメラが部屋の外（左舷の外）に出る")
+	h.expect(g.player_locked, "見ている間は操作が止まる")
+	vp.free()
+
+
+## 大きくした足（52 × 34 m）：振り出しの途中でも足の裏の四隅が地面に潜らない、同じ舷の隣の足どうしが重ならない
+func test_ordo_feet_clear() -> void:
+	var o := _make()
+	var half := Vector2(17.0, 26.0)        # 足の裏の半分（左右・前後）
+	var rest := {}
+	for leg in o.legs:
+		rest[leg.tag] = (leg.nodes.ankle as Node3D).global_transform.basis
+	var lowest := INF
+	var gap := INF
+	var dt := 0.25
+	for i in int(2.0 * o.cycle_s / dt):
+		o.advance(dt)
+		var spans := {}
+		for leg in o.legs:
+			var ank: Node3D = leg.nodes.ankle
+			var r: Basis = ank.global_transform.basis * (rest[leg.tag] as Basis).inverse()
+			var zs: Array = []
+			for sx in [-1.0, 1.0]:
+				for sz in [-1.0, 1.0]:
+					var c: Vector3 = ank.global_transform.origin + r * Vector3(sx * half.x, -14.0, sz * half.y)
+					lowest = minf(lowest, c.y - OrdoView.GROUND_Y)
+					zs.append(c.z)
+			spans[leg.tag] = Vector2(zs.min(), zs.max())
+		for side in ["l", "r"]:
+			for k in [1, 2, 3]:
+				var a: Vector2 = spans["%s%d" % [side, k]]
+				var b: Vector2 = spans["%s%d" % [side, k + 1]]
+				gap = minf(gap, a.x - b.y)    # 1 が船首側（z が大きい）
+	print("オルドの足：最も低い隅 %.2f m・隣の足の最も近いすき間 %.1f m" % [lowest, gap])
+	h.expect(lowest >= -0.3, "足の裏の四隅が地面に潜らない（最も低い所 %.2f m）" % lowest)
+	h.expect(gap > 2.0, "同じ舷の隣の足が重ならない（最も近い所 %.1f m）" % gap)
+	o.free()
