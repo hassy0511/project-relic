@@ -940,7 +940,7 @@ def render_review(out_dir):
     os.makedirs(out_dir, exist_ok=True)
     # 絵の外接（足の裏の行 1450、中心の列 1024）に合わせる：地面が 1450 行、中心が 1024 列
     zc_img = GROUND + (1450 - 1024) / PX_PER_M
-    views = [('side_right', (-1, 0, 0), (0, 0, 1), V3([0, 0, zc_img])),       # 右舷（-X）から。船首が左
+    views = [('side_right', (LIFT_SIDE, 0, 0), (0, 0, 1), V3([0, 0, zc_img])),   # リフトの舷（左舷 +X）から。船首が左（絵と同じ向き）
              ('front', (0, -1, 0), (0, 0, 1), V3([0, 0, zc_img])),
              ('back', (0, 1, 0), (0, 0, 1), V3([0, 0, zc_img])),
              ('top', (0, 0, 1), (0, -1, 0), V3([0, 0, 0]))]
@@ -959,8 +959,8 @@ def render_review(out_dir):
         sc.render.filepath = rp
         bpy.ops.render.render(write_still=True)
         ren = Image.open(rp).convert('RGBA').resize((TILE_W, TILE_W))
-        if name == 'side_right':
-            # 右舷（リフトの側）を外から見ると船首が右に来る。絵の側面図は船首が左でリフトが見える（左右反転の描き方）ので、並べるために反転
+        if name == 'side_right' and LIFT_SIDE < 0:
+            # 右舷を外から見ると船首が右に来る。絵の側面図は船首が左でリフトが見えるので、並べるために反転
             ren = ren.transpose(Image.FLIP_LEFT_RIGHT)
         art = Image.open(os.path.join(SRC, f'ordo_3d_{name}.png')).convert('RGBA').resize((TILE_W, TILE_W))
         bg = (150, 155, 165, 255)
@@ -969,7 +969,7 @@ def render_review(out_dir):
         row.alpha_composite(ren, (TILE_W, 0))
         dr = ImageDraw.Draw(row)
         dr.text((8, 8), f'art {name} (4.5 px/m)', fill=(20, 20, 20, 255))
-        note = ' / starboard, flipped like the art' if name == 'side_right' else ''
+        note = (' / port side (lift side), bow left like the art' if LIFT_SIDE > 0 else ' / starboard, flipped like the art') if name == 'side_right' else ''
         dr.text((TILE_W + 8, 8), f'model {name} (same 4.5 px/m; heights follow spec){note}', fill=(20, 20, 20, 255))
         rows.append(row)
     W = Image.new('RGBA', (2 * TILE_W, TILE_W * len(rows)), (40, 40, 44, 255))
