@@ -28,6 +28,9 @@ var _hold_w := 0.0
 var _ground_y := 0.0
 var _last_player := Vector3.ZERO
 var _veil: ColorRect
+var _eye_w := 0.0                 ## 台本のカメラの置き場所（GameSim.cam_eye）へ寄せた割合
+var _eye := Vector3.ZERO
+var _eye_look := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -99,10 +102,22 @@ func sync(game: GameSim, player_pos: Vector3, dt: float, shake: float) -> void:
 	if shake > 0.0:
 		p.x += sin(_time * 73.0) * shake * 0.15
 		p.y += sin(_time * 91.0) * shake * 0.15
+	# 台本のカメラの置き場所（"camera" の "eye"）：1 秒かけてその場所へ移り、注視点を見る（終わると 0.6 秒で戻る）
+	var look := _pivot
+	if game.cam_eye != null and game.cam_focus != null:
+		_eye = game.cam_eye
+		_eye_look = game.cam_focus
+		_eye_w = move_toward(_eye_w, 1.0, dt / 1.0)
+	else:
+		_eye_w = move_toward(_eye_w, 0.0, dt / 0.6)
+	if _eye_w > 0.0:
+		var w := smoothstep(0.0, 1.0, _eye_w)
+		p = p.lerp(_eye, w)
+		look = _pivot.lerp(_eye_look, w)
 	global_position = p
-	var to := _pivot - p
+	var to := look - p
 	if to.length_squared() > 1e-6 and absf(to.normalized().y) < 0.999:
-		look_at(_pivot, Vector3.UP)
+		look_at(look, Vector3.UP)
 	fov = c.fov
 	if _veil != null:
 		_veil.visible = fall_dark > 0.002

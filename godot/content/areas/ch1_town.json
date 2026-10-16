@@ -2075,7 +2075,8 @@
      0,
      -39.5,
      -176
-    ]
+    ],
+    "ground": false
    }
   },
   "training": {
@@ -8301,6 +8302,18 @@
      "event": "ch1.lift",
      "prompt": "調べる",
      "hide": true
+    },
+    {
+     "type": "terminal",
+     "id": "ch1.lower.lookout",
+     "pos": [
+      70.2,
+      0,
+      -10.5
+     ],
+     "yaw": 270,
+     "event": "ch1.ordo_legs",
+     "prompt": "見下ろす"
     },
     {
      "type": "npc",

@@ -94,9 +94,10 @@ def common(room, d):
 ORDO_POS = {"mid": [0, -6.5, 0], "lower": [0, -1.5, 8], "opening": [0, -39.5, -176]}
 
 
-def ordo(room, d, name, back="ordo_back"):
+def ordo(room, d, name, back="ordo_back", ground=True):
+    """ground=False：砂の床を描かない（夜明けの甲羅：始めの場面のカメラが空から見る地平線の砂漠は空の絵のまま）"""
     pos = ORDO_POS[name]
-    room["ordo"] = {"pos": pos}
+    room["ordo"] = {"pos": pos} if ground else {"pos": pos, "ground": False}
     d.put(back, pos, shadow=False)
 
 
@@ -983,7 +984,7 @@ def opening(room):
     G = lambda pos, size: geo_index(room, pos, size)  # noqa: E731
     G([0, -2, 0], [40, 2, 40])["skin"] = {"floor": "hullplate", "wall": "stone2"}
     # 町の下のオルド：この台は船首の頭の上（ORDO_POS）。南を向くと背の町の全体（ordo_town）、北は船首の先と地平線
-    ordo(room, d, "opening", back="ordo_town")
+    ordo(room, d, "opening", back="ordo_town", ground=False)
     for pos, size in (([-80, -30, 160], [120, 34, 60]), ([70, -30, 210], [160, 38, 60]), ([0, -30, 320], [400, 44, 80])):
         G(pos, size)["hide"] = True
     # 縁の低い壁（1 m 厚、上 1.2）：手すりと角の柱（南は yaw 0、北は 180、西は 90、東は 270）

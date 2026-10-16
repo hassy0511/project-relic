@@ -25,13 +25,13 @@ static func build(world: World, room_id: String) -> Node3D:
 		root.set_meta("missing_parts", missing)
 	if r.has("kit") and kit.is_empty():
 		root.set_meta("missing_kit", String(r.kit))
-	# 町の下の巡礼機オルド（"ordo": { "pos": [x,y,z] }。部屋の座標でのオルドの原点 = 背の歩行面の真ん中、+Z が船首）：
+	# 町の下の巡礼機オルド（"ordo": { "pos": [x,y,z], "ground": true }。部屋の座標でのオルドの原点 = 背の歩行面の真ん中、+Z が船首）：
 	# 体は部屋と一緒に止まり、120 m 下の砂の床が流れる（OrdoView の body_fixed・ground）。歩く・止まるは main.gd がフラグから決める
 	if r.has("ordo"):
 		var o := OrdoView.new()
 		o.name = "Ordo"
 		o.body_fixed = true
-		o.ground = true
+		o.ground = bool(r.ordo.get("ground", true))
 		o.position = RoomGeo.v3(r.ordo.get("pos", [0, 0, 0]))
 		root.add_child(o)
 	root.name = "Room"

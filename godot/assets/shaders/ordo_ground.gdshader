@@ -1,6 +1,7 @@
 shader_type spatial;
 // 巡礼機オルドの 120 m 下の砂の床（OrdoView の ground）。体を止めて地面を流す見方では、travel（体が進んだ距離）だけ模様が後ろへ流れる。
-// 近くは砂丘のむら・風紋・小石の斑で動きが分かり、遠くは空の絵の下の帯の色（far_color）へ寄せてから透明にして、空の絵の砂丘・遺構へつなぐ。
+// 近くは砂丘のむら・砂利・風紋・小石の斑で動きが分かり、遠く（320〜850 m）は空の絵の下の帯の色（far_color）へ寄せながら透明にして、
+// 空の絵の砂丘・遺構へつなぐ（前の遠景は平らな床を作らなかった：霞の平らな面が壁に見えたため。遠くまで描かない）。
 // 光を受けない（雰囲気ごとの色は OrdoView.set_mood が渡す）。blend_mul は使わない（スマホ・ブラウザ版の描き方で黒くなる：設計 42 の決まり）
 render_mode unshaded, blend_mix, depth_draw_opaque, cull_back, shadows_disabled;
 
@@ -9,8 +10,8 @@ uniform vec3 near_color : source_color = vec3(0.86, 0.47, 0.32);
 uniform vec3 dark_color : source_color = vec3(0.66, 0.32, 0.22);
 uniform vec3 far_color : source_color = vec3(0.83, 0.58, 0.55);
 uniform float ripple = 0.12;
-uniform float fade_start = 650.0;
-uniform float fade_end = 2300.0;
+uniform float fade_start = 320.0;   // ここから透明へ（120 m 下の地面を、地平線の 20 度下より遠くは空の絵の砂丘に任せる）
+uniform float fade_end = 850.0;
 
 varying vec2 gpos;
 
