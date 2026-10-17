@@ -347,8 +347,10 @@ def _tarp(p: Part, c, w, d, top, drop, seed=0.0):
     idx = [j * (nx + 1) + i for j, i in ring]
     for k in range(len(idx)):
         a, b = idx[k], idx[(k + 1) % len(idx)]
-        f.append([a, b, b + n, a + n])
-    p.add('cloth', allv, f)
+        f.append([b, a, a + n, b + n])
+    # 面の向きは書いたとおり（外向き）。geo.Part.add の向きそろえ（体積の符号）は、薄く広い板では縁の帯に引っぱられて全部を裏返した
+    # （上の面が消え、真ん中に下の木箱の上の面が丸く透けた）
+    p.pieces.append(('cloth', allv, f, False))
     # 四方の垂れ：面ごとに縦の布（厚さ 2 cm、裾は波打つ長さ）
     for side in range(4):
         L = 2 * (hw if side % 2 == 0 else hd)
@@ -376,12 +378,13 @@ def _tarp(p: Part, c, w, d, top, drop, seed=0.0):
         f2 = []
         for i in range(m):
             a = 2 * i
-            f2.append([a, a + 2, a + 3, a + 1])
-            f2.append([k2 + a, k2 + a + 1, k2 + a + 3, k2 + a + 2])
-            f2.append([a + 1, a + 3, k2 + a + 3, k2 + a + 1])
-        f2.append([0, 1, k2 + 1, k2 + 0])
-        f2.append([2 * m + 1, 2 * m, k2 + 2 * m, k2 + 2 * m + 1])
-        p.add('cloth', allv2, f2)
+            f2.append([a, a + 1, a + 3, a + 2])                       # 外の面（外向き）
+            f2.append([k2 + a, k2 + a + 2, k2 + a + 3, k2 + a + 1])   # 内の面
+            f2.append([a + 1, k2 + a + 1, k2 + a + 3, a + 3])         # 裾（下向き）
+            f2.append([a, a + 2, k2 + a + 2, k2 + a])                 # 上の縁（上向き）
+        f2.append([0, k2 + 0, k2 + 1, 1])
+        f2.append([2 * m, 2 * m + 1, k2 + 2 * m + 1, k2 + 2 * m])
+        p.pieces.append(('cloth', allv2, f2, False))
 
 
 def tarp_crate():
