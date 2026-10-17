@@ -35,6 +35,13 @@ MATERIALS: dict[str, dict] = {
     'grime_decal': dict(color='#8A7058', rough=1.0),   # 汚れの斑の板（town_rooms.grime_patch。キットの "blend": "decal" の材質で床の上に重ねる）
     'oil_decal': dict(color='#4E4640', rough=1.0),     # 油じみの斑の板（town_rooms.oil_patch）
     'skyglass': dict(color='#F2E6CF', emit=1.2),       # 屋内の明るい窓（外の昼の光。town_rooms.deco の lit）
+    # W2-05b 市場のにぎわい（spec_town_goods.md の色見本。town_goods.py）
+    'burlap':   dict(color='#E6C398', rough=0.95),     # 麻袋・ござ（生成りの粗布）
+    'crop_red': dict(color='#BF4737', rough=0.9),      # 作物の赤（実）
+    'crop_green': dict(color='#728052', rough=0.9),    # 作物の緑（葉・乾燥草）
+    'crop_yellow': dict(color='#D69E57', rough=0.9),   # 作物の黄（根菜・豆・乾燥果実）
+    'wicker':   dict(color='#B08656', rough=0.95),     # かごの編み（spec に色が無いので絵のかごの色。編み目は形にしない）
+    'slate':    dict(color='#555A5F', rough=0.9),      # 灰色の布・灰色の袋とかめ・干し魚（絵の灰色。金属でない黒鉛色）
 }
 
 
@@ -42,7 +49,8 @@ MATERIALS: dict[str, dict] = {
 # 部品ごとの描画は多くて flat・metal・amber の 3 回になる（スマホのブラウザ版の描画の回数を減らす）。
 # Godot のキット（town.json）の flat・metal は tint_mix=1 で頂点の色を使う。hull・desert（遠景）はそのまま
 GROUP = {'ivory': 'flat', 'ivory2': 'flat', 'cloth': 'flat', 'cloth2': 'flat', 'wood': 'flat', 'wood2': 'flat', 'dark': 'flat',
-         'green': 'flat', 'rope': 'flat', 'linen': 'flat', 'graphite': 'metal', 'brass': 'metal'}
+         'green': 'flat', 'rope': 'flat', 'linen': 'flat', 'graphite': 'metal', 'brass': 'metal',
+         'burlap': 'flat', 'crop_red': 'flat', 'crop_green': 'flat', 'crop_yellow': 'flat', 'wicker': 'flat', 'slate': 'flat'}
 
 
 def hex_lin(h: str) -> tuple[float, float, float]:

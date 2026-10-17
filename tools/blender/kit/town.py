@@ -33,6 +33,7 @@ WORK = os.path.join(REPO, 'build', 'kit_town')
 
 def catalog() -> dict:
     import town_backdrop as BD
+    import town_goods as G
     import town_parts as P
     import town_rooms as R
     import town_sets as S
@@ -63,6 +64,8 @@ def catalog() -> dict:
         **BD.PARTS,
         # 中段のほかの 9 部屋（2026-10-15 の展開。部屋の座標のまま）と汚れの斑
         **R.PARTS,
+        # W2-05b 市場のにぎわいの小物 16 点と露店の組（2026-10-17。town_goods.py）
+        **G.PARTS,
     }
 
 

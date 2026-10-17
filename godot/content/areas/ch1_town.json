@@ -2654,14 +2654,14 @@
     {
      "t": "box",
      "pos": [
-      21.345,
+      21.4,
       0.0,
-      -24.785
+      -24.775
      ],
      "size": [
-      1.27,
-      0.55,
-      0.91
+      1.16,
+      0.9,
+      0.93
      ],
      "hide": true,
      "tint": "#5a5048",
@@ -2830,14 +2830,14 @@
     {
      "t": "box",
      "pos": [
-      21.345,
+      21.4,
       0.0,
-      55.525
+      55.515
      ],
      "size": [
-      1.27,
-      0.55,
-      0.91
+      1.16,
+      0.9,
+      0.93
      ],
      "hide": true,
      "tint": "#5a5048",
@@ -2874,108 +2874,6 @@
      "hide": true,
      "tint": "#5a5048",
      "dress": 22
-    },
-    {
-     "t": "box",
-     "pos": [
-      21.99,
-      0.0,
-      -24.785
-     ],
-     "size": [
-      0.02,
-      0.55,
-      0.91
-     ],
-     "fill": true,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 11
-    },
-    {
-     "t": "box",
-     "pos": [
-      21.99,
-      0.0,
-      55.525
-     ],
-     "size": [
-      0.02,
-      0.55,
-      0.91
-     ],
-     "fill": true,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 20
-    },
-    {
-     "t": "box",
-     "pos": [
-      21.345,
-      0.0,
-      55.99
-     ],
-     "size": [
-      1.27,
-      0.55,
-      0.02
-     ],
-     "fill": true,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 20
-    },
-    {
-     "t": "box",
-     "pos": [
-      20.975,
-      0.0,
-      -25.253
-     ],
-     "size": [
-      0.53,
-      0.55,
-      0.026
-     ],
-     "fill": true,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 10
-    },
-    {
-     "t": "box",
-     "pos": [
-      21.63,
-      0.0,
-      -25.26
-     ],
-     "size": [
-      0.7,
-      0.55,
-      0.04
-     ],
-     "fill": true,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 9
-    },
-    {
-     "t": "box",
-     "pos": [
-      20.655,
-      0.0,
-      55.63
-     ],
-     "size": [
-      0.11,
-      0.55,
-      0.7
-     ],
-     "fill": true,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 20
     },
     {
      "t": "box",
@@ -3027,6 +2925,23 @@
      "hide": true,
      "tint": "#5a5048",
      "dress": 14
+    },
+    {
+     "t": "box",
+     "pos": [
+      20.71,
+      0.0,
+      55.63
+     ],
+     "size": [
+      0.22,
+      0.6,
+      0.7
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 20
     },
     {
      "t": "box",
@@ -3197,6 +3112,91 @@
      "hide": true,
      "tint": "#5a5048",
      "dress": 18
+    },
+    {
+     "t": "box",
+     "pos": [
+      21.4,
+      0.0,
+      55.99
+     ],
+     "size": [
+      1.16,
+      0.9,
+      0.02
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 20
+    },
+    {
+     "t": "box",
+     "pos": [
+      21.99,
+      0.0,
+      -24.775
+     ],
+     "size": [
+      0.02,
+      0.9,
+      0.93
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 11
+    },
+    {
+     "t": "box",
+     "pos": [
+      21.99,
+      0.0,
+      55.515
+     ],
+     "size": [
+      0.02,
+      0.9,
+      0.93
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 20
+    },
+    {
+     "t": "box",
+     "pos": [
+      21.03,
+      0.0,
+      -25.253
+     ],
+     "size": [
+      0.42,
+      0.9,
+      0.026
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 10
+    },
+    {
+     "t": "box",
+     "pos": [
+      21.63,
+      0.0,
+      -25.26
+     ],
+     "size": [
+      0.7,
+      0.9,
+      0.04
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 9
     },
     {
      "t": "box",
@@ -3934,11 +3934,11 @@
      "solid": true
     },
     {
-     "part": "town/sacks",
+     "part": "town/goods_sacks",
      "pos": [
-      21.33,
+      21.4,
       0.0,
-      -24.66
+      -24.74
      ],
      "solid": true
     },
@@ -4025,11 +4025,11 @@
      "shadow": true
     },
     {
-     "part": "town/sacks",
+     "part": "town/goods_sacks",
      "pos": [
-      21.33,
+      21.4,
       0.0,
-      55.65
+      55.55
      ],
      "solid": true
     },
@@ -6655,6 +6655,22 @@
     {
      "t": "box",
      "pos": [
+      13.3,
+      0.0,
+      4.685
+     ],
+     "size": [
+      0.78,
+      0.63,
+      0.43
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 33
+    },
+    {
+     "t": "box",
+     "pos": [
       -26.55,
       0.0,
       5.63
@@ -6666,7 +6682,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 33
+     "dress": 34
     },
     {
      "t": "box",
@@ -6682,7 +6698,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 34
+     "dress": 35
     },
     {
      "t": "box",
@@ -6698,7 +6714,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 35
+     "dress": 36
     },
     {
      "t": "box",
@@ -6714,7 +6730,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 36
+     "dress": 37
     },
     {
      "t": "box",
@@ -6730,7 +6746,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 36
+     "dress": 37
     },
     {
      "t": "box",
@@ -6746,7 +6762,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 36
+     "dress": 37
     },
     {
      "t": "box",
@@ -6762,7 +6778,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 37
+     "dress": 38
     },
     {
      "t": "box",
@@ -6778,7 +6794,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 37
+     "dress": 38
     },
     {
      "t": "box",
@@ -6794,7 +6810,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 38
+     "dress": 39
     },
     {
      "t": "box",
@@ -6807,142 +6823,175 @@
       0.28,
       0.25,
       0.28
-     ],
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 39
-    },
-    {
-     "t": "box",
-     "pos": [
-      27.0,
-      0.0,
-      0.6
-     ],
-     "size": [
-      0.28,
-      0.25,
-      0.28
-     ],
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 39
-    },
-    {
-     "t": "box",
-     "pos": [
-      25.0,
-      0.25,
-      0.6
-     ],
-     "size": [
-      0.14,
-      2.35,
-      0.14
-     ],
-     "cam": false,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 39
-    },
-    {
-     "t": "box",
-     "pos": [
-      27.0,
-      0.25,
-      0.6
-     ],
-     "size": [
-      0.14,
-      2.35,
-      0.14
-     ],
-     "cam": false,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 39
-    },
-    {
-     "t": "box",
-     "pos": [
-      25.0,
-      0.0,
-      -1.6
-     ],
-     "size": [
-      0.28,
-      0.25,
-      0.28
-     ],
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 40
-    },
-    {
-     "t": "box",
-     "pos": [
-      27.0,
-      0.0,
-      -1.6
-     ],
-     "size": [
-      0.28,
-      0.25,
-      0.28
-     ],
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 40
-    },
-    {
-     "t": "box",
-     "pos": [
-      25.0,
-      0.25,
-      -1.6
-     ],
-     "size": [
-      0.14,
-      2.35,
-      0.14
-     ],
-     "cam": false,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 40
-    },
-    {
-     "t": "box",
-     "pos": [
-      27.0,
-      0.25,
-      -1.6
-     ],
-     "size": [
-      0.14,
-      2.35,
-      0.14
-     ],
-     "cam": false,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 40
-    },
-    {
-     "t": "box",
-     "pos": [
-      23.015,
-      0.0,
-      -0.625
-     ],
-     "size": [
-      1.27,
-      0.55,
-      0.91
      ],
      "hide": true,
      "tint": "#5a5048",
      "dress": 41
+    },
+    {
+     "t": "box",
+     "pos": [
+      27.0,
+      0.0,
+      0.6
+     ],
+     "size": [
+      0.28,
+      0.25,
+      0.28
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 41
+    },
+    {
+     "t": "box",
+     "pos": [
+      25.0,
+      0.25,
+      0.6
+     ],
+     "size": [
+      0.14,
+      2.35,
+      0.14
+     ],
+     "cam": false,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 41
+    },
+    {
+     "t": "box",
+     "pos": [
+      27.0,
+      0.25,
+      0.6
+     ],
+     "size": [
+      0.14,
+      2.35,
+      0.14
+     ],
+     "cam": false,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 41
+    },
+    {
+     "t": "box",
+     "pos": [
+      25.0,
+      0.0,
+      -1.6
+     ],
+     "size": [
+      0.28,
+      0.25,
+      0.28
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 42
+    },
+    {
+     "t": "box",
+     "pos": [
+      27.0,
+      0.0,
+      -1.6
+     ],
+     "size": [
+      0.28,
+      0.25,
+      0.28
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 42
+    },
+    {
+     "t": "box",
+     "pos": [
+      25.0,
+      0.25,
+      -1.6
+     ],
+     "size": [
+      0.14,
+      2.35,
+      0.14
+     ],
+     "cam": false,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 42
+    },
+    {
+     "t": "box",
+     "pos": [
+      27.0,
+      0.25,
+      -1.6
+     ],
+     "size": [
+      0.14,
+      2.35,
+      0.14
+     ],
+     "cam": false,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 42
+    },
+    {
+     "t": "box",
+     "pos": [
+      23.0,
+      0.0,
+      -0.48
+     ],
+     "size": [
+      1.1,
+      0.52,
+      0.62
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 43
+    },
+    {
+     "t": "box",
+     "pos": [
+      29.4,
+      0.0,
+      -1.6
+     ],
+     "size": [
+      2.3,
+      0.05,
+      0.4
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 44
+    },
+    {
+     "t": "box",
+     "pos": [
+      29.4,
+      0.05,
+      -1.6
+     ],
+     "size": [
+      2.12,
+      2.0,
+      0.14
+     ],
+     "cam": false,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 44
     },
     {
      "t": "box",
@@ -6958,7 +7007,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 42
+     "dress": 46
     },
     {
      "t": "box",
@@ -6974,7 +7023,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 43
+     "dress": 47
     },
     {
      "t": "box",
@@ -6990,7 +7039,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 44
+     "dress": 48
     },
     {
      "t": "box",
@@ -7006,7 +7055,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 45
+     "dress": 49
     },
     {
      "t": "box",
@@ -7022,7 +7071,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 46
+     "dress": 50
     },
     {
      "t": "box",
@@ -7038,7 +7087,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 47
+     "dress": 51
     },
     {
      "t": "box",
@@ -7054,7 +7103,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 48
+     "dress": 52
     },
     {
      "t": "box",
@@ -7070,23 +7119,23 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 49
+     "dress": 53
     },
     {
      "t": "box",
      "pos": [
-      47.405,
+      47.395,
       0.0,
-      -9.365
+      -9.42
      ],
      "size": [
-      0.91,
-      0.55,
-      1.27
+      0.93,
+      0.9,
+      1.16
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 50
+     "dress": 54
     },
     {
      "t": "box",
@@ -7102,7 +7151,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 51
+     "dress": 55
     },
     {
      "t": "box",
@@ -7118,7 +7167,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 52
+     "dress": 56
     },
     {
      "t": "box",
@@ -7134,7 +7183,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 53
+     "dress": 57
     },
     {
      "t": "box",
@@ -7150,7 +7199,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 54
+     "dress": 58
     },
     {
      "t": "box",
@@ -7166,7 +7215,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 55
+     "dress": 59
     },
     {
      "t": "box",
@@ -7182,7 +7231,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 56
+     "dress": 60
     },
     {
      "t": "box",
@@ -7198,7 +7247,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 57
+     "dress": 61
     },
     {
      "t": "box",
@@ -7214,7 +7263,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 57
+     "dress": 61
     },
     {
      "t": "box",
@@ -7230,7 +7279,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 58
+     "dress": 62
     },
     {
      "t": "box",
@@ -7246,7 +7295,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 58
+     "dress": 62
     },
     {
      "t": "box",
@@ -7262,7 +7311,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 59
+     "dress": 63
     },
     {
      "t": "box",
@@ -7278,7 +7327,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 60
+     "dress": 64
     },
     {
      "t": "box",
@@ -7294,7 +7343,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 61
+     "dress": 65
     },
     {
      "t": "box",
@@ -7310,7 +7359,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 62
+     "dress": 66
     },
     {
      "t": "box",
@@ -7326,7 +7375,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 63
+     "dress": 67
     },
     {
      "t": "box",
@@ -7342,24 +7391,24 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 64
+     "dress": 68
     },
     {
      "t": "box",
      "pos": [
-      47.875,
+      13.7,
       0.0,
-      -9.365
+      4.685
      ],
      "size": [
-      0.03,
-      0.55,
-      1.27
+      0.02,
+      0.63,
+      0.43
      ],
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 21
+     "dress": 31
     },
     {
      "t": "box",
@@ -7376,7 +7425,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 48
+     "dress": 52
     },
     {
      "t": "box",
@@ -7393,7 +7442,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 61
+     "dress": 65
     },
     {
      "t": "box",
@@ -7410,7 +7459,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 34
+     "dress": 35
     },
     {
      "t": "box",
@@ -7427,7 +7476,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 63
+     "dress": 67
     },
     {
      "t": "box",
@@ -7444,7 +7493,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 61
+     "dress": 65
     },
     {
      "t": "box",
@@ -7495,7 +7544,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 63
+     "dress": 67
     },
     {
      "t": "box",
@@ -7512,7 +7561,24 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 33
+     "dress": 34
+    },
+    {
+     "t": "box",
+     "pos": [
+      47.875,
+      0.0,
+      -9.42
+     ],
+     "size": [
+      0.03,
+      0.9,
+      1.16
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 21
     },
     {
      "t": "box",
@@ -7529,7 +7595,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 62
+     "dress": 66
     },
     {
      "t": "box",
@@ -7546,7 +7612,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 42
+     "dress": 46
     },
     {
      "t": "box",
@@ -7563,7 +7629,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 33
+     "dress": 34
     },
     {
      "t": "box",
@@ -7580,7 +7646,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 42
+     "dress": 46
     },
     {
      "t": "box",
@@ -7597,7 +7663,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 51
+     "dress": 55
     },
     {
      "t": "box",
@@ -7614,7 +7680,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 43
+     "dress": 47
     },
     {
      "t": "box",
@@ -7750,7 +7816,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 37
+     "dress": 38
     },
     {
      "t": "box",
@@ -7818,7 +7884,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 35
+     "dress": 36
     },
     {
      "t": "box",
@@ -7835,7 +7901,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 38
+     "dress": 39
     },
     {
      "t": "box",
@@ -7869,7 +7935,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 36
+     "dress": 37
     },
     {
      "t": "box",
@@ -8866,6 +8932,15 @@
      "solid": true
     },
     {
+     "part": "town/toy_banki",
+     "pos": [
+      13.23,
+      0.0,
+      4.62
+     ],
+     "solid": true
+    },
+    {
      "part": "town/barrel",
      "pos": [
       -26.55,
@@ -8928,6 +9003,15 @@
      "solid": true
     },
     {
+     "part": "town/sign_cloth",
+     "pos": [
+      -12.35,
+      3.3,
+      6.0
+     ],
+     "yaw": 180
+    },
+    {
      "part": "town/clothesline",
      "pos": [
       26.0,
@@ -8946,13 +9030,30 @@
      "solid": true
     },
     {
-     "part": "town/sacks",
+     "part": "town/laundry_basket",
      "pos": [
       23.0,
       0.0,
       -0.5
      ],
      "solid": true
+    },
+    {
+     "part": "town/goods_cloth",
+     "pos": [
+      29.4,
+      0.0,
+      -1.6
+     ],
+     "solid": true
+    },
+    {
+     "part": "town/wind_flag",
+     "pos": [
+      30.6,
+      5.0,
+      3.6
+     ]
     },
     {
      "part": "town/barrel",
@@ -9036,11 +9137,11 @@
      "shadow": true
     },
     {
-     "part": "town/sacks",
+     "part": "town/goods_sacks",
      "pos": [
-      47.53,
+      47.43,
       0.0,
-      -9.35
+      -9.42
      ],
      "yaw": 90,
      "solid": true
@@ -9181,7 +9282,7 @@
      "solid": true
     },
     {
-     "part": "town/banner",
+     "part": "town/goods_cloth_wall",
      "pos": [
       -30.0,
       4.2,
@@ -9190,7 +9291,7 @@
      "yaw": 270
     },
     {
-     "part": "town/banner",
+     "part": "town/goods_cloth_wall",
      "pos": [
       41.0,
       5.6,
@@ -14309,6 +14410,38 @@
     {
      "t": "box",
      "pos": [
+      26.54,
+      0.0,
+      3.065
+     ],
+     "size": [
+      1.76,
+      0.55,
+      0.61
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 128
+    },
+    {
+     "t": "box",
+     "pos": [
+      21.52,
+      0.0,
+      3.05
+     ],
+     "size": [
+      1.68,
+      0.92,
+      0.64
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 128
+    },
+    {
+     "t": "box",
+     "pos": [
       24.0,
       0.0,
       7.9
@@ -14523,6 +14656,38 @@
      "hide": true,
      "tint": "#5a5048",
      "dress": 132
+    },
+    {
+     "t": "box",
+     "pos": [
+      40.55,
+      0.0,
+      3.065
+     ],
+     "size": [
+      1.74,
+      0.7,
+      0.61
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 133
+    },
+    {
+     "t": "box",
+     "pos": [
+      35.445,
+      0.0,
+      3.05
+     ],
+     "size": [
+      1.43,
+      0.95,
+      0.64
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 133
     },
     {
      "t": "box",
@@ -14839,7 +15004,7 @@
      ],
      "size": [
       0.9,
-      1.45,
+      1.52,
       0.9
      ],
      "hide": true,
@@ -14849,14 +15014,14 @@
     {
      "t": "box",
      "pos": [
-      16.435,
+      16.49,
       0.0,
-      6.055
+      6.065
      ],
      "size": [
-      1.27,
-      0.55,
-      0.91
+      1.16,
+      0.9,
+      0.93
      ],
      "hide": true,
      "tint": "#5a5048",
@@ -15115,14 +15280,14 @@
     {
      "t": "box",
      "pos": [
-      46.325,
+      46.27,
       0.0,
-      2.495
+      2.485
      ],
      "size": [
-      1.27,
-      0.55,
-      0.91
+      1.16,
+      0.9,
+      0.93
      ],
      "hide": true,
      "tint": "#5a5048",
@@ -15163,14 +15328,14 @@
     {
      "t": "box",
      "pos": [
-      32.675,
+      32.62,
       0.0,
-      -1.055
+      -1.065
      ],
      "size": [
-      1.27,
-      0.55,
-      0.91
+      1.16,
+      0.9,
+      0.93
      ],
      "hide": true,
      "tint": "#5a5048",
@@ -15275,7 +15440,7 @@
     {
      "t": "box",
      "pos": [
-      -11.7,
+      11.7,
       0.0,
       -7.5
      ],
@@ -15291,7 +15456,7 @@
     {
      "t": "box",
      "pos": [
-      11.7,
+      -11.7,
       0.0,
       -7.5
      ],
@@ -15419,14 +15584,14 @@
     {
      "t": "box",
      "pos": [
-      -13.195,
+      -13.25,
       0.0,
-      0.105
+      0.115
      ],
      "size": [
-      1.27,
-      0.55,
-      0.91
+      1.16,
+      0.9,
+      0.93
      ],
      "hide": true,
      "tint": "#5a5048",
@@ -15446,7 +15611,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 175
+     "dress": 176
     },
     {
      "t": "box",
@@ -15463,7 +15628,7 @@
      "cam": false,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 176
+     "dress": 177
     },
     {
      "t": "box",
@@ -15479,7 +15644,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 177
+     "dress": 178
     },
     {
      "t": "box",
@@ -15495,7 +15660,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 178
+     "dress": 179
     },
     {
      "t": "box",
@@ -15511,7 +15676,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 179
+     "dress": 180
     },
     {
      "t": "box",
@@ -15527,7 +15692,23 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 180
+     "dress": 181
+    },
+    {
+     "t": "box",
+     "pos": [
+      -30.47,
+      0.0,
+      0.59
+     ],
+     "size": [
+      0.9,
+      0.97,
+      0.58
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 182
     },
     {
      "t": "box",
@@ -15543,7 +15724,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 181
+     "dress": 183
     },
     {
      "t": "box",
@@ -15559,7 +15740,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 182
+     "dress": 184
     },
     {
      "t": "box",
@@ -15575,7 +15756,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 183
+     "dress": 185
     },
     {
      "t": "box",
@@ -15591,7 +15772,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 184
+     "dress": 186
     },
     {
      "t": "box",
@@ -15607,7 +15788,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 185
+     "dress": 187
     },
     {
      "t": "box",
@@ -15623,7 +15804,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 190
+     "dress": 192
     },
     {
      "t": "box",
@@ -15639,7 +15820,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 190
+     "dress": 192
     },
     {
      "t": "box",
@@ -15656,7 +15837,7 @@
      "cam": false,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 190
+     "dress": 192
     },
     {
      "t": "box",
@@ -15673,7 +15854,7 @@
      "cam": false,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 190
+     "dress": 192
     },
     {
      "t": "box",
@@ -15689,7 +15870,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 191
+     "dress": 193
     },
     {
      "t": "box",
@@ -15705,7 +15886,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 192
+     "dress": 194
     },
     {
      "t": "box",
@@ -15721,7 +15902,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 193
+     "dress": 195
     },
     {
      "t": "box",
@@ -15737,7 +15918,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 194
+     "dress": 196
     },
     {
      "t": "box",
@@ -15753,7 +15934,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 195
+     "dress": 197
     },
     {
      "t": "box",
@@ -15769,7 +15950,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 196
+     "dress": 198
     },
     {
      "t": "box",
@@ -15785,7 +15966,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 197
+     "dress": 199
     },
     {
      "t": "box",
@@ -15801,7 +15982,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 198
+     "dress": 200
     },
     {
      "t": "box",
@@ -15817,7 +15998,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 199
+     "dress": 201
     },
     {
      "t": "box",
@@ -15833,7 +16014,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 200
+     "dress": 202
     },
     {
      "t": "box",
@@ -15849,7 +16030,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 200
+     "dress": 202
     },
     {
      "t": "box",
@@ -15865,7 +16046,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 201
+     "dress": 203
     },
     {
      "t": "box",
@@ -15881,7 +16062,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 201
+     "dress": 203
     },
     {
      "t": "box",
@@ -15897,7 +16078,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 202
+     "dress": 204
     },
     {
      "t": "box",
@@ -15913,7 +16094,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 202
+     "dress": 204
     },
     {
      "t": "box",
@@ -16037,70 +16218,19 @@
     {
      "t": "box",
      "pos": [
-      45.687,
+      26.54,
       0.0,
-      2.593
+      3.385
      ],
      "size": [
-      0.006,
+      1.76,
       0.55,
-      0.714
+      0.03
      ],
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 151
-    },
-    {
-     "t": "box",
-     "pos": [
-      32.03,
-      0.0,
-      -1.055
-     ],
-     "size": [
-      0.02,
-      0.55,
-      0.91
-     ],
-     "fill": true,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 153
-    },
-    {
-     "t": "box",
-     "pos": [
-      -13.84,
-      0.0,
-      0.0
-     ],
-     "size": [
-      0.02,
-      0.55,
-      0.7
-     ],
-     "fill": true,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 125
-    },
-    {
-     "t": "box",
-     "pos": [
-      17.082,
-      0.0,
-      6.023
-     ],
-     "size": [
-      0.024,
-      0.55,
-      0.846
-     ],
-     "fill": true,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 142
+     "dress": 128
     },
     {
      "t": "box",
@@ -16168,7 +16298,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 184
+     "dress": 186
     },
     {
      "t": "box",
@@ -16275,6 +16405,40 @@
     {
      "t": "box",
      "pos": [
+      17.082,
+      0.0,
+      6.023
+     ],
+     "size": [
+      0.024,
+      0.666,
+      0.846
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 142
+    },
+    {
+     "t": "box",
+     "pos": [
+      40.55,
+      0.0,
+      3.385
+     ],
+     "size": [
+      1.74,
+      0.7,
+      0.03
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 133
+    },
+    {
+     "t": "box",
+     "pos": [
       -47.03,
       0.0,
       13.15
@@ -16287,7 +16451,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 192
+     "dress": 194
     },
     {
      "t": "box",
@@ -16321,7 +16485,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 181
+     "dress": 183
     },
     {
      "t": "box",
@@ -16372,7 +16536,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 192
+     "dress": 194
     },
     {
      "t": "box",
@@ -16440,7 +16604,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 179
+     "dress": 180
     },
     {
      "t": "box",
@@ -16457,7 +16621,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 175
+     "dress": 176
     },
     {
      "t": "box",
@@ -16513,6 +16677,57 @@
     {
      "t": "box",
      "pos": [
+      45.687,
+      0.0,
+      2.593
+     ],
+     "size": [
+      0.006,
+      0.9,
+      0.714
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 151
+    },
+    {
+     "t": "box",
+     "pos": [
+      32.03,
+      0.0,
+      -1.065
+     ],
+     "size": [
+      0.02,
+      0.9,
+      0.93
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 153
+    },
+    {
+     "t": "box",
+     "pos": [
+      -13.84,
+      0.0,
+      0.0
+     ],
+     "size": [
+      0.02,
+      0.9,
+      0.7
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 125
+    },
+    {
+     "t": "box",
+     "pos": [
       40.858,
       0.0,
       -7.6
@@ -16530,6 +16745,57 @@
     {
      "t": "box",
      "pos": [
+      21.52,
+      0.0,
+      3.385
+     ],
+     "size": [
+      1.68,
+      0.92,
+      0.03
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 128
+    },
+    {
+     "t": "box",
+     "pos": [
+      35.445,
+      0.0,
+      3.385
+     ],
+     "size": [
+      1.43,
+      0.95,
+      0.03
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 133
+    },
+    {
+     "t": "box",
+     "pos": [
+      -30.01,
+      0.0,
+      0.59
+     ],
+     "size": [
+      0.02,
+      0.97,
+      0.58
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 180
+    },
+    {
+     "t": "box",
+     "pos": [
       -40.21,
       0.0,
       0.86
@@ -16542,7 +16808,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 175
+     "dress": 176
     },
     {
      "t": "box",
@@ -16559,7 +16825,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 193
+     "dress": 195
     },
     {
      "t": "box",
@@ -16610,7 +16876,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 182
+     "dress": 184
     },
     {
      "t": "box",
@@ -16763,7 +17029,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 196
+     "dress": 198
     },
     {
      "t": "box",
@@ -19036,7 +19302,7 @@
      "solid": true
     },
     {
-     "part": "town/stall_table",
+     "part": "town/diner_table",
      "pos": [
       -24.6,
       0.0,
@@ -19048,7 +19314,6 @@
       0.82,
       1.0
      ],
-     "shadow": true,
      "solid": true
     },
     {
@@ -19084,7 +19349,7 @@
      "solid": true
     },
     {
-     "part": "town/stall_table",
+     "part": "town/diner_table",
      "pos": [
       -15.4,
       0.0,
@@ -19096,7 +19361,6 @@
       0.82,
       1.0
      ],
-     "shadow": true,
      "solid": true
     },
     {
@@ -19165,13 +19429,14 @@
      "solid": true
     },
     {
-     "part": "town/goods_general",
+     "part": "town/market_general",
      "pos": [
       24.0,
       1.1,
       3.8
      ],
-     "yaw": 180
+     "yaw": 180,
+     "solid": true
     },
     {
      "part": "town/goods_shelf_general",
@@ -19215,13 +19480,14 @@
      "solid": true
     },
     {
-     "part": "town/goods_junk",
+     "part": "town/market_junk",
      "pos": [
       38.0,
       1.1,
       3.8
      ],
-     "yaw": 180
+     "yaw": 180,
+     "solid": true
     },
     {
      "part": "town/goods_shelf_junk",
@@ -19326,7 +19592,7 @@
      "solid": true
     },
     {
-     "part": "town/planter",
+     "part": "town/pot_shrub",
      "pos": [
       18.45,
       0.0,
@@ -19335,11 +19601,11 @@
      "solid": true
     },
     {
-     "part": "town/sacks",
+     "part": "town/goods_sacks",
      "pos": [
-      16.42,
+      16.49,
       0.0,
-      6.18
+      6.1
      ],
      "solid": true
     },
@@ -19406,11 +19672,11 @@
      "solid": true
     },
     {
-     "part": "town/sacks",
+     "part": "town/goods_sacks",
      "pos": [
-      46.31,
+      46.27,
       0.0,
-      2.62
+      2.52
      ],
      "solid": true
     },
@@ -19437,11 +19703,11 @@
      "shadow": true
     },
     {
-     "part": "town/sacks",
+     "part": "town/goods_sacks",
      "pos": [
-      32.66,
+      32.62,
       0.0,
-      -0.93
+      -1.03
      ],
      "solid": true
     },
@@ -19502,9 +19768,9 @@
      "solid": true
     },
     {
-     "part": "town/planter",
+     "part": "town/pot_succulent",
      "pos": [
-      -11.7,
+      11.7,
       0.0,
       -7.5
      ],
@@ -19513,7 +19779,7 @@
     {
      "part": "town/planter",
      "pos": [
-      11.7,
+      -11.7,
       0.0,
       -7.5
      ],
@@ -19590,16 +19856,16 @@
      "solid": true
     },
     {
-     "part": "town/sacks",
+     "part": "town/goods_sacks",
      "pos": [
-      -13.21,
+      -13.25,
       0.0,
-      0.23
+      0.15
      ],
      "solid": true
     },
     {
-     "part": "town/banner",
+     "part": "town/goods_cloth_wall",
      "pos": [
       -15.0,
       3.6,
@@ -19608,7 +19874,7 @@
      "yaw": 90
     },
     {
-     "part": "town/banner",
+     "part": "town/goods_cloth_wall",
      "pos": [
       -15.0,
       3.6,
@@ -19617,13 +19883,22 @@
      "yaw": 90
     },
     {
-     "part": "town/banner",
+     "part": "town/goods_cloth_wall",
      "pos": [
       -41.0,
       3.8,
       8.5
      ],
      "yaw": 270
+    },
+    {
+     "part": "town/sign_round",
+     "pos": [
+      -15.0,
+      2.75,
+      3.35
+     ],
+     "yaw": 90
     },
     {
      "part": "town/stall_table",
@@ -19682,6 +19957,16 @@
      "solid": true
     },
     {
+     "part": "town/sign_stand",
+     "pos": [
+      -30.47,
+      0.0,
+      0.59
+     ],
+     "yaw": 180,
+     "solid": true
+    },
+    {
      "part": "town/crate",
      "pos": [
       5.25,
@@ -19732,7 +20017,7 @@
      "shadow": true
     },
     {
-     "part": "town/laundry_line_8",
+     "part": "town/laundry_goods_8",
      "pos": [
       0.0,
       5.6,
@@ -19740,7 +20025,7 @@
      ]
     },
     {
-     "part": "town/laundry_line_8",
+     "part": "town/laundry_goods_8",
      "pos": [
       0.0,
       6.3,
@@ -19748,7 +20033,7 @@
      ]
     },
     {
-     "part": "town/laundry_line",
+     "part": "town/laundry_goods",
      "pos": [
       -26.0,
       3.3,
@@ -19756,7 +20041,7 @@
      ]
     },
     {
-     "part": "town/laundry_line",
+     "part": "town/laundry_goods",
      "pos": [
       -26.0,
       3.55,
@@ -22217,14 +22502,14 @@
     {
      "t": "box",
      "pos": [
-      -10.0,
+      23.6,
       0.0,
-      -13.2
+      3.495
      ],
      "size": [
-      0.9,
-      1.45,
-      0.9
+      1.96,
+      0.75,
+      0.97
      ],
      "hide": true,
      "tint": "#5a5048",
@@ -22233,7 +22518,24 @@
     {
      "t": "box",
      "pos": [
-      -22.0,
+      24.41,
+      0.75,
+      3.48
+     ],
+     "size": [
+      0.3,
+      0.22,
+      0.3
+     ],
+     "cam": false,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 49
+    },
+    {
+     "t": "box",
+     "pos": [
+      -10.0,
       0.0,
       -13.2
      ],
@@ -22249,7 +22551,7 @@
     {
      "t": "box",
      "pos": [
-      -34.0,
+      -22.0,
       0.0,
       -13.2
      ],
@@ -22265,14 +22567,14 @@
     {
      "t": "box",
      "pos": [
-      -16.0,
+      -34.0,
       0.0,
-      -12.8
+      -13.2
      ],
      "size": [
-      1.98,
-      0.56,
-      0.58
+      0.9,
+      1.45,
+      0.9
      ],
      "hide": true,
      "tint": "#5a5048",
@@ -22282,22 +22584,6 @@
      "t": "box",
      "pos": [
       -16.0,
-      0.0,
-      -12.59
-     ],
-     "size": [
-      1.98,
-      1.07,
-      0.16
-     ],
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 52
-    },
-    {
-     "t": "box",
-     "pos": [
-      -28.0,
       0.0,
       -12.8
      ],
@@ -22313,7 +22599,7 @@
     {
      "t": "box",
      "pos": [
-      -28.0,
+      -16.0,
       0.0,
       -12.59
      ],
@@ -22325,6 +22611,38 @@
      "hide": true,
      "tint": "#5a5048",
      "dress": 53
+    },
+    {
+     "t": "box",
+     "pos": [
+      -28.0,
+      0.0,
+      -12.8
+     ],
+     "size": [
+      1.98,
+      0.56,
+      0.58
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 54
+    },
+    {
+     "t": "box",
+     "pos": [
+      -28.0,
+      0.0,
+      -12.59
+     ],
+     "size": [
+      1.98,
+      1.07,
+      0.16
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 54
     },
     {
      "t": "box",
@@ -22340,7 +22658,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 54
+     "dress": 55
     },
     {
      "t": "box",
@@ -22356,7 +22674,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 55
+     "dress": 56
     },
     {
      "t": "box",
@@ -22372,7 +22690,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 56
+     "dress": 57
     },
     {
      "t": "box",
@@ -22388,7 +22706,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 57
+     "dress": 58
     },
     {
      "t": "box",
@@ -22404,7 +22722,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 57
+     "dress": 58
     },
     {
      "t": "box",
@@ -22420,7 +22738,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 58
+     "dress": 59
     },
     {
      "t": "box",
@@ -22436,7 +22754,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 58
+     "dress": 59
     },
     {
      "t": "box",
@@ -22452,7 +22770,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 59
+     "dress": 60
     },
     {
      "t": "box",
@@ -22468,7 +22786,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 59
+     "dress": 60
     },
     {
      "t": "box",
@@ -22484,7 +22802,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 60
+     "dress": 61
     },
     {
      "t": "box",
@@ -22500,7 +22818,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 61
+     "dress": 62
     },
     {
      "t": "box",
@@ -22516,7 +22834,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 62
+     "dress": 63
     },
     {
      "t": "box",
@@ -22532,7 +22850,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 62
+     "dress": 63
     },
     {
      "t": "box",
@@ -22548,7 +22866,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 63
+     "dress": 64
     },
     {
      "t": "box",
@@ -22564,22 +22882,6 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 64
-    },
-    {
-     "t": "box",
-     "pos": [
-      -39.2,
-      0.0,
-      -6.0
-     ],
-     "size": [
-      0.9,
-      1.45,
-      0.9
-     ],
-     "hide": true,
-     "tint": "#5a5048",
      "dress": 65
     },
     {
@@ -22587,7 +22889,7 @@
      "pos": [
       -39.2,
       0.0,
-      4.0
+      -6.0
      ],
      "size": [
       0.9,
@@ -22601,9 +22903,9 @@
     {
      "t": "box",
      "pos": [
-      39.2,
+      -39.2,
       0.0,
-      -6.0
+      4.0
      ],
      "size": [
       0.9,
@@ -22619,7 +22921,7 @@
      "pos": [
       39.2,
       0.0,
-      4.0
+      -6.0
      ],
      "size": [
       0.9,
@@ -22633,14 +22935,14 @@
     {
      "t": "box",
      "pos": [
-      -4.6,
+      39.2,
       0.0,
-      26.91
+      4.0
      ],
      "size": [
-      1.98,
-      0.56,
-      0.58
+      0.9,
+      1.45,
+      0.9
      ],
      "hide": true,
      "tint": "#5a5048",
@@ -22650,22 +22952,6 @@
      "t": "box",
      "pos": [
       -4.6,
-      0.0,
-      26.7
-     ],
-     "size": [
-      1.98,
-      1.07,
-      0.16
-     ],
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 69
-    },
-    {
-     "t": "box",
-     "pos": [
-      4.6,
       0.0,
       26.91
      ],
@@ -22681,7 +22967,7 @@
     {
      "t": "box",
      "pos": [
-      4.6,
+      -4.6,
       0.0,
       26.7
      ],
@@ -22693,6 +22979,38 @@
      "hide": true,
      "tint": "#5a5048",
      "dress": 70
+    },
+    {
+     "t": "box",
+     "pos": [
+      4.6,
+      0.0,
+      26.91
+     ],
+     "size": [
+      1.98,
+      0.56,
+      0.58
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 71
+    },
+    {
+     "t": "box",
+     "pos": [
+      4.6,
+      0.0,
+      26.7
+     ],
+     "size": [
+      1.98,
+      1.07,
+      0.16
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 71
     },
     {
      "t": "box",
@@ -22708,7 +23026,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 71
+     "dress": 72
     },
     {
      "t": "box",
@@ -22724,7 +23042,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 72
+     "dress": 73
     },
     {
      "t": "box",
@@ -22740,7 +23058,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 73
+     "dress": 74
     },
     {
      "t": "box",
@@ -22757,7 +23075,7 @@
      "cam": false,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 74
+     "dress": 75
     },
     {
      "t": "box",
@@ -22842,7 +23160,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 73
+     "dress": 74
     },
     {
      "t": "box",
@@ -22860,6 +23178,40 @@
      "hide": true,
      "tint": "#5a5048",
      "dress": 45
+    },
+    {
+     "t": "box",
+     "pos": [
+      22.61,
+      0.0,
+      3.63
+     ],
+     "size": [
+      0.02,
+      0.75,
+      0.7
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 48
+    },
+    {
+     "t": "box",
+     "pos": [
+      23.6,
+      0.0,
+      3.99
+     ],
+     "size": [
+      1.96,
+      0.75,
+      0.02
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 49
     },
     {
      "t": "box",
@@ -23199,7 +23551,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 71
+     "dress": 72
     },
     {
      "t": "box",
@@ -23216,7 +23568,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 71
+     "dress": 72
     },
     {
      "t": "box",
@@ -23233,7 +23585,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 72
+     "dress": 73
     },
     {
      "t": "box",
@@ -23250,7 +23602,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 72
+     "dress": 73
     },
     {
      "t": "box",
@@ -23268,7 +23620,7 @@
      "cam": false,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 74
+     "dress": 75
     },
     {
      "t": "box",
@@ -24319,7 +24671,7 @@
      "solid": true
     },
     {
-     "part": "town/planter",
+     "part": "town/pot_vine",
      "pos": [
       -24.25,
       0.0,
@@ -24328,7 +24680,7 @@
      "solid": true
     },
     {
-     "part": "town/planter",
+     "part": "town/pot_succulent",
      "pos": [
       -19.75,
       0.0,
@@ -24408,6 +24760,15 @@
      ],
      "solid": true,
      "shadow": true
+    },
+    {
+     "part": "town/junk_goods",
+     "pos": [
+      23.63,
+      0.0,
+      3.48
+     ],
+     "solid": true
     },
     {
      "part": "town/planter",
@@ -24945,6 +25306,22 @@
     {
      "t": "box",
      "pos": [
+      -6.44,
+      0.0,
+      0.99
+     ],
+     "size": [
+      1.08,
+      0.6,
+      0.94
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 5
+    },
+    {
+     "t": "box",
+     "pos": [
       3.5,
       0.0,
       -0.92
@@ -24956,7 +25333,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 5
+     "dress": 6
     },
     {
      "t": "box",
@@ -24972,40 +25349,74 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 6
-    },
-    {
-     "t": "box",
-     "pos": [
-      6.345,
-      0.0,
-      4.455
-     ],
-     "size": [
-      1.27,
-      0.55,
-      0.91
-     ],
-     "hide": true,
-     "tint": "#5a5048",
      "dress": 7
     },
     {
      "t": "box",
      "pos": [
-      6.99,
+      6.4,
       0.0,
-      4.455
+      4.465
+     ],
+     "size": [
+      1.16,
+      0.9,
+      0.93
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 8
+    },
+    {
+     "t": "box",
+     "pos": [
+      -6.99,
+      0.0,
+      0.99
      ],
      "size": [
       0.02,
-      0.55,
-      0.91
+      0.6,
+      0.94
      ],
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 7
+     "dress": 5
+    },
+    {
+     "t": "box",
+     "pos": [
+      -6.44,
+      0.0,
+      1.48
+     ],
+     "size": [
+      1.08,
+      0.6,
+      0.04
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 5
+    },
+    {
+     "t": "box",
+     "pos": [
+      -6.623,
+      0.0,
+      0.497
+     ],
+     "size": [
+      0.714,
+      0.6,
+      0.046
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 4
     },
     {
      "t": "box",
@@ -25044,6 +25455,23 @@
     {
      "t": "box",
      "pos": [
+      6.99,
+      0.0,
+      4.465
+     ],
+     "size": [
+      0.02,
+      0.9,
+      0.93
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 8
+    },
+    {
+     "t": "box",
+     "pos": [
       3.5,
       0.0,
       -1.39
@@ -25056,7 +25484,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 5
+     "dress": 6
     },
     {
      "t": "box",
@@ -25141,7 +25569,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 6
+     "dress": 7
     }
    ],
    "markers": {
@@ -25315,6 +25743,15 @@
      "solid": true
     },
     {
+     "part": "town/goods_basket",
+     "pos": [
+      -6.44,
+      0.0,
+      0.99
+     ],
+     "solid": true
+    },
+    {
      "part": "town/stool",
      "pos": [
       3.5,
@@ -25334,11 +25771,11 @@
      "solid": true
     },
     {
-     "part": "town/sacks",
+     "part": "town/goods_sacks",
      "pos": [
-      6.33,
+      6.4,
       0.0,
-      4.58
+      4.5
      ],
      "solid": true
     },
@@ -25638,14 +26075,14 @@
     {
      "t": "box",
      "pos": [
-      -7.645,
+      -7.7,
       0.0,
-      -6.525
+      -6.515
      ],
      "size": [
-      1.27,
-      0.55,
-      0.91
+      1.16,
+      0.9,
+      0.93
      ],
      "hide": true,
      "tint": "#5a5048",
@@ -25830,14 +26267,14 @@
     {
      "t": "box",
      "pos": [
-      5.135,
+      5.08,
       0.0,
-      -6.525
+      -6.515
      ],
      "size": [
-      1.27,
-      0.55,
-      0.91
+      1.16,
+      0.9,
+      0.93
      ],
      "hide": true,
      "tint": "#5a5048",
@@ -25879,91 +26316,6 @@
     {
      "t": "box",
      "pos": [
-      -7.645,
-      0.0,
-      -6.99
-     ],
-     "size": [
-      1.27,
-      0.55,
-      0.02
-     ],
-     "fill": true,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 7
-    },
-    {
-     "t": "box",
-     "pos": [
-      5.135,
-      0.0,
-      -6.99
-     ],
-     "size": [
-      1.27,
-      0.55,
-      0.02
-     ],
-     "fill": true,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 17
-    },
-    {
-     "t": "box",
-     "pos": [
-      5.78,
-      0.0,
-      -6.525
-     ],
-     "size": [
-      0.02,
-      0.55,
-      0.91
-     ],
-     "fill": true,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 17
-    },
-    {
-     "t": "box",
-     "pos": [
-      -8.29,
-      0.0,
-      -6.525
-     ],
-     "size": [
-      0.02,
-      0.55,
-      0.91
-     ],
-     "fill": true,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 6
-    },
-    {
-     "t": "box",
-     "pos": [
-      4.45,
-      0.0,
-      -6.63
-     ],
-     "size": [
-      0.1,
-      0.55,
-      0.7
-     ],
-     "fill": true,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 16
-    },
-    {
-     "t": "box",
-     "pos": [
       -8.65,
       0.0,
       -6.99
@@ -25998,6 +26350,23 @@
     {
      "t": "box",
      "pos": [
+      -8.29,
+      0.0,
+      -6.515
+     ],
+     "size": [
+      0.02,
+      0.6,
+      0.93
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 6
+    },
+    {
+     "t": "box",
+     "pos": [
       -9.02,
       0.0,
       -6.51
@@ -26011,6 +26380,23 @@
      "hide": true,
      "tint": "#5a5048",
      "dress": 4
+    },
+    {
+     "t": "box",
+     "pos": [
+      4.45,
+      0.0,
+      -6.63
+     ],
+     "size": [
+      0.1,
+      0.6,
+      0.7
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 16
     },
     {
      "t": "box",
@@ -26215,6 +26601,57 @@
      "hide": true,
      "tint": "#5a5048",
      "dress": 14
+    },
+    {
+     "t": "box",
+     "pos": [
+      -7.7,
+      0.0,
+      -6.99
+     ],
+     "size": [
+      1.16,
+      0.9,
+      0.02
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 7
+    },
+    {
+     "t": "box",
+     "pos": [
+      5.08,
+      0.0,
+      -6.99
+     ],
+     "size": [
+      1.16,
+      0.9,
+      0.02
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 17
+    },
+    {
+     "t": "box",
+     "pos": [
+      5.725,
+      0.0,
+      -6.515
+     ],
+     "size": [
+      0.13,
+      0.9,
+      0.93
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 17
     },
     {
      "t": "box",
@@ -26672,11 +27109,11 @@
      "solid": true
     },
     {
-     "part": "town/sacks",
+     "part": "town/goods_sacks",
      "pos": [
-      -7.66,
+      -7.7,
       0.0,
-      -6.4
+      -6.48
      ],
      "solid": true
     },
@@ -26771,11 +27208,11 @@
      "solid": true
     },
     {
-     "part": "town/sacks",
+     "part": "town/goods_sacks",
      "pos": [
-      5.12,
+      5.08,
       0.0,
-      -6.4
+      -6.48
      ],
      "solid": true
     },
@@ -27169,6 +27606,39 @@
     {
      "t": "box",
      "pos": [
+      -11.495,
+      0.0,
+      3.28
+     ],
+     "size": [
+      0.97,
+      0.75,
+      1.96
+     ],
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 8
+    },
+    {
+     "t": "box",
+     "pos": [
+      -11.51,
+      0.75,
+      2.47
+     ],
+     "size": [
+      0.3,
+      0.22,
+      0.3
+     ],
+     "cam": false,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 8
+    },
+    {
+     "t": "box",
+     "pos": [
       -3.0,
       0.0,
       -7.53
@@ -27180,7 +27650,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 8
+     "dress": 9
     },
     {
      "t": "box",
@@ -27196,7 +27666,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 9
+     "dress": 10
     },
     {
      "t": "box",
@@ -27265,6 +27735,23 @@
      "hide": true,
      "tint": "#5a5048",
      "dress": 3
+    },
+    {
+     "t": "box",
+     "pos": [
+      -11.99,
+      0.0,
+      3.28
+     ],
+     "size": [
+      0.02,
+      0.75,
+      1.96
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 8
     },
     {
      "t": "box",
@@ -27400,7 +27887,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 8
+     "dress": 9
     },
     {
      "t": "box",
@@ -27417,7 +27904,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 9
+     "dress": 10
     }
    ],
    "markers": {
@@ -27647,6 +28134,16 @@
      "shadow": true
     },
     {
+     "part": "town/junk_goods",
+     "pos": [
+      -11.51,
+      0.0,
+      3.25
+     ],
+     "yaw": 90,
+     "solid": true
+    },
+    {
      "part": "town/planter",
      "pos": [
       -3.0,
@@ -27836,7 +28333,7 @@
      ],
      "size": [
       0.9,
-      1.45,
+      1.52,
       0.9
      ],
      "hide": true,
@@ -27977,13 +28474,30 @@
     {
      "t": "box",
      "pos": [
+      6.99,
+      0.0,
+      1.3
+     ],
+     "size": [
+      0.02,
+      1.45,
+      0.9
+     ],
+     "fill": true,
+     "hide": true,
+     "tint": "#5a5048",
+     "dress": 5
+    },
+    {
+     "t": "box",
+     "pos": [
       6.53,
       0.0,
       -5.99
      ],
      "size": [
       0.9,
-      1.45,
+      1.52,
       0.02
      ],
      "fill": true,
@@ -28000,30 +28514,13 @@
      ],
      "size": [
       0.02,
-      1.45,
+      1.52,
       0.9
      ],
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
      "dress": 3
-    },
-    {
-     "t": "box",
-     "pos": [
-      6.99,
-      0.0,
-      1.3
-     ],
-     "size": [
-      0.02,
-      1.45,
-      0.9
-     ],
-     "fill": true,
-     "hide": true,
-     "tint": "#5a5048",
-     "dress": 5
     },
     {
      "t": "box",
@@ -28204,7 +28701,7 @@
      "shadow": true
     },
     {
-     "part": "town/planter",
+     "part": "town/pot_shrub",
      "pos": [
       6.53,
       0.0,
@@ -28213,7 +28710,7 @@
      "solid": true
     },
     {
-     "part": "town/planter",
+     "part": "town/pot_vine",
      "pos": [
       -6.53,
       0.0,

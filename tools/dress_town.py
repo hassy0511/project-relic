@@ -120,7 +120,10 @@ SOLID = {"crate", "barrel", "chest", "planter", "planter_big", "bench", "stall_t
          "pipes", "lamp_post", "lamp_tall", "parapet_corner", "goods_shelf_general", "goods_shelf_junk", "stall", "tent",
          "workshop_front", "diner_front", "stage", "stair_rail_12", "stair_rail_12_r", "parapet_rail_8", "parapet_rail_4",
          "terrace_west", "terrace_east", "window_flush", "canvas_roll", "monument", "stair_well_s",
-         "tank", "stool", "pipe_bend", "bollard", "hand_lantern", "cask", "plank_box", "sacks"}
+         "tank", "stool", "pipe_bend", "bollard", "hand_lantern", "cask", "plank_box", "sacks",
+         # W2-05b 市場のにぎわい（2026-10-17、tools/blender/kit/town_goods.py）
+         "goods_sacks", "market_general", "market_junk", "diner_table", "sign_stand", "toy_banki", "laundry_basket",
+         "goods_cloth", "junk_goods", "goods_basket", "pot_succulent", "pot_shrub", "pot_vine", "wind_flag"}
 
 
 # ---------------------------------------------------------------- 中段（広場と市場）
@@ -253,16 +256,19 @@ def mid(room):
     sign(room, "食堂", "sign_roof_2", 180, 2.2)
     light(room, [-20, 5, -2], [-21.2, 2.6, -1.1])
     # ベンチは卓の縁から 0.08 m（座面の前の縁が卓の下に入る）。前は 0.33 m 離れていて、間に落ちると両側の角に引っかかって宙に浮いた
+    # 卓は W2-05b の食堂の机（diner_table：前の露店台と同じ大きさ・同じ当たり判定。赤い掛け布と食器）
     for x in (-24.6, -15.4):
-        d.put("stall_table", [x, 0, -3.6], 90, scale=[1, 0.82, 1])
+        d.put("diner_table", [x, 0, -3.6], 90, scale=[1, 0.82, 1])
         d.put("bench", [x - 0.85, 0, -3.6], 90, scale=[1, 0.9, 1])
         d.put("bench", [x + 0.85, 0, -3.6], 270, scale=[1, 0.9, 1])
     d.put("barrel", [-14.2, 0, 0.0])
     d.put("crate", [-25.8, 0, 0.0], 4, scale=0.8)      # 向きは数度だけ（前は 15 度で、囲む当たり判定の箱が 0.25 m 手前で止めた）
 
     # --- 市場：露店 2 つ（屋根の箱の中心、正面 -Z）、台の上の品、奥の棚、看板、吊り灯の明かり
-    for x, goods, shelf, text, board, bw in ((24, "goods_general", "goods_shelf_general", "雑貨屋", "sign_post_2", 2.2),
-                                              (38, "goods_junk", "goods_shelf_junk", "ジャンク屋", "sign_post_3", 3.0)):
+    # 台の上の品・前の梁の吊り物と絵の札・台の前の床の品は W2-05b の組（market_general・market_junk。town_goods.py、
+    # town_goods_assembled の露店 1 基の密度。前は goods_general・goods_junk の台の上だけ）。台の前の真ん中 3 m は店主と話すために空ける
+    for x, goods, shelf, text, board, bw in ((24, "market_general", "goods_shelf_general", "雑貨屋", "sign_post_2", 2.2),
+                                              (38, "market_junk", "goods_shelf_junk", "ジャンク屋", "sign_post_3", 3.0)):
         d.put("stall", [x, 0, 6.3], 180)
         d.put(goods, [x, 1.1, 3.8], 180)
         d.put(shelf, [x, 0, 8.1], 180)
@@ -307,8 +313,8 @@ def lived_mid(d):
     d.snug("crate", 3, y=0.74, x1=18.85, z0=5.62, scale=0.85)
     d.snug("crate", 0, x1=17.94, z0=5.6, scale=0.9)
     d.snug("cc0/cask", 0, x1=18.9, z0=6.56)
-    d.snug("planter", 0, x1=18.9, z0=8.1)
-    d.snug("sacks", 0, x1=17.07, z0=5.6)
+    d.snug("pot_shrub", 0, x1=18.9, z0=8.1)             # W2-05b の鉢植え（低木）
+    d.snug("goods_sacks", 0, x1=17.07, z0=5.6)
     # 露店の間（工具棚の前）：配達の木箱の山と長持ち（工具棚と洗濯綱の前の通り道 x 31.4〜33 は空ける）
     d.snug("crate", 0, x0=29.6, z1=8.78)
     d.snug("crate", 2, y=0.74, x0=29.66, z1=8.76, scale=0.8)
@@ -317,12 +323,12 @@ def lived_mid(d):
     d.put("tent", [45.7, 0, 5.6], 270)
     d.snug("barrel", 0, x0=44.25, z1=2.95)
     d.snug("cc0/cask", 0, x0=44.97, z1=2.95)
-    d.snug("sacks", 0, x0=45.69, z1=2.95)
+    d.snug("goods_sacks", 0, x0=45.69, z1=2.95)
     # 露店の間の前（どちらの露店の前でもない x 29.6〜32.5）：小さな出店の台（赤い掛け布と真鍮の壺）と、横に木箱と麻袋。
     # 露店の台の前（z 3.4）から 4 m 離して、市場の真ん中の通り道を空ける
     d.snug("stall_table", 0, x0=30.0, z1=-0.6)
     d.snug("crate", 2, x1=29.98, z1=-0.6, scale=0.85)
-    d.snug("sacks", 0, x0=32.04, z1=-0.6)
+    d.snug("goods_sacks", 0, x0=32.04, z1=-0.6)
     # 雑貨屋・ジャンク屋の裏（奥の箱の山の後ろ）：長持ちと樽
     d.snug("cc0/plank_box", 0, x0=22.6, z0=10.2)
     d.snug("cc0/cask", 0, x0=24.02, z0=10.2)
@@ -332,8 +338,8 @@ def lived_mid(d):
     d.snug("cc0/cask", 0, x0=32.0, z1=-5.2)
     d.snug("cc0/plank_box", 90, x1=40.98, z1=-6.3)
     # --- 広場：南の 2 つの外灯の台の横に鉢植え（外灯の台にくっつける）
-    for sx in (-1, 1):
-        d.snug("planter", 0, **({"x1": 12.15} if sx > 0 else {"x0": -12.15}), z=-7.5)
+    d.snug("pot_succulent", 0, x1=12.15, z=-7.5)        # W2-05b の鉢植え（多肉）
+    d.snug("planter", 0, x0=-12.15, z=-7.5)
     # --- 広場：東の脇（雑貨屋との間）に樽と鉢植えの角、西の脇（食堂の東の面）に木箱と樽
     d.snug("planter_big", 0, x0=14.4, z1=9.2)
     d.snug("barrel", 0, x0=15.77, z1=9.2)
@@ -343,11 +349,13 @@ def lived_mid(d):
     d.snug("crate", 2, y=0.74, x0=-14.94, z0=2.24, scale=0.8)
     # --- 食堂の前：東の角の樽の横に鉢植え（西の角の木箱の上に積むと、上から食堂の角の方へ下りた体が角と箱の間に挟まった）
     d.snug("planter", 0, x1=-14.57, z0=-1.3)
-    d.snug("sacks", 0, x0=-13.83, z0=-0.35)
+    d.snug("goods_sacks", 0, x0=-13.83, z0=-0.35)
     # 食堂の東の面（広場から見える白い壁）と工房の西の面に垂れ幕（壁から 0.08 m の薄い物）
     for z in (1.7, 5.0):
-        d.put("banner", [-15.0, 3.6, z], 90)
-    d.put("banner", [-41.0, 3.8, 8.5], 270)
+        d.put("goods_cloth_wall", [-15.0, 3.6, z], 90)
+    d.put("goods_cloth_wall", [-41.0, 3.8, 8.5], 270)
+    # 食堂の丸い札（W2-05b の 10。鉢と湯気の絵、文字なし）：東の面の 2 枚の布の間に平らに
+    d.put("sign_round", [-15.0, 2.75, 3.35], 90)
     # --- ヤーナの工房の前：西に作業台（台・タンク・踏み台・携行灯）、東に部品の山（ガラクタの山と曲がり管）。
     # 入口の前（目印 from_workshop と工房の口）と、工房の見える向きの真ん中は空ける
     d.snug("stall_table", 0, x0=-40.2, z0=0.4)
@@ -356,6 +364,7 @@ def lived_mid(d):
     d.snug("stool", 0, x1=-40.22, z0=0.4)
     d.snug("junk_pile", 0, x0=-30.0, z0=0.3)
     d.snug("pipe_bend", 0, x0=-28.01, z0=0.6)
+    d.snug("sign_stand", 180, x1=-30.02, z0=0.3)          # W2-05b の立て札（レンチの絵）。ガラクタの山の西にくっつける
     # --- 広場の奥：壇の脇（天幕との間）に祭りの支度の木箱と樽（壇と天幕の柱から 0.75 m 以上）
     d.snug("crate", 0, x0=4.78, z0=10.62)
     d.snug("barrel", 0, x0=4.78, z0=11.58)
@@ -364,11 +373,11 @@ def lived_mid(d):
     d.snug("crate", 0, x1=-5.5, z0=10.62, scale=0.85)
     # --- 北の階段の上に洗濯物（階段の両側の棟の面 |x|=4 から面へ。布の下の端は、その下の段から跳んで頭が届く高さより上：
     # z 17.4 の段は 0.6 m で頭は 4.4 m まで、布の下の端は 4.7 m。広場の看板「広場」の文字より下に見える高さ）
-    d.put("laundry_line_8", [0, 5.6, 17.4])
-    d.put("laundry_line_8", [0, 6.3, 19.8])
+    d.put("laundry_goods_8", [0, 5.6, 17.4])
+    d.put("laundry_goods_8", [0, 6.3, 19.8])
     # --- 工房と食堂の間の路地に洗濯物（壁から壁へ、頭の上 2.5 m より高い）
-    d.put("laundry_line", [-26.0, 3.3, 4.7])
-    d.put("laundry_line", [-26.0, 3.55, 7.3])
+    d.put("laundry_goods", [-26.0, 3.3, 4.7])
+    d.put("laundry_goods", [-26.0, 3.55, 7.3])
     # --- 西の端（工房の西の面と低い壁の間）：暮らしの角。洗濯綱、壁ぎわにタンク、北の角に木箱と樽と鉢植え
     d.put("clothesline", [-45.5, 0, 11.0], 0)       # 西の端の見晴らしの所（x -46.6, z 6）のカメラの前を空ける
     d.snug("tank", 90, x1=-41.02, z0=1.2)
@@ -516,6 +525,8 @@ def lived_lower(d):
     # ハルの家：巻き上げ戸の前にガラクタの山（ニコの立つ所から 1 m 後ろ）、右の窓の下に鉢植え、角の配管は体だけの柱
     d.snug("junk_pile", 0, x=14.7, z1=5.94)
     d.snug("planter", 0, x=21.2, z1=5.98)
+    # ニコの近く：木の玩具（番機の人形とこま。W2-05b の 14）をガラクタの山の西にくっつける（ニコから 1.3 m）
+    d.snug("toy_banki", 0, x1=13.69, z0=4.47)
     # 訓練場の門：左に樽と木箱、右に練習用の銃の棚（工具棚）
     d.snug("barrel", 0, x1=-26.2, z1=5.98)
     d.snug("crate", 0, x1=-27.0, z1=5.98)
@@ -524,10 +535,13 @@ def lived_lower(d):
     # 住宅（L1）：窓の下のベンチ（背を壁に）、扉の横の鉢植え
     d.snug("bench", 180, x=-10.75, z1=5.98)
     d.snug("planter", 0, x1=-14.62, z1=5.98)
+    d.put("sign_cloth", [-12.35, 3.3, 6.0], 180)           # 宿の布札（W2-05b の 10。家の絵、文字なし。壁から 0.08 m）
     # マーサの洗濯屋（A の正面 z=3）：洗濯綱 2 本と籠（麻袋）・たらい（樽）。マーサ（30, 3）の前は空ける
     d.put("clothesline", [26.0, 0, 0.6], 0)
     d.put("clothesline", [26.0, 0, -1.6], 0)
-    d.snug("sacks", 0, x=23.0, z=-0.5)
+    d.snug("laundry_basket", 0, x=23.0, z=-0.5)          # 洗濯かご（W2-05b の 15。前は麻袋で代わりにしていた）
+    d.put("goods_cloth", [29.4, 0, -1.6], 0)              # 布を干す枠（W2-05b の 04。洗濯綱の東、マーサの前の通りは空ける）
+    d.put("wind_flag", [30.6, 5.0, 3.6], 0, solid=False)  # 洗濯屋の屋上の風の旗（W2-05b の 16。屋上は届かない高さ 5 m なので当たり判定なし）
     d.snug("barrel", 0, x1=37.94, z1=2.98)
     d.snug("cc0/cask", 0, x1=37.2, z1=2.98)
     # リフト：床の上の荷（停止したまま）と、東の壁ぎわの木箱
@@ -537,7 +551,7 @@ def lived_lower(d):
     d.snug("barrel", 0, x=44.9, z=-9.6, y=0.3)
     d.snug("crate", 0, x1=47.86, z0=-12.9)
     d.snug("crate", 0, x1=47.86, z0=-11.94)
-    d.snug("sacks", 90, x1=47.86, z0=-10.0)
+    d.snug("goods_sacks", 90, x1=47.86, z0=-10.0)
     # 東の物置（C）の前：樽と木箱
     d.snug("barrel", 0, x0=44.1, z1=0.95)
     # 南の胸壁の縁：係留柱、ゲンのベンチ（外を向く）、外灯の横の鉢植え
@@ -553,8 +567,8 @@ def lived_lower(d):
     d.snug("crate", 2, x0=-41.98, z1=-6.4)
     d.snug("cc0/cask", 0, x0=-40.96, z1=-6.4)
     # 壁の垂れ幕（訓練場の門の西の面、東の棟 B の正面）
-    d.put("banner", [-30.0, 4.2, 10.0], 270)
-    d.put("banner", [41.0, 5.6, 7.0], 180)
+    d.put("goods_cloth_wall", [-30.0, 4.2, 10.0], 270)
+    d.put("goods_cloth_wall", [41.0, 5.6, 7.0], 180)
     # 小旗の綱（家の角から北の段の擁壁の面へ、洗濯屋からハルの家へ。どれも端は壁・屋根の縁に付き、いちばん低い所でも 5 m より上）
     flags(d, (12.7, 5.8), (8.2, 15.95), 6.4)
     flags(d, (-17.7, 5.8), (-8.2, 15.95), 6.4)
@@ -641,8 +655,8 @@ def upper(room):
 def lived_upper(d):
     """上段：手入れされた鉢植えとベンチ（外を向く）、ギルドの前の回収の箱、展望台の見張りの腰掛け。戸口・住人・望遠鏡は空ける"""
     # 町長の家：扉の両脇の鉢植え、窓の下のベンチ
-    d.snug("planter", 0, x1=-23.8, z1=3.98)
-    d.snug("planter", 0, x0=-20.2, z1=3.98)
+    d.snug("pot_vine", 0, x1=-23.8, z1=3.98)              # W2-05b の鉢植え（つる・多肉。同じ鉢・同じ当たり判定）
+    d.snug("pot_succulent", 0, x0=-20.2, z1=3.98)
     d.snug("planter_big", 0, x0=-28.9, z1=3.98)
     d.snug("bench", 180, x=-16.4, z1=3.98)
     # ギルド：丸い依頼板の下のベンチ、右の日よけの下の回収の箱（積んで紐で縛った箱・長持ち・樽）
@@ -651,6 +665,7 @@ def lived_upper(d):
     d.snug("crate", 3, y=0.74, x1=27.86, z1=3.94, scale=0.8)
     d.snug("cc0/plank_box", 0, x1=26.94, z1=3.98)
     d.snug("barrel", 0, x0=21.9, z1=3.98)
+    d.snug("junk_goods", 0, x0=22.62, z1=3.98)            # 回収の陳列箱（W2-05b の 09：部品を盛った箱と置物）
     # 南の胸壁の縁：鉢植えと外を向いたベンチ
     for sx in (-1, 1):
         for x in (10.0, 22.0, 34.0):
@@ -731,7 +746,7 @@ def lived_training(d):
     d.snug("bench", 270, x1=21.98, z=-12.0)
     d.snug("barrel", 0, x1=21.98, z0=-25.98)
     d.snug("cc0/cask", 0, x1=21.24, z0=-25.98)
-    d.snug("sacks", 0, x1=21.98, z0=-25.24)
+    d.snug("goods_sacks", 0, x1=21.98, z0=-25.24)
     # 中ほどの壁ぎわ：見物のベンチと休みの木箱
     d.snug("bench", 90, x0=-21.98, z=6.0)
     d.snug("bench", 270, x1=21.98, z=2.0)
@@ -743,7 +758,7 @@ def lived_training(d):
     # 北の奥の隅：片付けた残骸の置き場（木箱・ガラクタの山・麻袋）
     d.snug("junk_pile", 0, x0=-21.98, z1=55.98)
     d.snug("crate", 0, x0=-19.98, z1=55.98)
-    d.snug("sacks", 0, x1=21.98, z1=55.98)
+    d.snug("goods_sacks", 0, x1=21.98, z1=55.98)
     d.snug("barrel", 0, x1=21.98, z1=55.22)
     d.snug("cc0/plank_box", 0, x1=20.6, z1=55.98)
 
@@ -796,9 +811,10 @@ def home(room):
     d.snug("crate", 0, x0=-6.98, z0=-1.2)
     d.snug("crate", 3, y=0.74, x0=-6.95, z0=-1.17, scale=0.8)
     d.snug("cc0/cask", 0, x0=-6.98, z0=-0.24)
+    d.snug("goods_basket", 0, x0=-6.98, z0=0.52)          # 実のかご（W2-05b の 01。ベッドの足元）
     d.snug("stool", 180, x=3.5, z0=-1.38)
     d.snug("planter", 0, x1=6.98, z1=-2.3)
-    d.snug("sacks", 0, x1=6.98, z0=4.0)
+    d.snug("goods_sacks", 0, x1=6.98, z0=4.0)
     dirt(d, 0.0, -4.6, 3.6, 2.2)            # 入口
     dirt(d, 5.6, 4.6, 2.6, 2.6, kind="oil_patch")   # ガラクタの山のまわり
     dirt(d, 3.5, -0.9, 2.4, 1.4)            # 机の前
@@ -824,7 +840,7 @@ def workshop(room):
     d.snug("crate", 0, x0=-9.98, z0=-6.98)
     d.snug("crate", 2, y=0.74, x0=-9.95, z0=-6.95, scale=0.8)
     d.snug("cc0/plank_box", 90, x0=-9.0, z0=-6.98)
-    d.snug("sacks", 0, x0=-8.28, z0=-6.98)
+    d.snug("goods_sacks", 0, x0=-8.28, z0=-6.98)
     d.snug("junk_pile", 0, x1=9.98, z0=4.6)
     d.snug("crate", 0, x1=3.98, z1=6.98)
     d.snug("barrel", 0, x1=3.02, z1=6.98)
@@ -836,7 +852,7 @@ def workshop(room):
     d.snug("cc0/cask", 0, x1=9.98, z0=-5.24)
     # 南の壁ぎわ（入口の東）：部品の木箱と麻袋、壊れた機械の部品（ガラクタの山）
     d.snug("cc0/plank_box", 0, x0=3.0, z0=-6.98)
-    d.snug("sacks", 0, x0=4.5, z0=-6.98)
+    d.snug("goods_sacks", 0, x0=4.5, z0=-6.98)
     d.snug("junk_pile", 0, x0=5.79, z0=-6.98)
     dirt(d, -5.0, 3.6, 7.0, 3.0, kind="oil_patch")     # 作業台と万力の前
     dirt(d, 6.0, 4.9, 5.0, 2.2, kind="oil_patch")      # 旋盤の前
@@ -864,6 +880,7 @@ def guild(room):
     d.snug("barrel", 0, x0=-11.02, z0=-7.98)
     d.snug("cc0/plank_box", 90, x1=11.98, z0=-0.6)
     d.snug("junk_pile", 0, x1=11.98, z1=7.98)
+    d.snug("junk_goods", 90, x0=-11.98, z0=2.3)           # 持ち込まれた回収品の陳列箱（W2-05b の 09）
     for x in (-3.0, 3.0):
         d.snug("planter", 0, x=x, z0=-7.98)
     dirt(d, 0.0, -6.6, 4.0, 2.4)            # 入口（泥の足跡）
@@ -882,8 +899,8 @@ def mayor(room):
     # 鉢植え（四隅と窓の間）、腰掛け（ベンチ 2 つを向かい合わせ）、収納箱
     d.snug("planter_big", 0, x1=6.98, z1=5.98)
     d.snug("planter_big", 0, x0=-6.98, z1=5.98)
-    d.snug("planter", 0, x1=6.98, z0=-5.98)
-    d.snug("planter", 0, x0=-6.98, z0=-5.98)
+    d.snug("pot_shrub", 0, x1=6.98, z0=-5.98)             # W2-05b の鉢植え（低木・つる。同じ鉢・同じ当たり判定）
+    d.snug("pot_vine", 0, x0=-6.98, z0=-5.98)
     d.snug("planter", 0, x1=6.98, z=1.3)
     d.snug("bench", 270, x1=6.0, z=-2.6)
     d.snug("chest", 0, x0=3.6, z1=5.98)
