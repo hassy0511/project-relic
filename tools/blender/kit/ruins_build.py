@@ -1,6 +1,6 @@
 """遺構 B2〜B4 のキットの部品（GLB）と、どの階層でも使う汚れのしみの部品を作る（B1 は build.py）。何度流しても同じものができる。
 
-  .venv-blender/bin/python tools/blender/kit/ruins_build.py                    全部（ruins_b2・ruins_b3・ruins_b4・ruins_stain）
+  .venv-blender/bin/python tools/blender/kit/ruins_build.py                    全部（ruins_b2・ruins_b3・ruins_b4・ruins_stain・ruins_clutter）
   .venv-blender/bin/python tools/blender/kit/ruins_build.py --kits=ruins_b2    キットを選んで
   .venv-blender/bin/python tools/blender/kit/ruins_build.py --only b2_wall,b2_pipe   部品を選んで（一覧の GLB は作らない）
 
@@ -23,6 +23,7 @@ import build  # noqa: E402
 import ruins_b2  # noqa: E402
 import ruins_b3  # noqa: E402
 import ruins_b4  # noqa: E402
+import ruins_clutter  # noqa: E402
 import ruins_common  # noqa: E402
 
 KITS = {
@@ -30,6 +31,7 @@ KITS = {
     'ruins_b3': ('ruins', ruins_b3.PARTS),
     'ruins_b4': ('ruins', ruins_b4.PARTS),
     'ruins_stain': ('ruins', ruins_common.PARTS),
+    'ruins_clutter': ('ruins', ruins_clutter.PARTS),      # W2-06b の散らかりの残り 12 点（2026-10-17）
 }
 
 

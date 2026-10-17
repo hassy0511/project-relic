@@ -189,8 +189,8 @@ def r04(room):
         d.put("b1_sand", pos, yaw, scale=[sc, 1.0, sc])
     for pos, yaw in (((-9.6, 0, -6.5), 30), ((9.4, 0, -6.0), -50), ((-2.6, 0, 4.4), 120)):
         d.put("b1_debris", pos, yaw, solid=True)
-    d.put("b1_cables", [8.6, 0, -2.6], 70)
-    d.put("b1_cables", [9.4, 0, 0.6], 95)
+    d.put("cable_floor", [8.6, 0, -2.6], 70)
+    d.put("cable_floor", [9.4, 0, 0.6], 95)
     # 砂の吹きだまり（隅と西の壁ぎわ。W2-06b の 01・02）と、ファンの横に落ちた管
     for x, z, yaw in ((-X, -Z, 0), (-X, 9.2, 90), (X, 9.2, 180)):
         d.put("sand_corner", [x, 0, z], yaw)
@@ -202,6 +202,12 @@ def r04(room):
     d.put_any("town/hand_lantern", [11.47, 1.0, -11.47], solid=True)
     d.snug("b1_crate", 0, x1=W, z0=-W + 1.06)
     d.snug("town/stool", 0, x1=W - 1.08, z0=-W)
+    # W2-06b の散らかり（2026-10-17）：戸口の砂、床の薄い砂、上の段の壁の赤い非常灯（1 つは消えている）
+    d.at_wall("s", -Z, 0.0, "sand_door", scale=[1.15, 1.0, 1.0])
+    for pos, yaw, sc in (((-6.0, 0, -8.6), 30, 1.3), ((5.4, 0, -8.2), -20, 1.0), ((-7.6, 0, 5.6), 80, 0.9)):
+        d.put("sand_floor", pos, yaw, scale=[sc, 1.0, sc])
+    for side, plane, a, part in (("w", -X, -2.0, "lamp_red"), ("w", -X, 6.0, "lamp_red_off"), ("s", -Z, -4.0, "lamp_red"), ("s", -Z, 4.0, "lamp_red")):
+        d.at_wall(side, plane, a, part, y=5.6)
     grime(d, corners_at=[(-X, -Z, 0), (X, -Z, 270), (-X, 9.2, 90), (X, 9.2, 180)],
           doors_at=[(0.0, -10.6, 0), (0.0, 8.0, 0)], path=[(0.0, -9.0), (0.0, 7.6)],
           spots=[(9.6, 0.0, 90, 1.3), (-7.0, 4.4, 0, 0.8), (7.0, 4.4, 0, 0.8)])
@@ -239,7 +245,7 @@ def r05(room):
     # 崩れる床のまわり：注意の灯の柱（崩れる所の外）と、床を這うケーブル
     for x, z in ((-4.7, -0.7), (4.7, -0.7), (-4.7, 6.7), (4.7, 6.7)):
         d.put("b1_post_lamp", [x, 0, z], solid=True)
-    d.put("b1_cables", [-6.4, 0, 2.0], 90)
+    d.put("cable_floor", [-6.4, 0, 2.0], 90)
     # 砂の吹きだまり（四隅と、崩れた通路の両脇）と、北の壁から外れて倒れた外装の板
     for (x, z), yaw in (((-X, -Z), 0), ((-X, Z), 90), ((X, Z), 180), ((X, -Z), 270)):
         d.put("sand_corner", [x, 0, z], yaw)
@@ -263,8 +269,16 @@ def r05(room):
         d.put("b1_sand", pos, yaw, scale=[sc, 1.0, sc])
     # 生活感の小物：崩れる前に置かれた立入禁止の札代わりの箱（西の壁ぎわ）
     W = X - 0.38
-    d.snug("b1_crate_cloth", 90, x0=-W, z=-6.2)
+    d.snug("tarp_crate", 90, x0=-W, z=-6.2)
     d.snug("cc0/cask", 0, x0=-W, z1=-6.82 - 0.02)
+    # W2-06b の散らかり（2026-10-17）：戸口の砂、崩れた通路の上の天井からの落砂、床の薄い砂（崩れる床の外）、
+    # 西の壁ぎわの砂袋の囲い（崩れる床の立入禁止。崩れる所・灯の柱から 4 m 離す）、北の壁ぎわに外れて曲がった手すりと格子
+    d.at_wall("s", -Z, 0.0, "sand_door", scale=[1.15, 1.0, 1.0])
+    d.put("sand_fall", [-6.4, 0, 9.2], 0)                 # 崩れた通路の西の脇（真ん中の向きのカメラの前を空ける）
+    for pos, yaw, sc in (((-7.4, 0, -7.0), 20, 1.1), ((7.6, 0, -6.6), -40, 1.0)):
+        d.put("sand_floor", pos, yaw, scale=[sc, 1.0, sc])
+    d.snug("barricade", 90, x0=-W, z=2.0)
+    d.snug("rail_bent", 180, x=7.0, z1=W)
     grime(d, corners_at=[(-X, -Z, 0), (X, -Z, 270), (-X, Z, 90), (X, Z, 180)], doors_at=[(0.0, -10.6, 0)],
           path=[(0.0, -9.0), (0.0, 1.0)], spots=[(0.0, 8.0, 0, 1.4), (-2.5, 3.5, 30, 1.0), (2.8, 2.2, -20, 0.9)])
     room["kit"] = KITS[k]["kit"]
@@ -347,8 +361,16 @@ def r06(room):
     d.put("sand_corner", [-X, 0, -Z], 0)
     d.put("sand_corner", [X, 0, -Z], 270)
     # 生活感の小物：落ちてきた荷（B1 の回収の箱が一緒に落ちた）。宝箱（-8, 11）から 0.5 m 以上
-    d.snug("b1_crate_cloth", 30 - 30, x=6.6, z=-10.6)
-    d.put("b1_cables", [5.2, 0, -8.2], 40)
+    d.snug("tarp_crate", 30 - 30, x=6.6, z=-10.6)
+    d.put("cable_floor", [5.2, 0, -8.2], 40)
+    # W2-06b の散らかり（2026-10-17）：天井の穴の縁から落ちる砂（落ちてきた所。山は当たり判定なし）、南の壁の蒸気口と蒸気、
+    # 南の壁の上の段の垂れたケーブル（1 本は切れて垂れる）
+    d.put("sand_stream", [1.4, 0, -10.6], 0, scale=[1.0, 0.875, 1.0])
+    for a in (-6.0, 6.0):
+        d.at_wall("s", -Z, a, "steam_vent", y=1.6)
+        d.put("b2_steam", [a, 1.6, -Z + 0.36], rot=[-90, 0, 0], shadow=False, scale=[0.7, 0.7, 0.7])
+    d.at_wall("s", -Z, -2.0, "cable_hang", y=6.2)
+    d.at_wall("s", -Z, 2.2, "cable_hang_cut", y=6.2)
     grime(d, corners_at=[(-X, -Z, 0), (X, -Z, 270), (-X, Z, 90), (X, Z, 180)], doors_at=[(0.0, 13.6, 0)],
           path=[(0.0, -10.0), (0.0, 12.0)], spots=[(-9.0, 2.0, 90, 1.2), (9.0, -8.0, 90, 1.1)])
     room["kit"] = KITS[k]["kit"]
@@ -474,8 +496,8 @@ def r09(room):
     # 崩れた白磁のかけら（隅）と、壁ぎわを這うケーブル
     d.put("b1_debris", [-8.5, 0, 7.4], 110, solid=True)
     d.snug("pipe_broken", 0, x1=X - 0.38, z0=-(Z - 0.38))
-    d.put("b1_cables", [-9.3, 0, -4.0], 90)
-    d.put("b1_cables", [9.3, 0, 1.0], 270)
+    d.put("cable_floor", [-9.3, 0, -4.0], 90)
+    d.put("cable_floor", [9.3, 0, 1.0], 270)
     grime(d, corners_at=[(-X, -Z, 0), (X, -Z, 270), (-X, 9.2, 90), (X, 9.2, 180)], doors_at=[(0.0, -10.6, 0), (0.0, 8.0, 0)],
           path=[(0.0, -9.0), (0.0, -3.4), (-2.6, 1.4), (0.0, 7.6)], spots=[(-5.0, -0.4, 0, 0.9), (5.0, 6.6, 0, 0.9), (0.0, 3.1, 0, 0.8)])
     room["kit"] = KITS[k]["kit"]
@@ -511,8 +533,8 @@ def r10(room):
     for x in (-6.0, 6.0):
         d.put("b2_valve", [x, 1.2, -0.8], 180, solid=True)
     d.row("b2_drain", [-6.0, 0, -9.6], [4.0, 0, 0], 4)
-    d.put("b1_cables", [-6.0, 0, -1.6], 0)
-    d.put("b1_cables", [6.0, 0, -1.6], 180)
+    d.put("cable_floor", [-6.0, 0, -1.6], 0)
+    d.put("cable_floor", [6.0, 0, -1.6], 180)
     for pos, yaw in (((-3.4, 0, -3.0), 20), ((5.2, 0, 4.6), -40)):
         d.put("b2_puddle", pos, yaw, scale=[0.8, 1.0, 0.8])
     for x, z in ((-8.0, -4.0), (8.0, -4.0)):
@@ -653,7 +675,7 @@ def r12(room):
     # 動力の球の台座と、台座から壁へのケーブル
     for x in (-5.0, 5.0):
         d.put("b3_orb_base", [x, 0, -17.0], solid=True)
-        d.put("b1_cables", [x * 1.36, 0, -18.1], 0 if x < 0 else 180, scale=[0.8, 1.0, 1.0])
+        d.put("cable_floor", [x * 1.36, 0, -18.1], 0 if x < 0 else 180, scale=[0.8, 1.0, 1.0])
     # 近道のエレベーターの扉（形 3 の西の面）
     d.at_wall("e", 7.4, -14.0, "b3_door", scale=[2.0, 1.0, 1.0])
     d.at_wall("e", 7.4, -16.3, "b1_redlight", y=2.4, off=0.05)
@@ -705,7 +727,12 @@ def r13(room):
     d.snug("cc0/cask", 0, x0=6.14, z0=-(Z - 0.38))
     d.snug("town/chest", 0, x0=6.88, z0=-(Z - 0.38))
     d.put_any("town/hand_lantern", [7.6, 1.0, -14.4], solid=True)
-    d.put("b1_cables", [4.6, 0, -13.2], 20)
+    d.put("cable_floor", [4.6, 0, -13.2], 20)
+    # W2-06b の散らかり（2026-10-17）：回収屋の道具一式（樽の西に寄せる）、東西の壁の上の段の垂れたケーブル（届かない高さ）
+    d.snug("salvager_kit", 0, x1=5.38, z0=-(Z - 0.38))
+    for side, plane in (("w", -X), ("e", X)):
+        d.at_wall(side, plane, -6.0, "cable_hang", y=9.6, off=0.3)
+        d.at_wall(side, plane, 6.0, "cable_hang", y=9.4, off=0.3)
     grime(d, corners_at=[(-X, -Z, 0), (X, -Z, 270), (-X, Z, 90), (X, Z, 180)], doors_at=[(0.0, -13.6, 0), (0.0, 13.6, 0)],
           path=[(0.0, -12.0), (0.0, 0.0), (-5.5, 5.0)], spots=[(-7.0, -1.8, 0, 1.0), (7.0, -1.8, 0, 1.0), (5.5, 3.0, 0, 1.1), (6.4, -13.0, 0, 0.9)])
     room["kit"] = KITS[k]["kit"]
@@ -733,11 +760,14 @@ def r14(room):
     beams(d, k, -X, X, 6.0, (-2.0, 2.0))
     # 昔の回収屋の野営（北西の角）：布の箱・樽・携行灯・ケーブル（宝箱（-3.5, -3.5）から 0.5 m 以上）
     W = X - 0.38
-    d.snug("b1_crate_cloth", 0, x0=-W, z1=W)
-    d.snug("town/sacks", 0, x0=-W + 1.18, z1=W)
+    d.snug("tarp_crate", 0, x0=-W, z1=W)
+    d.snug("town/goods_sacks", 0, x0=-W + 1.18, z1=W)
     d.snug("cc0/cask", 0, x1=W, z1=W)
     d.put_any("town/hand_lantern", [-4.47, 1.04, 4.47], solid=True)
-    d.put("b1_cables", [-1.6, 0, 3.4], 10)
+    d.put("cable_floor", [-1.6, 0, 3.4], 10)
+    # W2-06b の散らかり（2026-10-17）：回収屋の道具一式（麻袋の東）と、南の壁ぎわの砂袋の囲い（野営の守り。宝箱から 2 m 以上）
+    d.snug("salvager_kit", 180, x0=-W + 2.36, z1=W)
+    d.snug("barricade", 0, x=0.6, z0=-W)
     grime(d, corners_at=[(-X, -Z, 0), (X, -Z, 270), (-X, Z, 90), (X, Z, 180)], doors_at=[(3.4, 0.0, 90)])
     room["kit"] = KITS[k]["kit"]
     room["dress"] = d.items
@@ -769,9 +799,9 @@ def r15(room):
         d.at_wall(side, plane, -6.0, "stain_soot", y=4.0, scale=[1.0, 0.8, 1.0])
     # 生活感の小物：北西の角に、前に通った一団の箱と樽（足場の下の通り道・宝箱から離す）
     W = X - 0.38
-    d.snug("b1_crate_cloth", 0, x0=-W, z1=W)
+    d.snug("tarp_crate", 0, x0=-W, z1=W)
     d.snug("cc0/cask", 0, x0=-W + 1.18, z1=W)
-    d.put("b1_cables", [-6.6, 0, 10.6], 10)
+    d.put("cable_floor", [-6.6, 0, 10.6], 10)
     grime(d, corners_at=[(-X, -Z, 0), (X, -Z, 270), (-X, Z, 90), (X, Z, 180)], doors_at=[(0.0, -10.6, 0), (0.0, 10.6, 0)],
           path=[(0.0, -9.0), (-3.0, -3.6), (-3.0, 3.6), (0.0, 9.0)], spots=[(0.0, 8.2, 0, 0.9), (0.0, -7.2, 0, 0.9), (8.6, 10.0, 90, 0.8)])
     room["kit"] = KITS[k]["kit"]
@@ -816,7 +846,7 @@ def r16(room):
     d.put("panel_fallen", [-4.5, 0, Z - 0.38 - 0.02 - 0.95], 180, solid=True)
     d.at_wall("n", Z, 3.6, "stain_soot", y=0.0, scale=[1.2, 1.0, 1.0])
     d.at_wall("e", X, 2.0, "stain_soot", y=0.0)
-    d.put("b1_cables", [4.6, 0, -1.4], 90)
+    d.put("cable_floor", [4.6, 0, -1.4], 90)
     grime(d, corners_at=[(-X, Z, 90), (X, Z, 180)], doors_at=[(0.0, 4.6, 0)],
           spots=[(0.0, 0.4, 0, 1.2)])
     d.put("stain_floor", [0.0, 20.0, -4.0], 0, scale=[1.2, 1.0, 1.0])
@@ -850,6 +880,7 @@ def r17(room):
     W = X - 0.38
     d.snug("town/chest", 0, x1=2.0, z1=W)
     d.snug("b1_crate", 0, x1=0.9, z1=W)
+    d.snug("salvager_kit", 180, x0=2.02, z1=W)            # W2-06b の回収屋の道具一式（2026-10-17。背負い枠を壁の側に）
     grime(d, corners_at=[(-X, -Z, 0), (X, -Z, 270), (-X, Z, 90), (X, Z, 180)], doors_at=[(4.6, 3.0, 90), (-4.0, -3.0, 90)],
           path=[(3.6, 3.0), (0.4, -2.8)])
     room["kit"] = KITS[k]["kit"]
@@ -885,7 +916,7 @@ def r18(room):
     d.put("b1_debris", [-8.6, 0, -10.6], 25, solid=True)
     # 診断の台（形 3・4）から壁の柱へ這うケーブル（古い整備の跡）
     for pos, yaw in (((-3.4, 0, 0.6), 10), ((3.4, 0, -0.4), 190), ((-6.2, 0, 1.4), 20)):
-        d.put("b1_cables", pos, yaw)
+        d.put("cable_floor", pos, yaw)
     grime(d, corners_at=[(-X, -Z, 0), (X, -Z, 270), (-X, 9.3, 90), (X, 9.3, 180)], doors_at=[(0.0, -10.6, 0), (0.0, 8.0, 0)],
           path=[(0.0, -9.0), (0.0, -2.6), (0.0, 7.6)], spots=[(-5.0, 4.4, 0, 0.8)])
     room["kit"] = KITS[k]["kit"]

@@ -951,6 +951,7 @@ def r01(room):
         run(side, plane, -9.0, 9.0, y=4.0, plain=True)
         axis, yaw = R01_SIDES[side]
         d.put("ruins/b1_door", [0, 0, plane], yaw, scale=[3.0, 1.0, 1.0], solid=True)
+        d.put("ruins/sand_door", [0, 0, plane], yaw, scale=[1.6, 1.0, 1.0])     # 戸口の砂（W2-06b の 03。真ん中の通り道は低い）
         for x in (-3.5, 3.5):
             d.put("ruins/b1_pillar", [x, 0, plane + (0.36 if side == "s" else -0.36)], 0, scale=[0.8, 1.0, 0.8], solid=True)
     for (x, z), yaw in (((-X, -Z), 0), ((-X, Z), 90), ((X, Z), 180), ((X, -Z), 270)):
@@ -976,11 +977,11 @@ def r01(room):
         d.put("ruins/b1_grate", [plane + (0.5 if side == "w" else -0.5), 0, -8.0], yaw, count=3, step=[0, 0, 2.0])
     # ニコの隠れた北東の隅：木箱と布の箱、床の携行灯（ニコの明かり）、ケーブル
     W = X - 0.38
-    d.snug("ruins/b1_crate_cloth", 0, x1=W, z1=Z - 0.38)
+    d.snug("ruins/tarp_crate", 0, x1=W, z1=Z - 0.38)      # 布をかけた木箱（W2-06b の 14。前の布の箱と同じ箱）
     d.snug("ruins/b1_crate", 0, x1=W, z1=12.44)
     d.snug("town/crate", 3, y=1.04, x1=W - 0.06, z1=Z - 0.44, scale=0.8)
     d.put("town/hand_lantern", [6.6, 0, 8.3], solid=True)
-    d.put("ruins/b1_cables", [7.2, 0, 6.0], 80)
+    d.put("ruins/cable_floor", [7.2, 0, 6.0], 80)          # 床のケーブルの束（W2-06b の 07。前の b1_cables と同じ所）
     # 南西の隅：町から持ち込んだ物（禁足扉の見張りの名残）
     d.snug("town/crate", 0, x0=-W, z0=-Z + 0.38)
     d.snug("town/barrel", 0, x0=-W + 0.96, z0=-Z + 0.38)
