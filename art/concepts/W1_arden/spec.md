@@ -62,3 +62,12 @@ hexは3Dで採用する基準値。絵の弱い面の明暗と補間によって
 ## 発注書との差と確認範囲
 
 W0の長衣は金の縦帯が主で、古代技術の光線ははっきり見えない。今回も衣装全体の光線を追加せず、虹彩の青緑輪だけを先史の発光記号とした。3D変換時に細い光線がにじむのを避け、W0の白金・真鍮の構造を優先したため。ターンアラウンドの水平線は画像生成による細い補助線であり、厳密なCAD寸法線ではない。画像は同一3Dメッシュの回転レンダーではないため、細かな髪房と布の投影差は `spec_arden_3d.md` の部品定義を優先する。
+
+
+## 修正履歴（2026-10-06）
+
+- 画像生成機能で `arden_head_r2.png`、`arden_turnaround_r2.png`、`arden_vs_haru_r2.png`、`arden_face_normal_r2.png`、`arden_face_smile_r2.png`、`arden_face_cold_r2.png`、`arden_face_shaken_r2.png`、`arden_face_grief_r2.png`、`arden_face_resolve_r2.png` を追加した。元の画像は残した。
+- 顔は目をやや細くし、頬骨・顎と控えめなまぶた・口元の線で40代の静かな威厳を示した。白金色の髪は横分けで後ろへ整えた大きな房にし、ハルと紛らわしい跳ね毛をなくした。虹彩は深灰 `#40484C`、輪はグローのない青緑 `#91D5D8` を基準にした。
+- 全身と会話アイコンの頭部を合わせ、白金の髪と白金色の長衣・金の帯の対比を維持した。Haru比較図ではハル155cmとアルデン185cmの足裏基準を維持した。
+- 類似チェックを再実施：[FFVII公式](https://na.finalfantasy.com/titles/finalfantasy7)、[キングダムハーツ公式マニュアル](https://www.kingdomhearts.com/kh25manual/kingdom_hearts_25_manual_us.pdf)、[ロックマンX公式](https://megaman.capcom.com/mmxlc.html)、[メトロイド公式](https://metroid.nintendo.com/dread/)、[ゼルダ公式ガイド](https://zelda.nintendo.com/breath-of-the-wild/assets/pdfs/ExplorersGuide.pdf)。銀の長髪＋黒衣、巨大剣、腕砲、青発光の石製機械は採用していない。初版の跳ねた髪を平滑な横分け短髪へ直し、既存の著名キャラに近い髪型と衣装の組み合わせを避けた。
+- 上記は造形上の目視確認であり、権利上の保証ではない。顔と衣装の形・色は画像生成による再描画、納品サイズへの拡大縮小のみ画像処理した。
