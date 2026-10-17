@@ -208,6 +208,10 @@ def r04(room):
         d.put("sand_floor", pos, yaw, scale=[sc, 1.0, sc])
     for side, plane, a, part in (("w", -X, -2.0, "lamp_red"), ("w", -X, 6.0, "lamp_red_off"), ("s", -Z, -4.0, "lamp_red"), ("s", -Z, 4.0, "lamp_red")):
         d.at_wall(side, plane, a, part, y=5.6)
+    # 南西の角：回収屋が置いていった荷（布をかけた木箱の積み重ね・道具一式）と、その前の砂袋の囲い。角の柱（0.5 m 角）の先から並べる
+    d.snug("tarp_crate_stack", 90, x0=-W, z0=-11.48)
+    d.snug("salvager_kit", 90, x0=-W, z0=-11.48 + 2.1)
+    d.snug("barricade", 90, x0=-W + 1.14, z0=-W)
     grime(d, corners_at=[(-X, -Z, 0), (X, -Z, 270), (-X, 9.2, 90), (X, 9.2, 180)],
           doors_at=[(0.0, -10.6, 0), (0.0, 8.0, 0)], path=[(0.0, -9.0), (0.0, 7.6)],
           spots=[(9.6, 0.0, 90, 1.3), (-7.0, 4.4, 0, 0.8), (7.0, 4.4, 0, 0.8)])

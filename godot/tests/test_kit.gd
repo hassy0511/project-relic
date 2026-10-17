@@ -322,7 +322,11 @@ func test_fall_camera_not_on_gap_jump() -> void:
 const SOLID_CLASS := ["ruins/b1_crate", "ruins/b1_crate_cloth", "town/crate", "town/barrel", "town/chest", "town/planter", "town/planter_big",
 	"town/bench", "town/stall_table", "town/junk_pile", "town/tool_rack", "town/water_tower", "town/pipes",
 	"town/lamp_post", "town/lamp_tall", "town/tank", "town/stool", "town/pipe_bend", "town/bollard", "ruins/b1_post_lamp",
-	"town/sacks", "cc0/cask", "cc0/plank_box"]
+	"town/sacks", "cc0/cask", "cc0/plank_box",
+	# W2-05b・W2-06b の小物（2026-10-17。麻袋・布の箱の差し替えと、足した物）
+	"town/goods_sacks", "town/diner_table", "town/sign_stand", "town/toy_banki", "town/laundry_basket", "town/goods_basket",
+	"town/junk_goods", "town/pot_succulent", "town/pot_shrub", "town/pot_vine",
+	"ruins/tarp_crate", "ruins/tarp_crate_stack", "ruins/salvager_kit", "ruins/barricade", "ruins/rail_bent"]
 ## 飾りのある部屋（キットの部屋）。遺構の r04〜r20（2026-10-15、tools/dress_ruins_deep.py）は当たり判定の箱のある部屋だけ
 ## （追跡通路 r07 と心臓部 r19 は、すき間・ボスの戦いの場を変えないよう、当たり判定のある飾りを置かない）
 const DRESSED := ["ch1.r02", "ch1.r03", "ch1.mid", "ch1.r04", "ch1.r05", "ch1.r06", "ch1.r08", "ch1.r09", "ch1.r10", "ch1.r11",
