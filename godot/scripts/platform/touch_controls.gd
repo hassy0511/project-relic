@@ -108,7 +108,9 @@ func _release_all() -> void:
 	_held.clear()
 	_stick_finger = -1
 	_look_finger = -1
+	# 隠したとき（ポーズ・店の画面など）は、まだ渡していない会話のタップも捨てる（戻ったときに勝手に送らない）
 	_tap_finger = -1
+	_tap = -2
 	move = Vector2.ZERO
 
 
