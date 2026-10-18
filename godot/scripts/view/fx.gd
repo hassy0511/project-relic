@@ -339,24 +339,37 @@ func _sync_shots(game: GameSim) -> void:
 			_shots.erase(s)
 
 
+## ハルの弾は中身の銃口（Player.muzzle：体の向きで決まる近似）から出るが、見た目は持っている銃（練習銃・スパーク）の
+## 銃口の目印から出す：撃った所の差（off）を、弾が SHOT_BLEND m 進む間に 0 へ減らす（当たり判定は中身のまま）。
+## 差が SHOT_OFF_MAX より大きいとき（銃口が壁の中で胸から撃った）は寄せない
+const SHOT_BLEND := 2.5
+const SHOT_OFF_MAX := 0.6
+
+
 func _new_shot(game: GameSim, s) -> Dictionary:
 	var style: String = s.kind
 	var bs = game.boss
 	if not s.from_player and bs != null and bs.alive and bs.state == "volley" and s.origin.distance_to(bs.axis_center()) < 8.0:
 		style = "debris"
 	var d: Vector3 = s.vel.normalized()
+	var off := Vector3.ZERO
+	if s.from_player:
+		var m := _muzzle_pos(game.player)
+		if m.distance_to(s.origin) < SHOT_OFF_MAX:
+			off = m - s.origin
 	match style:
 		"normal":
-			_muzzle(s.origin, d, AMBER, 0.75, 0.25)
+			_muzzle(s.origin + off, d, AMBER, 0.75, 0.25)
 		"charge1", "charge2":
-			_charge_release(s.origin, d, 2 if style == "charge2" else 1)
+			_charge_release(s.origin + off, d, 2 if style == "charge2" else 1)
 		"enemy":
 			_muzzle(s.origin, d, CORAL, 0.75, 0.25)
 		"debris":
 			_flash(Vfx.GRAIN, s.origin, 0.8, 1.6, 0.18, _c(CORAL, 0.6))
 			for i in 3:
 				_shard(Vfx.SHARD, s.origin, _cone(d + Vector3.UP * 0.5, 0.6) * _rng.randf_range(3, 6), 0.6, _rng.randf_range(0.12, 0.25), Color(ROCK, 1.0))
-	return {"style": style, "ground": s.origin.y - Player.CHEST, "rot": _rng.randf() * TAU, "spin": _rng.randf_range(-9.0, 9.0), "rad": _rng.randf_range(0.3, 0.8)}
+	return {"style": style, "ground": s.origin.y - Player.CHEST, "rot": _rng.randf() * TAU, "spin": _rng.randf_range(-9.0, 9.0), "rad": _rng.randf_range(0.3, 0.8),
+		"off": off}
 
 
 ## 銃口の光：小さな星と、前へ散る火花 2 つ（見本 shot_rapid：0.25 m、0→0.75→0.25→0、0.14 秒）
@@ -379,11 +392,13 @@ func _charge_release(at: Vector3, d: Vector3, lv: int) -> void:
 
 func _draw_shot(s, info: Dictionary) -> void:
 	var d: Vector3 = s.vel.normalized()
-	var p: Vector3 = s.pos
+	# 見た目の位置：銃口の目印から出て、SHOT_BLEND m で中身の位置に重なる（_new_shot）。尾は銃口より後ろへ伸ばさない
+	var gone: float = s.pos.distance_to(s.origin)
+	var p: Vector3 = s.pos + info.get("off", Vector3.ZERO) * clampf(1.0 - gone / SHOT_BLEND, 0.0, 1.0)
 	match info.style:
 		"normal":
-			vfx.streak(Vfx.DOT, p - d * 0.4, p + d * 0.05, 0.11, Color(AMBER, 0.95))
-			vfx.streak(Vfx.GRAIN, p - d * 0.9, p + d * 0.08, 0.26, _c(AMBER, 0.75))
+			vfx.streak(Vfx.DOT, p - d * minf(0.4, gone), p + d * 0.05, 0.11, Color(AMBER, 0.95))
+			vfx.streak(Vfx.GRAIN, p - d * minf(0.9, gone), p + d * 0.08, 0.26, _c(AMBER, 0.75))
 			vfx.sprite(Vfx.GRAIN, p, 0.18, _c(PALE, 0.55))
 		"charge1":
 			vfx.streak(Vfx.SOFT, p - d * 1.0, p + d * 0.12, 0.3, Color(AMBER, 0.8))

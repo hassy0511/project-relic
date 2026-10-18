@@ -255,6 +255,90 @@ func test_abilities_implied_by_later_flags() -> void:
 	h.free_game(g)
 
 
+## 銃の見た目（W2-07b）：スパークを受け取るまでは練習銃、受け取った刻みでスパーク。新しく始めた・フラグつきで部屋から
+## 始めた・セーブから再開した、のどれも PlayerView.sync_gun（main.gd が毎刻み呼ぶ）で決まる。練習銃はスパークと同じ
+## 置き場所（握り）で右手に付き、銃口の目印（Fx の溜めの光）も持っている銃の銃口になる
+func test_practice_gun_until_spark() -> void:
+	var v := PlayerView.new()
+	h.tree.root.add_child(v)
+	v.load_model("res://assets/models/haru_r.glb")
+	h.expect(v.practice_gun != null and v.practice_muzzle != null and v.spark_muzzle != null, "haru_r に練習銃が付く")
+	await h.tree.process_frame
+	await h.tree.process_frame
+	if v.practice_gun == null:
+		v.free()
+		return
+	# 置き場所：スパークの銃口の目印は、練習銃と同じ手の座標で、スパークの銃口（銃の座標 x 25.4cm・上 7.2cm）にある
+	var spark_tip := v.practice_gun.global_transform * Vector3(0.254, 0.072, 0.0)
+	h.expect(spark_tip.distance_to(v.spark_muzzle.global_position) < 0.003,
+		"練習銃はスパークと同じ所に握られる（ずれ %.1f mm）" % (spark_tip.distance_to(v.spark_muzzle.global_position) * 1000.0))
+	var g := _new_game()
+	await h.settle()
+	g.set_flag("trigger.ch1.training.start")
+	g.load_room("ch1.training", "start")
+	await _pump(g, 3)
+	v.sync_gun(g)
+	var spark_mi: MeshInstance3D = v._spark_surfaces[0][0]
+	var spark_s: int = v._spark_surfaces[0][1]
+	h.expect(v.gun == "practice" and v.practice_gun.visible and v.muzzle == v.practice_muzzle, "訓練場（スパークの前）は練習銃")
+	h.expect(spark_mi.get_surface_override_material(spark_s) == v._hidden_mat, "スパークの面は隠れる")
+	# 練習銃の銃口は、スパークより約 5cm 手前
+	var d := v.spark_muzzle.global_position.distance_to(v.practice_muzzle.global_position)
+	h.between(d, 0.04, 0.07, "練習銃の銃口はスパークの銃口より手前（%.1f cm）" % (d * 100.0))
+	var shot_practice := g.player.muzzle(0.0)
+	# 被弾の点滅の処理のあとも、持っていない方の銃は見えない
+	g.player.invuln = 0.5
+	for i in 4:
+		v.sync(g.player, g, 1.0 / 60.0, Vector3.FORWARD)
+	h.expect(v.practice_gun.visible and spark_mi.get_surface_override_material(spark_s) == v._hidden_mat, "点滅のあとも練習銃のまま")
+	# ヤーナから受け取る（ch1.got_spark が立った刻み）
+	g.set_flag("ch1.got_spark")
+	v.sync_gun(g)
+	h.expect(v.gun == "spark" and not v.practice_gun.visible and v.muzzle == v.spark_muzzle, "受け取るとスパークに持ち替える")
+	h.expect(spark_mi.get_surface_override_material(spark_s) == v._spark_surfaces[0][2], "スパークの面が戻る")
+	# 弾の出る所（中身の銃口）も、練習銃では見た目の銃口と同じだけ手前
+	var shot_spark := g.player.muzzle(0.0)
+	h.near((shot_spark - shot_practice).dot(U.yaw_to_dir(0.0)), Player.PRACTICE_MUZZLE_BACK, 0.001,
+		"弾の出る所：スパークは練習銃より %.0f cm 前" % (Player.PRACTICE_MUZZLE_BACK * 100.0))
+	for i in 4:
+		v.sync(g.player, g, 1.0 / 60.0, Vector3.FORWARD)
+	h.expect(not v.practice_gun.visible, "点滅のあとも練習銃は隠れたまま")
+	# セーブから再開：受け取った後のセーブはスパーク、前のセーブは練習銃
+	for got in [true, false]:
+		g.set_flag("ch1.got_spark", got)
+		var parsed = GameSim.parse_save(JSON.stringify(g.to_save("ch1")))
+		var g2 := GameSim.new()
+		var vp := SubViewport.new()
+		vp.own_world_3d = true
+		vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		h.tree.root.add_child(vp)
+		vp.add_child(g2)
+		g2.setup({"world": World.load_manifest("res://content/world.json"), "tuning": TestHelpers.default_tuning(), "seed": 1,
+			"save": parsed})
+		await h.settle()
+		v.sync_gun(g2)
+		h.expect(v.gun == ("spark" if got else "practice"), "セーブから再開（%s）：%s" % ["受け取った後" if got else "受け取る前", v.gun])
+		h.free_game(g2)
+	# 後のフラグだけ立てて部屋から始める（確認用の URL）・見本の部屋はスパーク
+	g.load_room("ch1.r13")
+	g.set_flag("ch1.drive_powered")
+	v.sync_gun(g)
+	h.expect(v.gun == "spark", "駆動回廊のフラグで部屋から始めるとスパーク")
+	g.set_flag("ch1.drive_powered", false)
+	g.load_room("sample.hub")
+	v.sync_gun(g)
+	h.expect(v.gun == "spark", "見本の部屋はスパーク")
+	h.free_game(g)
+	v.free()
+	# 練習銃の無いモデル（仮のモデル）は何もしない
+	var p := PlayerView.new()
+	h.tree.root.add_child(p)
+	p.load_model("res://assets/models/haru_proxy.glb")
+	p.set_gun(false)
+	h.expect(p.practice_gun == null and p.gun == "spark", "仮のモデルはスパークのまま")
+	p.free()
+
+
 ## 換気室（子番機 2 体）に、ハルが +Z（子番機の方）を向いて立ち、カメラは 90° 横を向いた状態にする
 func _r04_facing_minis(fitted: bool) -> GameSim:
 	var g := _new_game()

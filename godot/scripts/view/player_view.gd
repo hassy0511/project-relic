@@ -34,6 +34,22 @@ var _frame_state := Vector3i(-1, -1, -1)
 var _frame_off := {}
 ## 付いたばかりで、まだ隠しているフレームの部品（群の名前 → 残りの秒数）
 var _reveal := {}
+## 主武器の見た目：スパークを受け取る前は練習銃（W2-07b、practice_gun.glb）。haru_r のスパークは体のメッシュの
+## 面（材質 spark_gun）なので、練習銃を見せる間はその面だけ透明な材質に替える。練習銃は右手の骨 hand.R に、
+## スパークと同じ置き場所（握りの中心・向き）で付ける。muzzle（Fx の溜めの光の位置）も持っている銃の銃口にする
+const PRACTICE_GUN_PATH := "res://assets/models/practice_gun.glb"
+## 右手の手首（hand.R の元）の、銃の座標での位置（tools/blender/models/ai_character.py の HAND_WRIST_IN_GUN と同じ）。
+## 銃の座標（Blender）：銃身 +X、上 +Z、+Y = 掌の側。手の骨の向きが銃身、体の内側（+X）が掌の側
+const HAND_WRIST_IN_GUN := Vector3(-0.062, -0.040, -0.010)
+## 銃の GLB（glTF の座標：銃身 +X、上 +Y）→ Blender の銃の座標（(x, y, z) → (x, -z, y)）
+const GLTF_TO_GUN := Basis(Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(0, -1, 0))
+var gun := "spark"
+var spark_muzzle: Node3D = null
+var practice_gun: Node3D = null
+var practice_muzzle: Node3D = null
+## スパークの面：[MeshInstance3D, 面の番号, 材質]
+var _spark_surfaces: Array = []
+var _hidden_mat: StandardMaterial3D = null
 
 
 func load_model(path: String, shade: String = "soft") -> void:
@@ -57,6 +73,9 @@ func load_model(path: String, shade: String = "soft") -> void:
 				mi.set_surface_override_material(s, m)
 				if mi == blade:
 					blade_mat = m
+				elif m.resource_name.begins_with("spark_gun"):
+					_spark_surfaces.append([mi, s, m])
+					body_mats.append(m)
 				elif m.resource_name.contains("face"):
 					face_mats.append(m)
 					body_mats.append(m)
@@ -82,6 +101,9 @@ func load_model(path: String, shade: String = "soft") -> void:
 	if skeleton:
 		pose = HaruPose.new()
 		skeleton.add_child(pose)
+	spark_muzzle = muzzle
+	gun = "spark"
+	_attach_practice_gun()
 	if anim:
 		for n in LOOPING:
 			if anim.has_animation(n):
@@ -89,6 +111,79 @@ func load_model(path: String, shade: String = "soft") -> void:
 		_play("idle", 0.0)
 	# 主武器の溜めの光は Fx が銃口（muzzle）に描く（W2-09 の shot_charge）
 	set_shading(shade)
+
+
+## スパークの置き場所（骨の物体の座標）：Blender の銃の座標 → 骨の物体の座標。ai_character.hand_frame と同じ式を、
+## 手の骨の基準の姿勢から作る（glTF でも骨の +Y が骨の向き。Blender → glTF の座標の入れ替えは回転なので、外積の向きも同じ）
+static func hand_gun_frame(sk: Skeleton3D, bone: int) -> Transform3D:
+	var rest := sk.get_bone_global_rest(bone)
+	var gx := rest.basis.y.normalized()
+	var gy := (Vector3.RIGHT - gx * gx.x).normalized()
+	var gz := gx.cross(gy)
+	var rot := Basis(gx, gy, gz)
+	return Transform3D(rot, rest.origin - rot * HAND_WRIST_IN_GUN)
+
+
+## 練習銃を右手の骨に付ける（スパークの面と手の骨があるモデル＝haru_r だけ。ほかのモデルはスパークのまま）
+func _attach_practice_gun() -> void:
+	practice_gun = null
+	practice_muzzle = null
+	if skeleton == null or _spark_surfaces.is_empty() or not ResourceLoader.exists(PRACTICE_GUN_PATH):
+		return
+	var bone := skeleton.find_bone("hand.R")
+	if bone < 0:
+		return
+	var att := BoneAttachment3D.new()
+	att.name = "PracticeGunHand"
+	att.bone_name = "hand.R"
+	skeleton.add_child(att)
+	var holder := Node3D.new()
+	holder.name = "PracticeGun"
+	att.add_child(holder)
+	# 骨の基準の姿勢から見た置き場所（動作で手が動けば、スパークの面と同じように付いて動く）
+	holder.transform = skeleton.get_bone_global_rest(bone).affine_inverse() * hand_gun_frame(skeleton, bone) \
+		* Transform3D(GLTF_TO_GUN, Vector3.ZERO)
+	var scene: PackedScene = load(PRACTICE_GUN_PATH)
+	holder.add_child(scene.instantiate())
+	practice_muzzle = holder.find_child("muzzle", true, false)
+	for n in holder.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		for s in mi.mesh.get_surface_count():
+			var src := mi.mesh.surface_get_material(s)
+			if src is BaseMaterial3D:
+				var m: BaseMaterial3D = src.duplicate()
+				mi.set_surface_override_material(s, m)
+				body_mats.append(m)
+		meshes.append(mi)
+	practice_gun = holder
+	practice_gun.visible = false
+	_hidden_mat = StandardMaterial3D.new()
+	_hidden_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	_hidden_mat.alpha_scissor_threshold = 0.5
+	_hidden_mat.albedo_color = Color(1, 1, 1, 0)
+	_hidden_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+
+
+## 持っている銃の見た目：spark = true でスパーク、false で練習銃。練習銃の無いモデルでは何もしない（スパークのまま）。
+## 毎フレーム呼んでも、変わったときだけ切り替える
+func set_gun(spark: bool) -> void:
+	if practice_gun == null:
+		return
+	var want := "spark" if spark else "practice"
+	if want == gun:
+		return
+	gun = want
+	practice_gun.visible = not spark
+	for e in _spark_surfaces:
+		(e[0] as MeshInstance3D).set_surface_override_material(e[1], e[2] if spark else _hidden_mat)
+	muzzle = spark_muzzle if spark else practice_muzzle
+
+
+## ゲームの状態から銃を選ぶ：スパークを受け取るまで（GameSim.has_ability("spark") が偽の間）は練習銃。
+## 新しく始めた・セーブから再開した・フラグつきで部屋から始めた・ヤーナから受け取った、のどれも同じ式で決まる
+func sync_gun(game: GameSim) -> void:
+	set_gun(game.has_ability("spark"))
 
 
 ## 塗り方：soft（柔らかい陰影）／toon（3 段の塗り分け）。どちらも輪郭の光（リム）を少し入れる。
