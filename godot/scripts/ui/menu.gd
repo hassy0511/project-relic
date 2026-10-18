@@ -166,11 +166,13 @@ func _row_button(text: String, h: float, font_size: int) -> Button:
 	return btn
 
 
-## タイトル画面とやられた画面の、縦に並ぶ選択肢
-func _menu_buttons(box: Container, items: Array, width: float) -> Button:
+## タイトル画面とやられた画面の、縦に並ぶ選択肢。touch_h：スマホでの行の高さ
+func _menu_buttons(box: Container, items: Array, width: float, touch_h := Hud.TOUCH_ROW) -> Button:
 	var first: Button = null
 	for it in items:
 		var btn := _row_button(String(it[0]), 64, 28)
+		if touch_mode:
+			btn.custom_minimum_size.y = touch_h
 		btn.disabled = it.size() > 2 and it[2]
 		btn.custom_minimum_size.x = width
 		btn.pressed.connect(func():
@@ -235,12 +237,6 @@ func show_title(has_save: bool, new_game: Callable, cont: Callable, quit_game: C
 		_root.add_child(logo)
 	else:
 		_title_text_logo(Vector2(margin, top), low)
-	# 選択肢（右下）
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 10)
-	Hud._pin(box, 1, 1, -margin, -40)
-	_root.add_child(box)
-	var first := _menu_buttons(box, items, 440.0 if low else 500.0)
 	var badge := Hud.make_label("試遊版（Godot 版）", 20, UiArt.DIM_TEXT)
 	Hud._pin(badge, 0, 1, margin, -24)
 	_root.add_child(badge)
@@ -274,6 +270,24 @@ func show_title(has_save: bool, new_game: Callable, cont: Callable, quit_game: C
 		help.add_child(v)
 	if not touch_mode:
 		help_col.add_child(Hud.make_label("ほかの操作：「操作の設定」・ポーズの「操作の説明」", 18, UiArt.DIM_TEXT))
+	# 選択肢（右下）。スマホでは行を指で押せる高さ（Hud.TOUCH_ROW）にする。ただし右上の説明に重ならない高さまで
+	# （低い画面で行が多いとき。下限 64）。説明の枠の高さは、文の折り返しを数えて見積もる
+	var sep := 4.0 if touch_mode else 10.0
+	var bottom := 24.0 if touch_mode else 40.0
+	var touch_h := Hud.TOUCH_ROW
+	if touch_mode:
+		var font := ThemeDB.fallback_font
+		var help_h := 18.0 + 18.0 + 2.0 * (rows.size() - 1)
+		for h in rows:
+			var vh := font.get_multiline_string_size(h[1], HORIZONTAL_ALIGNMENT_LEFT, value_w, fs).y
+			help_h += maxf(vh * 1.08, font.get_height(fs)) + 4.0
+		var room_h := vs.y - bottom - (top + help_h + 12.0)
+		touch_h = clampf((room_h - sep * (items.size() - 1)) / items.size(), 64.0, Hud.TOUCH_ROW)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", int(sep))
+	Hud._pin(box, 1, 1, -margin, -bottom)
+	_root.add_child(box)
+	var first := _menu_buttons(box, items, 440.0 if low else 500.0, touch_h)
 	if first:
 		_grab_later(first)
 

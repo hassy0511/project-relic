@@ -401,6 +401,37 @@ func test_menu_touch() -> void:
 	h.free_game(g)
 
 
+## スマホのタイトル：選択肢の行は指で押せる高さ（844×390 では実寸 48px 以上）で、右上の操作の説明に重ならない（667×375 でも）。
+## 1 回のタップで決定
+func test_title_touch() -> void:
+	for sz in [Vector2i(1477, 682), Vector2i(1167, 656)]:
+		var vp := SubViewport.new()
+		vp.size = sz
+		h.tree.root.add_child(vp)
+		var menu := Menu.new()
+		menu.touch_mode = true
+		vp.add_child(menu)
+		var log := []
+		menu.show_title(true, func(): log.append("new"), func(): log.append("cont"), func(): pass)
+		for i in 3:
+			await h.tree.process_frame
+		var help: Control = null
+		for c in menu._root.get_children():
+			if c is PanelContainer:
+				help = c
+		var top := INF
+		for b in menu.buttons:
+			top = minf(top, b.get_global_rect().position.y)
+		h.expect(help != null and top > help.get_global_rect().end.y, "%s：タイトルの選択肢が右上の説明に重ならない（行の上 %.0f、説明の下 %.0f）" % [sz, top, help.get_global_rect().end.y])
+		h.expect(menu.buttons[0].size.y >= 64.0, "%s：タイトルの行の高さ %.0f" % [sz, menu.buttons[0].size.y])
+		if sz.x == 1477:
+			h.expect(menu.buttons[0].size.y * 390.0 / 682.0 >= 48.0, "844×390：タイトルの行が実寸 48px 以上")
+		await _tap(vp, menu.buttons[1].get_global_rect().get_center())
+		h.expect(log == ["cont"], "%s：タイトルの選択肢は 1 回のタップで決定（%s）" % [sz, str(log)])
+		menu.queue_free()
+		vp.queue_free()
+
+
 func test_shop_and_workshop_texts() -> void:
 	var g := _new_game()
 	await h.settle()
