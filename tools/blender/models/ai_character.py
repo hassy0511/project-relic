@@ -1852,6 +1852,10 @@ def main() -> None:
     ap.add_argument('--no-weapon', action='store_true', help='銃・光刃・目印を付けない（NPC）')
     ap.add_argument('--final-height', type=float, default=None, help='最後に一様に拡大する身長（m）')
     ap.add_argument('--name', default='Haru', help='物体の名前（骨は <名前>Rig）')
+    ap.add_argument('--clips', default='standard', choices=('standard', 'child'),
+                    help='焼く動作：standard＝humanoid_anims の 14 動作、child＝子どもの住人の待機・歩き・走り・怖がる（child_anims）')
+    ap.add_argument('--foot-contacts', default=None,
+                    help='足の裏の接地点（足首からのずれ、再構築の座標 m）：つま先の y,かかとの y,下への z（既定はハルの値）')
     ap.add_argument('--stats', help='数値の記録の JSON（既定は <出力>.stats.json）')
     ap.add_argument('--render')
     args = ap.parse_args([a for a in sys.argv[1:] if a != '--'])
@@ -1958,7 +1962,15 @@ def main() -> None:
     body.name = args.name
     name_images(body)
     frame = split_frame(body, frames, tex_dir) if args.costume else None
-    H.bake_clips(arm, A.all_clips())
+    contacts = None
+    if args.foot_contacts:
+        ty, hy, dz = (float(v) for v in args.foot_contacts.split(','))
+        contacts = ((0.0, ty, dz), (0.0, hy, dz))
+    if args.clips == 'child':
+        from models import child_anims
+        H.bake_clips(arm, child_anims.all_clips(), contacts)
+    else:
+        H.bake_clips(arm, A.all_clips(), contacts)
     final_scale = 1.0
     if args.final_height:
         # 骨の物体を一様に拡大（子の体・目印も一緒に。動作の移動の値も骨の物体の中の値なので同じ割合で大きくなる）
