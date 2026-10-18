@@ -332,7 +332,8 @@ func _on_draw() -> void:
 	# 台座の絵の輪の内側をつまみが動く（台座は STICK_RADIUS の約 1.25 倍）
 	var base_d := STICK_RADIUS * 2.5
 	var knob_d := STICK_RADIUS * 1.05
-	if _stick_finger >= 0:
+	# 会話の窓をタップしている指（まだ動かしていない）には、スティックの絵を出さない（ずらすとスティックになる）
+	if _stick_finger >= 0 and _stick_finger != _tap_finger:
 		if not _tex_at("ui_parts_touch_joystick_base", _stick_origin, base_d, Color(1, 1, 1, 0.9)):
 			_draw.draw_arc(_stick_origin, STICK_RADIUS, 0, TAU, 48, Color(1, 1, 1, 0.35), 3.0)
 		var knob := _stick_origin + Vector2(move.x, -move.y) * STICK_RADIUS
