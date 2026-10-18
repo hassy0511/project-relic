@@ -179,6 +179,7 @@ func snap_views() -> void:
 	if views:
 		player_view.position = game.player.pos
 		player_view.set_frame_parts(game.has_ability("lock_on"), game.has_ability("sword"), game.has_ability("dash"))
+		player_view.sync_gun(game)
 		player_view.reset_physics_interpolation()
 		if nagomi_view:
 			nagomi_view.snap(game.player)
@@ -394,6 +395,8 @@ func _physics_process(dt: float) -> void:
 	_update_audio()
 	# フレームの部品は、その力が使えるようになってから体に現れる（胴の核＝ロックオン、左腕＝光刃、脚＝ダッシュ）
 	player_view.set_frame_parts(game.has_ability("lock_on"), game.has_ability("sword"), game.has_ability("dash"))
+	# 銃はスパークを受け取るまで練習銃（ヤーナから受け取った刻みで持ち替える）
+	player_view.sync_gun(game)
 	player_view.sync(game.player, game, dt, _aim_dir())
 	nagomi_view.sync(game, camera.global_position, dt)
 	enemy_view.sync(game.enemies, dt)

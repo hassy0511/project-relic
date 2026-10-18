@@ -10,6 +10,9 @@ const CHEST := 1.1
 ## 銃口の、胸からの右（m）と前（m）へのずれ（muzzle）
 const MUZZLE_SIDE := 0.22
 const MUZZLE_FORWARD := 0.4
+## 練習銃（スパークを受け取る前）の銃口は、スパークよりこれだけ手前（全長 25cm と 30cm。握りの位置は同じ。
+## practice_gun.py の銃口 x 20.35cm、スパークは 25.4cm）
+const PRACTICE_MUZZLE_BACK := 0.05
 ## 奈落の高さ。これより下に落ちたら直前の足場に戻す
 const KILL_Y := -30.0
 ## 足元の確かめ（_ground_below）で、体の真下の線が外れたときに見るまわりの 8 本の線のずれ（m）。体の丸い底が段・箱の縁の角に
@@ -479,7 +482,10 @@ func aim_plan() -> Dictionary:
 func muzzle(face: float) -> Vector3:
 	var fwd := U.yaw_to_dir(face)
 	var right := Vector3(-fwd.z, 0.0, fwd.x)
-	return chest() + right * MUZZLE_SIDE + fwd * MUZZLE_FORWARD
+	var ahead := MUZZLE_FORWARD
+	if game != null and not game.has_ability("spark"):
+		ahead -= PRACTICE_MUZZLE_BACK   # 練習銃は短い（見た目の銃口から弾が出るように）
+	return chest() + right * MUZZLE_SIDE + fwd * ahead
 
 
 ## 弾の出る位置：ふつうは銃口。銃口が壁・箱・台にめり込むとき、または銃口からだと狙う点（aim_at）が柱の角などに隠れるときは胸から。
