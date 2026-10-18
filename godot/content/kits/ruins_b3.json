@@ -68,7 +68,7 @@
   "amber": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 4.0}, "near_fade": [0.8, 1.5]},
   "glass": {"color": "#ffb44a", "roughness": 0.35, "emission": {"color": "#ffa83a", "energy": 1.7}, "near_fade": [0.8, 1.5]},
   "red": {"color": "#d4433d", "roughness": 0.4, "emission": {"color": "#ff3a30", "energy": 4.0}},
-  "sand": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 2.0, "color": "#dcbe9c", "roughness": 0.95, "near_fade": [0.8, 1.5]},
+  "sand": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 2.0, "color": "#d09468", "roughness": 0.95, "near_fade": [0.8, 1.5]},
   "cloth": {"color": "#a8503c", "roughness": 0.95, "near_fade": [0.8, 1.5]},
   "wood": {"color": "#795139", "roughness": 0.85, "near_fade": [0.8, 1.5], "detail": [{"mask": "grime", "uv_m": 2.4, "cover": 0.45, "color": "#8a6448", "mode": "multiply", "amount": 0.6, "gate": {"cover": 0.6, "uv_m": 7.0}}, {"mask": "grime", "uv_m": 2.0, "cover": 0.9, "feet": [0.0, 1.0], "color": "#3e2e24", "mode": "multiply", "amount": 0.7}, {"mask": "chips", "uv_m": 1.4, "cover": 0.16, "color": "#9a5232", "amount": 0.8, "gate": {"cover": 0.35, "uv_m": 5.0}}]},
   "leather": {"color": "#594333", "roughness": 0.8, "near_fade": [0.8, 1.5]},
