@@ -2,12 +2,13 @@ extends SceneTree
 ## 練習銃とスパークを、ゲームの画面（main.tscn）で撮る：スパークを受け取る前（練習銃）と後（スパーク）を、ふだんのカメラと
 ## 右手の近写で 1 枚ずつ。部屋とフラグはゲームと同じ引数（--room・--flags）で渡す。受け取りはフラグ ch1.got_spark を立てて作る
 ## （main.gd が次の刻みで PlayerView.sync_gun を呼び、持ち替える）。
-##   tools/godot.sh shot --resolution 1600x900 --fixed-fps 60 --script /abs/tools/blender/recon/godot_gun_shots.gd -- \
+##   tools/godot.sh shot --resolution 1600x900 --script /abs/tools/blender/recon/godot_gun_shots.gd -- \
 ##     <出力のフォルダ> <名前> --room=ch1.training:start --flags=ch1.chores_started,ch1.t_move,trigger.ch1.training.start
 ## スマホ：--rendering-driver opengl3 --rendering-method gl_compatibility --resolution 844x390、引数に --touch。
-## --fixed-fps 60 を付ける（描画と中身の刻みを 1 対 1 に。付けないと、弾のエフェクトが描かれないこまを撮ることがある）。
+## 撃った直後の近写は続く 4 こまを撮る（_aim_close_0〜3。描画と中身の刻みが 1 対 1 でないので、弾の描かれないこまがある。
+## --fixed-fps 60 にすると、構えの姿勢が付く前の手の位置にカメラを置いてしまう）。
 ## 撃った弾の、中身の銃口と見た目の銃口の目印の差を「muzzle gap」として出す（Fx はこの差を弾が 2.5m 進む間に 0 へ減らして描く）
-## できるもの：<フォルダ>/<名前>_{practice,spark}_{normal,aim_close,close}.png（normal・aim_close は撃ち続けている所）
+## できるもの：<フォルダ>/<名前>_{practice,spark}_{normal,aim_close_0〜3,close}.png（normal・aim_close は撃ち続けている所）
 
 var out_dir := "user://gun_shots"
 var label := "pc"
@@ -101,8 +102,10 @@ func _run() -> void:
 		main.hud.visible = false
 		await _frames(8)
 		await _wait_fresh_shot(0.45)
-		_close(cam, true)
-		await _save(state + "_aim_close")
+		for k in 4:
+			_close(cam, true)
+			await _save(state + "_aim_close_%d" % k)
+			await _frames(1)
 		Input.action_release("fire")
 		main.camera.current = true
 		await _frames(50)
