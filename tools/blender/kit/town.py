@@ -94,7 +94,7 @@ def gallery(cat: dict) -> None:
 
     import town_geo as geo
     import town_rooms as R
-    skip = {'ordo_far', 'ordo_back', 'ordo_town', 'deck_slab', 'plaza_ring', 'terrace_west', 'terrace_east', 'stair_gate', 'stair_well_s',
+    skip = {'ordo_back', 'ordo_town', 'deck_slab', 'plaza_ring', 'terrace_west', 'terrace_east', 'stair_gate', 'stair_well_s',
             *(n for n in R.PARTS if n.endswith('_set') or n.endswith('_patch'))}   # 部屋の座標の大きな組と床の汚れの斑
     for ob in list(bpy.data.objects):
         bpy.data.objects.remove(ob, do_unlink=True)
