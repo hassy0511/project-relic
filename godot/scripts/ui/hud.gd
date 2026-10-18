@@ -246,9 +246,10 @@ func _ready() -> void:
 	var hp_row := HBoxContainer.new()
 	hp_row.add_theme_constant_override("separation", 8)
 	vitals.add_child(hp_row)
-	var hp_made := _gauge("hp", "ui_parts_gauge_hp_fill_full", 1024, GAUGE_SCALE)
+	# HP の中身は r2 の 3 枚：通常（煉瓦色）・減った分（白磁色。後ろで遅れて縮む）・危険（高彩度の赤。3 割未満で入れ替えて点滅）
+	var hp_made := _gauge("hp", "ui_parts_gauge_hp_fill_full_r2", 1024, GAUGE_SCALE)
 	_hp = hp_made[1]
-	_hp.lag_fill = UiArt.tex("ui_parts_gauge_hp_fill_damaged")
+	_hp.lag_fill = UiArt.tex("ui_parts_gauge_hp_fill_damaged_r2")
 	# 中身は「HP」の文字の右から（文字と中身が重ならないように。危険の色の文字が赤い中身に溶けない）
 	_hp.fill_left = 104
 	hp_row.add_child(hp_made[0])
@@ -433,7 +434,7 @@ func _ready() -> void:
 	_mem_pct = make_label("0%", 30, PAPER, true)
 	_mem_pct.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	mem_head.add_child(_mem_pct)
-	var mem_made := _gauge("hp", "ui_parts_gauge_hp_fill_full", 1100, 0.5)
+	var mem_made := _gauge("hp", "ui_parts_gauge_hp_fill_full_r2", 1100, 0.5)
 	_mem = mem_made[1]
 	mem_col.add_child(mem_made[0])
 
@@ -575,7 +576,7 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 	haru_framed = game.flag("ch1.frame_fitted")
 	_blade_tile.visible = game.has_ability("sword")
 	var ratio := clampf(p.hp / p.max_hp, 0.0, 1.0)
-	# HP：減った分は少し遅れて縮む（ui_parts_gauge_hp_fill_damaged）。3 割を切ると危険の色を明滅させる
+	# HP：減った分は少し遅れて縮む（ui_parts_gauge_hp_fill_damaged_r2、白磁色）。3 割を切ると危険の中身に入れ替えて明滅させる
 	if ratio < _hp_lag:
 		_hp_lag_wait -= dt
 		if _hp_lag_wait <= 0.0:
@@ -588,10 +589,12 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 	_hp.value = ratio
 	_hp.lag = _hp_lag
 	var danger := ratio < 0.3
-	_hp.fill = UiArt.tex("ui_parts_gauge_hp_fill_danger" if danger else "ui_parts_gauge_hp_fill_full")
-	# 危険の中身の絵は満タンの色とほぼ同じなので、ゲーム側で明るく脈打たせて見分ける（絵の描き直しを頼んでいる）
+	_hp.fill = UiArt.tex("ui_parts_gauge_hp_fill_danger_r2" if danger else "ui_parts_gauge_hp_fill_full_r2")
+	# 危険の中身（r2、高彩度の赤）は点滅させる：周期の半分は明るいまま、残りの半分で半分の明るさまで沈む
+	# （速さは r1 のときと同じ。沈んだときも赤のまま、通常の煉瓦色とは見分けられる）
 	var pulse := 0.5 + 0.5 * sin(_time * 9.0)
-	_hp.fill_modulate = Color(1.0 + 0.9 * pulse, 1.0 + 0.25 * pulse, 1.0 + 0.2 * pulse) if danger else Color.WHITE
+	var blink := 1.0 - 0.5 * maxf(0.0, -sin(_time * 9.0))
+	_hp.fill_modulate = Color(blink, blink, blink) if danger else Color.WHITE
 	if danger != _hp_danger:
 		_hp_danger = danger
 		_hp_label.add_theme_color_override("font_color", Color("#ff8a6a") if danger else PAPER)
@@ -673,8 +676,11 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 	var gun := p.gun_charge
 	var sw := p.sword_hold if p.sword_hold > 0.2 else 0.0
 	if gun > 0.15:
-		_charge.progress = minf(1.0, gun / cfg.chargeLv2Time)
-		_charge.stage = 2 if gun >= cfg.chargeLv2Time else (1 if gun >= cfg.chargeLv1Time else 0)
+		# 1 段目までの間は 1 段目の輪が、1 段目から 2 段目までの間は 2 段目の輪が一周する（ChargeRing）
+		var l1: float = cfg.chargeLv1Time
+		var l2: float = cfg.chargeLv2Time
+		_charge.stage = 2 if gun >= l2 else (1 if gun >= l1 else 0)
+		_charge.progress = minf(1.0, gun / l1) if _charge.stage == 0 else minf(1.0, (gun - l1) / maxf(0.001, l2 - l1))
 	elif sw > 0.0:
 		var st: float = game.tuning.sword.chargeTime
 		_charge.progress = minf(1.0, sw / st)
@@ -774,7 +780,7 @@ func _sync_dialogue(d: Dictionary, vs: Vector2) -> void:
 		_sync_choices(d.choices, int(d.sel))
 
 
-## 選択肢の札（ui_parts_panel_choice）。選んでいる札は煉瓦色＋カーソル
+## 選択肢の札（ui_parts_panel_choice_r2）。選んでいる札はメニューの選んでいる行と同じ琥珀の縁の札（button_focus_r2）＋カーソル
 func _sync_choices(choices: Array, sel: int) -> void:
 	while _dlg_choice_rows.size() < choices.size():
 		var p := PanelContainer.new()
@@ -792,7 +798,7 @@ func _sync_choices(choices: Array, sel: int) -> void:
 		_dlg_choices.add_child(p)
 		_dlg_choice_rows.append([p, cur, l])
 	if _choice_style.is_empty():
-		_choice_style = [UiArt.box("choice", Vector4(18, 10, 24, 10)), UiArt.box("button_focus", Vector4(18, 10, 24, 10))]
+		_choice_style = [UiArt.box("choice_r2", Vector4(18, 10, 24, 10)), UiArt.box("button_focus_r2", Vector4(18, 10, 24, 10))]
 	for i in _dlg_choice_rows.size():
 		var it: Array = _dlg_choice_rows[i]
 		it[0].visible = i < choices.size()
@@ -908,7 +914,7 @@ class Reticle:
 	func _draw() -> void:
 		var amber := UiArt.AMBER
 		var font := get_theme_default_font()
-		var part := "ui_parts_lockon_weakpoint" if weak else ("ui_parts_lockon_normal" if scanned else "ui_parts_lockon_analyzing")
+		var part := "ui_parts_lockon_weakpoint" if weak else ("ui_parts_lockon_normal" if scanned else "ui_parts_lockon_analyzing_track")
 		var s := 112.0 if not scanned else (118.0 + 6.0 * sin(time * 10.0) if weak else 100.0)
 		var t := UiArt.tex(part)
 		var tint := Color(1, 1, 1, 0.45 if far else 1.0)
@@ -923,7 +929,7 @@ class Reticle:
 			draw_string(font, Vector2(-fw * 0.5, base), "射程外", HORIZONTAL_ALIGNMENT_LEFT, -1, scan_size, UiArt.PAPER)
 		# 敵の体力（照準の上の小さなゲージ。枠と中身はプレイヤーの HP と同じ部品を小さく）
 		var fr := UiArt.tex("ui_parts_gauge_hp_frame")
-		var fl := UiArt.tex("ui_parts_gauge_hp_fill_full")
+		var fl := UiArt.tex("ui_parts_gauge_hp_fill_full_r2")
 		var bar := Rect2(-66, -s * 0.5 - 30, 132, 14)
 		if fl != null and fr != null:
 			draw_rect(bar.grow(-2), Color(0.05, 0.04, 0.04, 0.85))
@@ -934,25 +940,35 @@ class Reticle:
 			if weak_text != "":
 				_note(font, weak_text, text_size, 10.0, s, UiArt.PAPER if not weak else amber)
 		else:
-			# 解析の進み（絵の弧は固定なので、進み具合はゲーム側の平らな色の弧で仮に出す。輪と中身の絵を頼んでいる）
-			draw_arc(Vector2.ZERO, s * 0.5 + 6, -PI / 2, -PI / 2 + TAU, 48, Color(0, 0, 0, 0.45), 5.0, true)
-			draw_arc(Vector2.ZERO, s * 0.5 + 6, -PI / 2, -PI / 2 + TAU * scan, 48, amber, 5.0, true)
+			# 解析の進み（r2）：照準の空の輪（ui_parts_lockon_analyzing_track）に、一周の中身を上から時計回りに見せる。
+			# 射程外で照準が薄いときも、進みは薄くしない（解析は距離に関係なく進む）
+			UiArt.draw_radial(self, UiArt.tex("ui_parts_lockon_analyzing_fill"), Rect2(-s * 0.5, -s * 0.5, s, s), scan)
 			_note(font, "解析中 %d%%" % int(scan * 100.0), scan_size, 14.0, s, amber)
 
 
-## チャージの溜まり具合：1 段目（半円）・2 段目（輪）の絵。途中の進み具合は、絵が枠と中身に分かれていないので平らな色の弧で仮に出す
+## チャージの溜まり具合（r2）：空の輪（ui_parts_gauge_charge_track）に、一周した中身の輪を上から時計回りに見せる。
+## 主武器：1 段目までは白磁の輪（fill_stage1）が一周し、1 段目に届くとその上を琥珀の輪（fill_stage2）が一周する（2 段目で琥珀の輪がそろう）。
+## 光刃の溜め斬り（1 段だけ）：白磁の輪が一周し、溜まりきると琥珀の輪になる
 class ChargeRing:
 	extends Control
+	## いまの段の中の進み（0〜1）
 	var progress := 0.0
+	## 届いた段（0：まだ、1：1 段目、2：溜まりきった）
 	var stage := 0
 
 	func _draw() -> void:
-		var c := size * 0.5
-		var r := size.x * 0.4
-		draw_arc(c, r, 0, TAU, 48, Color(0.05, 0.04, 0.04, 0.55), size.x * 0.11, true)
-		draw_arc(c, r, -PI / 2, -PI / 2 + TAU * progress, 48, Color(UiArt.AMBER, 0.9), size.x * 0.09, true)
-		var part := "ui_parts_gauge_charge_stage2" if stage >= 2 else ("ui_parts_gauge_charge_stage1" if stage == 1 else "")
-		if part != "":
-			var t := UiArt.tex(part)
-			if t != null:
-				draw_texture_rect(t, Rect2(Vector2.ZERO, size), false)
+		var r := Rect2(Vector2.ZERO, size)
+		var track := UiArt.tex("ui_parts_gauge_charge_track")
+		if track != null:
+			draw_texture_rect(track, r, false)
+		var s1 := UiArt.tex("ui_parts_gauge_charge_fill_stage1")
+		var s2 := UiArt.tex("ui_parts_gauge_charge_fill_stage2")
+		if stage >= 2:
+			if s2 != null:
+				draw_texture_rect(s2, r, false)
+		elif stage == 1:
+			if s1 != null:
+				draw_texture_rect(s1, r, false)
+			UiArt.draw_radial(self, s2, r, progress)
+		else:
+			UiArt.draw_radial(self, s1, r, progress)

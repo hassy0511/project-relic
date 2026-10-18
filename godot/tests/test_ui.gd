@@ -256,6 +256,19 @@ func test_menu_screens() -> void:
 	menu.show_retry(false, func(): fm.log.append("retry"), func(): pass, func(): pass)
 	await h.tree.process_frame
 	h.expect(menu.is_open(), "やられた画面が開く")
+	# タイトル（r2）：背景とロゴが絵。選択肢は右下（左下は絵のハル）。「つづきから」はセーブが無いと押せない
+	menu.show_title(false, func(): fm.log.append("new"), func(): pass, func(): pass)
+	await h.tree.process_frame
+	await h.tree.process_frame
+	var texs := []
+	for c in menu._root.get_children():
+		if c is TextureRect:
+			texs.append(c.texture)
+	h.expect(texs.has(UiArt.tex("ui_title_r2")) and (texs.has(UiArt.tex("ui_title_logo")) or texs.has(UiArt.tex("ui_title_logo_nosub"))), "タイトルの背景とロゴが絵")
+	h.expect(menu.buttons.size() >= 3 and menu.buttons[1].disabled and menu.buttons[0].has_focus(), "タイトルの選択肢：最初の行を選んでいて、セーブが無いと「つづきから」は押せない")
+	h.expect(menu.buttons[0].get_global_rect().position.x > menu._view().x * 0.45, "タイトルの選択肢は右側（左下の絵のハルを隠さない）")
+	menu.buttons[0].pressed.emit()
+	h.expect(fm.log.has("new"), "「はじめから」を押せる")
 	menu.queue_free()
 	fm.queue_free()
 	h.free_game(g)
@@ -339,7 +352,11 @@ func test_ui_art_parts() -> void:
 			"ui_parts_face_frame_wait", "ui_parts_cursor", "ui_parts_advance", "ui_parts_touch_joystick_base",
 			"ui_parts_touch_joystick_knob", "ui_parts_touch_button_normal", "ui_parts_touch_button_pressed",
 			"ui_parts_touch_button_lock_on", "icon_spark_rapid", "icon_spark_charge", "icon_blade",
-			"icon_map_current", "icon_map_quest", "icon_map_save_beacon", "icon_map_destination", "icon_item_relic"]:
+			"icon_map_current", "icon_map_quest", "icon_map_save_beacon", "icon_map_destination", "icon_item_relic",
+			# r2（2026-10-17）
+			"ui_parts_gauge_hp_fill_full_r2", "ui_parts_gauge_hp_fill_damaged_r2", "ui_parts_gauge_hp_fill_danger_r2",
+			"ui_parts_gauge_charge_track", "ui_parts_gauge_charge_fill_stage1", "ui_parts_gauge_charge_fill_stage2",
+			"ui_parts_lockon_analyzing_track", "ui_parts_lockon_analyzing_fill", "ui_title_r2", "ui_title_logo", "ui_title_logo_nosub"]:
 		names.append(n)
 	for n in names:
 		if UiArt.tex(n) == null:
@@ -349,17 +366,26 @@ func test_ui_art_parts() -> void:
 		h.expect(UiArt.RANK_ICONS.has(m), "回収屋の印「%s」にバッジの絵がある" % m)
 	var th := UiArt.theme()
 	h.expect(th.get_stylebox("normal", "Button") is StyleBoxTexture and th.get_stylebox("focus", "Button") is StyleBoxTexture, "ボタンの見た目が部品の絵（9 分割）")
-	var sb: StyleBoxTexture = UiArt.box("choice")
-	h.expect(sb.texture_margin_top * 2 < sb.texture.get_height(), "選択肢の札の角が、縦に伸ばせる余地を残している")
+	var sb: StyleBoxTexture = UiArt.box("choice_r2")
+	h.expect(sb.texture_margin_top * 2 + 30 <= sb.texture.get_height(), "選択肢の札（r2）の角が、縦に伸ばせる余地を半分以上残している")
+	h.expect((th.get_stylebox("focus", "Button") as StyleBoxTexture).texture == UiArt.tex("ui_parts_panel_button_focus_r2")
+		and (th.get_stylebox("pressed", "Button") as StyleBoxTexture).texture == UiArt.tex("ui_parts_panel_button_pressed"),
+		"選んでいる行は琥珀の縁の札（r2）、押した行は煉瓦色の札")
 	h.expect(UiArt.item_icon("relic.big_gear") != null and UiArt.item_icon("scrap") == null, "遺物は汎用の遺物の絵、素材は絵なし")
-	# メニューの行：長い名前は「…」で終わる。押している間は行が暗くなる（フォーカスの札が押した札を隠すため）
+	# メニューの行：長い名前は「…」で終わる。押している間はフォーカスの札を外して、押した札（煉瓦色）を見せる
+	# （Godot はフォーカスの札を状態の札の上に重ねて描くため）。右に値段のある行の自前の札も、離すと元に戻る
 	var m := Menu.new()
 	var row: Button = m._row_button("補修パックを作る（錆鉄 ×2・導線 ×1）", 64, 28)
 	h.expect(row.text_overrun_behavior == TextServer.OVERRUN_TRIM_ELLIPSIS, "入りきらない行の名前は「…」で終わる")
 	row.button_down.emit()
-	var dark := row.self_modulate.v < 0.9
+	var shows_pressed := row.get_theme_stylebox("focus") is StyleBoxEmpty
 	row.button_up.emit()
-	h.expect(dark and row.self_modulate == Color.WHITE, "押している間だけ行が暗くなる")
+	h.expect(shows_pressed and not row.has_theme_stylebox_override("focus"), "押している間だけ押した札が見え、離すと選んでいる札に戻る")
+	m._reserve_right(row, 120.0)
+	var own := row.get_theme_stylebox("focus")
+	row.button_down.emit()
+	row.button_up.emit()
+	h.expect(row.get_theme_stylebox("focus") == own, "右に値段のある行も、離すと自前の札に戻る")
 	row.free()
 	m.free()
 
@@ -376,13 +402,29 @@ func test_hud_states() -> void:
 	h.tree.root.add_child(cam)
 	await h.tree.process_frame
 	hud.sync(g, cam, 0.016)
-	h.expect(hud._hp.fill == UiArt.tex("ui_parts_gauge_hp_fill_full"), "満タンの中身")
+	h.expect(hud._hp.fill == UiArt.tex("ui_parts_gauge_hp_fill_full_r2") and hud._hp.lag_fill == UiArt.tex("ui_parts_gauge_hp_fill_damaged_r2"), "満タンの中身（r2）、減った分は白磁色の中身")
+	g.player.hp = g.player.max_hp * 0.6
+	hud.sync(g, cam, 0.016)
+	h.expect(hud._hp.fill == UiArt.tex("ui_parts_gauge_hp_fill_full_r2") and hud._hp.lag > hud._hp.value, "3 割より上で減ると、通常の中身のまま、減った分が遅れて縮む")
 	g.player.hp = g.player.max_hp * 0.2
 	hud.sync(g, cam, 0.016)
-	h.expect(hud._hp.fill == UiArt.tex("ui_parts_gauge_hp_fill_danger") and hud._hp.lag > hud._hp.value, "3 割を切ると危険の中身、減った分は遅れて縮む")
+	h.expect(hud._hp.fill == UiArt.tex("ui_parts_gauge_hp_fill_danger_r2") and hud._hp.lag > hud._hp.value, "3 割を切ると危険の中身（r2）、減った分は遅れて縮む")
+	var lit := []
+	for i in 12:
+		hud.sync(g, cam, 0.06)
+		lit.append(hud._hp.fill_modulate.v)
+	h.expect(lit.max() > 0.95 and lit.min() < 0.6, "危険の中身は点滅する（明るさ %.2f〜%.2f）" % [lit.min(), lit.max()])
 	for i in 120:
 		hud.sync(g, cam, 0.05)
 	h.near(hud._hp.lag, hud._hp.value, 0.01, "減った分はしばらくすると追いつく")
+	# チャージ（r2）：1 段目までは 1 段目の輪が一周、1 段目から 2 段目までは 2 段目の輪が一周、溜まりきると琥珀の輪
+	var cfg: Dictionary = g.tuning.gun
+	for c in [[0.5, 0, 0.5], [1.5, 1, 0.5], [2.2, 2, -1.0]]:
+		g.player.gun_charge = float(cfg.chargeLv1Time) * c[0] if c[0] < 1.0 else float(cfg.chargeLv1Time) + (float(cfg.chargeLv2Time) - float(cfg.chargeLv1Time)) * (c[0] - 1.0)
+		hud.sync(g, cam, 0.016)
+		h.expect(hud._charge.visible and hud._charge.stage == c[1] and (c[2] < 0.0 or absf(hud._charge.progress - c[2]) < 0.01),
+			"主武器のチャージ %.2f 秒：%d 段目、段の中の進み %.2f" % [g.player.gun_charge, hud._charge.stage, hud._charge.progress])
+	g.player.gun_charge = 0.0
 	# 「HP」の文字は中身に重ならない（危険の色の文字が赤い中身に溶けない）
 	h.expect(hud._hp_label.position.x + hud._hp_label.get_minimum_size().x < hud._hp.fill_rect().position.x * Hud.GAUGE_SCALE,
 		"「HP」の文字の右から中身が始まる")

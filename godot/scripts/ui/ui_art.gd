@@ -16,13 +16,13 @@ const DANGER := Color("#A94739")
 const INK := Color(0.07, 0.065, 0.06)
 const DIM_TEXT := Color("#a89c88")
 
-## 9 分割の角（縮めたあとの画素：横, 縦）。spec の提案値は多くの部品で飾りより小さいので、実物の飾りの大きさを測った値。
-## 元の画像の飾り：大 40×44、小 45×48、会話 38×39、名前 24×38、選択肢 38×53、タブ 23×30、ボタン 30×39
+## 9 分割の角（縮めたあとの画素：横, 縦）。spec.md r2 の表（元の画像で飾りの外端まで測った左右／上下の値）の半分を切り上げたもの。
+## 元の画像の値：大 44／48、小 48／52、会話 42／44、名前 28／42、選択肢（旧）42／56・r2 28／24、タブ 28／34、ボタン 34／44
 const SLICE := {
-	"large": Vector2i(22, 24), "small": Vector2i(24, 26), "dialogue": Vector2i(20, 21), "name": Vector2i(13, 20),
-	"choice": Vector2i(20, 27), "tab_idle": Vector2i(12, 16), "tab_selected": Vector2i(12, 16),
-	"button_normal": Vector2i(16, 20), "button_focus": Vector2i(16, 20), "button_pressed": Vector2i(16, 20),
-	"button_disabled": Vector2i(16, 20),
+	"large": Vector2i(22, 24), "small": Vector2i(24, 26), "dialogue": Vector2i(21, 22), "name": Vector2i(14, 21),
+	"choice": Vector2i(21, 28), "choice_r2": Vector2i(14, 12), "tab_idle": Vector2i(14, 17), "tab_selected": Vector2i(14, 17),
+	"button_normal": Vector2i(17, 22), "button_focus": Vector2i(17, 22), "button_focus_r2": Vector2i(17, 22),
+	"button_pressed": Vector2i(17, 22), "button_disabled": Vector2i(17, 22),
 }
 
 ## ゲージの枠の中の窓（元の画像の画素。中身はこの中に描く。端は 9 分割で伸ばさない部分）
@@ -116,8 +116,8 @@ static func theme() -> Theme:
 	th.set_stylebox("pressed", "Button", box("button_pressed", pad, Color(0.82, 0.82, 0.82)))
 	th.set_stylebox("hover_pressed", "Button", box("button_pressed", pad, Color(0.82, 0.82, 0.82)))
 	th.set_stylebox("disabled", "Button", box("button_disabled", pad))
-	# フォーカス（選んでいる行）：煉瓦色の札。見本の「選んでいる行」と同じ。カーソルの絵は Menu が左に添える
-	th.set_stylebox("focus", "Button", box("button_focus", pad))
+	# フォーカス（選んでいる行）：暗い面に琥珀の縁の札（r2）。押した札（煉瓦色）とは別の見た目。カーソルの絵は Menu が左に添える
+	th.set_stylebox("focus", "Button", box("button_focus_r2", pad))
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
 		th.set_color(c, "Button", PAPER)
 	th.set_color("font_disabled_color", "Button", Color(PAPER, 0.45))
@@ -171,10 +171,22 @@ static func add_cursor(btn: Button, size := 34.0) -> TextureRect:
 	btn.add_child(c)
 	btn.focus_entered.connect(func(): c.visible = true)
 	btn.focus_exited.connect(func(): c.visible = false)
-	# 押している間は暗く。Godot はフォーカスの札を状態の札の上に重ねて描くので、選んでいる行では「押した」札が隠れる。
-	# 押した手応えは行全体を暗くして出す（self_modulate：カーソルの絵には掛けない）
-	btn.button_down.connect(func(): btn.self_modulate = Color(0.78, 0.78, 0.78))
-	btn.button_up.connect(func(): btn.self_modulate = Color.WHITE)
+	# 押している間は「押した」札（煉瓦色）を見せる。Godot はフォーカスの札を状態の札の上に重ねて描くので、
+	# 選んでいる行では押している間だけフォーカスの札を外す（離したら、元の札に戻す。右に値段のある行は自前の札を持つ）
+	btn.button_down.connect(func():
+		var cur: StyleBox = btn.get_theme_stylebox("focus") if btn.has_theme_stylebox_override("focus") else null
+		if cur is StyleBoxEmpty:
+			return
+		if cur != null:
+			btn.set_meta("focus_box", cur)
+		elif btn.has_meta("focus_box"):
+			btn.remove_meta("focus_box")
+		btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new()))
+	btn.button_up.connect(func():
+		if btn.has_meta("focus_box"):
+			btn.add_theme_stylebox_override("focus", btn.get_meta("focus_box"))
+		else:
+			btn.remove_theme_stylebox_override("focus"))
 	return c
 
 
@@ -193,6 +205,32 @@ static func rank_icon(mark: String) -> Texture2D:
 ## 主武器のアイコン：チャージ化のチップを付けていればチャージ型
 static func spark_icon(charge: bool) -> Texture2D:
 	return tex("icon_spark_charge" if charge else "icon_spark_rapid")
+
+
+## 輪の中身（一周した輪の絵）を、上から時計回りに progress（0〜1）の分だけ描く（チャージ・解析の進み。spec r2）。
+## 絵の中心から扇形に三角形を並べて絵を貼る（TextureProgressBar の円の塗りと同じ作り。ブラウザ版の描き方でもそのまま描ける）。
+## 扇の外周は rect に内接する円：輪の絵は中心 (128,128) から半径 128 の内に収まっている
+static func draw_radial(ci: CanvasItem, t: Texture2D, rect: Rect2, progress: float, mod := Color.WHITE) -> void:
+	progress = clampf(progress, 0.0, 1.0)
+	if t == null or progress <= 0.0:
+		return
+	if progress >= 0.999:
+		ci.draw_texture_rect(t, rect, false, mod)
+		return
+	var c := rect.get_center()
+	var steps := maxi(2, ceili(72.0 * progress))
+	var pts := PackedVector2Array([c])
+	var uvs := PackedVector2Array([Vector2(0.5, 0.5)])
+	var idx := PackedInt32Array()
+	for i in steps + 1:
+		var a := -PI * 0.5 + TAU * progress * float(i) / float(steps)
+		var d := Vector2(cos(a), sin(a))
+		pts.append(c + d * rect.size * 0.5)
+		uvs.append(Vector2(0.5, 0.5) + d * 0.5)
+		if i > 0:
+			idx.append_array([0, i, i + 1])
+	RenderingServer.canvas_item_add_triangle_array(ci.get_canvas_item(), idx, pts, PackedColorArray([mod]), uvs,
+		PackedInt32Array(), PackedFloat32Array(), t.get_rid())
 
 
 ## アイコンの TextureRect（大きさ固定）
@@ -254,7 +292,8 @@ class Gauge:
 		draw_rect(w, track)
 		var r := fill_rect()
 		if lag > value + 0.001 and lag_fill != null:
-			_bar(lag_fill, r, lag, Color.WHITE)
+			# 減った分は中身の右（value〜lag）だけに描く（中身の後ろに重ねると、r2 の丸い端から白磁色がのぞく）
+			_bar(lag_fill, r, lag, Color.WHITE, value if fill != null else 0.0)
 		if fill != null:
 			_bar(fill, r, value, fill_modulate)
 		if _frame != null:
@@ -267,9 +306,12 @@ class Gauge:
 			else:
 				draw_rect(Rect2(x - 2, r.position.y - 4, 4, r.size.y + 8), UiArt.PAPER)
 
-	func _bar(t: Texture2D, r: Rect2, v: float, mod: Color) -> void:
+	## 中身の絵の from〜v（0〜1）の分を、同じ割合の位置に描く
+	func _bar(t: Texture2D, r: Rect2, v: float, mod: Color, from := 0.0) -> void:
 		v = clampf(v, 0.0, 1.0)
-		if v <= 0.0:
+		from = clampf(from, 0.0, v)
+		if v - from <= 0.0:
 			return
 		var ts := t.get_size()
-		draw_texture_rect_region(t, Rect2(r.position, Vector2(r.size.x * v, r.size.y)), Rect2(0, 0, ts.x * v, ts.y), mod)
+		draw_texture_rect_region(t, Rect2(r.position + Vector2(r.size.x * from, 0), Vector2(r.size.x * (v - from), r.size.y)),
+			Rect2(ts.x * from, 0, ts.x * (v - from), ts.y), mod)
