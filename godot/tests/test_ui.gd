@@ -274,6 +274,133 @@ func test_menu_screens() -> void:
 	h.free_game(g)
 
 
+## タップ（画面に触れると届く左クリック：device が DEVICE_ID_EMULATION）を、画面（SubViewport）に押して離す
+func _tap(vp: SubViewport, pos: Vector2, dev := InputEvent.DEVICE_ID_EMULATION) -> void:
+	for pressed in [true, false]:
+		var e := InputEventMouseButton.new()
+		e.button_index = MOUSE_BUTTON_LEFT
+		e.pressed = pressed
+		e.position = pos
+		e.global_position = pos
+		e.device = dev
+		e.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
+		vp.push_input(e)
+	await h.tree.process_frame
+
+
+## スマホのメニュー（844×390 の画面と同じ UI の大きさ）：行の高さは実寸 48px 以上。選んでいない行のタップは選ぶだけ（右に説明）、
+## 選んでいる行をもう一度タップで決定。見出しの「戻る」「閉じる」で 1 つ前へ。一覧は指でずらせる（押しは取り消し）。
+## マウス（パソコン）のクリックは今までどおり 1 回で決定
+func test_menu_touch() -> void:
+	var g := _new_game()
+	await h.settle()
+	g.load_room("ch1.mid", "start")
+	await _pump(g, 6)
+	var vp := SubViewport.new()
+	vp.size = Vector2i(1477, 682)
+	h.tree.root.add_child(vp)
+	var menu := Menu.new()
+	menu.touch_mode = true
+	vp.add_child(menu)
+	var fm := FakeMain.new()
+	fm.game = g
+	h.tree.root.add_child(fm)
+	menu.show_pause(fm)
+	await h.tree.process_frame
+	await h.tree.process_frame
+	var px := 390.0 / 682.0
+	h.expect(menu.buttons[0].has_focus() and menu.buttons[0].size.y * px >= 48.0, "ポーズ：最初の行を選んでいて、行の高さが実寸 %.1fpx（48px 以上）" % (menu.buttons[0].size.y * px))
+	h.expect(menu.back_button != null and menu.back_button.size.y * px >= 48.0 and menu.back_button.get_global_rect().position.x > vp.size.x * 0.6, "見出しの右に「閉じる」（実寸 48px 以上）")
+	# 「持ち物」：1 回目のタップで選ぶ（右に中身）。決定の働きは無い行
+	await _tap(vp, menu.buttons[2].get_global_rect().get_center())
+	h.expect(menu.buttons[2].has_focus() and menu._detail.text == PauseInfo.items_text(g), "選んでいない行をタップすると選び、右に中身が出る")
+	# 「セーブ」：1 回目は選ぶだけ、2 回目で開く（一覧の下の行は指でずらして出す。ここではフォーカスで見える所へ）
+	menu.buttons[6].grab_focus()
+	await h.tree.process_frame
+	menu.buttons[5].grab_focus()
+	await h.tree.process_frame
+	await _tap(vp, menu.buttons[6].get_global_rect().get_center())
+	h.expect(menu.buttons.size() == 11 and menu.buttons[6].has_focus(), "選んでいない「セーブ」の 1 回目のタップは選ぶだけ")
+	await _tap(vp, menu.buttons[6].get_global_rect().get_center())
+	await h.tree.process_frame
+	h.expect(menu.buttons.size() == 3, "選んでいる「セーブ」をもう一度タップすると開く（%d）" % menu.buttons.size())
+	# セーブ画面の「戻る」→ ポーズ、ポーズの「閉じる」→ ゲームに戻る
+	await h.tree.process_frame
+	h.expect(menu.back_button != null, "セーブ画面にも「戻る」")
+	await _tap(vp, menu.back_button.get_global_rect().get_center())
+	await h.tree.process_frame
+	h.expect(menu.buttons.size() == 11, "「戻る」のタップでポーズ画面へ戻る")
+	await h.tree.process_frame
+	await _tap(vp, menu.back_button.get_global_rect().get_center())
+	h.expect(fm.log.has("resume"), "ポーズの「閉じる」のタップでゲームに戻る")
+	# 店：選んでいない品の 1 回目のタップでは買わない、2 回目で買う。「閉じる」で閉じる
+	fm.log.clear()
+	menu.show_trade("雑貨屋", "セル 300", [
+		{"label": "補修パック", "right": "150 セル", "detail": "説明 1", "cb": func(): fm.log.append("buy")},
+		{"label": "錆鉄", "right": "30 セル", "detail": "説明 2", "cb": func(): fm.log.append("buy2")},
+	], func(): fm.log.append("closed"))
+	await h.tree.process_frame
+	await h.tree.process_frame
+	await _tap(vp, menu.buttons[1].get_global_rect().get_center())
+	h.expect(fm.log.is_empty() and menu._detail.text == "説明 2", "店：選んでいない品のタップは選ぶだけ（説明が出る）")
+	await _tap(vp, menu.buttons[1].get_global_rect().get_center())
+	h.expect(fm.log == ["buy2"], "店：選んでいる品をもう一度タップで買う（%s）" % str(fm.log))
+	await _tap(vp, menu.back_button.get_global_rect().get_center())
+	h.expect(fm.log.has("closed"), "店：見出しの「閉じる」で閉じる")
+	# 指でずらすと一覧が動き、押した行は決定されない（ブラウザのスマホと同じく、画面に触れられる端末として）
+	fm.log.clear()
+	var rows := []
+	for i in 14:
+		rows.append({"label": "品 %d" % i, "detail": "説明", "cb": func(): fm.log.append("row%d" % i)})
+	menu.show_trade("店", "", rows, func(): fm.log.append("closed"))
+	await h.tree.process_frame
+	await h.tree.process_frame
+	var scroll := menu.buttons[0].get_parent().get_parent() as ScrollContainer
+	var was := Input.is_emulating_touch_from_mouse()
+	Input.set_emulate_touch_from_mouse(true)
+	var from := menu.buttons[1].get_global_rect().get_center()
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = from
+	press.device = InputEvent.DEVICE_ID_EMULATION
+	press.button_mask = MOUSE_BUTTON_MASK_LEFT
+	vp.push_input(press)
+	for k in 12:
+		var m := InputEventMouseMotion.new()
+		m.position = from - Vector2(0, 20 * (k + 1))
+		m.relative = Vector2(0, -20)
+		m.button_mask = MOUSE_BUTTON_MASK_LEFT
+		m.device = InputEvent.DEVICE_ID_EMULATION
+		vp.push_input(m)
+		await h.tree.physics_frame
+	var rel := press.duplicate() as InputEventMouseButton
+	rel.pressed = false
+	rel.button_mask = 0
+	rel.position = from - Vector2(0, 240)
+	vp.push_input(rel)
+	for k in 10:
+		await h.tree.physics_frame
+	Input.set_emulate_touch_from_mouse(was)
+	h.expect(scroll.scroll_vertical > 100 and fm.log.is_empty(), "指でずらすと一覧が動き（%d）、行は決定されない（%s）" % [scroll.scroll_vertical, str(fm.log)])
+	# マウス（パソコン）：選んでいない行のクリックも 1 回で決定（今までどおり）
+	menu.touch_mode = false
+	fm.log.clear()
+	menu.show_trade("店", "", [
+		{"label": "補修パック", "detail": "説明 1", "cb": func(): fm.log.append("buy")},
+		{"label": "錆鉄", "detail": "説明 2", "cb": func(): fm.log.append("buy2")},
+	], func(): fm.log.append("closed"))
+	await h.tree.process_frame
+	await h.tree.process_frame
+	h.expect(menu.back_button == null and menu.buttons[0].size.y < Hud.TOUCH_ROW, "パソコン：見出しの「戻る」は無く、行の高さも前のまま")
+	await _tap(vp, menu.buttons[1].get_global_rect().get_center(), 0)
+	h.expect(fm.log == ["buy2"], "パソコン：マウスのクリックは 1 回で決定（%s）" % str(fm.log))
+	menu.queue_free()
+	fm.queue_free()
+	vp.queue_free()
+	h.free_game(g)
+
+
 func test_shop_and_workshop_texts() -> void:
 	var g := _new_game()
 	await h.settle()
