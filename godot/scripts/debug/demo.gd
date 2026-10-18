@@ -679,6 +679,13 @@ func _ui_steps() -> Array:
 		{"ticks": 10, "input": {}},
 		{"ticks": 1, "shot": "ui_01_hud", "input": {}, "check": func():
 			return _check(main.hud._we_row.visible and main.hud._objective_box.visible and main.hud._prompt_box.visible, "HUD：特殊武器のゲージ・目的・調べるの案内が出る")},
+		# HP が 3 割より上で減ったとき：通常の中身の後ろで、白磁色の減った分が遅れて縮む（r2）
+		{"ticks": 2, "setup": func(): main.game.player.hp = main.game.player.max_hp * 0.62},
+		{"ticks": 8, "input": {}},
+		{"ticks": 1, "shot": "ui_01c_hp_damaged", "input": {}, "check": func():
+			var h: Hud = main.hud
+			h.sync(main.game, main.camera, 0.0)
+			return _check(h._hp.lag > h._hp.value + 0.2 and h._hp.fill == UiArt.tex("ui_parts_gauge_hp_fill_full_r2"), "HP の減った分（白磁色）が遅れて縮む。3 割より上は通常の中身")},
 		# 番機の警戒の合図（頭上の「！」の部品）
 		{"ticks": 2, "setup": func():
 			_arena_start("shield")
@@ -713,7 +720,12 @@ func _ui_steps() -> Array:
 			main._line_time = 0.0
 			g.emit_event({"type": "bossLine", "who": "閂", "text": "……侵入者……排除する……"}),
 			"input": {"lock_on": true}},
-		{"ticks": 44, "input": {"lock_on": true, "fire": true}},
+		# チャージ（r2）：1 段目までは白磁の輪が一周する
+		{"ticks": 25, "input": {"lock_on": true, "fire": true}},
+		{"ticks": 1, "shot": "ui_03a_charge_filling", "input": {"lock_on": true, "fire": true}, "check": func():
+			main.hud.sync(main.game, main.camera, 0.0)
+			return _check(main.hud._charge.visible and main.hud._charge.stage == 0 and main.hud._charge.progress > 0.5, "チャージ：1 段目の輪が回っている")},
+		{"ticks": 18, "input": {"lock_on": true, "fire": true}},
 		{"ticks": 1, "shot": "ui_03_boss_weak", "input": {"lock_on": true, "fire": true}, "check": func():
 			var h: Hud = main.hud
 			h.sync(main.game, main.camera, 0.0)
@@ -725,6 +737,17 @@ func _ui_steps() -> Array:
 		{"ticks": 1, "shot": "ui_03b_charge2", "input": {"lock_on": true, "fire": true}, "check": func():
 			main.hud.sync(main.game, main.camera, 0.0)
 			return _check(main.hud._charge.stage == 2, "チャージ 2 段目")},
+		# 光刃の溜め斬り（r2）：白磁の輪が一周し、溜まりきると琥珀の輪
+		{"ticks": 4, "input": {"lock_on": true}},
+		{"ticks": 30, "input": {"lock_on": true, "sword": true}},
+		{"ticks": 1, "shot": "ui_03c_blade_charge", "input": {"lock_on": true, "sword": true}, "check": func():
+			main.hud.sync(main.game, main.camera, 0.0)
+			return _check(main.hud._charge.visible and main.hud._charge.stage == 0 and main.hud._charge.progress > 0.5, "光刃の溜め：白磁の輪が回っている")},
+		{"ticks": 14, "input": {"lock_on": true, "sword": true}},
+		{"ticks": 1, "shot": "ui_03d_blade_ready", "input": {"lock_on": true, "sword": true}, "check": func():
+			main.hud.sync(main.game, main.camera, 0.0)
+			return _check(main.hud._charge.visible and main.hud._charge.stage == 2, "光刃の溜め：溜まりきると琥珀の輪")},
+		{"ticks": 4, "input": {"lock_on": true}},
 		# 会話：顔の枠・名前の札・選択肢
 		{"ticks": 2, "setup": func():
 			prep.call("ch1.mid")

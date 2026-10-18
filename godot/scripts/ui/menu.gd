@@ -35,13 +35,26 @@ const HELP_TOUCH := [
 	["ロックオン", "「ロック」で入り切り。ロック中に右半分を左右に払うと対象の切り替え"],
 	["ポーズ・カメラを背後へ", "右上の「ポーズ」「背後」"],
 ]
-## タイトル画面のスマホ用の短い説明（低い画面でも 360px の高さで 14px 以上の文字で、ロゴと選択肢の横に収まるように。全文はポーズの「操作の説明」）
+## タイトル画面のスマホ用の短い説明（低い画面でも 360px の高さで 14px 以上の文字で、右上の空に収まるように。全文はポーズの「操作の説明」）
 const HELP_TOUCH_TITLE := [
 	["移動・カメラ", "左半分で移動、右半分をなぞってカメラ"],
 	["ボタン", "右下：ジャンプ・撃つ・斬るなど"],
 	["ロックオン", "「ロック」で入り切り、払って切り替え"],
 	["ポーズ・背後", "右上のボタン"],
 ]
+## タイトル画面の短い説明（パソコン・パッド）。タイトルの絵（ui_title_r2）のオルドを隠さないよう、右上の空に収まる行だけ
+## （全部の操作は「操作の設定」とポーズの「操作の説明」）。いまの割り当てを反映する
+static func title_help_rows() -> Array:
+	var pk := func(a: String) -> String: return "%s ／ %s" % [PadConfig.keys_text(a), PadConfig.pad_short(a)]
+	return [
+		["移動・カメラ", "WASD・マウス ／ 左右のスティック"],
+		["ジャンプ・調べる", pk.call("jump")],
+		["撃つ", "左クリック・%s" % pk.call("fire")],
+		["ロックオン", "右クリック・%s" % pk.call("lock_on")],
+		["光刃", pk.call("sword")],
+		["ポーズ", pk.call("pause")],
+	]
+
 ## スマホの画面の操作のときの補助の文字の大きさ（UI を大きく描いたあとで 360px の高さで 14px 以上。spec）
 const AUX_TOUCH := 26
 
@@ -163,7 +176,10 @@ func _menu_buttons(box: Container, items: Array, width: float) -> Button:
 	return first
 
 
-## タイトル画面（ui_title.png）：左上にロゴ、左下に選択肢、右に操作の説明。後ろは夜明けの空（main が用意する）
+## タイトル画面（r2）：後ろは ui_title_r2（低く長いオルドと背中の町、左下にそれを見るハル）を画面いっぱいに。左上の空にロゴの絵
+## （ui_title_logo。低い画面（スマホ）・狭い画面（縦長）では副題が小さすぎる・詰まるので副題なしの ui_title_logo_nosub）。
+## 選択肢は右下（左下は絵のハルが立つ所）、操作の短い説明は右上の空（オルドを隠さない）。全部の操作は「操作の設定」とポーズの「操作の説明」。
+## 絵が読めないときは、後ろは夜明けの空（main が用意する）・ロゴは文字
 func show_title(has_save: bool, new_game: Callable, cont: Callable, quit_game: Callable) -> void:
 	_title_args = [has_save, new_game, cont, quit_game]
 	var items := [["はじめから", new_game], ["つづきから", cont, not has_save],
@@ -175,79 +191,80 @@ func show_title(has_save: bool, new_game: Callable, cont: Callable, quit_game: C
 	_controls_open = false
 	_listen = ""
 	var vs := _view()
-	# 左側を暗くして、ロゴと文字を読みやすく
-	var shade := TextureRect.new()
-	var grad := Gradient.new()
-	grad.set_color(0, Color(0.04, 0.035, 0.03, 0.88))
-	grad.set_color(1, Color(0.04, 0.035, 0.03, 0.0))
-	var gt := GradientTexture2D.new()
-	gt.gradient = grad
-	gt.fill_to = Vector2(1, 0)
-	gt.width = 256
-	gt.height = 4
-	shade.texture = gt
-	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	shade.stretch_mode = TextureRect.STRETCH_SCALE
-	shade.anchor_bottom = 1.0
-	shade.anchor_right = 0.62
-	_root.add_child(shade)
-	var left := maxf(48.0, vs.x * 0.055)
-	var logo := VBoxContainer.new()
-	logo.position = Vector2(left, maxf(36.0, vs.y * 0.08))
-	logo.add_theme_constant_override("separation", 0)
-	_root.add_child(logo)
-	# 低い画面（スマホでは UI を大きく描くので、仮想の高さが 640〜750 になる）では、ロゴを小さくして下の選択肢と重ならないように
+	# 低い画面（スマホでは UI を大きく描くので、仮想の高さが 640〜750 になる）・狭い画面（縦長）
 	var low := vs.y < 900.0
-	var en := Hud.make_label("A R K W A L K E R", 32 if low else 40, UiArt.PAPER, true)
-	logo.add_child(en)
-	var ja := Hud.make_label("アークウォーカー", 88 if low else 112, UiArt.PAPER, true)
-	ja.add_theme_constant_override("outline_size", 11 if low else 14)
-	ja.add_theme_color_override("font_outline_color", Color(0.12, 0.08, 0.05, 0.85))
-	logo.add_child(ja)
-	var line := HBoxContainer.new()
-	line.add_theme_constant_override("separation", 14)
-	logo.add_child(line)
-	line.add_child(Hud.make_label("―　方舟は夜明けを歩く　―", 30 if low else 36, Color("#f6d9a8")))
+	var narrow := vs.x < vs.y * 1.5
+	var margin := clampf(vs.x * 0.04, 32.0, 80.0)
+	var bg := TextureRect.new()
+	bg.texture = UiArt.tex("ui_title_r2")
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	# スマホでは半分以下に縮めて描くので、ミップマップで（取り込みで作ってある）
+	bg.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(bg)
+	# ロゴ（1920×640 の透過の絵。文字は左端から 26px のところから）
+	var top := maxf(20.0, vs.y * 0.035)
+	var logo_tex := UiArt.tex("ui_title_logo_nosub" if low or narrow else "ui_title_logo")
+	if logo_tex != null:
+		var lw := vs.x - 2.0 * margin if narrow else vs.x * (0.42 if low else 0.47)
+		var logo := TextureRect.new()
+		logo.texture = logo_tex
+		logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
+		logo.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		logo.position = Vector2(margin - lw * 26.0 / 1920.0, top)
+		logo.size = Vector2(lw, lw / 3.0)
+		_root.add_child(logo)
+	else:
+		_title_text_logo(Vector2(margin, top), low)
+	# 選択肢（右下）
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 10)
-	box.anchor_top = 1.0
-	box.anchor_bottom = 1.0
-	box.offset_left = left
-	box.offset_top = -40
-	box.offset_bottom = -40
-	box.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	Hud._pin(box, 1, 1, -margin, -40)
 	_root.add_child(box)
-	var first := _menu_buttons(box, items, 500)
+	var first := _menu_buttons(box, items, 440.0 if low else 500.0)
 	var badge := Hud.make_label("試遊版（Godot 版）", 20, UiArt.DIM_TEXT)
-	Hud._pin(badge, 1, 1, -32, -24)
+	Hud._pin(badge, 0, 1, margin, -24)
 	_root.add_child(badge)
-	# 操作の説明（右の枠）
+	# 操作の短い説明（右上の空）
 	var help_panel := PanelContainer.new()
-	help_panel.add_theme_stylebox_override("panel", UiArt.box("small", Vector4(30, 24, 30, 24), Color(1, 1, 1, 0.92)))
-	Hud._pin(help_panel, 1, 1, -maxf(32.0, vs.x * 0.03), -64)
+	help_panel.add_theme_stylebox_override("panel", UiArt.box("small", Vector4(28, 18, 30, 18), Color(1, 1, 1, 0.9)))
+	Hud._pin(help_panel, 1, 0, -margin, top)
 	_root.add_child(help_panel)
+	var help_col := VBoxContainer.new()
+	help_col.add_theme_constant_override("separation", 6)
+	help_panel.add_child(help_col)
 	var help := GridContainer.new()
 	help.columns = 2
 	help.add_theme_constant_override("h_separation", 24)
 	help.add_theme_constant_override("v_separation", 2)
-	help_panel.add_child(help)
-	var rows: Array = HELP_TOUCH_TITLE if touch_mode else help_rows()
-	var fs := AUX_TOUCH if touch_mode else 19
-	var value_w := minf(560.0, vs.x * 0.42 - 260.0)
-	if touch_mode:
-		# スマホ：選択肢の右から画面の右端までを使う
-		var label_w := 0.0
-		for h in rows:
-			label_w = maxf(label_w, UiArt.bold().get_string_size(h[0], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x)
-		value_w = clampf(vs.x - (left + 540.0) - maxf(32.0, vs.x * 0.03) - 60.0 - 24.0 - label_w - 8.0, 280.0, 640.0)
+	help_col.add_child(help)
+	var rows: Array = HELP_TOUCH_TITLE if touch_mode else title_help_rows()
+	var fs := AUX_TOUCH if touch_mode else 20
 	for h in rows:
 		help.add_child(Hud.make_label(h[0], fs, UiArt.AMBER, true))
-		var v := Hud.make_label(h[1], fs, Color("#e8dcc4"))
-		v.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		v.custom_minimum_size = Vector2(value_w, 0)
-		help.add_child(v)
+		help.add_child(Hud.make_label(h[1], fs, Color("#e8dcc4")))
+	if not touch_mode:
+		help_col.add_child(Hud.make_label("ほかの操作：「操作の設定」・ポーズの「操作の説明」", 18, UiArt.DIM_TEXT))
 	if first:
 		_grab_later(first)
+
+
+## タイトルのロゴの絵が無いときの文字のロゴ
+func _title_text_logo(pos: Vector2, low: bool) -> void:
+	var logo := VBoxContainer.new()
+	logo.position = pos
+	logo.add_theme_constant_override("separation", 0)
+	_root.add_child(logo)
+	logo.add_child(Hud.make_label("A R K W A L K E R", 32 if low else 40, UiArt.PAPER, true))
+	var ja := Hud.make_label("アークウォーカー", 88 if low else 112, UiArt.PAPER, true)
+	ja.add_theme_constant_override("outline_size", 11 if low else 14)
+	ja.add_theme_color_override("font_outline_color", Color(0.12, 0.08, 0.05, 0.85))
+	logo.add_child(ja)
+	logo.add_child(Hud.make_label("―　方舟は夜明けを歩く　―", 30 if low else 36, Color("#f6d9a8")))
 
 
 
