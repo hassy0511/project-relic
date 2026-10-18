@@ -224,4 +224,10 @@ func _merge_touch(f: InputFrame) -> void:
 	if sw != 0:
 		f.switch_left = sw < 0
 		f.switch_right = sw > 0
+	# 会話の窓のタップ：窓を押すと決定と同じ（送る・表示途中なら全文を出す）、選択肢の札を押すとその選択肢で確定
+	var tap := touch.take_tap()
+	if tap == -1:
+		f.confirm = true
+	elif tap >= 0:
+		f.choice = tap
 	touch.end_frame()

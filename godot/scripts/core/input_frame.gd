@@ -21,6 +21,8 @@ var lock_on := false
 var heal := false
 ## 決定（メニュー・会話を送る）
 var confirm := false
+## スマホで会話の選択肢の札をタップした：その番号（0 から）。-1 はなし
+var choice := -1
 var switch_left := false
 var switch_right := false
 var camera_reset := false

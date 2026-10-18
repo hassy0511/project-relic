@@ -40,6 +40,10 @@ const GAUGE_SCALE := 0.52
 ## スマホの配置での補助の文字（HP の数・目的・ボスの段階・話し手・ボタンの名前・照準の文字など）の大きさ。
 ## UI を大きく描いても（main._update_ui_scale：360px の高さで約 0.56 倍）、360px の高さで 14px 以上になるように（spec）
 const AUX_TOUCH := 26
+## スマホで指で押す札（会話の選択肢）の高さ。360px の高さで 48px 以上（spec：タッチ可能領域 48px 以上。86 × 360/640 = 48.4）
+const TOUCH_ROW := 86.0
+## スマホの配置で、右下・右上のボタンの押せる範囲から空けておく幅（画面の高さに対する割合）
+const TOUCH_GAP := 0.02
 
 var device := "keyboard"
 ## スマホの画面の操作が出ているとき（main が設定する）。右下のボタンの弧と左下のスティックを避けて並べる
@@ -689,10 +693,12 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 	_charge.position = vs * 0.5 + Vector2(96, -70) - _charge.size * 0.5
 	_charge.queue_redraw()
 
-	# 操作の案内（会話中は隠す）
+	# 操作の案内（会話中は隠す）。スマホの配置では、右上の「ポーズ」「背後」のボタンに掛からない幅に
 	var ht := _hint_text()
 	_hint.text = ht
 	_hint.custom_minimum_size.x = minf(1100.0, vs.x - 200.0)
+	if compact:
+		_hint.custom_minimum_size.x = minf(_hint.custom_minimum_size.x, vs.x - 2.0 * (TouchControls.top_reach() + TOUCH_GAP) * vs.y)
 	_hint.visible = ht != "" and game.story.dialogue.is_empty()
 	_fit(_hint)
 
@@ -750,11 +756,11 @@ func _sync_dialogue(d: Dictionary, vs: Vector2) -> void:
 		_mem_pct.text = "%d%%" % int(round(prog * 100.0))
 	# 顔の枠：16:9 のスマホ（iPhone SE など）では、ボタンの弧を避けた幅に顔・本文・選択肢が並びきらない
 	# （枠が画面の左からはみ出し、本文が 1 行 6 文字ほどになる）ので、顔を省く（名前の札は残る）
-	var narrow := compact and vs.x - 0.58 * vs.y - EDGE < 880.0
+	var right := _bottom_span(vs).y
+	var narrow := compact and right - EDGE < 880.0
 	_dlg_face.visible = who != "" and not narrow
 	if compact:
-		# 右下のボタンの弧に掛からないよう、左に寄せて狭く
-		var right := vs.x - 0.58 * vs.y
+		# 右下のボタンの弧（押せる範囲）に掛からないよう、左に寄せて狭く
 		_dlg.custom_minimum_size.x = right - EDGE
 		_dlg.offset_left = EDGE - vs.x * 0.5
 		_dlg.offset_right = right - vs.x * 0.5
@@ -780,7 +786,8 @@ func _sync_dialogue(d: Dictionary, vs: Vector2) -> void:
 		_sync_choices(d.choices, int(d.sel))
 
 
-## 選択肢の札（ui_parts_panel_choice_r2）。選んでいる札はメニューの選んでいる行と同じ琥珀の縁の札（button_focus_r2）＋カーソル
+## 選択肢の札（ui_parts_panel_choice_r2）。選んでいる札はメニューの選んでいる行と同じ琥珀の縁の札（button_focus_r2）＋カーソル。
+## スマホの配置では、指で押せるよう札を高く（TOUCH_ROW）
 func _sync_choices(choices: Array, sel: int) -> void:
 	while _dlg_choice_rows.size() < choices.size():
 		var p := PanelContainer.new()
@@ -794,9 +801,12 @@ func _sync_choices(choices: Array, sel: int) -> void:
 		cur.custom_minimum_size = Vector2(30, 30)
 		r.add_child(cur)
 		var l := make_label("", 28)
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		r.add_child(l)
 		_dlg_choices.add_child(p)
 		_dlg_choice_rows.append([p, cur, l])
+	for it in _dlg_choice_rows:
+		it[0].custom_minimum_size.y = TOUCH_ROW if _compact_now else 0.0
 	if _choice_style.is_empty():
 		_choice_style = [UiArt.box("choice_r2", Vector4(18, 10, 24, 10)), UiArt.box("button_focus_r2", Vector4(18, 10, 24, 10))]
 	for i in _dlg_choice_rows.size():
@@ -813,11 +823,28 @@ func _sync_choices(choices: Array, sel: int) -> void:
 		it[2].text = String(choices[i])
 
 
-## 画面の下の段で使える左右の範囲（x 始め, x 終わり）。スマホの操作のときはスティックとボタンの弧を避ける
+## 画面の下の段で使える左右の範囲（x 始め, x 終わり）。スマホの操作のときはスティックとボタンの弧（押せる範囲）を避ける
 func _bottom_span(vs: Vector2) -> Vector2:
 	if compact:
-		return Vector2(0.47 * vs.y, vs.x - 0.6 * vs.y)
+		return Vector2(0.47 * vs.y, vs.x - (TouchControls.bottom_reach() + TOUCH_GAP) * vs.y)
 	return Vector2(EDGE + 20.0, vs.x - EDGE - 20.0)
+
+
+## 会話の窓のタップ（スマホ。TouchControls.tap_probe）：位置 pos（画面の座標）が選択肢の札の上ならその番号、
+## 窓のほかの所なら -1（決定と同じ：送る・表示途中なら全文を出す）、窓の外なら -2。
+## 選択肢を待っている間は、札の外を押しても決めない（-2。うっかり今の選択で確定しないように）
+func dialogue_tap_at(pos: Vector2) -> int:
+	if not _dlg.is_visible_in_tree():
+		return -2
+	if _dlg_choices.visible:
+		var sep := float(_dlg_choices.get_theme_constant("separation"))
+		for i in _dlg_choice_rows.size():
+			var p: Control = _dlg_choice_rows[i][0]
+			# 札と札の間のすき間も、近いほうの札に入れる
+			if p.visible and p.get_global_rect().grow_individual(0, sep * 0.5, 0, sep * 0.5).has_point(pos):
+				return i
+		return -2
+	return -1 if _dlg.get_global_rect().has_point(pos) else -2
 
 
 ## スマホの操作の配置に切り替える（目的は 1 行に、会話の顔と選択肢は小さく、記憶の枠は上の中央へ）

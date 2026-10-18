@@ -75,6 +75,8 @@ CI（GitHub Actions）で、テストと画面なしの通しの確認を毎回�
 ハルは絵から起こしたモデル（`haru_r`、`docs/art_orders/W1_ハル再構築の結果.md`）が既定。遊んでいる間に F2 で以前の試作（`haru_a`）と切り替えられる。
 
 スマホ・タブレットのブラウザでは、画面の操作（左半分でスティック、右半分でカメラ、右下にボタン）が自動で出る（開発中の確認用。本番はキーボード＋マウスとゲームパッドが前提）。`scripts/platform/touch_controls.gd`。スマホで確かめるときは横向きにする。
+ボタンは実寸 48px 以上、会話は窓のタップで送り・札のタップで選ぶ、メニューは「タップで選ぶ → もう一度で決定」・見出しの「戻る」（決まりは `20_ゲームシステム設計.md` 19 章「スマホのタッチ操作」）。
+スマホの寸法の撮影：`tools/godot.sh shot --resolution 844x390 --rendering-driver opengl3 --rendering-method gl_compatibility -- --demo=<絶対パス> --ui_shots --touch`（667×375 も同じ）。
 
 起動時の引数：`-- --touch`（画面の操作を出す）、`-- --haru=a`（以前の試作のハル）、`-- --haru=proxy`（MVP の仮のハル）、`-- --shade=toon`（3 段の塗り分け）、`-- --demo=<フォルダ>`（自動の見本）。F1 で性能の表示。
 
