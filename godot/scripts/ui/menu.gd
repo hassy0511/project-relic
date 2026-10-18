@@ -207,8 +207,9 @@ func show_title(has_save: bool, new_game: Callable, cont: Callable, quit_game: C
 	# ロゴ（1920×640 の透過の絵。文字は左端から 26px のところから）
 	var top := maxf(20.0, vs.y * 0.035)
 	var logo_tex := UiArt.tex("ui_title_logo_nosub" if low or narrow else "ui_title_logo")
-	# 幅は画面の半分弱（右上の操作の説明の場所を残す。縦長の画面でも同じ）
-	var lw := vs.x * (0.42 if low else 0.47)
+	# 幅は画面の半分弱（右上の操作の説明の場所を残す。縦長の画面でも同じ）。横に長い画面では高さで決める
+	# （背景の絵が大きく描かれてオルドの舳先が上がるので、ロゴが舳先に掛からないように）
+	var lw := minf(vs.x * (0.42 if low else 0.47), vs.y * (0.92 if low else 0.84))
 	if logo_tex != null:
 		var logo := TextureRect.new()
 		logo.texture = logo_tex

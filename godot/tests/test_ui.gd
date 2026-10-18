@@ -256,6 +256,19 @@ func test_menu_screens() -> void:
 	menu.show_retry(false, func(): fm.log.append("retry"), func(): pass, func(): pass)
 	await h.tree.process_frame
 	h.expect(menu.is_open(), "やられた画面が開く")
+	# タイトル（r2）：背景とロゴが絵。選択肢は右下（左下は絵のハル）。「つづきから」はセーブが無いと押せない
+	menu.show_title(false, func(): fm.log.append("new"), func(): pass, func(): pass)
+	await h.tree.process_frame
+	await h.tree.process_frame
+	var texs := []
+	for c in menu._root.get_children():
+		if c is TextureRect:
+			texs.append(c.texture)
+	h.expect(texs.has(UiArt.tex("ui_title_r2")) and (texs.has(UiArt.tex("ui_title_logo")) or texs.has(UiArt.tex("ui_title_logo_nosub"))), "タイトルの背景とロゴが絵")
+	h.expect(menu.buttons.size() >= 3 and menu.buttons[1].disabled and menu.buttons[0].has_focus(), "タイトルの選択肢：最初の行を選んでいて、セーブが無いと「つづきから」は押せない")
+	h.expect(menu.buttons[0].get_global_rect().position.x > menu._view().x * 0.45, "タイトルの選択肢は右側（左下の絵のハルを隠さない）")
+	menu.buttons[0].pressed.emit()
+	h.expect(fm.log.has("new"), "「はじめから」を押せる")
 	menu.queue_free()
 	fm.queue_free()
 	h.free_game(g)

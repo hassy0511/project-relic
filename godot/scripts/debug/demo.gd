@@ -728,6 +728,8 @@ func _ui_steps() -> Array:
 		{"ticks": 18, "input": {"lock_on": true, "fire": true}},
 		{"ticks": 1, "shot": "ui_03_boss_weak", "input": {"lock_on": true, "fire": true}, "check": func():
 			var h: Hud = main.hud
+			# 危険の HP の点滅：明るいところで撮る（次の ui_03b は暗いところ）
+			h._time = 0.0
 			h.sync(main.game, main.camera, 0.0)
 			return _check(h._reticle.scanned and h._reticle.weak and h._charge.visible and h._charge.stage == 1 and h._hp.lag > h._hp.value, "解析済みで弱点の照準・チャージ 1 段目・HP の減った分が出る")},
 		{"ticks": 2, "setup": func():
@@ -735,6 +737,7 @@ func _ui_steps() -> Array:
 			main.game.player.gun_charge = 1.3,
 			"input": {"lock_on": true, "fire": true}},
 		{"ticks": 1, "shot": "ui_03b_charge2", "input": {"lock_on": true, "fire": true}, "check": func():
+			main.hud._time = PI * 1.5 / 9.0
 			main.hud.sync(main.game, main.camera, 0.0)
 			return _check(main.hud._charge.stage == 2, "チャージ 2 段目")},
 		# 光刃の溜め斬り（r2）：白磁の輪が一周し、溜まりきると琥珀の輪
@@ -814,7 +817,7 @@ func _pad_steps() -> Array:
 		{"ticks": 1, "shot": "01_controls", "setup": func():
 			open_controls.call()
 			press.call(7),
-			"check": func(): return _check(main.menu.buttons.size() == PadConfig.ACTIONS.size() + 6 and main.menu.pad_info_text().contains("ボタン 7"), "操作の設定の画面が開き、押したボタンの番号が出る"),
+			"check": func(): return _check(main.menu.buttons.size() == PadConfig.ACTIONS.size() + 7 and main.menu.pad_info_text().contains("ボタン 7"), "操作の設定の画面が開き、押したボタンの番号が出る"),
 			"after": func(): main.resume()},
 		{"ticks": 1, "shot": "02_listening", "setup": func():
 			open_controls.call()
@@ -829,7 +832,7 @@ func _pad_steps() -> Array:
 			"after": func(): main.resume()},
 		{"ticks": 1, "shot": "04_ps_preset", "setup": func():
 			open_controls.call()
-			main.menu.buttons[PadConfig.ACTIONS.size() + 3].pressed.emit(),
+			main.menu.buttons[PadConfig.ACTIONS.size() + 4].pressed.emit(),
 			"check": func(): return _check(PadConfig.pad.jump == "b1" and PadConfig.code_short("b1") == "×", "PS 配置にすると × がジャンプ・決定になる"),
 			"after": func(): main.resume()},
 		{"ticks": 2, "setup": func():
