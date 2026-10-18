@@ -207,8 +207,9 @@ func show_title(has_save: bool, new_game: Callable, cont: Callable, quit_game: C
 	# ロゴ（1920×640 の透過の絵。文字は左端から 26px のところから）
 	var top := maxf(20.0, vs.y * 0.035)
 	var logo_tex := UiArt.tex("ui_title_logo_nosub" if low or narrow else "ui_title_logo")
+	# 幅は画面の半分弱（右上の操作の説明の場所を残す。縦長の画面でも同じ）
+	var lw := vs.x * (0.42 if low else 0.47)
 	if logo_tex != null:
-		var lw := vs.x - 2.0 * margin if narrow else vs.x * (0.42 if low else 0.47)
 		var logo := TextureRect.new()
 		logo.texture = logo_tex
 		logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -244,9 +245,19 @@ func show_title(has_save: bool, new_game: Callable, cont: Callable, quit_game: C
 	help_col.add_child(help)
 	var rows: Array = HELP_TOUCH_TITLE if touch_mode else title_help_rows()
 	var fs := AUX_TOUCH if touch_mode else 20
+	# 説明の文の幅：ロゴの右から画面の右の余白までに収まらない文は折り返す（16:9 のスマホでは画面が狭い）
+	var label_w := 0.0
+	for h in rows:
+		label_w = maxf(label_w, UiArt.bold().get_string_size(h[0], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x)
+	var room := vs.x - margin - (margin + lw) - 24.0
+	var value_w := maxf(220.0, room - 58.0 - label_w - 24.0 - 8.0)
 	for h in rows:
 		help.add_child(Hud.make_label(h[0], fs, UiArt.AMBER, true))
-		help.add_child(Hud.make_label(h[1], fs, Color("#e8dcc4")))
+		var v := Hud.make_label(h[1], fs, Color("#e8dcc4"))
+		if v.get_theme_font("font").get_string_size(h[1], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > value_w:
+			v.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			v.custom_minimum_size = Vector2(value_w, 0)
+		help.add_child(v)
 	if not touch_mode:
 		help_col.add_child(Hud.make_label("ほかの操作：「操作の設定」・ポーズの「操作の説明」", 18, UiArt.DIM_TEXT))
 	if first:

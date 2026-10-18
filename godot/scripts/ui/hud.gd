@@ -590,9 +590,10 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 	_hp.lag = _hp_lag
 	var danger := ratio < 0.3
 	_hp.fill = UiArt.tex("ui_parts_gauge_hp_fill_danger_r2" if danger else "ui_parts_gauge_hp_fill_full_r2")
-	# 危険の中身（r2、高彩度の赤）は明るさを脈打たせて点滅させる（速さは r1 のときと同じ。暗いときも赤のまま、通常の煉瓦色より暗い）
+	# 危険の中身（r2、高彩度の赤）は点滅させる：周期の半分は明るいまま、残りの半分で半分の明るさまで沈む
+	# （速さは r1 のときと同じ。沈んだときも赤のまま、通常の煉瓦色とは見分けられる）
 	var pulse := 0.5 + 0.5 * sin(_time * 9.0)
-	var blink := 0.42 + 0.58 * pulse
+	var blink := 1.0 - 0.5 * maxf(0.0, -sin(_time * 9.0))
 	_hp.fill_modulate = Color(blink, blink, blink) if danger else Color.WHITE
 	if danger != _hp_danger:
 		_hp_danger = danger
