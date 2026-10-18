@@ -11,24 +11,35 @@ const LOOK_SENS := 0.006
 const FLICK := 90.0
 const AMBER := Color("#ffb23e")
 
-## ボタン：名前、表示、中心（画面の右下・右上からの位置。単位は画面の高さに対する割合）、半径（同）
+## ボタン：名前、表示、中心（画面の右下・右上からの位置。単位は画面の高さに対する割合）、半径（同）。
+## 絵は半径の TEX_SCALE 倍の大きさで描き、見える輪（金の縁の外まで）はその DISC 倍。
+## 半径は 0.07 以上：高さ 360px のスマホで見える輪が直径 49px（spec：タッチ可能領域 48px 以上。844×390・667×375 では 51〜53px）。
+## 並びは spec（ui_hud_touch.png）を元にした前の配置のまま、大きくした分だけ少し外へ広げた（2026-10-18。前は回復・ポーズ・背後が実寸約 36px）
 const BUTTONS := [
-	["jump", "ジャンプ\n調べる", Vector2(-0.13, -0.15), 0.085],
-	["fire", "撃つ", Vector2(-0.33, -0.13), 0.075],
-	["sword", "斬る", Vector2(-0.27, -0.33), 0.07],
-	["dash", "ダッシュ", Vector2(-0.09, -0.37), 0.06],
-	["special", "特殊", Vector2(-0.47, -0.28), 0.058],
-	["lock_on", "ロック", Vector2(-0.50, -0.10), 0.058],
-	["heal", "回復", Vector2(-0.10, -0.55), 0.05],
+	["jump", "ジャンプ\n調べる", Vector2(-0.13, -0.155), 0.092],
+	["fire", "撃つ", Vector2(-0.33, -0.13), 0.08],
+	["sword", "斬る", Vector2(-0.28, -0.335), 0.076],
+	["dash", "ダッシュ", Vector2(-0.095, -0.375), 0.07],
+	["special", "特殊", Vector2(-0.47, -0.29), 0.07],
+	["lock_on", "ロック", Vector2(-0.50, -0.105), 0.07],
+	["heal", "回復", Vector2(-0.115, -0.55), 0.07],
 ]
 ## 上の段（右上の「目的」の表示の下）
 const TOP_BUTTONS := [
-	["pause", "ポーズ", Vector2(-0.09, 0.27), 0.05],
-	["camera_reset", "背後", Vector2(-0.225, 0.27), 0.05],
+	["pause", "ポーズ", Vector2(-0.09, 0.28), 0.07],
+	["camera_reset", "背後", Vector2(-0.255, 0.28), 0.07],
 ]
-## 触れて押せる範囲の半径の下限（画面の高さに対する割合）。360px の高さで直径 48px（spec：タッチ可能領域 48px 以上）。
-## 小さいボタン（回復・ポーズ・背後）は絵より広く反応する。隣どうしの範囲は重ならない（test_touch で確かめる）
+## ボタンの絵（256px）を描く大きさ（半径の何倍か）と、その中で見える輪（金の縁の外まで。ui_parts_touch_button_* の 222/256）
+const TEX_SCALE := 2.25
+const DISC := 222.0 / 256.0
+## 押せる範囲：絵の半径の HIT_SCALE 倍。下限は画面の高さに対する割合で、360px の高さで直径 48px（spec：タッチ可能領域 48px 以上）。
+## 隣どうしの範囲は重ならない（test_touch で確かめる）
+const HIT_SCALE := 1.1
 const MIN_HIT := 24.0 / 360.0
+## 実寸の決まり（spec）：ボタンの見える輪・押せる範囲は 48px 以上（px はブラウザの CSS の px。スマホの実寸の目安）
+const MIN_REAL_PX := 48.0
+## 指を置いて、ほとんど動かさずに離したら「タップ」（会話を送る・選択肢を選ぶ）。動いてよい距離（画面の高さに対する割合）
+const TAP_SLOP := 0.04
 
 signal activated
 
@@ -40,6 +51,8 @@ var move := Vector2.ZERO
 var stick_hint := true
 ## まだ使えないボタン（適合の前のダッシュ・斬る・ロック。main が毎刻み設定する）。描かず、押せない
 var unavailable: Array = []
+## 会話の窓のタップの行き先を調べる（main が Hud.dialogue_tap_at を渡す）：位置 → 選択肢の番号、-1 送る（窓）、-2 なし
+var tap_probe := Callable()
 
 var _draw: Control
 var _held := {}          # ボタン名 → 押している指の番号
@@ -52,6 +65,12 @@ var _look_finger := -1
 var _look := Vector2.ZERO
 var _flick := 0.0
 var _switch := 0
+## 会話の窓・選択肢に置いた指（離したときにタップかどうか決める）
+var _tap_finger := -1
+var _tap_from := Vector2.ZERO
+var _tap_target := -2
+## 取り出していないタップ（-1 送る、0 以上 選んだ選択肢、-2 なし）
+var _tap := -2
 
 
 func _ready() -> void:
@@ -89,6 +108,7 @@ func _release_all() -> void:
 	_held.clear()
 	_stick_finger = -1
 	_look_finger = -1
+	_tap_finger = -1
 	move = Vector2.ZERO
 
 
@@ -102,11 +122,13 @@ func _input(event: InputEvent) -> void:
 		if t.pressed:
 			_touch_down(t.index, t.position)
 		else:
-			_touch_up(t.index)
+			_touch_up(t.index, t.position)
 		_draw.queue_redraw()
 		get_viewport().set_input_as_handled()
 	elif event is InputEventScreenDrag:
 		var d := event as InputEventScreenDrag
+		if d.index == _tap_finger and d.position.distance_to(_tap_from) > _tap_slop():
+			_tap_finger = -1
 		if d.index == _stick_finger:
 			_stick_pos = d.position
 			var v := _stick_pos - _stick_origin
@@ -135,6 +157,14 @@ func _touch_down(index: int, pos: Vector2) -> void:
 			_held[b] = index
 			_pressed_once[b] = true
 		return
+	# 会話の窓・選択肢の札に触れた：動かさずに離したらタップ（_touch_up）。スティック・カメラの指としても今までどおり扱う
+	# （会話中のスティックの上下は選択肢のカーソル）
+	if tap_probe.is_valid() and _tap_finger < 0:
+		var target: int = tap_probe.call(pos)
+		if target != -2:
+			_tap_finger = index
+			_tap_from = pos
+			_tap_target = target
 	var size := _draw.get_viewport_rect().size
 	if pos.x < size.x * 0.45 and _stick_finger < 0:
 		_stick_finger = index
@@ -146,7 +176,11 @@ func _touch_down(index: int, pos: Vector2) -> void:
 		_flick = 0.0
 
 
-func _touch_up(index: int) -> void:
+func _touch_up(index: int, pos: Vector2) -> void:
+	if index == _tap_finger:
+		if pos.distance_to(_tap_from) <= _tap_slop():
+			_tap = _tap_target
+		_tap_finger = -1
 	for b in _held.keys():
 		if _held[b] == index:
 			_held.erase(b)
@@ -158,14 +192,18 @@ func _touch_up(index: int) -> void:
 
 
 func _layout(list: Array) -> Array:
-	var size := _draw.get_viewport_rect().size
-	var h := size.y
+	return layout_for(list, _draw.get_viewport_rect().size, unavailable)
+
+
+## ボタンの位置と大きさ（画面の大きさ vs：UI の単位）。[名前, 表示, 中心, 半径] の並び。skip のボタンは除く
+static func layout_for(list: Array, vs: Vector2, skip: Array = []) -> Array:
+	var h := vs.y
 	var out := []
 	for b in list:
-		if unavailable.has(b[0]):
+		if skip.has(b[0]):
 			continue
 		var off: Vector2 = b[2]
-		var anchor := Vector2(size.x, size.y if off.y < 0.0 else 0.0)
+		var anchor := Vector2(vs.x, vs.y if off.y < 0.0 else 0.0)
 		out.append([b[0], b[1], anchor + off * h, b[3] * h])
 	return out
 
@@ -178,9 +216,55 @@ func _button_at(pos: Vector2) -> String:
 	return ""
 
 
+func _tap_slop() -> float:
+	return TAP_SLOP * _draw.get_viewport_rect().size.y
+
+
 ## 押せる範囲の半径（r：絵の半径、h：画面の高さ）
 static func hit_radius(r: float, h: float) -> float:
-	return maxf(r * 1.15, h * MIN_HIT)
+	return maxf(r * HIT_SCALE, h * MIN_HIT)
+
+
+## 見える輪の直径（r：絵の半径）
+static func disc_diameter(r: float) -> float:
+	return r * TEX_SCALE * DISC
+
+
+## 右下のボタンの押せる範囲が、画面の右端からどこまで届くか（画面の高さに対する割合）。
+## HUD の会話の窓・ボスの体力・字幕は、これより左に置く（Hud._bottom_span）
+static func bottom_reach() -> float:
+	var m := 0.0
+	for b in BUTTONS:
+		m = maxf(m, -float(b[2].x) + hit_radius(b[3], 1.0))
+	return m
+
+
+## 上の段（ポーズ・背後）の押せる範囲が、画面の右端からどこまで届くか（同）。上の中央の操作の案内はこれより左で終える
+static func top_reach() -> float:
+	var m := 0.0
+	for b in TOP_BUTTONS:
+		m = maxf(m, -float(b[2].x) + hit_radius(b[3], 1.0))
+	return m
+
+
+## スマホで UI を大きく描く倍率（main._update_ui_scale。窓の content_scale_factor）。logical_h：画面の高さの実寸（CSS の px）。
+## 文字が 1080 の高さの画面で 26px のとき、画面の高さ 390px で約 16px になるように（spec：360px 高で本文 16px 以上）。
+## UI の画面の高さは 1080 / 倍率 ＝ 実寸の 1.75 倍（640〜1080）
+static func ui_scale_for(logical_h: float) -> float:
+	return 1080.0 / clampf(logical_h * 1.75, 640.0, 1080.0)
+
+
+## UI の 1 単位が実寸（ブラウザの CSS の px）の何 px か。win_h：窓の高さ（画素）、scale：画素の細かさ（ブラウザの devicePixelRatio）、
+## view_h：UI の画面の高さ（main._update_ui_scale で大きく描いたあとの単位）
+static func real_px_per_unit(win_h: float, scale: float, view_h: float) -> float:
+	return win_h / maxf(1.0, scale) / maxf(1.0, view_h)
+
+
+## 会話のタップを取り出す（-1 送る、0 以上 選んだ選択肢、-2 なし）
+func take_tap() -> int:
+	var t := _tap
+	_tap = -2
+	return t
 
 
 ## ボタンが押されているか（押して離した短い押しも、この刻みでは押したことにする）
@@ -265,7 +349,7 @@ func _on_draw() -> void:
 		_draw.draw_string(font, Vector2(c.x - 80, y), "移動", HORIZONTAL_ALIGNMENT_CENTER, 160, fs, Color(1, 1, 1, 0.7))
 	for b in _layout(BUTTONS) + _layout(TOP_BUTTONS):
 		var on: bool = button(b[0])
-		var d: float = b[3] * 2.25
+		var d: float = b[3] * TEX_SCALE
 		var base := "ui_parts_touch_button_pressed" if on else "ui_parts_touch_button_normal"
 		if b[0] == "lock_on" and lock_toggled:
 			base = "ui_parts_touch_button_lock_on"

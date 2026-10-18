@@ -69,6 +69,17 @@ func move_choice(d: int) -> void:
 	dialogue.sel = posmod(int(dialogue.sel) + d, dialogue.choices.size())
 
 
+## 選択肢を番号で選んで確定する（スマホで札をタップしたとき）。選択肢を出し終えていない・番号が範囲の外なら何もしない（false）
+func choose(i: int) -> bool:
+	if not dialogue.has("choices") or i < 0 or i >= dialogue.choices.size():
+		return false
+	if dialogue.shown < String(dialogue.text).length():
+		return false
+	dialogue.sel = i
+	confirm()
+	return true
+
+
 ## 決定ボタンが押されたとき。表示途中なら全文を出し、出し終わっていれば次の行へ（選択肢があれば確定）
 func confirm() -> void:
 	if dialogue.is_empty():

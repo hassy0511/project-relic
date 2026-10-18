@@ -87,6 +87,8 @@ func _ready() -> void:
 	hud = Hud.new()
 	add_child(hud)
 	hud.visible = false
+	# スマホ：会話の窓をタップすると送る、選択肢の札をタップするとその選択肢で確定（TouchControls → InputFrame）
+	touch.tap_probe = hud.dialogue_tap_at
 	menu = Menu.new()
 	add_child(menu)
 	menu.moved.connect(func(): audio.play("ui_move"))
@@ -222,15 +224,13 @@ func _title_backdrop() -> void:
 	camera.rotation_degrees = Vector3(7, 50, 0)
 
 
-## スマホ（画面に触れて操作する、低い画面）では、画面の部品を大きく描く。
-## 文字が 1080 の高さの画面で 26px のとき、画面の高さ 390px で約 16px になるように（spec：360px 高で本文 16px 以上）
+## スマホ（画面に触れて操作する、低い画面）では、画面の部品を大きく描く（倍率は TouchControls.ui_scale_for）
 func _update_ui_scale() -> void:
 	var f := 1.0
 	if touch.active:
 		var win := get_window()
 		var sc := DisplayServer.screen_get_scale() if OS.has_feature("web") else 1.0
-		var logical_h := float(win.size.y) / maxf(1.0, sc)
-		f = 1080.0 / clampf(logical_h * 1.75, 640.0, 1080.0)
+		f = TouchControls.ui_scale_for(float(win.size.y) / maxf(1.0, sc))
 	if not is_equal_approx(get_window().content_scale_factor, f):
 		get_window().content_scale_factor = f
 

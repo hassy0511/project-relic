@@ -585,8 +585,11 @@ func go_to(room_to: String, spawn := "start", autosave := true) -> void:
 	_pending_room = {"room": world.resolve(room_to, room_id), "spawn": spawn, "autosave": autosave}
 
 
-## 会話中の入力：決定で送る、選択肢は上下で選ぶ
+## 会話中の入力：決定で送る、選択肢は上下で選ぶ。スマホで選択肢の札をタップしたら（frame.choice）その選択肢で確定する
+## （同じ番号が続けて来ても 1 回だけ）
 func _update_dialogue_input(frame: InputFrame) -> void:
+	if frame.choice >= 0 and frame.choice != edges.prev.choice and story.choose(frame.choice):
+		return
 	if story.dialogue.has("choices") and story.dialogue.shown >= String(story.dialogue.text).length():
 		var ax := frame.move_y
 		if absf(ax) > 0.6 and absf(_choice_axis) <= 0.6:

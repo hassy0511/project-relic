@@ -1,6 +1,9 @@
 class_name Menu
 extends CanvasLayer
-## タイトルとポーズのメニュー。キーボード・ゲームパッド・マウスで選べる（Godot のフォーカス移動を使う）
+## タイトルとポーズのメニュー。キーボード・ゲームパッド・マウスで選べる（Godot のフォーカス移動を使う）。
+## スマホ（touch_mode）：行は 360px の高さで 48px 以上（Hud.TOUCH_ROW）。左右 2 つに分けた画面（ポーズ・店・工房・ギルド・セーブ・操作の設定）は、
+## 選んでいない行をタップすると選ぶだけ（右に説明が出る）、選んでいる行をもう一度タップすると決定。一覧は指でずらせる。
+## 見出しの右の「戻る」「閉じる」をタップすると 1 つ前へ。タイトル・やられた画面の選択肢は 1 回のタップで決定
 
 ## 操作の説明（いまの割り当てを反映する。パッドの名前は設定画面で変えた後のもの）
 static func help_rows() -> Array:
@@ -78,6 +81,11 @@ var _controls_row := 0
 var _title_args: Array = []
 ## 今の画面の押せる行（テスト用）
 var buttons: Array[Button] = []
+## スマホの見出しの「戻る」「閉じる」（テスト用。無ければ null）
+var back_button: Button = null
+## いちばん新しい左クリック（タップ）を押したとき：タップから来たか、その前に選んでいた行（2 回のタップで決定するため）
+var _press_touch := false
+var _press_focus: Control = null
 
 
 func _ready() -> void:
@@ -106,6 +114,7 @@ func hide_menu() -> void:
 	_controls_open = false
 	_listen = ""
 	buttons.clear()
+	back_button = null
 	_root.visible = false
 	for c in _root.get_children():
 		c.queue_free()
@@ -115,6 +124,7 @@ func _clear() -> void:
 	for c in _root.get_children():
 		c.queue_free()
 	buttons.clear()
+	back_button = null
 	_root.visible = true
 
 
@@ -139,11 +149,12 @@ func _view() -> Vector2:
 	return v if v.x > 0.0 else Vector2(1920, 1080)
 
 
-## 行のボタン（見た目は UiArt.theme()：ボタンの 4 状態の部品、選んでいる行は煉瓦色の札＋左にカーソル）
+## 行のボタン（見た目は UiArt.theme()：ボタンの 4 状態の部品、選んでいる行は煉瓦色の札＋左にカーソル）。
+## スマホでは指で押せる高さ（Hud.TOUCH_ROW：360px の高さで 48px 以上）
 func _row_button(text: String, h: float, font_size: int) -> Button:
 	var btn := Button.new()
 	btn.text = text
-	btn.custom_minimum_size = Vector2(0, h)
+	btn.custom_minimum_size = Vector2(0, maxf(h, Hud.TOUCH_ROW) if touch_mode else h)
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.clip_text = true
 	# 入りきらない名前は途中で切らず「…」で終える（全文は右の説明に出る）
@@ -166,9 +177,11 @@ func _menu_buttons(box: Container, items: Array, width: float) -> Button:
 			chosen.emit()
 			it[1].call())
 		btn.focus_entered.connect(func(): moved.emit())
-		btn.mouse_entered.connect(func():
-			if not btn.disabled:
-				btn.grab_focus())
+		# マウスを載せると選ぶ（スマホには「載せる」が無いので、タップがそのまま決定）
+		if not touch_mode:
+			btn.mouse_entered.connect(func():
+				if not btn.disabled:
+					btn.grab_focus())
 		box.add_child(btn)
 		buttons.append(btn)
 		if first == null and not btn.disabled:
@@ -289,7 +302,8 @@ func set_note(text: String) -> void:
 ## 2 つに分けた画面（ui_menu_pause.png などの枠と札）：左に押せる行（上下で選ぶ）、右に選んでいる行の説明。
 ## パッド・キーボード・タッチで同じに使える。
 ## rows：[{ label, right?, detail?, icon?（行の左と説明の上に出す絵）, dim?（薄く表示。押すと callback は呼ばれる）, cb }]
-func _screen(title: String, sub: String, rows: Array, focus := 0, back := Callable(), footer := "") -> void:
+## スマホでは見出しの右に「戻る」（back_label）：タップで touch_back（無ければ back）を呼ぶ
+func _screen(title: String, sub: String, rows: Array, focus := 0, back := Callable(), footer := "", touch_back := Callable(), back_label := "戻る") -> void:
 	_clear()
 	_back = back
 	_controls_open = false
@@ -327,6 +341,17 @@ func _screen(title: String, sub: String, rows: Array, focus := 0, back := Callab
 		sb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		head.add_child(sb)
 		sb.add_child(Hud.make_label(sub, 26, UiArt.AMBER, true))
+	var tb := touch_back if touch_back.is_valid() else back
+	if touch_mode and tb.is_valid():
+		# スマホには「戻る」のボタン（Esc・B）が無いので、見出しの右に押せる札を置く（1 回のタップで戻る）
+		back_button = _row_button(back_label, Hud.TOUCH_ROW, 28)
+		back_button.custom_minimum_size.x = 230
+		back_button.focus_mode = Control.FOCUS_NONE
+		back_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		back_button.pressed.connect(func():
+			moved.emit()
+			tb.call())
+		head.add_child(back_button)
 	var body := HBoxContainer.new()
 	body.add_theme_constant_override("separation", 20)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -371,7 +396,7 @@ func _screen(title: String, sub: String, rows: Array, focus := 0, back := Callab
 	var foot := PanelContainer.new()
 	foot.add_theme_stylebox_override("panel", UiArt.strip(0.7, Vector4(24, 6, 24, 6)))
 	box.add_child(foot)
-	var foot_text := footer if footer != "" else ("上下：選ぶ　決定：%s ／ %s ／ タップ　戻る：%s ／ %s" % [PadConfig.keys_text("confirm").get_slice(" / ", 0), PadConfig.pad_short("confirm"), PadConfig.keys_text("back").get_slice(" / ", 0), PadConfig.pad_short("back")] if not touch_mode else "タップで選ぶ")
+	var foot_text := footer if footer != "" else ("上下：選ぶ　決定：%s ／ %s ／ タップ　戻る：%s ／ %s" % [PadConfig.keys_text("confirm").get_slice(" / ", 0), PadConfig.pad_short("confirm"), PadConfig.keys_text("back").get_slice(" / ", 0), PadConfig.pad_short("back")] if not touch_mode else "タップで選ぶ・選んでいる行をもう一度タップで決定　指でずらすと一覧が動く")
 	var fl := Hud.make_label(foot_text, AUX_TOUCH if touch_mode else 20, Color("#d6cab2"))
 	fl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	foot.add_child(fl)
@@ -407,8 +432,15 @@ func _screen(title: String, sub: String, rows: Array, focus := 0, back := Callab
 			dicon.texture = icon
 			dicon.visible = icon != null
 			moved.emit())
-		btn.mouse_entered.connect(func(): btn.grab_focus())
+		if touch_mode:
+			# スマホ：指でずらすと一覧が動く（行が押した指を一覧にも渡す。ずらし始めると行の押しは取り消される）
+			btn.mouse_filter = Control.MOUSE_FILTER_PASS
+		else:
+			btn.mouse_entered.connect(func(): btn.grab_focus())
 		btn.pressed.connect(func():
+			# スマホ：選んでいない行のタップは選ぶだけ（右に説明が出る）。選んでいる行をもう一度タップで決定
+			if _tap_only_selects(btn):
+				return
 			chosen.emit()
 			row.cb.call())
 		list.add_child(btn)
@@ -476,7 +508,7 @@ func show_pause(main, focus := 0) -> void:
 		{"label": "操作の設定", "detail": "ボタン・キーの割り当てを変える。コントローラーの名前と、押したボタンの番号も見られる。", "cb": func(): show_controls(func(): show_pause(main, 9))},
 		{"label": "タイトルへ", "detail": "タイトル画面に戻る（保存していない進みは失われる）。", "cb": main.to_title},
 	]
-	_screen("PAUSE", "セル %d　／　%s" % [game.cells, PauseInfo.play_time_text(game.play_time)], rows, focus)
+	_screen("PAUSE", "セル %d　／　%s" % [game.cells, PauseInfo.play_time_text(game.play_time)], rows, focus, Callable(), "", main.resume, "閉じる")
 
 
 ## 操作の設定の画面。行を決定すると割り当て待ちになり、その状態で押したボタン・キーが割り当たる
@@ -603,8 +635,20 @@ func _process(dt: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# タップ（画面に触れると、左クリックとしても届く。device が DEVICE_ID_EMULATION）を押した瞬間に、その前に選んでいた行を覚える。
+	# Godot は押した瞬間に押した行を選ぶので、ボタンの pressed の時点では分からない（_input は画面の部品より先に呼ばれる）
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		_press_touch = touch_mode and event.device == InputEvent.DEVICE_ID_EMULATION
+		_press_focus = get_viewport().gui_get_focus_owner()
+	elif (event is InputEventKey or event is InputEventJoypadButton) and event.is_pressed():
+		_press_touch = false
 	if feed_event(event) or (_controls_open and _listen != "" and (event is InputEventKey or event is InputEventJoypadButton)):
 		get_viewport().set_input_as_handled()
+
+
+## タップで押した行が、押す前に選ばれていなかったか（それなら選ぶだけで、決定しない）
+func _tap_only_selects(btn: Button) -> bool:
+	return _press_touch and _press_focus != btn
 
 
 ## セーブ・ロードの画面（スロット 1 とオートセーブ）
@@ -643,7 +687,7 @@ func show_save(main, saving: bool) -> void:
 func show_trade(title: String, sub: String, rows: Array, close: Callable, focus := 0) -> void:
 	var all := rows.duplicate()
 	all.append({"label": "閉じる", "detail": "画面を閉じる。", "cb": close})
-	_screen(title, sub, all, focus, close)
+	_screen(title, sub, all, focus, close, "", Callable(), "閉じる")
 
 
 ## やられたときの画面
