@@ -765,14 +765,22 @@
    {
     "camera": {
      "pos": [
+      0.3,
       0,
-      0,
-      -2.6
+      -2.8
      ],
-     "height": 2.3,
+     "height": 2.0,
+     "eye": [
+      6.0,
+      2.4,
+      -1.6
+     ],
      "time": 1.6,
      "wait": false
     }
+   },
+   {
+    "wait": 0.8
    },
    {
     "fx": "node_memory",
