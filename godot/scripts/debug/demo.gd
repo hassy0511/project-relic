@@ -927,7 +927,7 @@ func _pad_steps() -> Array:
 		{"ticks": 1, "shot": "01_controls", "setup": func():
 			open_controls.call()
 			press.call(7),
-			"check": func(): return _check(main.menu.buttons.size() == PadConfig.ACTIONS.size() + 7 and main.menu.pad_info_text().contains("ボタン 7"), "操作の設定の画面が開き、押したボタンの番号が出る"),
+			"check": func(): return _check(main.menu.buttons.size() == PadConfig.ACTIONS.size() + 8 and main.menu.pad_info_text().contains("ボタン 7"), "操作の設定の画面が開き、押したボタンの番号が出る"),
 			"after": func(): main.resume()},
 		{"ticks": 1, "shot": "02_listening", "setup": func():
 			open_controls.call()
@@ -942,7 +942,7 @@ func _pad_steps() -> Array:
 			"after": func(): main.resume()},
 		{"ticks": 1, "shot": "04_ps_preset", "setup": func():
 			open_controls.call()
-			main.menu.buttons[PadConfig.ACTIONS.size() + 4].pressed.emit(),
+			main.menu.buttons[PadConfig.ACTIONS.size() + 5].pressed.emit(),
 			"check": func(): return _check(PadConfig.pad.jump == "b1" and PadConfig.code_short("b1") == "×", "PS 配置にすると × がジャンプ・決定になる"),
 			"after": func(): main.resume()},
 		{"ticks": 2, "setup": func():

@@ -91,6 +91,8 @@ var _built := {}
 var _time := 0.0
 ## 外れた部品が床に着いたとき（Fx.debris_landed）：(位置, 閂か)
 var on_land: Callable
+## フラッシュの強さ（設定の PadConfig.flash を main が入れる）：被弾で体（白磁の殻）が光る強さに掛ける（閂の胴は画面の大きな面になる）
+var flash_scale := 1.0
 var PORCELAIN := MeshKit.mat(Color("#e9e3d6"), 0.35)
 var BRASS := MeshKit.mat(Color("#b08a4a"), 0.4, 0.6)
 var DARK := MeshKit.mat(Color("#3a3530"), 0.7)
@@ -186,6 +188,13 @@ func _pose(b: Built, name: String, deg: float, offset := Vector3.ZERO) -> void:
 	n.transform = Transform3D(r.basis * Basis(Vector3.RIGHT, deg_to_rad(deg)), r.origin + offset)
 
 
+## 被弾の光：殻が白く光って 0.25 秒で消える（Enemy.flash）。フラッシュの強さを掛ける（連射の当たりで続けて光るのを弱める）
+func _hit_glow(b: Built, e) -> void:
+	var f: float = e.flash * flash_scale
+	b.shell.emission_enabled = f > 0.01
+	b.shell.emission = Color(f, f * 0.9, f * 0.7)
+
+
 func _set_glow(m: StandardMaterial3D, c: Color, energy: float) -> void:
 	m.albedo_color = c
 	m.emission = c
@@ -202,9 +211,8 @@ func _animate_glb(b: Built, e, dt: float) -> void:
 	b.alert_k = move_toward(b.alert_k, 1.0 if hostile else 0.0, dt / 0.35)
 	var blink := 0.5 + 0.5 * sin(_time * 30.0) if e.telegraphing() else 0.0
 	_set_glow(b.sensor, SENSOR_NORMAL.lerp(SENSOR_ALERT, b.alert_k), lerpf(1.2, 2.6, b.alert_k) + blink * 3.0)
-	# 被弾の光
-	b.shell.emission_enabled = e.flash > 0.01
-	b.shell.emission = Color(e.flash, e.flash * 0.9, e.flash * 0.7)
+	# 被弾の光（フラッシュの強さを掛ける）
+	_hit_glow(b, e)
 	b.alert.visible = e.alerting()
 	var stun_wobble := sin(_time * 30.0) * 3.0 if e.state == "stunned" or e.state == "stagger" else 0.0
 	if b.kind == "sentry":
@@ -592,8 +600,7 @@ func _animate_fallback(b: Built, e) -> void:
 	b.core.albedo_color = cc
 	b.core.emission = cc
 	b.core.emission_energy_multiplier = 2.0 + tele * 4.0
-	b.shell.emission_enabled = e.flash > 0.01
-	b.shell.emission = Color(e.flash, e.flash * 0.9, e.flash * 0.7)
+	_hit_glow(b, e)
 	b.alert.visible = e.alerting()
 	var moving: bool = Vector2(e.vel.x, e.vel.z).length() > 0.3
 	b.body.position.y = absf(sin(_time * 12.0)) * 0.05 if moving else 0.0

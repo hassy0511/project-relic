@@ -519,7 +519,7 @@ func show_pause(main, focus := 0) -> void:
 		{"label": "セーブ", "detail": "手動のセーブ（スロット 1）。ビーコンでは自動でも保存される。", "icon": UiArt.tex("icon_map_save_beacon"), "cb": func(): show_save(main, true)},
 		{"label": "ロード", "detail": "保存したところから再開する。", "cb": func(): show_save(main, false)},
 		{"label": "操作の説明", "detail": PauseInfo.help_text(touch_mode), "cb": func(): pass},
-		{"label": "操作の設定", "detail": "ボタン・キーの割り当てを変える。コントローラーの名前と、押したボタンの番号も見られる。", "cb": func(): show_controls(func(): show_pause(main, 9))},
+		{"label": "操作の設定", "detail": "ボタン・キーの割り当てを変える。コントローラーの名前と、押したボタンの番号も見られる。\nカメラの自動回り込み・フラッシュの強さもここで変える。", "cb": func(): show_controls(func(): show_pause(main, 9))},
 		{"label": "タイトルへ", "detail": "タイトル画面に戻る（保存していない進みは失われる）。", "cb": main.to_title},
 	]
 	_screen("PAUSE", "セル %d　／　%s" % [game.cells, PauseInfo.play_time_text(game.play_time)], rows, focus, Callable(), "", main.resume, "閉じる")
@@ -560,10 +560,16 @@ func show_controls(back: Callable, focus := 0, note := "") -> void:
 		"cb": func():
 			PadConfig.cycle_cam_follow()
 			show_controls(back, PadConfig.ACTIONS.size() + 3, "カメラの自動回り込み：%s" % PadConfig.CAM_FOLLOW_TEXT[PadConfig.cam_follow])})
+	# フラッシュの抑制（20 章 22 節）：大きな光・被弾の画面の赤・番機の被弾の光の強さ（PadConfig.flash。main が Fx・Vfx・EnemyView・Hud へ入れる）
+	rows.append({"label": "フラッシュの強さ", "right": PadConfig.flash_text(),
+		"detail": "弱点・撃破・壁や腕の破壊などの大きな光、被弾したときの画面の赤、攻撃を受けた番機が光る強さ。\n標準：見本どおり。\n弱め：半分。\n最小：2 割（光る場所と向きは分かる）。\n光や点滅がつらいときは、弱め・最小にする。決定で切り替える。",
+		"cb": func():
+			PadConfig.cycle_flash()
+			show_controls(back, PadConfig.ACTIONS.size() + 4, "フラッシュの強さ：%s" % PadConfig.flash_text())})
 	rows.append({"label": "PS 配置（× で決定）", "detail": "PlayStation 系のコントローラーで、ブラウザが標準の割り当てにしてくれず、ボタンが番号順（□=0 ×=1 ○=2 △=3 L1=4 R1=5 L2=6 R2=7 SHARE=8 OPTIONS=9 L3=10 R3=11）で届くとき用。× がジャンプ・決定、○ がダッシュ・戻る、□ が斬る、△ が特殊武器、L2 がロックオン、R2 が撃つになる。\n標準の割り当てで届くコントローラーなら「初期に戻す」のままで × が決定になる。うまく合わないときは、各行を選んで 1 つずつ割り当てる。", "cb": func():
 		PadConfig.preset_ps_raw()
-		show_controls(back, PadConfig.ACTIONS.size() + 4, "PS 配置にした（×＝決定）")})
-	rows.append({"label": "初期に戻す", "detail": "ボタン・キーの割り当てと、表記・スティックの遊び・カメラの自動回り込みをすべて初めの状態に戻す。", "cb": func():
+		show_controls(back, PadConfig.ACTIONS.size() + 5, "PS 配置にした（×＝決定）")})
+	rows.append({"label": "初期に戻す", "detail": "ボタン・キーの割り当てと、表記・スティックの遊び・カメラの自動回り込み・フラッシュの強さをすべて初めの状態に戻す。", "cb": func():
 		PadConfig.reset_all()
 		show_controls(back, 0, "初期の割り当てに戻した")})
 	rows.append({"label": "戻る", "detail": "前の画面へ戻る。", "cb": back})

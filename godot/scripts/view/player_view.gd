@@ -225,10 +225,11 @@ func set_frame_parts(core: bool, arm: bool, legs: bool) -> void:
 			_frame_off[fn] = true
 
 
-## フレームの部品を secs 秒のあいだ隠す（Fx のフレームの装着：光の粒と陶器のかけらが集まってから現れる）
+## フレームの部品を secs 秒のあいだ隠す（Fx のフレームの装着：光の粒と陶器のかけらが集まってから現れる）。
+## もう隠して待っている部品（台本の合図を待つ間）なら、残りの秒数を secs に置き直す
 func reveal_later(part: String, secs: float) -> void:
 	var fn := frame_nodes.get(part) as Node3D
-	if fn == null or not fn.visible:
+	if fn == null or not (fn.visible or _reveal.has(part)):
 		return
 	_reveal[part] = secs
 	fn.visible = false

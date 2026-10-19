@@ -4,7 +4,6 @@ extends Node3D
 
 var _walls := {}
 var _chests := {}
-var _beams: Array[StandardMaterial3D] = []
 var _npcs := {}
 var _npc_models := {}   # id → {anim, face_mats, expr}
 var _pickups := {}
@@ -82,14 +81,9 @@ func build(game: GameSim) -> void:
 			MeshKit.add(root, MeshKit.box(Vector3(0.12, 0.6, 0.12)), MeshKit.mat(Color("#8a8a8a"), 0.3, 0.7), Vector3(-0.4, 0.95, 0))
 		root.add_child(MeshKit.label(n.name, float(NPC_LABEL_Y.get(n.id, 2.1)), Color("#ffe7b8"), 48))
 		_npcs[n.id] = root
+	# セーブビーコンの台（定常の光の柱は Fx._beacon_beam が光柱の素材で描く）
 	for b in game.beacons:
 		MeshKit.add(self, MeshKit.cyl(0.5, 0.7, 0.4), MeshKit.mat(Color("#e9e3d6"), 0.35), b.pos + Vector3(0, 0.2, 0))
-		var beam := MeshKit.glow(Color("#ffcf7a"), 1.5, 0.35)
-		var cyl := MeshKit.cyl(0.25, 0.35, 12.0)
-		cyl.cap_top = false
-		cyl.cap_bottom = false
-		MeshKit.add(self, cyl, beam, b.pos + Vector3(0, 6.2, 0))
-		_beams.append(beam)
 	# 看板・名札（見た目だけ）：{ "type": "sign", "text": "ハルの家", "pos": [x,y,z], "size": 48 }。pos の高さに文字を浮かべる
 	for p in game.room.get("props", []):
 		if p.type == "sign":
@@ -238,8 +232,6 @@ func sync(game: GameSim, dt: float) -> void:
 			_set_npc_face(info, face)
 			_play_npc(info, _npc_anim_for(game, n, info))
 	_sync_leaving(game, dt)
-	for beam in _beams:
-		beam.albedo_color.a = 0.25 + sin(_time * 2.0) * 0.08
 	# 拾える物
 	var alive := {}
 	for k in game.pickups:

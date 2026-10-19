@@ -11,6 +11,7 @@ extends RefCounted
 ##   camera（注視点）/ freeze（操作ロック）/ mark（印）/ shop・workshop・guild（画面を開く）/ accept・complete（依頼）/ autosave
 ##   hint（操作の案内を出し続ける。{ kb, pad, touch } か文字列。"" で消す）/ remove（住人 id を今の部屋から消す）
 ##   shake（画面の揺れの強さ。0.4 くらい）/ despawn（グループの敵を倒さずに消す）
+##   fx（見た目の合図。出来事 {type: "fx", id, part?, at?} を出すだけで遊びは変えない。Fx が描く：frame_fit・node_memory）
 
 const CHARS_PER_SEC := 45.0
 
@@ -180,10 +181,17 @@ func _run_step(step: Dictionary) -> void:
 	elif step.has("camera"):
 		var c: Dictionary = step.camera
 		if c.has("at") or c.has("pos"):
-			h.cam_focus = h.place(c).pos + Vector3(0, float(c.get("height", 1.5)), 0)
-			h.cam_focus_time = float(c.get("time", 2.0))
+			var focus: Vector3 = h.place(c).pos + Vector3(0, float(c.get("height", 1.5)), 0)
 			# "eye": [x,y,z]：カメラをその場所へ置いて注視点を見る（部屋の外から見せる。町の下のオルドの脚など）
-			h.cam_eye = RoomGeo.v3(c.eye) if c.has("eye") else null
+			var eye = RoomGeo.v3(c.eye) if c.has("eye") else null
+			# "side": true：ハルが部屋の真ん中の線（x = 0）の反対側にいたら、注視点と置き場所を左右に映す
+			# （左右対称の部屋で、真ん中の柱の陰にハルが隠れないように。炉心のノードの記憶）
+			if c.get("side", false) and eye != null and (h.player.pos.x < 0.0) != (eye.x < 0.0):
+				focus.x = -focus.x
+				eye.x = -eye.x
+			h.cam_focus = focus
+			h.cam_focus_time = float(c.get("time", 2.0))
+			h.cam_eye = eye
 			_wait_time = float(c.get("time", 2.0)) if c.get("wait", true) else 0.0
 		else:
 			h.cam_focus = null
@@ -215,6 +223,14 @@ func _run_step(step: Dictionary) -> void:
 			h.emit_event({"type": "sfx", "id": "rumble"})
 	elif step.has("despawn"):
 		h.despawn_group(String(step.despawn))
+	elif step.has("fx"):
+		# 見た目の合図（Fx.handle が描く）："part"（フレームの部位）、"pos" か "at"＋"height"（エフェクトの出る所）
+		var e := {"type": "fx", "id": String(step.fx)}
+		if step.has("part"):
+			e["part"] = String(step.part)
+		if step.has("pos") or step.has("at"):
+			e["at"] = h.place(step).pos + Vector3(0, float(step.get("height", 0.0)), 0)
+		h.emit_event(e)
 	else:
 		push_error("知らないイベントの手順: %s" % str(step))
 

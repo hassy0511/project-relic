@@ -88,13 +88,18 @@ class P:
 var _quad := QuadMesh.new()
 var _layers: Array = []
 var _free: Array = []
-## 明るさ全体の倍率（低フラッシュ設定用。Fx が大きな光にだけ掛ける）
+## フラッシュの強さ（設定の PadConfig.flash。Fx が入れる。1 = 見本どおり）。足し合わせの層（光）で、明るさ
+## （色のいちばん強い成分 × 濃さ）が FLASH_KNEE を超える分をこの倍率に縮める。Fx は大きな光（弱点・撃破・破断）をもともと
+## この倍率で暗く出す（Fx._cf）ので、ここで抑えるのは、それ以外の明るい光（銃口・ダッシュの踏み出し・警戒の閃き・光柱など）の頭だけ
 var flash_scale := 1.0
+## 明るさの上限を掛け始める所（見本の明るさ 0.46 × GAIN 1.3 の琥珀。通常の命中・火花・輪はこれより暗い）
+const FLASH_KNEE := 0.6
 
 
 class Layer:
 	var mm: MultiMesh
 	var mi: MultiMeshInstance3D
+	var add := true
 	var buf := PackedFloat32Array()
 	var max := 64
 	var parts: Array = []
@@ -109,6 +114,7 @@ func _ready() -> void:
 	for cfg in LAYERS:
 		var l := Layer.new()
 		l.max = int(cfg.max)
+		l.add = bool(cfg.add)
 		var mat := ShaderMaterial.new()
 		mat.shader = add_shader if cfg.add else mix_shader
 		mat.set_shader_parameter("mask", load("res://assets/vfx/vfx_tex_%s.png" % cfg.tex))
@@ -186,8 +192,19 @@ func sprite(layer: int, pos: Vector3, size: float, col: Color, mode := FACE, bas
 		b = Basis(Vector3(size, 0, 0), basis.y, Vector3(0, 0, 1))
 	var i := l.spr.size()
 	l.spr.resize(i + 20)
-	_write(l.spr, i, b, pos, col, rot, mode, 0.0)
+	_write(l.spr, i, b, pos, limit(col) if l.add and flash_scale < 1.0 else col, rot, mode, 0.0)
 	l.n_spr += 1
+
+
+## 低フラッシュ：足し合わせの光の色の、FLASH_KNEE を超える明るさを flash_scale 倍に縮める（1 なら、そのまま）
+func limit(c: Color) -> Color:
+	if flash_scale >= 1.0:
+		return c
+	var peak := maxf(c.r, maxf(c.g, c.b)) * c.a
+	if peak <= FLASH_KNEE:
+		return c
+	var k := (FLASH_KNEE + (peak - FLASH_KNEE) * flash_scale) / peak
+	return Color(c.r * k, c.g * k, c.b * k, c.a)
 
 
 ## 伸びる筋（その刻みだけ）：from から to へ、幅 width
@@ -279,6 +296,8 @@ func step(dt: float) -> void:
 				b = Basis(Vector3(s, 0, 0), ax, Vector3(0, 0, 1))
 			var c := p.col
 			c.a *= k
+			if l.add and flash_scale < 1.0:
+				c = limit(c)
 			var w := clampf(p.age / p.wipe, 0.02, 1.0) if p.wipe > 0.0 else 0.0
 			_write(l.buf, n * 20, b, p.pos, c, p.rot, p.mode, w)
 			lo = lo.min(p.pos)

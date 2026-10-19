@@ -58,6 +58,11 @@ static var dead_r := 0.2
 const CAM_FOLLOWS := ["weak", "off", "normal"]
 const CAM_FOLLOW_TEXT := {"weak": "弱い（前へ進むときだけ）", "off": "切（自分で回す）", "normal": "強い（横・後ろへ進んでも回る）"}
 static var cam_follow := "weak"
+## フラッシュの強さ（設定画面の「フラッシュの強さ」。20 章 22 節のフラッシュの抑制）：大きな光（弱点・撃破・破断など）・明るい光の上限（Fx・Vfx）、
+## 番機の被弾の光（EnemyView）、被弾の画面の赤（Hud）に掛ける倍率。main が毎刻み入れる。標準 1.0 ／ 弱め 0.5 ／ 最小 0.2
+const FLASH_STEPS := [1.0, 0.5, 0.2]
+const FLASH_NAMES := ["標準", "弱め", "最小"]
+static var flash := 1.0
 
 
 static func defaults() -> Dictionary:
@@ -82,6 +87,7 @@ static func reset() -> void:
 	dead_l = 0.15
 	dead_r = 0.2
 	cam_follow = "weak"
+	flash = 1.0
 	_loaded = true
 
 
@@ -102,6 +108,8 @@ static func load_file() -> void:
 	dead_r = clampf(float(cf.get_value("options", "dead_r", 0.2)), 0.0, 0.6)
 	var cfw := String(cf.get_value("options", "cam_follow", "weak"))
 	cam_follow = cfw if CAM_FOLLOWS.has(cfw) else "weak"
+	var fl = cf.get_value("options", "flash", 1.0)
+	flash = FLASH_STEPS[_flash_index(float(fl))] if (fl is float or fl is int) else 1.0
 	for a in ACTIONS:
 		var id: String = a[0]
 		var p = cf.get_value("pad", id, "?")
@@ -123,6 +131,7 @@ static func save() -> void:
 	cf.set_value("options", "dead_l", dead_l)
 	cf.set_value("options", "dead_r", dead_r)
 	cf.set_value("options", "cam_follow", cam_follow)
+	cf.set_value("options", "flash", flash)
 	for a in ACTIONS:
 		var id: String = a[0]
 		cf.set_value("pad", id, pad.get(id, ""))
@@ -269,7 +278,6 @@ static func assign_key(action: String, keycode: int) -> String:
 	return swapped
 
 
-## 表記を 自動 → Xbox → PlayStation の順に切り替える
 ## カメラの自動回り込みを次の段階へ（弱い → 切 → 強い → 弱い）
 static func cycle_cam_follow() -> void:
 	ensure_loaded()
@@ -277,6 +285,28 @@ static func cycle_cam_follow() -> void:
 	save()
 
 
+## フラッシュの強さを次の段階へ（標準 → 弱め → 最小 → 標準）
+static func cycle_flash() -> void:
+	ensure_loaded()
+	flash = FLASH_STEPS[(_flash_index(flash) + 1) % FLASH_STEPS.size()]
+	save()
+
+
+## フラッシュの強さの名前（標準・弱め・最小）
+static func flash_text() -> String:
+	return FLASH_NAMES[_flash_index(flash)]
+
+
+## 値にいちばん近い段階（保存の値がずれていても段階のどれかにそろえる）
+static func _flash_index(v: float) -> int:
+	var best := 0
+	for i in FLASH_STEPS.size():
+		if absf(FLASH_STEPS[i] - v) < absf(FLASH_STEPS[best] - v):
+			best = i
+	return best
+
+
+## 表記を 自動 → Xbox → PlayStation の順に切り替える
 static func cycle_style() -> void:
 	ensure_loaded()
 	style = STYLES[(STYLES.find(style) + 1) % STYLES.size()]

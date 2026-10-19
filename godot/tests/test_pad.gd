@@ -243,7 +243,7 @@ func test_controls_screen_assign() -> void:
 	var backed := [false]
 	menu.show_controls(func(): backed[0] = true)
 	await h.tree.process_frame
-	h.expect(menu.buttons.size() == PadConfig.ACTIONS.size() + 7, "全部の操作＋表記・遊び 2 つ・カメラの回り込み・PS 配置・初期に戻す・戻る の行がある")
+	h.expect(menu.buttons.size() == PadConfig.ACTIONS.size() + 8, "全部の操作＋表記・遊び 2 つ・カメラの回り込み・フラッシュの強さ・PS 配置・初期に戻す・戻る の行がある")
 	h.expect(menu.pad_info_text().contains("押したボタンの番号"), "押したボタンの番号の表示がある")
 	# 割り当て待ちでないときは、押したものを表示するだけ
 	menu.feed_event(_btn(7))
@@ -269,10 +269,106 @@ func test_controls_screen_assign() -> void:
 	menu.buttons[PadConfig.ACTIONS.size() + 3].pressed.emit()
 	await h.tree.process_frame
 	h.expect(PadConfig.cam_follow == "off", "カメラの自動回り込みを決定で切り替える（弱い → 切）")
-	menu.buttons[PadConfig.ACTIONS.size() + 5].pressed.emit()
+	menu.buttons[PadConfig.ACTIONS.size() + 4].pressed.emit()
 	await h.tree.process_frame
-	h.expect(PadConfig.pad.jump == "b0" and PadConfig.cam_follow == "weak", "初期に戻す（カメラの回り込みも弱いに戻る）")
+	h.expect(PadConfig.flash == 0.5, "フラッシュの強さを決定で切り替える（標準 → 弱め）")
+	menu.buttons[PadConfig.ACTIONS.size() + 6].pressed.emit()
+	await h.tree.process_frame
+	h.expect(PadConfig.pad.jump == "b0" and PadConfig.cam_follow == "weak" and PadConfig.flash == 1.0, "初期に戻す（カメラの回り込みは弱い、フラッシュは標準に戻る）")
 	menu.queue_free()
+	_end()
+
+
+## 押して離す（決定のボタンは離したときに押したことになる）
+func _push_pair(vp: SubViewport, ev: InputEvent) -> void:
+	vp.push_input(ev)
+	var up := ev.duplicate() as InputEvent
+	up.set("pressed", false)
+	vp.push_input(up)
+	await h.tree.process_frame
+	await h.tree.process_frame
+
+
+## タップ（画面に触れると届く左クリック）を、画面（SubViewport）に押して離す
+func _tap(vp: SubViewport, pos: Vector2) -> void:
+	for pressed in [true, false]:
+		var e := InputEventMouseButton.new()
+		e.button_index = MOUSE_BUTTON_LEFT
+		e.pressed = pressed
+		e.position = pos
+		e.global_position = pos
+		e.device = InputEvent.DEVICE_ID_EMULATION
+		e.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
+		vp.push_input(e)
+	await h.tree.process_frame
+	await h.tree.process_frame
+
+
+## 設定画面の「フラッシュの強さ」（20 章 22 節）：決定（キーボード・パッド）で 標準 1.0 → 弱め 0.5 → 最小 0.2 と切り替わり、
+## user://input.cfg に保存される。スマホ（844×390 と同じ UI の大きさ）では、行は実寸 48px 以上、選んでいない行の 1 回目のタップは
+## 選ぶだけ（右に説明）、選んでいる行をもう一度タップで切り替わる
+func test_flash_setting() -> void:
+	_begin()
+	PadConfig.reset_all()
+	h.expect(PadConfig.flash == 1.0 and PadConfig.flash_text() == "標準", "初めは標準（1.0）")
+	var vp := SubViewport.new()
+	vp.size = Vector2i(1477, 682)
+	h.tree.root.add_child(vp)
+	var menu := Menu.new()
+	vp.add_child(menu)
+	await h.tree.process_frame
+	menu.show_controls(func(): pass)
+	await h.tree.process_frame
+	await h.tree.process_frame
+	var row := PadConfig.ACTIONS.size() + 4
+	h.expect(menu.buttons[row].text == "フラッシュの強さ", "設定画面に「フラッシュの強さ」の行（%s）" % menu.buttons[row].text)
+	# キーボード：選んで Enter
+	menu.buttons[row].grab_focus()
+	await h.tree.process_frame
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_ENTER
+	key.keycode = KEY_ENTER
+	key.pressed = true
+	await _push_pair(vp, key)
+	h.expect(PadConfig.flash == 0.5 and PadConfig.flash_text() == "弱め", "キーボードの決定で 弱め（0.5）：%.1f" % PadConfig.flash)
+	h.expect(menu.buttons[row].has_focus(), "切り替えたあとも同じ行を選んでいる")
+	# パッド：A（決定）
+	await _push_pair(vp, _btn(0))
+	h.expect(PadConfig.flash == 0.2 and PadConfig.flash_text() == "最小", "パッドの決定で 最小（0.2）：%.1f" % PadConfig.flash)
+	# 保存：読み直しても最小。段階の外の値は近い段階に、読めない値は標準に
+	PadConfig.flash = 1.0
+	PadConfig.load_file()
+	h.expect(PadConfig.flash == 0.2, "保存される（読み直しても最小）")
+	var cf := ConfigFile.new()
+	cf.load(TEST_CFG)
+	cf.set_value("options", "flash", 0.45)
+	cf.save(TEST_CFG)
+	PadConfig.load_file()
+	h.expect(PadConfig.flash == 0.5, "段階の外の値は近い段階にそろえる（0.45 → 弱め）")
+	cf.set_value("options", "flash", "とても弱く")
+	cf.save(TEST_CFG)
+	PadConfig.load_file()
+	h.expect(PadConfig.flash == 1.0, "読めない値は標準")
+	# スマホ：1 回目のタップは選ぶだけ、2 回目で切り替わる
+	menu.touch_mode = true
+	PadConfig.reset_all()
+	menu.show_controls(func(): pass)
+	await h.tree.process_frame
+	await h.tree.process_frame
+	menu.buttons[row].grab_focus()
+	await h.tree.process_frame
+	menu.buttons[row - 1].grab_focus()
+	await h.tree.process_frame
+	var px := 390.0 / 682.0
+	h.expect(menu.buttons[row].size.y * px >= 48.0, "スマホ：行の高さが実寸 %.1fpx（48px 以上）" % (menu.buttons[row].size.y * px))
+	await _tap(vp, menu.buttons[row].get_global_rect().get_center())
+	h.expect(PadConfig.flash == 1.0 and menu.buttons[row].has_focus() and menu._detail.text.contains("標準：見本どおり"),
+		"スマホ：選んでいない行の 1 回目のタップは選ぶだけ（右に説明。値は標準のまま）")
+	await _tap(vp, menu.buttons[row].get_global_rect().get_center())
+	h.expect(PadConfig.flash == 0.5, "スマホ：選んでいる行をもう一度タップすると切り替わる（弱め）")
+	menu.queue_free()
+	vp.queue_free()
+	PadConfig.reset_all()
 	_end()
 
 
