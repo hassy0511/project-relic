@@ -46,31 +46,32 @@ BUILD_DIR = os.path.join(C.REPO, 'build', 'townsfolk')
 BODIES = {
     'man': dict(S=1.67, chin=1.425, neck=1.385, sh=(0.178, 1.30), sh_top=0.205,
                 chest=(1.17, 0.168, 0.128), belt=(0.995, 0.152, 0.112), hip=(0.86, 0.162, 0.118), hem=(0.68, 0.215, 0.155),
-                crotch=0.73, hip_z=0.80, knee=(0.44, 0.125), ankle=(0.10, 0.170), boot_top=0.19, arm_deg=13.0, elbow=1.02,
+                crotch=0.73, hip_z=0.80, knee=(0.44, 0.125), ankle=(0.10, 0.185), boot_top=0.19, arm_deg=17.0, elbow=1.02,
                 wrist=0.77, hand_end=0.655, r_upper=0.056, r_fore=0.048, r_wrist=0.036, r_thigh=0.080, r_calf=0.058,
-                r_ankle=0.042, r_neck=0.056, head=(0.112, 0.118), foot=(0.195, 0.095, 0.068), hand=1.35, clips='adult'),
+                r_ankle=0.042, r_neck=0.056, head=(0.112, 0.118), foot=(0.200, 0.095, 0.080), hand=1.35, clips='adult'),
     'woman': dict(S=1.58, chin=1.305, neck=1.268, sh=(0.152, 1.19), sh_top=0.172,
                   chest=(1.07, 0.138, 0.115), belt=(0.965, 0.120, 0.096), hip=(0.84, 0.152, 0.114), hem=(0.59, 0.195, 0.142),
-                  crotch=0.66, hip_z=0.74, knee=(0.42, 0.112), ankle=(0.10, 0.150), boot_top=0.175, arm_deg=14.0,
+                  crotch=0.66, hip_z=0.74, knee=(0.42, 0.112), ankle=(0.10, 0.165), boot_top=0.175, arm_deg=17.0,
                   elbow=0.955, wrist=0.71, hand_end=0.605, r_upper=0.044, r_fore=0.038, r_wrist=0.030, r_thigh=0.072,
-                  r_calf=0.052, r_ankle=0.037, r_neck=0.046, head=(0.114, 0.120), foot=(0.175, 0.085, 0.060), hand=1.15,
+                  r_calf=0.052, r_ankle=0.037, r_neck=0.046, head=(0.114, 0.120), foot=(0.180, 0.085, 0.070), hand=1.15,
                   clips='adult'),
     'child': dict(S=1.15, chin=0.855, neck=0.826, sh=(0.124, 0.765), sh_top=0.142,
                   chest=(0.68, 0.118, 0.100), belt=(0.555, 0.110, 0.092), hip=(0.48, 0.116, 0.094), hem=(0.385, 0.145, 0.110),
-                  crotch=0.39, hip_z=0.44, knee=(0.215, 0.088), ankle=(0.075, 0.112), boot_top=0.135, arm_deg=16.0,
+                  crotch=0.39, hip_z=0.44, knee=(0.215, 0.088), ankle=(0.075, 0.122), boot_top=0.135, arm_deg=18.0,
                   elbow=0.585, wrist=0.448, hand_end=0.365, r_upper=0.040, r_fore=0.036, r_wrist=0.029, r_thigh=0.058,
-                  r_calf=0.045, r_ankle=0.033, r_neck=0.040, head=(0.135, 0.138), foot=(0.150, 0.070, 0.054), hand=1.05,
+                  r_calf=0.045, r_ankle=0.033, r_neck=0.040, head=(0.135, 0.138), foot=(0.155, 0.070, 0.064), hand=1.05,
                   clips='child'),
     'elder': dict(S=1.43, chin=1.11, neck=1.075, sh=(0.152, 0.98), sh_top=0.175,
                   chest=(0.90, 0.148, 0.128), belt=(0.83, 0.142, 0.118), hip=(0.71, 0.154, 0.120), hem=(0.545, 0.200, 0.145),
-                  crotch=0.555, hip_z=0.62, knee=(0.33, 0.102), ankle=(0.09, 0.140), boot_top=0.16, arm_deg=13.0,
+                  crotch=0.555, hip_z=0.62, knee=(0.33, 0.102), ankle=(0.09, 0.152), boot_top=0.16, arm_deg=15.0,
                   elbow=0.77, wrist=0.59, hand_end=0.485, r_upper=0.050, r_fore=0.043, r_wrist=0.034, r_thigh=0.070,
-                  r_calf=0.053, r_ankle=0.039, r_neck=0.048, head=(0.135, 0.140), foot=(0.170, 0.085, 0.062), hand=1.2,
+                  r_calf=0.053, r_ankle=0.039, r_neck=0.048, head=(0.135, 0.140), foot=(0.175, 0.085, 0.073), hand=1.2,
                   clips='elder'),
 }
 
 TORSO = ['hips', 'spine', 'chest', 'neck']
 ARM_K = 1.12   # 腕の太さ（絵の腕は太い。表の値に掛ける）
+DEPTH_K = 1.07  # 胴の前後の厚み（横から見た絵に合わせる。表の値に掛ける）
 
 
 class Body:
@@ -86,10 +87,11 @@ class Body:
         self.chin, self.neck = s(d['chin']), s(d['neck'])
         self.sh_x, self.sh_z = s(d['sh'][0]), s(d['sh'][1])
         self.sh_top = s(d['sh_top'])
-        self.chest = tuple(s(v) for v in d['chest'])
-        self.belt = tuple(s(v) for v in d['belt'])
-        self.hip = tuple(s(v) for v in d['hip'])
-        self.hem = tuple(s(v) for v in d['hem'])
+        dk = lambda t: (s(t[0]), s(t[1]), s(t[2]) * DEPTH_K)  # noqa: E731
+        self.chest = dk(d['chest'])
+        self.belt = dk(d['belt'])
+        self.hip = dk(d['hip'])
+        self.hem = dk(d['hem'])
         self.crotch, self.hip_z = s(d['crotch']), s(d['hip_z'])
         self.knee = tuple(s(v) for v in d['knee'])
         self.ankle = tuple(s(v) for v in d['ankle'])
@@ -855,8 +857,9 @@ def build_poncho(p: Person) -> None:
         f = i / 7
         z = bot + (top - bot) * f
         # 肩から下へ広がる（腕の外まで）
-        rxs = (b.sh_x + b.r_upper * 2.4) * (1 - f) ** 0.6 + b.r_neck * 1.6 * (1 - (1 - f) ** 0.6)
-        rys = (b.chest[2] + 0.050 * k) * (1 - f) ** 0.6 + b.r_neck * 1.5 * (1 - (1 - f) ** 0.6)
+        w = po.get('width', 1.0)
+        rxs = (b.sh_x + b.r_upper * 2.4) * w * (1 - f) ** 0.6 + b.r_neck * 1.6 * (1 - (1 - f) ** 0.6)
+        rys = (b.chest[2] + 0.050 * k) * w * (1 - f) ** 0.6 + b.r_neck * 1.5 * (1 - (1 - f) ** 0.6)
         lev.append((z, 0.0, 0.004 * k, rxs, rys))
     pc = shell('poncho', lev, sides=16, power=2.2, closed=True)
     solidify(pc, 0.008 * k)
@@ -864,8 +867,10 @@ def build_poncho(p: Person) -> None:
 
     def color(c, nrm):
         radial = Vector((c.x, c.y, 0))
+        side = c.x * (1 if po.get('split', 'L') == 'L' else -1) > 0.02 * k
         if radial.length > 1e-6 and nrm.dot(radial.normalized()) < -0.3:
-            return 'inner'
+            # 裏は表の色の暗い版（黒い穴に見えないように）
+            return p.col(col if side else col2) + '_dark' if (p.col(col if side else col2) + '_dark') in T.INDEX else 'inner'
         # つぎはぎの 2 色：正面から本人の左は col、右は col2、裾の帯は col2
         if c.z < bot + 0.03 * k:
             return po.get('hem_color', col2)
@@ -985,7 +990,7 @@ def build_lower(p: Person) -> None:
         else:  # shorts
             prof = [(b.crotch + 0.03 * k, 1.02), (b.knee[0] + 0.12 * k, 1.14), (b.knee[0] + 0.04 * k, 1.18)]
             cuff_z = b.knee[0] + 0.03 * k
-        rt = b.r_thigh * lo.get('bag', 1.0) * (1.25 if kind in ('pants', 'knickers') else 1.12)
+        rt = b.r_thigh * lo.get('bag', 1.0) * (1.36 if kind in ('pants', 'knickers') else 1.18)
         pts = [leg_axis(b, s, z) + Vector((s * 0.0, 0, 0)) for z, _ in prof]
         pts[0] = pts[0] + Vector((-s * 0.010 * k, 0, 0))
         radii = [(rt * f, rt * f * 0.95) for _, f in prof]
@@ -1438,6 +1443,8 @@ def render(prefix: str, p: Person, frame: int = 31) -> None:
     scene.cycles.samples = 12
     scene.cycles.device = 'CPU'
     scene.render.resolution_x, scene.render.resolution_y = 380, 640
+    scene.render.film_transparent = True
+    scene.render.image_settings.color_mode = 'RGBA'
     world = scene.world or bpy.data.worlds.new('w')
     scene.world = world
     world.use_nodes = True

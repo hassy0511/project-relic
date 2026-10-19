@@ -10,7 +10,7 @@
   "face": {"iris": "#5A3A28", "brow": "hair_grey_dark", "lash": true},
   "hair": {"style": "grey_bob", "color": "hair_grey"},
   "top": {"color": "brown", "trim": "brown_dark", "length": "tucked", "sleeve": "long"},
-  "poncho": {"color": "rust", "color2": "cream", "hem_color": "cream", "split": "R", "hem": 0.62},
+  "poncho": {"color": "rust", "color2": "cream", "hem_color": "cream", "split": "R", "hem": 0.58, "width": 1.15},
   "lower": {"kind": "skirt", "color": "olive", "hem_band": "brown_dark", "flare": 1.0, "leg": "sock"},
   "apron": {"kind": "waist", "color": "cream", "half": 0.50, "hem": 0.26},
   "belt": {"color": "leather", "buckle": "brass"},

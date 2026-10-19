@@ -21,15 +21,15 @@ from PIL import Image, ImageDraw, ImageFilter
 # (名前, #hex)。町の色（spec.md の色見本）＋ 汎用の 5 案の色 ＋ 髪・肌・細部。並びを変えると全員の GLB が変わる（足すのは末尾へ）
 PALETTE = [
     ('skin', '#E9AA80'), ('skin_dark', '#D4956C'), ('skin_old', '#E6AA86'), ('lip', '#B9655A'),
-    ('rust', '#B25A41'), ('rust_dark', '#8E4532'), ('rust_faded', '#B07A62'), ('rust_faded_dark', '#8F6150'),
+    ('rust', '#A3513B'), ('rust_dark', '#7F3D2C'), ('rust_faded', '#B07A62'), ('rust_faded_dark', '#8F6150'),
     ('cream', '#EEDCC0'), ('cream_dark', '#D6C0A0'), ('sand', '#C9A06E'), ('sand_dark', '#A8814F'),
     ('brown', '#5E4334'), ('brown_dark', '#45302A'), ('graphite', '#46433F'), ('graphite_dark', '#33302D'),
     ('olive', '#7A7557'), ('olive_dark', '#5E5A42'), ('brass', '#A98749'), ('leather', '#6A4530'),
     ('boot', '#6B4634'), ('boot_toe', '#C49A6A'), ('sole', '#3A2E29'), ('lens', '#D89538'),
     ('hair_brown', '#6A4532'), ('hair_dark', '#3F2C24'), ('hair_ginger', '#B4602F'), ('hair_grey', '#C4BDB6'),
     ('hair_white', '#E7E2DA'), ('hair_brown_dark', '#4E3428'), ('hair_ginger_dark', '#8F4824'), ('hair_grey_dark', '#9F978F'),
-    ('patch', '#B08A60'), ('patch_dark', '#8A6A4C'), ('stitch', '#E6D4B4'), ('ochre', '#C19048'),
-    ('ochre_dark', '#9C7136'), ('sock', '#D9C4A2'), ('inner', '#3B2C25'), ('glove', '#5A4031'),
+    ('patch', '#B08A60'), ('patch_dark', '#8A6A4C'), ('stitch', '#E6D4B4'), ('ochre', '#B98F50'),
+    ('ochre_dark', '#93703A'), ('sock', '#D9C4A2'), ('inner', '#3B2C25'), ('glove', '#5A4031'),
     ('knit', '#4A403A'), ('knit_dark', '#37302C'), ('beard_brown', '#5A3C2C'), ('beard_white', '#E4DED6'),
     ('hat_olive', '#8C7F5A'), ('hat_olive_dark', '#6E6345'), ('scarf_olive', '#6F6E4C'), ('scarf_brown', '#5C3F2F'),
 ]
