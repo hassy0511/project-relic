@@ -1036,7 +1036,9 @@ def skin_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo_b, vox: f
     else:
         sk = skin_stack(cams, masks)
         S = stack_field(sk, lo_b, vox, shp, 0)
-    nose = ellipsoid_field((float(sk.cx[0]),) + tuple(SKIN['nose'][0]), tuple(SKIN['nose'][1]), lo_b, vox, shp, 0)
+    # 鼻の左右の位置：既定は頭の中心。SKIN['nose_x'] があればその x（トルーデ：顔の絵の鼻は目の中点より 8.5mm 本人の左）
+    nose_x = float(SKIN['nose_x']) if SKIN.get('nose_x') is not None else float(sk.cx[0])
+    nose = ellipsoid_field((nose_x,) + tuple(SKIN['nose'][0]), tuple(SKIN['nose'][1]), lo_b, vox, shp, 0)
     S = smooth_max(S, nose, 0.007)
     S = smooth_max(S, neck_field(lo_b, vox, shp, 0), 0.012)
     return sk, S

@@ -30,8 +30,9 @@ PALETTE = {
     'brass': '#C2954F',       # 留め具・ベルトの輪・靴の留め具・杖の金具（くすんだ真鍮。絵 #DFA95D の照り、spec #A98749）
     'trim': '#C39050',        # 袖口・前掛けの裾の帯（黄土の布。絵 #C69152）
     'skin': '#E7B58D',
-    'hair': '#C9B9B1',        # 灰白の髪（絵 #D5C1B9、spec #D6CCC4。確認ページで白く見えたので少し下げた）
-    'hair_dark': '#AE9F97',   # 髪の土台（房のすき間に見える内側の髪。生え際の近くは房と同じ色）
+    'hair': '#C6B5AD',        # 灰白の髪：房の上の面（絵の照った面 #DCCAC1、spec #D6CCC4。描画で明るく見える分を下げた）
+    'hair_dark': '#94857F',   # 髪の土台（房のすき間に見える内側の髪。生え際の近くは房と同じ色）
+    'hair_shadow': '#A4938C',  # 房の横・下の面（絵の陰の面 #C0AFA7・耳の前の房 #B5A299）
     'boot': '#583D2C',        # 靴の胴（茶の革。絵 #50382A）
     'boot_light': '#76533A',  # 靴の爪先
     'sole': '#2E2724',        # 靴底・かかと
@@ -255,7 +256,7 @@ def _cape_open(z):
 CAPE_VS = np.unique(np.concatenate([np.linspace(0.0, 1.0, 17), [0.875, 0.93]]))   # 裾の上の線の行を含む
 
 
-def cape_surface(nu=72, vs=CAPE_VS):
+def cape_surface(nu=64, vs=CAPE_VS):
     """肩掛けの外の面の格子 (nu, nv, 3)：u は前の開きの本人の左の縁 → 後ろ → 右の縁、v は上の縁 → 裾"""
     us = np.linspace(0.0, 1.0, nu)
     nv = len(vs)
@@ -318,6 +319,22 @@ def capelet() -> list[dict]:
     out.append(dict(name='clasp', bone='chest', color='brass', mesh=(Vc, Fc)))
     Vt, Ft = box_mesh((cx + 0.040, yc + 0.003, cz - 0.004), (0.024, 0.004, 0.010))
     out.append(dict(name='clasp_tab', bone='chest', color='rust', mesh=(Vt, Ft)))
+    # 2 周目：前の開きの中の上着の前（生成りの板）。体の土台の肩掛けのかさの丸いふくらみが、胸の丸い塊に見えた。
+    # 開きの中ほどの体の前の端の少し前に、左右へゆるく後ろへ曲がる板を置き、両の縁は肩掛けの下へ入れる
+    zs = np.linspace(0.925, 1.095, 9)
+    xs = np.linspace(-1.0, 1.0, 9)
+    Pn = np.zeros((len(xs), len(zs), 3))
+    for j, z in enumerate(zs):
+        f = float(np.clip((1.095 - z) / (1.095 - 0.93), 0, 1))
+        hw = 0.035 + 0.075 * f
+        y0 = body_front_y(z, -0.06, 0.06) - 0.004
+        for i, u in enumerate(xs):
+            x = X0 + u * hw
+            Pn[i, j] = (x, y0 + 1.6 * (x - X0) ** 2, z)
+    Nn = np.zeros_like(Pn)
+    Nn[..., 1] = -1.0
+    Vn, Fn = thick_sheet(Pn, Nn, 0.004)
+    out.append(dict(name='blouse_front', bone='chest', color='ivory', mesh=(Vn, Fn)))
     return out
 
 
@@ -437,7 +454,7 @@ def skirt_point(th, z, lift=0.0):
 def skirt() -> list[dict]:
     """スカート（ベルトの下〜裾、焦げ茶の厚布）：体の面の外の殻（厚み 6mm）。裾は hem_z の高さでまっすぐ切る。
     補修布は殻の上の薄い板（絵の正面・真横・背面・左前 45 度。spec は平らな色だが、殻の 1 色に塗れないので板にした）"""
-    nu, nv = 80, 18
+    nu, nv = 72, 18
     th = np.linspace(-math.pi, math.pi, nu, endpoint=False)
     vs = np.linspace(0.0, 1.0, nv)
     TH = np.repeat(th[:, None], nv, 1)
@@ -446,15 +463,43 @@ def skirt() -> list[dict]:
     rad = np.stack([np.sin(TH), -np.cos(TH), np.zeros_like(TH)], -1)
     V, F = thick_sheet(P, rad, 0.006, closed_u=True)
     out = [dict(name='skirt', bone='hips', color='brown', mesh=(V, F))]
-    for k, (a0, a1, z0, z1) in enumerate(PATCHES):
-        ta = np.radians(np.linspace(a0, a1, 7))
-        zz = np.linspace(z0, z1, 6)
-        TT, ZZ = np.meshgrid(ta, zz, indexing='ij')
-        Pp = skirt_point(TT, ZZ, 0.0022)
-        rp = np.stack([np.sin(TT), -np.cos(TT), np.zeros_like(TT)], -1)
+    # 2 周目：絵のように少し傾いた四角に、縁をまたぐ縫い目（暗い茶の短い棒、1 辺 3 本）
+    def on_skirt(thc, zc, rc, u, v, tilt, lift):
+        ct, st = math.cos(tilt), math.sin(tilt)
+        uu, vv = u * ct - v * st, u * st + v * ct
+        TT = thc + uu / rc
+        ZZ = zc + vv
+        return skirt_point(TT, ZZ, lift), np.stack([np.sin(TT), -np.cos(TT), np.zeros_like(TT)], -1)
+
+    for k, (thd, zc, pw, ph, tdeg) in enumerate(PATCH_PARTS):
+        thc, tilt = math.radians(thd), math.radians(tdeg)
+        rc = float(skirt_r(np.array([thc]), np.array([zc]))[0])
+        U, Vv = np.meshgrid(np.linspace(-pw / 2, pw / 2, 7), np.linspace(-ph / 2, ph / 2, 6), indexing='ij')
+        Pp, rp = on_skirt(thc, zc, rc, U, Vv, tilt, 0.0022)
         Vp, Fp = thick_sheet(Pp, rp, 0.0016)
         out.append(dict(name=f'skirt_patch{k}', bone='hips', color='patch', mesh=(Vp, Fp)))
+        # 縫い目：各辺の 1/4・2/4・3/4 に、辺をまたぐ長さ 1.6cm・幅 3mm の棒
+        bars = []
+        for (cu, cv, du, dv) in ((0.0, -ph / 2, 0, 1), (0.0, ph / 2, 0, 1), (-pw / 2, 0.0, 1, 0), (pw / 2, 0.0, 1, 0)):
+            along = pw if du == 0 else ph
+            for f in (-0.25, 0.0, 0.25):
+                bu = cu + (f * along if du == 0 else 0.0)
+                bv = cv + (f * along if dv == 0 else 0.0)
+                hu = 0.0015 if du == 0 else 0.008
+                hv = 0.008 if du == 0 else 0.0015
+                Ub, Vb = np.meshgrid(np.array([bu - hu, bu + hu]), np.array([bv - hv, bv + hv]), indexing='ij')
+                Pb, rb_ = on_skirt(thc, zc, rc, Ub, Vb, tilt, 0.0042)
+                bars.append(thick_sheet(Pb, rb_, 0.0015))
+        Vb_all = np.concatenate([b[0] for b in bars])
+        offs = np.cumsum([0] + [len(b[0]) for b in bars[:-1]])
+        Fb_all = np.concatenate([b[1] + o for b, o in zip(bars, offs)])
+        out.append(dict(name=f'skirt_stitch{k}', bone='hips', color='brown_dark', mesh=(Vb_all, Fb_all)))
     return out
+
+
+# 補修布の部品（2 周目）：(正面からの角度 度, 中心の高さ, 幅 m, 高さ m, 傾き 度)。正面・左右の真横・背面・左前 45 度の絵
+PATCH_PARTS = [(-49.0, 0.392, 0.130, 0.120, -7.0), (54.0, 0.350, 0.080, 0.088, 9.0), (-108.0, 0.405, 0.100, 0.140, 5.0),
+               (108.0, 0.432, 0.080, 0.075, -8.0), (158.0, 0.418, 0.080, 0.100, 6.0), (-159.0, 0.418, 0.072, 0.075, -6.0)]
 
 
 def skirt_y(z: float, x0: float, x1: float, front: bool) -> float:
@@ -561,47 +606,58 @@ def boot_pieces(side: float, sx: str) -> list[dict]:
 
 # ---------------------------------------------------------------- 髪（お団子・房）
 
-BUN_C = np.array([X0, 0.180, 1.312])     # お団子の中心（右真横・背面の絵）
-BUN_R = (0.064, 0.050, 0.058)            # 半径（左右・前後・上下）
+BUN_C = np.array([X0, 0.192, 1.308])     # お団子の中心（右真横・背面の絵：後ろへ 0.13〜0.25、上下 1.24〜1.375）
+BUN_R = (0.084, 0.062, 0.068)            # 半径（左右・前後・上下。2 周目：絵の大きさ＝1 周目の 1.3 倍）
 
 
 def bun() -> list[dict]:
-    """後ろの低いお団子：房が渦に巻いた丸い塊（経緯の格子の球を、渦の筋でふくらませる。面のはっきりした低い多面体）"""
-    nl, nm = 9, 14
+    """後ろの低いお団子：房が渦に巻いた丸い塊（経緯の格子の球を、6 本の渦の筋でふくらませた低い多面体）。
+    筋の山は髪の色、谷（筋の間）は陰の色（2 周目：1 色では白い玉に見えた）"""
+    nl, nm = 9, 18
     V = []
     for i in range(1, nl):
         ph = math.pi * i / nl - math.pi / 2          # 緯度（−90 = 前の付け根、+90 = 後ろの端）
         for k in range(nm):
             lam = 2 * math.pi * k / nm
-            w = 1.0 + 0.10 * math.cos(6 * lam + 1.6 * ph) * math.cos(ph)
+            w = 1.0 + 0.13 * math.cos(6 * lam + 1.8 * ph) * math.cos(ph)
             cx = math.cos(ph) * math.cos(lam) * BUN_R[0] * w
             cz = math.cos(ph) * math.sin(lam) * BUN_R[2] * w
-            cy = math.sin(ph) * BUN_R[1] * (1.0 + 0.05 * math.cos(6 * lam))
+            cy = math.sin(ph) * BUN_R[1] * (1.0 + 0.06 * math.cos(6 * lam))
             V.append(BUN_C + np.array([cx, cy, cz]))
     V.append(BUN_C + np.array([0.0, -BUN_R[1], 0.0]))
-    V.append(BUN_C + np.array([0.0, BUN_R[1] * 1.04, 0.0]))
+    V.append(BUN_C + np.array([0.0, BUN_R[1] * 1.05, 0.0]))
     V = np.array(V)
-    F = []
+    F, val = [], []
     for i in range(nl - 2):
+        ph = math.pi * (i + 1.5) / nl - math.pi / 2
         for k in range(nm):
             a, b = i * nm + k, i * nm + (k + 1) % nm
             F += [(a, b + nm, b), (a, a + nm, b + nm)]
+            lam = 2 * math.pi * (k + 0.5) / nm
+            v = math.cos(6 * lam + 1.8 * ph)
+            val += [v, v]
     s0, s1 = len(V) - 2, len(V) - 1
     last = (nl - 2) * nm
     for k in range(nm):
         F.append((s0, k, (k + 1) % nm))
         F.append((s1, last + (k + 1) % nm, last + k))
-    return [dict(name='hair_bun', bone='head', color='hair', mesh=_orient(V, F))]
+        val += [1.0, 1.0]
+    V, F = _orient(V, F)
+    val = np.array(val)
+    lit, dark = F[val > -0.35], F[val <= -0.35]
+    return [dict(name='hair_bun', bone='head', color='hair', mesh=(V, lit)),
+            dict(name='hair_bun_shadow', bone='head', color='hair_shadow', mesh=(V, dark))]
 
 
 def hair_locks() -> list[dict]:
-    """髪の房：額の生え際から頭の上・横を通って後ろのお団子へ流れる、面のはっきりした板。
-    絵 trude_head_top：房は前の生え際から放射状に出て、後ろのお団子へ集まる。trude_face_front：額の真ん中で左右に分かれ、
-    こめかみの房は耳の上を後ろへ。耳は見える（横の髪は耳の上と後ろ）。耳の前に細い房が 1 本ずつ垂れる。
-      ・道：頭の中心から見た根（生え際の少し上）の向きと先（お団子の前の縁）の向きの間を大円で結び（slerp）、各点を
-        その向きの帽子の面（hull の場）＋浮きに置く。帽子の面に沿うので、道が帽子に沈んだり飛び出したりしない
-        （1 回目の、点を結んだ曲線を外へ押し出す作りは、房がねじれた葉の束になった）。
-      ・断面：峰と左右の縁・内の面の 6 角（峰の両側は平らな面）。根で細く、中ほどで最も広く、先へ細る"""
+    """髪の房（2 周目）：額の生え際から頭の上・横を通って後ろのお団子へ流れる、面のはっきりした板。
+    絵 trude_head_top・back・side_right：房は額の真ん中の分け目から左右へ分かれ、頭の上と横を後ろへ流れてお団子へ集まる。
+    耳は見える（横の房は耳の上を通る）。耳の前に細い房が 1 本ずつ垂れる。
+      ・帽子（髪の土台）を外形より 1.4cm 内にし（`hair.PARAMS.cap_inset_m`）、房が外の形を決める（ニコの 2 周目の作り）。
+      ・道：頭の中心から見た根（生え際）→（経由の向き）→ 先（お団子の縁）の向きを大円でつなぎ、各点をその向きの帽子の面
+        ＋浮きに置く（帽子に沿い、ねじれない）。耳の上を通る房は経由の向きで耳より上へ（耳を出す）。
+      ・断面：峰・左右の縁・内の面の 6 角。厚みは幅と切り離して 1.2cm（1 周目は幅に比例して 3cm を超え、丸めた紙の塊に見えた）。
+        峰の両側の 2 面は髪の色、縁と内の面は陰の色（照った面と陰の面の明るさの差）"""
     from scipy import ndimage as NDI
 
     from recon import hair as HR
@@ -629,23 +685,36 @@ def hair_locks() -> list[dict]:
         th = math.radians(th_deg)
         return unit(np.array([math.sin(th) * ref, -math.cos(th) * ref, z - C[2]]))
 
-    prof = [(0.0, 0.26), (1.0, 0.05), (0.92, -0.06), (0.0, -0.14), (-0.92, -0.06), (-1.0, 0.05)]
-    n = 16
+    # 断面：(横 × 幅, 縦 × 厚み)。峰 → 本人の左の縁の上 → 縁の下 → 内の真ん中 → 右の縁の下 → 右の縁の上
+    PX = [0.0, 1.0, 0.94, 0.0, -0.94, -1.0]
+    PY = [1.0, 0.22, -0.22, -0.40, -0.22, 0.22]
+    TOP_SEG = (0, 5)          # 峰の両側の面（髪の色）。ほかは陰の色
+    n = 15
     tt = np.linspace(0.0, 1.0, n)
 
-    def band(d0, d1, w, lift, r_tip=None, w_prof=None, sink=0.005):
-        """頭の中心から見た向き d0 → d1 の大円に沿う房"""
-        om = math.acos(float(np.clip(np.dot(d0, d1), -1, 1)))
-        so = math.sin(om) if om > 1e-4 else 1.0
-        dirs = np.stack([(math.sin((1 - t) * om) * d0 + math.sin(t * om) * d1) / so for t in tt])
-        dirs /= np.linalg.norm(dirs, axis=1, keepdims=True)
+    def slerp_path(dirs_key, frac_key):
+        """向きの列を大円でつなぐ（frac_key：各向きの道の上の割合）"""
+        out = []
+        for t in tt:
+            j = min(int(np.searchsorted(frac_key, t, side='right')) - 1, len(dirs_key) - 2)
+            u = (t - frac_key[j]) / (frac_key[j + 1] - frac_key[j])
+            a, b = dirs_key[j], dirs_key[j + 1]
+            om = math.acos(float(np.clip(np.dot(a, b), -1, 1)))
+            so = math.sin(om) if om > 1e-4 else 1.0
+            v = (math.sin((1 - u) * om) * a + math.sin(u * om) * b) / so if om > 1e-4 else a
+            out.append(v / np.linalg.norm(v))
+        return np.array(out)
+
+    def band(dkeys, w, lift, r_tip=None, thick=0.012, w_prof=None, sink=0.004, fkeys=None):
+        dirs = slerp_path(dkeys, fkeys if fkeys is not None else np.linspace(0, 1, len(dkeys)))
         r = radial(dirs)
         r = NDI.gaussian_filter1d(r, 1.0, mode='nearest')
-        ww = w * (w_prof if w_prof is not None else np.interp(tt, [0, 0.12, 0.45, 0.8, 1.0], [0.35, 0.8, 1.0, 0.7, 0.05]))
-        lf = lift + 0.12 * ww - sink * np.clip(1 - tt / 0.08, 0, 1)
-        rr = r + lf
+        wp = w_prof if w_prof is not None else np.interp(tt, [0, 0.10, 0.4, 0.8, 1.0], [0.45, 0.85, 1.0, 0.75, 0.10])
+        ww = w * wp
+        th_ = thick * np.clip(wp * 1.2, 0.35, 1.0)
+        rr = r + lift + 0.40 * th_ - sink * np.clip(1 - tt / 0.08, 0, 1)
         if r_tip is not None:      # 先はお団子の縁へ
-            f = np.clip((tt - 0.75) / 0.25, 0, 1) ** 1.5
+            f = np.clip((tt - 0.78) / 0.22, 0, 1) ** 1.5
             rr = rr * (1 - f) + r_tip * f
         P = C + dirs * rr[:, None]
         T = np.gradient(P, axis=0)
@@ -653,52 +722,71 @@ def hair_locks() -> list[dict]:
         N = dirs - (dirs * T).sum(1, keepdims=True) * T
         N /= np.linalg.norm(N, axis=1, keepdims=True)
         B = np.cross(T, N)
-        rings = np.stack([P + B * (ww * px)[:, None] + N * (ww * py)[:, None] for px, py in prof], 1)
-        k = len(prof)
+        rings = np.stack([P + B * (ww * px)[:, None] + N * (th_ * py)[:, None] for px, py in zip(PX, PY)], 1)
+        k = len(PX)
         Vs = np.concatenate([rings[:-1].reshape(-1, 3), P[-1:], P[:1] - T[:1] * 0.002])
         tip, root = (n - 1) * k, (n - 1) * k + 1
-        F = []
+        F, seg = [], []
         for i in range(n - 2):
             for j in range(k):
                 a0, a1 = i * k + j, i * k + (j + 1) % k
                 F += [(a0, a0 + k, a1 + k), (a0, a1 + k, a1)]
+                seg += [j, j]
         last = (n - 2) * k
         for j in range(k):
             F.append((last + j, tip, last + (j + 1) % k))
             F.append((root, (j + 1) % k, j))
-        return _orient(Vs, F)
+            seg += [j, j]
+        Vs, F = _orient(Vs, F)
+        seg = np.array(seg)
+        top = np.isin(seg, TOP_SEG)
+        return Vs, F[top], F[~top]
+
+    def add(name, V_, Ft, Fu):
+        out.append(dict(name='hair_' + name, bone='head', color='hair', mesh=(V_, Ft)))
+        out.append(dict(name='hair_' + name + '_u', bone='head', color='hair_shadow', mesh=(V_, Fu)))
 
     def hairline_z(th_deg):
         x = abs(math.sin(math.radians(th_deg))) * 0.11
         return float(np.interp(x, HAIRLINE_PAINT[0], HAIRLINE_PAINT[1]))
 
+    def bun_edge(ang, k=0.82, fy=-0.55):
+        a = math.radians(ang)
+        return BUN_C + np.array([math.sin(a) * BUN_R[0] * k, BUN_R[1] * fy, math.cos(a) * BUN_R[2] * k])
+
     out = []
-    # 額から後ろのお団子へ：(名前, 根の角度, 先の角度（お団子の縁のまわり、0 = 上、+ = 本人の左）, 幅, 浮き)
-    sweep = [('c_l', 7, 12, 0.080, 0.004), ('c_r', -7, -12, 0.080, 0.004),
-             ('f_l', 25, 38, 0.082, 0.005), ('f_r', -25, -38, 0.082, 0.005),
-             ('t_l', 43, 62, 0.082, 0.006), ('t_r', -43, -62, 0.082, 0.006),
-             ('s_l', 61, 86, 0.080, 0.006), ('s_r', -61, -86, 0.080, 0.006),
-             ('e_l', 79, 108, 0.070, 0.005), ('e_r', -79, -108, 0.070, 0.005)]
-    for name, th0, ang, w, lift in sweep:
-        d0 = dir_at(th0, hairline_z(th0) + 0.006)
-        a = math.radians(ang)
-        tip = BUN_C + np.array([math.sin(a) * BUN_R[0] * 0.80, -BUN_R[1] * 0.55, math.cos(a) * BUN_R[2] * 0.80])
-        Vm, Fm = band(d0, unit(tip - C), w, lift, r_tip=float(np.linalg.norm(tip - C)))
-        out.append(dict(name='hair_' + name, bone='head', color='hair', mesh=(Vm, Fm)))
+    # 額から後ろのお団子へ：(名前, 根の角度, 経由（角度, 高さ）または None, 先の角度（お団子の縁、0 = 上、+ = 本人の左）, 幅, 浮き)
+    # 真ん中の 2 本は根を ±9 度に離し、頭頂で外へ開いてから集まる（分け目の線が帽子の暗い色で見える）
+    sweep = [('c_l', 9, (20, 1.535), 14, 0.070, 0.002), ('c_r', -9, (-20, 1.535), -14, 0.070, 0.002),
+             ('f_l', 27, (42, 1.515), 36, 0.074, 0.002), ('f_r', -27, (-42, 1.515), -36, 0.074, 0.002),
+             ('t_l', 45, (66, 1.475), 58, 0.074, 0.002), ('t_r', -45, (-66, 1.475), -58, 0.074, 0.002),
+             ('s_l', 62, (88, 1.43), 80, 0.070, 0.002), ('s_r', -62, (-88, 1.43), -80, 0.070, 0.002),
+             ('e_l', 77, (102, 1.392), 102, 0.054, 0.002), ('e_r', -77, (-102, 1.392), -102, 0.054, 0.002)]
+    for name, th0, via, ang, w, lift in sweep:
+        d0 = dir_at(th0, hairline_z(th0) + 0.004)
+        tip = bun_edge(ang)
+        dv = dir_at(via[0], via[1])
+        Vm, Ft, Fu = band([d0, dv, unit(tip - C)], w, lift, r_tip=float(np.linalg.norm(tip - C)),
+                          fkeys=np.array([0.0, 0.42, 1.0]))
+        add(name, Vm, Ft, Fu)
+    # 頭頂の後ろ・後頭部からお団子の上へ放射状に集まる房（背面の絵の扇）
+    for name, th0, z0, ang, w in (('b_l', 150, 1.50, 22, 0.070), ('b_r', -150, 1.50, -22, 0.070),
+                                  ('b_c', 180, 1.53, 0, 0.066), ('bb_l', 130, 1.44, 50, 0.066),
+                                  ('bb_r', -130, 1.44, -50, 0.066)):
+        tip = bun_edge(ang, 0.78, -0.45)
+        Vm, Ft, Fu = band([dir_at(th0, z0), unit(tip - C)], w, 0.002, r_tip=float(np.linalg.norm(tip - C)),
+                          w_prof=np.interp(tt, [0, 0.15, 0.5, 1.0], [0.6, 0.9, 1.0, 0.25]))
+        add(name, Vm, Ft, Fu)
     # えり足からお団子の下へ上がる房（後ろの低い所）
-    for name, th0, ang, w in (('n_l', 140, 150, 0.06), ('n_r', -140, -150, 0.06), ('n_c', 180, 180, 0.055)):
-        d0 = dir_at(th0, 1.255)
-        a = math.radians(ang)
-        tip = BUN_C + np.array([math.sin(a) * BUN_R[0] * 0.75, -BUN_R[1] * 0.5, math.cos(a) * BUN_R[2] * 0.75])
-        Vm, Fm = band(d0, unit(tip - C), w, 0.004, r_tip=float(np.linalg.norm(tip - C)))
-        out.append(dict(name='hair_' + name, bone='head', color='hair', mesh=(Vm, Fm)))
-    # 耳の前の細い房 ×2（こめかみから下へ、ほおの横で細る）
+    for name, th0, ang, w in (('n_l', 140, 140, 0.058), ('n_r', -140, -140, 0.058), ('n_c', 180, 180, 0.056)):
+        tip = bun_edge(ang, 0.75, -0.40)
+        Vm, Ft, Fu = band([dir_at(th0, 1.255), unit(tip - C)], w, 0.002, r_tip=float(np.linalg.norm(tip - C)))
+        add(name, Vm, Ft, Fu)
+    # 耳の前の細い房 ×2（こめかみから下へ、ほおの横で細る。絵 trude_head_side_right：あごの近くまで）
     for side, sx in ((1.0, 'l'), (-1.0, 'r')):
-        d0 = dir_at(side * 74, 1.39)
-        d1 = dir_at(side * 79, 1.268)
-        Vm, Fm = band(d0, d1, 0.024, 0.004, sink=0.002,
-                      w_prof=np.interp(tt, [0, 0.2, 0.6, 1.0], [0.8, 1.0, 0.8, 0.1]))
-        out.append(dict(name='hair_side_' + sx, bone='head', color='hair', mesh=(Vm, Fm)))
+        Vm, Ft, Fu = band([dir_at(side * 74, 1.39), dir_at(side * 80, 1.25)], 0.024, 0.003, thick=0.006, sink=0.002,
+                          w_prof=np.interp(tt, [0, 0.2, 0.6, 1.0], [0.8, 1.0, 0.8, 0.1]))
+        add('side_' + sx, Vm, Ft, Fu)
     return out
 
 
