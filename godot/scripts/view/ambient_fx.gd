@@ -108,3 +108,10 @@ func _steam_puff(vfx: Vfx, s: Dictionary, strong: bool) -> void:
 ## 今の出所の数（確認用）
 func count() -> int:
 	return sources.size()
+
+
+## 確かめの撮影用（scripts/debug/motion_shots.gd）：どの蒸気も delay 秒後に強く吹き出す
+func burst_soon(delay: float) -> void:
+	for s in sources:
+		if String(s.kind) == "steam":
+			s.next = _t + delay

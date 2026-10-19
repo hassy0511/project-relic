@@ -36,6 +36,11 @@
   "glow": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 3.0}},
   "red": {"color": "#d4433d", "roughness": 0.4, "emission": {"color": "#ff3a30", "energy": 4.0}}
  },
+ "emitters": {
+  "ruins/sand_fall": {"kind": "dust", "at": [0, 0.26, 0], "every": [0.35, 0.8]},
+  "ruins/sand_stream": {"kind": "dust", "at": [0, 0.26, 0], "every": [0.35, 0.8]},
+  "ruins/b2_steam": {"kind": "steam", "at": [0, 0, 0], "dir": [0, -1, 0], "every": [3.0, 5.5]}
+ },
  "materials": {
   "ivory": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 3.0, "color": "#efe4cf", "roughness": 0.72, "near_fade": [0.8, 1.5],
             "detail": [
@@ -52,18 +57,18 @@
                 {"mask": "grime", "uv_m": 2.0, "cover": 0.9, "feet": [0.0, 0.8], "color": "#2e2622", "amount": 0.45}]},
   "pipe": {"albedo": "res://assets/kit/tex/ruins_pipe_metal.jpg", "uv_m": 2.0, "color": "#e0ccb0", "tex_strength": 0.45, "roughness": 0.45, "metallic": 0.12, "near_fade": [0.8, 1.5],
            "detail": [{"mask": "mottle", "uv_m": 2.5, "cover": 0.35, "color": "#3e3a34", "mode": "multiply", "amount": 0.4, "edge": 0.07}]},
-  "brass": {"color": "#b8944f", "roughness": 0.5, "metallic": 0.22, "near_fade": [0.8, 1.5]},
+  "brass": {"color": "#b8944f", "roughness": 0.5, "metallic": 0.22, "near_fade": [0.8, 1.5], "sway": {"push": 0.0, "flutter": 0.035, "wave": 0.0, "gust": 0.3, "speed": 0.8, "wind": [1, 0, 0.4]}},
   "amber": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 4.5}, "near_fade": [0.8, 1.5]},
   "glass": {"color": "#ffb44a", "roughness": 0.35, "emission": {"color": "#ffa83a", "energy": 1.7}, "near_fade": [0.8, 1.5]},
   "core_glow": {"color": "#ffa040", "roughness": 0.3, "emission": {"color": "#ff9a32", "energy": 3.4}},
   "red": {"color": "#d4433d", "roughness": 0.4, "emission": {"color": "#ff3a30", "energy": 4.5}},
-  "sand": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 2.0, "color": "#d09468", "roughness": 0.95, "near_fade": [0.8, 1.5]},
+  "sand": {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 2.0, "color": "#d09468", "roughness": 0.95, "near_fade": [0.8, 1.5], "flow": {"speed": 2.6, "size": 0.35, "contrast": 0.4, "edge": 0.6}},
   "cloth": {"color": "#a8503c", "roughness": 0.95, "near_fade": [0.8, 1.5]},
   "wood": {"color": "#795139", "roughness": 0.85, "near_fade": [0.8, 1.5], "detail": [{"mask": "grime", "uv_m": 2.0, "cover": 0.9, "feet": [0.0, 1.0], "color": "#3e2e24", "mode": "multiply", "amount": 0.65}]},
   "leather": {"color": "#594333", "roughness": 0.8, "near_fade": [0.8, 1.5]},
   "red_off": {"color": "#6a2a26", "roughness": 0.5, "near_fade": [0.8, 1.5]},
   "grate": {"albedo": "res://assets/kit/tex/ruins_rust_grate.jpg", "uv_m": 2.0, "color": "#ffffff", "roughness": 0.7, "metallic": 0.2, "near_fade": [0.8, 1.5]},
-  "dark": {"color": "#1c1a18", "roughness": 0.8, "near_fade": [0.8, 1.5]},
+  "dark": {"color": "#1c1a18", "roughness": 0.8, "near_fade": [0.8, 1.5], "sway": {"push": 0.0, "flutter": 0.035, "wave": 0.0, "gust": 0.3, "speed": 0.8, "wind": [1, 0, 0.4]}},
   "stain_floor": {"blend": "mul", "color": "#a08060", "strength": 0.42, "uv_m": 1.4, "mottle": 0.5},
   "stain_rust": {"blend": "mul", "color": "#8a4a2e", "strength": 0.55, "uv_m": 0.9, "mottle": 0.4},
   "stain_soot": {"blend": "mul", "color": "#3a2e26", "strength": 0.55, "uv_m": 1.2, "mottle": 0.5},
