@@ -84,6 +84,9 @@ func _ready() -> void:
 		_steps.clear()
 	if main.args.has("ch1_full"):
 		_steps.clear()
+	elif main.args.has("townsfolk_shots"):
+		_steps.clear()
+		_steps.append_array(_townsfolk_steps())
 	elif main.args.has("pad_shots"):
 		_steps.append_array(_pad_steps())
 	elif main.args.has("ui_shots"):
@@ -378,6 +381,74 @@ func _shopkeeper_steps() -> Array:
 		{"ticks": 1, "shot": "shopkeeper_03_after", "input": {}, "check": func():
 			return _check(expr.call() == 0, "会話のあとは通常の顔（区画 0、%d）" % expr.call())},
 	]
+
+
+## 町の住人 8 人（townsfolk のキット、tf_*.glb）の確認（--townsfolk_shots）：中段の混んだ場面の描画の数を出してから、
+## 8 人をそれぞれの部屋で正面の少し横から撮り、モデルが立って待機（idle）していることを確かめる
+func _townsfolk_steps() -> Array:
+	var skip := func(n: int):
+		for i in n:
+			if main.game.story.blocking():
+				main.game.story.confirm()
+	var info := func(id: String) -> Dictionary: return main.props_view._npc_models.get(id, {})
+	var flags := ["ch1.opening_done", "ch1.chores_started", "ch1.t_move", "ch1.ordo_stopped"]
+	var go := func(room: String):
+		var g: GameSim = main.game
+		g.god_mode = true
+		for f in flags:
+			g.set_flag(f)
+		g.load_room(room, "")
+		for t in g.triggers:
+			t.fired = true
+	# 住人の正面（side 度だけ横へ回した向き）2.6m・横 1.6m に立って、住人のほうを見る（カメラはハルの後ろ。住人はハルの横に、
+	# 顔をこちらへ向けて写る）。洗濯物・店の台・手すりで隠れる住人は横から
+	var face := func(id: String, side: float, lat: float):
+		for n in main.game.npcs:
+			if n.id == id:
+				var a: float = n.yaw + side * U.DEG
+				var fwd := Vector3(sin(a), 0, cos(a))
+				var right := Vector3(cos(a), 0, -sin(a))
+				var at: Vector3 = n.pos + fwd * 2.6 + right * lat
+				_stand(Vector3(at.x, n.pos.y, at.z), Vector3(at.x, n.pos.y, at.z) - fwd * 5.0 - right * lat * 0.4)
+				main.game.cam.pitch = 8.0 * U.DEG
+				main.snap_views()
+	var steps := [
+		{"ticks": 230, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(30)},
+		{"ticks": 60, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(30)},
+		# 中段の広場（オルドが止まったあと：住人 7 人のうち町の住人 3 人）。描画の数は撮った絵の数
+		{"ticks": 2, "setup": func():
+			go.call("ch1.mid")
+			_stand(Vector3(3, 0, -9), Vector3(4, 0, 6))
+			main.game.cam.pitch = 14.0 * U.DEG
+			main.snap_views()},
+		{"ticks": 40, "input": {}},
+		{"ticks": 1, "shot": "townsfolk_00_busy", "input": {}, "check": func():
+			var ok: bool = ["npc_domi", "npc_tobi", "npc_woman"].all(func(i): return not info.call(i).is_empty())
+			return _check(ok, "中段の広場に町の住人のモデルが 3 人（ドミ・トビ・ミナ婆）"),
+			"after": func(): print("描画 townsfolk_00_busy：draw %d・物 %d・三角形 %d" % [
+				RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+				RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
+				RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])},
+	]
+	var people := [["npc_martha", "ch1.lower", 60.0], ["npc_gen", "ch1.lower", 0.0], ["npc_domi", "ch1.mid", 100.0, 1.6],
+		["npc_tobi", "ch1.mid", 0.0], ["npc_woman", "ch1.mid", 0.0], ["npc_lookout", "ch1.upper", 80.0],
+		["npc_clerk", "ch1.upper", 0.0], ["npc_rita", "ch1.guild", 0.0]]
+	for i in people.size():
+		var id: String = people[i][0]
+		var room: String = people[i][1]
+		var side: float = people[i][2]
+		var lat: float = people[i][3] if people[i].size() > 3 else 1.6
+		steps.append({"ticks": 2, "setup": func():
+			if main.game.room_id != room:
+				go.call(room)
+			face.call(id, side, lat)})
+		steps.append({"ticks": 40, "input": {}})
+		steps.append({"ticks": 1, "shot": "townsfolk_%02d_%s" % [i + 1, id.trim_prefix("npc_")], "input": {}, "check": func():
+			var clip := String(info.call(id).get("clip", ""))
+			return _check(not info.call(id).is_empty() and clip == "idle", "%s（%s）のモデルが立って待機している（%s）" % [id, room, clip])})
+	return steps
 
 
 ## 第 1 章 前半の画面の確認（--ch1_shots）：町の 3 段・訓練場・ニコの戦闘・夜の町・ヤーナが銃を渡す場面
@@ -1177,6 +1248,8 @@ func _process(_dt: float) -> void:
 			return
 		if not (main.args.has("ch1_shots") or main.args.has("town_shots") or main.args.has("town_audit") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("pad_shots") or main.args.has("nico_shots") or main.args.has("trude_shots") or main.args.has("shopkeeper_shots")):
 			main.args["mvp"] = "1"   # 見本の前半は古い試験場（mvp.main）で進める
+		if main.args.has("townsfolk_shots"):
+			main.args.erase("mvp")   # 町の住人の確認は第 1 章の町で
 		main.start_game(null)
 		main.game.god_mode = true
 		for i in 30:
