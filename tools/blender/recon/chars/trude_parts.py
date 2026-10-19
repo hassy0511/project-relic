@@ -705,18 +705,21 @@ def hair_locks() -> list[dict]:
             out.append(v / np.linalg.norm(v))
         return np.array(out)
 
-    def band(dkeys, w, lift, r_tip=None, thick=0.012, w_prof=None, sink=0.004, fkeys=None):
+    def centre_line(dkeys, lift, r_tip=None, thick=0.012, w_prof=None, sink=0.004, fkeys=None, r_max=0.40):
+        """房の中心の線（帽子の面＋浮き）・厚み・幅の形"""
         dirs = slerp_path(dkeys, fkeys if fkeys is not None else np.linspace(0, 1, len(dkeys)))
-        r = radial(dirs)
+        r = radial(dirs, r_max=r_max)
         r = NDI.gaussian_filter1d(r, 1.0, mode='nearest')
         wp = w_prof if w_prof is not None else np.interp(tt, [0, 0.10, 0.4, 0.8, 1.0], [0.45, 0.85, 1.0, 0.75, 0.10])
-        ww = w * wp
         th_ = thick * np.clip(wp * 1.2, 0.35, 1.0)
-        rr = r + lift + 0.40 * th_ - sink * np.clip(1 - tt / 0.08, 0, 1)
-        if r_tip is not None:      # 先はお団子の縁へ
-            f = np.clip((tt - 0.78) / 0.22, 0, 1) ** 1.5
+        rr = r + lift + 0.40 * th_ - sink * np.clip(1 - tt / 0.12, 0, 1)
+        if r_tip is not None:      # 先はお団子へ
+            f = np.clip((tt - 0.74) / 0.26, 0, 1) ** 1.5
             rr = rr * (1 - f) + r_tip * f
-        P = C + dirs * rr[:, None]
+        return dirs, C + dirs * rr[:, None], th_, wp
+
+    def ribbon(dirs, P, ww, th_):
+        """中心の線に 6 角の断面を流した板。(頂点, 峰の両側の面, ほかの面)"""
         T = np.gradient(P, axis=0)
         T /= np.linalg.norm(T, axis=1, keepdims=True)
         N = dirs - (dirs * T).sum(1, keepdims=True) * T
@@ -742,6 +745,10 @@ def hair_locks() -> list[dict]:
         top = np.isin(seg, TOP_SEG)
         return Vs, F[top], F[~top]
 
+    def band(dkeys, w, lift, r_tip=None, thick=0.012, w_prof=None, sink=0.004, fkeys=None, r_max=0.40):
+        dirs, P, th_, wp = centre_line(dkeys, lift, r_tip, thick, w_prof, sink, fkeys, r_max)
+        return ribbon(dirs, P, w * wp, th_)
+
     def add(name, V_, Ft, Fu):
         out.append(dict(name='hair_' + name, bone='head', color='hair', mesh=(V_, Ft)))
         out.append(dict(name='hair_' + name + '_u', bone='head', color='hair_shadow', mesh=(V_, Fu)))
@@ -755,37 +762,54 @@ def hair_locks() -> list[dict]:
         return BUN_C + np.array([math.sin(a) * BUN_R[0] * k, BUN_R[1] * fy, math.cos(a) * BUN_R[2] * k])
 
     out = []
-    # 額から後ろのお団子へ：(名前, 根の角度, 経由（角度, 高さ）または None, 先の角度（お団子の縁、0 = 上、+ = 本人の左）, 幅, 浮き)
+    # 額から後ろのお団子へ：(名前, 根の角度, 経由（角度, 高さ）, 先の角度（お団子の縁、0 = 上、+ = 本人の左）)。右から左の順
     # 真ん中の 2 本は根を ±9 度に離し、頭頂で外へ開いてから集まる（分け目の線が帽子の暗い色で見える）
-    sweep = [('c_l', 9, (20, 1.535), 14, 0.070, 0.002), ('c_r', -9, (-20, 1.535), -14, 0.070, 0.002),
-             ('f_l', 27, (42, 1.515), 36, 0.074, 0.002), ('f_r', -27, (-42, 1.515), -36, 0.074, 0.002),
-             ('t_l', 45, (66, 1.475), 58, 0.074, 0.002), ('t_r', -45, (-66, 1.475), -58, 0.074, 0.002),
-             ('s_l', 62, (88, 1.43), 80, 0.070, 0.002), ('s_r', -62, (-88, 1.43), -80, 0.070, 0.002),
-             ('e_l', 77, (102, 1.392), 102, 0.054, 0.002), ('e_r', -77, (-102, 1.392), -102, 0.054, 0.002)]
-    for name, th0, via, ang, w, lift in sweep:
+    sweep = [('e_r', -77, (-102, 1.392), -102), ('s_r', -62, (-88, 1.43), -80), ('t_r', -45, (-66, 1.475), -58),
+             ('f_r', -27, (-42, 1.515), -36), ('c_r', -9, (-14, 1.535), -14), ('c_l', 9, (14, 1.535), 14),
+             ('f_l', 27, (42, 1.515), 36), ('t_l', 45, (66, 1.475), 58), ('s_l', 62, (88, 1.43), 80),
+             ('e_l', 77, (102, 1.392), 102)]
+    lines = []
+    for name, th0, via, ang in sweep:
         d0 = dir_at(th0, hairline_z(th0) + 0.004)
-        tip = bun_edge(ang)
-        dv = dir_at(via[0], via[1])
-        Vm, Ft, Fu = band([d0, dv, unit(tip - C)], w, lift, r_tip=float(np.linalg.norm(tip - C)),
-                          fkeys=np.array([0.0, 0.42, 1.0]))
-        add(name, Vm, Ft, Fu)
-    # 頭頂の後ろ・後頭部からお団子の上へ放射状に集まる房（背面の絵の扇）
-    for name, th0, z0, ang, w in (('b_l', 150, 1.50, 22, 0.070), ('b_r', -150, 1.50, -22, 0.070),
-                                  ('b_c', 180, 1.53, 0, 0.066), ('bb_l', 130, 1.44, 50, 0.066),
-                                  ('bb_r', -130, 1.44, -50, 0.066)):
-        tip = bun_edge(ang, 0.78, -0.45)
-        Vm, Ft, Fu = band([dir_at(th0, z0), unit(tip - C)], w, 0.002, r_tip=float(np.linalg.norm(tip - C)),
-                          w_prof=np.interp(tt, [0, 0.15, 0.5, 1.0], [0.6, 0.9, 1.0, 0.25]))
-        add(name, Vm, Ft, Fu)
-    # えり足からお団子の下へ上がる房（後ろの低い所）
-    for name, th0, ang, w in (('n_l', 140, 140, 0.058), ('n_r', -140, -140, 0.058), ('n_c', 180, 180, 0.056)):
-        tip = bun_edge(ang, 0.75, -0.40)
-        Vm, Ft, Fu = band([dir_at(th0, 1.255), unit(tip - C)], w, 0.002, r_tip=float(np.linalg.norm(tip - C)))
-        add(name, Vm, Ft, Fu)
-    # 耳の前の細い房 ×2（こめかみから下へ、ほおの横で細る。絵 trude_head_side_right：あごの近くまで）
+        tip = bun_edge(ang, 0.55, -0.15)      # 先はお団子の中へ（縁に置くと先が浮いてとげに見えた）
+        lines.append(centre_line([d0, dir_at(via[0], via[1]), unit(tip - C)], 0.002, r_tip=float(np.linalg.norm(tip - C)),
+                                 fkeys=np.array([0.0, 0.42, 1.0]), sink=0.010))
+    # 幅：となりの房の中心までの距離の 0.62 倍（となり合う房は縁で少し重なり、間が浅い谷になる。メロンの筋のように）。
+    # 1 周目〜2 周目の初めは幅が一定で 4〜5 本が重なり、くしゃくしゃの紙に見えた
+    for i, (name, *_r) in enumerate(sweep):
+        dirs, P, th_, wp = lines[i]
+        nb = [j for j in (i - 1, i + 1) if 0 <= j < len(sweep)]
+        dist = np.min([np.linalg.norm(P - lines[j][1], axis=1) for j in nb], 0)
+        hw = NDI.gaussian_filter1d(np.clip(0.62 * dist, 0.006, 0.040), 1.0, mode='nearest')
+        hw = hw * np.interp(tt, [0, 0.10, 0.9, 1.0], [0.35, 1.0, 1.0, 0.55])   # 根は細く、帽子へ沈める（板の切り口を見せない）
+        add(name, *ribbon(dirs, P, hw, th_))
+    # 額の縁の房 ×2：分け目から左右へ生え際に沿って流れ、こめかみで耳の上を後ろへ回ってお団子へ（正面の絵：分け目から
+    # 左右へなでつけた房が額の縁を作る）。ほかの房の根（板の切り口）を上から覆い、生え際の線をすっきりさせる
     for side, sx in ((1.0, 'l'), (-1.0, 'r')):
-        Vm, Ft, Fu = band([dir_at(side * 74, 1.39), dir_at(side * 80, 1.25)], 0.024, 0.003, thick=0.006, sink=0.002,
-                          w_prof=np.interp(tt, [0, 0.2, 0.6, 1.0], [0.8, 1.0, 0.8, 0.1]))
+        tip = bun_edge(side * 96, 0.55, -0.15)
+        keys = [dir_at(side * 3, hairline_z(3) + 0.010), dir_at(side * 38, hairline_z(38) + 0.012),
+                dir_at(side * 72, hairline_z(72) + 0.022), dir_at(side * 100, 1.405), unit(tip - C)]
+        Vm, Ft, Fu = band(keys, 0.017, 0.005, r_tip=float(np.linalg.norm(tip - C)), sink=0.006,
+                          fkeys=np.array([0.0, 0.16, 0.36, 0.58, 1.0]),
+                          w_prof=np.interp(tt, [0, 0.08, 0.5, 0.85, 1.0], [0.35, 1.0, 1.0, 0.8, 0.4]))
+        add('front_' + sx, Vm, Ft, Fu)
+    # 頭頂の後ろからお団子の上へ放射状に集まる房（背面の絵の扇）。真ん中の 2 本の房の間を埋める
+    for name, th0, z0, ang, w in (('b_l', 172, 1.54, 7, 0.024), ('b_r', -172, 1.54, -7, 0.024), ('b_c', 180, 1.556, 0, 0.020)):
+        tip = bun_edge(ang, 0.55, -0.15)
+        Vm, Ft, Fu = band([dir_at(th0, z0), unit(tip - C)], w, 0.0015, r_tip=float(np.linalg.norm(tip - C)),
+                          w_prof=np.interp(tt, [0, 0.15, 0.5, 1.0], [0.6, 0.9, 1.0, 0.35]))
+        add(name, Vm, Ft, Fu)
+    # えり足からお団子の下へ上がる房（後ろの低い所）。探す半径を頭の大きさに限る（下向きの道が背中の面に届き、首から離れた板になった）
+    for name, th0, ang, w in (('n_l', 140, 140, 0.040), ('n_r', -140, -140, 0.040), ('n_c', 180, 180, 0.038)):
+        tip = bun_edge(ang, 0.75, -0.40)
+        Vm, Ft, Fu = band([dir_at(th0, 1.262), unit(tip - C)], w, 0.002, r_tip=float(np.linalg.norm(tip - C)), r_max=0.15)
+        add(name, Vm, Ft, Fu)
+    # 耳の前の細い房 ×2（こめかみの上から耳の前を下へ、あごの高さで細る。絵 trude_head_side_right・turnaround の正面）。
+    # 探す半径を頭の大きさに限る（2 周目の初め：下向きの道が肩の面まで届き、肩まで垂れる長いひげになった）
+    for side, sx in ((1.0, 'l'), (-1.0, 'r')):
+        Vm, Ft, Fu = band([dir_at(side * 64, 1.44), dir_at(side * 75, 1.37), dir_at(side * 80, 1.30)], 0.013, 0.004,
+                          thick=0.007, sink=0.002, r_max=0.15,
+                          w_prof=np.interp(tt, [0, 0.2, 0.6, 1.0], [0.8, 1.0, 0.75, 0.15]))
         add('side_' + sx, Vm, Ft, Fu)
     return out
 
