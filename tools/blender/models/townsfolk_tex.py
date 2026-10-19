@@ -12,7 +12,6 @@ townsfolk.py の顔の UV の投影も同じ窓を使う（FACE_U・FACE_V）。
 """
 from __future__ import annotations
 
-import math
 import os
 
 from PIL import Image, ImageDraw, ImageFilter
