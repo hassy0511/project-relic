@@ -1316,7 +1316,7 @@ func _talk_cam_steps() -> Array:
 	var cases := [["shopkeeper", "ch1.mid", "npc_shopkeeper", Vector3(24, 0, 3.0)], ["junker", "ch1.mid", "npc_junker", Vector3(38, 0, 3.0)],
 		["yana", "ch1.workshop", "npc_yana", Vector3(2.45, 0, 2.0)], ["burton", "ch1.guild", "npc_burton", Vector3(0, 0, 3.4)],
 		["trude", "ch1.mayor", "npc_trude", Vector3(0, 0, 1.4)], ["gen", "ch1.lower", "npc_gen", Vector3(-6.4, 0, -8)],
-		["martha", "ch1.lower", "npc_martha", Vector3(30, 0, 1.4)]]
+		["martha", "ch1.lower", "npc_martha", Vector3(30, 0, 1.4)], ["nico", "ch1.training", "npc_nico", Vector3(6, 0, 36.2)]]
 	if main.args.has("talk_cam"):
 		var want: PackedStringArray = String(main.args.talk_cam).split(",")
 		cases = cases.filter(func(c): return c[0] in want)
@@ -1353,6 +1353,12 @@ func _talk_cam_steps() -> Array:
 				var f: Dictionary = main.camera.talk_frame()
 				print("会話のカメラ %s：%s" % [cs[0], f])
 				return _check(main.camera.talk_weight() >= 1.0 and not f.is_empty(), "%s：会話のカメラが話し相手へ寄る" % cs[0])},
+		])
+		# --talk_cam_zoom：会話のカメラと同じ場所から、視野を狭めて話し相手の頭と首だけを撮る（近くの粗の確認用。画素を増やした会話のカメラと同じ見え方）
+		if main.args.has("talk_cam_zoom"):
+			steps.append({"ticks": 1, "shot": "talk_%s_zoom" % cs[0], "input": {}, "cam": func(): _talk_zoom(cs[2], true),
+				"after": func(): _talk_zoom(cs[2], false)})
+		steps.append_array([
 			{"ticks": 2, "setup": func():
 				_talk_skip()
 				# 店の画面が開いたら閉じる（開いている間はゲームが進まない）
@@ -1368,6 +1374,35 @@ func _talk_cam_steps() -> Array:
 				return _check(ok, "%s：会話のあとは話しかける前のカメラへ戻る" % cs[0])},
 		])
 	return steps
+
+
+## --talk_cam_zoom の撮影：on で会話のカメラの場所に視野 13 度のカメラを置いて住人 id の顔（少し下）を見る（画面の飾りは隠す）。off で元へ
+var _zoom_cam: Camera3D = null
+func _talk_zoom(id: String, on: bool) -> void:
+	var layers: Array = [main.hud, main.touch]
+	if not on:
+		if _zoom_cam != null:
+			_zoom_cam.queue_free()
+			_zoom_cam = null
+		main.camera.make_current()
+		for l in layers:
+			if l != null and is_instance_valid(l):
+				l.visible = true
+		return
+	var npc: Array = main.game.npcs.filter(func(n): return n.id == id)
+	if npc.is_empty():
+		return
+	var face: Vector3 = npc[0].pos + Vector3(0, TalkCamera.face_height(id) - 0.05, 0)
+	_zoom_cam = Camera3D.new()
+	main.camera.get_parent().add_child(_zoom_cam)
+	_zoom_cam.global_position = main.camera.global_position
+	_zoom_cam.look_at(face, Vector3.UP)
+	_zoom_cam.fov = 13.0
+	_zoom_cam.near = main.camera.near
+	_zoom_cam.make_current()
+	for l in layers:
+		if l != null and is_instance_valid(l):
+			l.visible = false
 
 
 ## 会話を送り終える（会話の続きのイベントの会話も）

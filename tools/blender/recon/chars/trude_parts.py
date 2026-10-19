@@ -610,9 +610,103 @@ BUN_C = np.array([X0, 0.192, 1.308])     # お団子の中心（右真横・背�
 BUN_R = (0.084, 0.062, 0.068)            # 半径（左右・前後・上下。2 周目：絵の大きさ＝1 周目の 1.3 倍）
 
 
+def _rose_petal(phi0, dphi, th_in, th_out, s0, s1, twist, thick=0.007, n_th=5, n_ph=9):
+    """お団子のバラの花びら 1 枚：お団子の楕円体（後ろ = +Y を軸）の、方位 phi0〜phi0+dphi・軸からの角度 th_in〜th_out の
+    曲がった厚い板。方位に沿って大きさ s0 → s1 と内の縁 th_in → th_in + twist が変わる（となりの花びらの下から出て上へ
+    重なる、巻いた花びら）。(頂点, 外の面, 縁と内の面)"""
+    ex, ey, ez = np.array([1.0, 0, 0]), np.array([0, 1.0, 0]), np.array([0, 0, 1.0])
+    R = np.array(BUN_R) * 1.0
+
+    def pt(u, v, off):
+        ph = phi0 + dphi * u
+        th = (th_in + twist * u) + (th_out - (th_in + twist * u)) * v
+        # 方位の両端は下の重へもぐる（となりの花びらとの間が浅い谷。端を方位で切った段にしない）
+        s = s0 - 0.035 + (s1 - s0 + 0.035) * math.sin(math.pi * u) ** 0.5
+        # 内の縁（v = 0）は少し外へめくれる（花びらの縁）
+        lip = 0.006 * (1 - v) ** 3
+        d = (math.sin(th) * (math.cos(ph) * ex + math.sin(ph) * ez)) * R[0] + math.cos(th) * ey * R[1]
+        dn = d / np.linalg.norm(d)
+        return BUN_C + d * s + dn * (lip - off)
+
+    us, vs = np.linspace(0, 1, n_ph), np.linspace(0, 1, n_th)
+    outer = np.array([[pt(u, v, 0.0) for u in us] for v in vs])
+    inner = np.array([[pt(u, v, thick) for u in us] for v in vs])
+    V = np.concatenate([outer.reshape(-1, 3), inner.reshape(-1, 3)])
+    no = n_th * n_ph
+
+    def idx(i, j, layer):
+        return layer * no + i * n_ph + j
+
+    Ft, Fu = [], []
+    for i in range(n_th - 1):
+        for j in range(n_ph - 1):
+            a, b, c, d = idx(i, j, 0), idx(i, j + 1, 0), idx(i + 1, j + 1, 0), idx(i + 1, j, 0)
+            Ft += [(a, b, c), (a, c, d)]
+            a, b, c, d = idx(i, j, 1), idx(i, j + 1, 1), idx(i + 1, j + 1, 1), idx(i + 1, j, 1)
+            Fu += [(a, c, b), (a, d, c)]
+    # 縁（4 辺。外と内の面と向きをそろえる：Godot は裏の面を描かない）
+    m = n_th - 1
+    for j in range(n_ph - 1):
+        o0, o1, i0, i1 = idx(0, j, 0), idx(0, j + 1, 0), idx(0, j, 1), idx(0, j + 1, 1)
+        Fu += [(o1, o0, i0), (o1, i0, i1)]
+        o0, o1, i0, i1 = idx(m, j, 0), idx(m, j + 1, 0), idx(m, j, 1), idx(m, j + 1, 1)
+        Fu += [(o0, o1, i1), (o0, i1, i0)]
+    k = n_ph - 1
+    for i in range(n_th - 1):
+        o0, o1, i0, i1 = idx(i, 0, 0), idx(i + 1, 0, 0), idx(i, 0, 1), idx(i + 1, 0, 1)
+        Fu += [(o0, o1, i1), (o0, i1, i0)]
+        o0, o1, i0, i1 = idx(i, k, 0), idx(i + 1, k, 0), idx(i, k, 1), idx(i + 1, k, 1)
+        Fu += [(o1, o0, i0), (o1, i0, i1)]
+    V, F = _orient(V, Ft + Fu)
+    nt = len(Ft)
+    return V, F[:nt], F[nt:]
+
+
 def bun() -> list[dict]:
-    """後ろの低いお団子：房が渦に巻いた丸い塊（経緯の格子の球を、6 本の渦の筋でふくらませた低い多面体）。
-    筋の山は髪の色、谷（筋の間）は陰の色（2 周目：1 色では白い玉に見えた）"""
+    """後ろの低いお団子（3 周目）：巻いたバラ（絵 trude_head_back・side_right・top：真ん中の丸い芽のまわりを、房を巻いた
+    花びらが 2 重に重なって包む）。2 周目は経緯の格子の球を 6 本の渦の筋でふくらませた形で、風車に見えた。
+    花びらはお団子の楕円体の上の曲がった厚い板で、外の重ほど大きく、軸から離れた所から始まる（内の重の縁が見える）。
+    1 枚ずつ方位に沿って大きさと内の縁がずれ、となりの下から出て上へ重なる。外の面は髪の色、縁と内の面は陰の色"""
+    out = []
+    # (重, 枚数, 1 枚の方位の幅（度）, 内の縁, 外の縁（軸からの角度、度）, 大きさ（始め, 終わり）, 内の縁のずれ, 位相)
+    layers = [(0, 2, 210.0, 0.0, 58.0, 0.82, 0.88, 0.0, 20.0),
+              (1, 4, 125.0, 28.0, 96.0, 0.90, 0.97, 12.0, 75.0),
+              (2, 5, 100.0, 50.0, 120.0, 0.99, 1.05, 10.0, 10.0)]
+    for L, cnt, wdeg, tin, tout, s0, s1, tw, ph0 in layers:
+        for k in range(cnt):
+            phi0 = math.radians(ph0 + 360.0 * k / cnt)
+            V, Ft, Fu = _rose_petal(phi0, math.radians(wdeg), math.radians(tin), math.radians(tout), s0, s1,
+                                    math.radians(tw))
+            out.append(dict(name=f'hair_bun{L}_{k}', bone='head', color='hair', mesh=(V, Ft)))
+            out.append(dict(name=f'hair_bun{L}_{k}_u', bone='head', color='hair_shadow', mesh=(V, Fu)))
+    out += _bun_base()
+    return out
+
+
+def _bun_base() -> list[dict]:
+    """お団子の付け根の詰め物（頭の後ろとお団子の間。上から集まる房のすき間が穴に見えた）。陰の色（2 周目のまま）"""
+    Vb, Fb = [], []
+    nb_l, nb_m = 6, 12
+    for i in range(1, nb_l):
+        ph = math.pi * i / nb_l - math.pi / 2
+        for k in range(nb_m):
+            lam = 2 * math.pi * k / nb_m
+            Vb.append((X0 + math.cos(ph) * math.cos(lam) * 0.074, 0.146 + math.sin(ph) * 0.050,
+                       1.336 + math.cos(ph) * math.sin(lam) * 0.058))
+    Vb += [(X0, 0.096, 1.336), (X0, 0.196, 1.336)]
+    for i in range(nb_l - 2):
+        for k in range(nb_m):
+            a_, b_ = i * nb_m + k, i * nb_m + (k + 1) % nb_m
+            Fb += [(a_, b_ + nb_m, b_), (a_, a_ + nb_m, b_ + nb_m)]
+    s0, s1, last = len(Vb) - 2, len(Vb) - 1, (nb_l - 2) * nb_m
+    for k in range(nb_m):
+        Fb += [(s0, k, (k + 1) % nb_m), (s1, last + (k + 1) % nb_m, last + k)]
+    Vb, Fb = _orient(np.array(Vb), Fb)
+    return [dict(name='hair_bun_base', bone='head', color='hair_shadow', mesh=(Vb, Fb))]
+
+
+def _bun_pinwheel() -> list[dict]:
+    """2 周目のお団子（渦の筋の球。使っていない。比べるために残す）"""
     nl, nm = 9, 24
     V = []
     for i in range(1, nl):
@@ -785,9 +879,10 @@ def hair_locks() -> list[dict]:
     out = []
     # 額から後ろのお団子へ：(名前, 根の角度, 経由（角度, 高さ）, 先の角度（お団子の縁、0 = 上、+ = 本人の左）)。右から左の順
     # 真ん中の 2 本は根を ±9 度に離し、頭頂で外へ開いてから集まる（分け目の線が帽子の暗い色で見える）
-    sweep = [('e_r', -77, (-102, 1.392), -102), ('s_r', -62, (-88, 1.43), -80), ('t_r', -45, (-66, 1.475), -58),
-             ('f_r', -27, (-42, 1.515), -36), ('c_r', -9, (-14, 1.535), -14), ('c_l', 9, (14, 1.535), 14),
-             ('f_l', 27, (42, 1.515), 36), ('t_l', 45, (66, 1.475), 58), ('s_l', 62, (88, 1.43), 80),
+    # 3 周目：頭頂がまだごつごつする（房 10 本の根と先が重なる）→ 8 本に減らし、1 本ずつ広く（幅はとなりとの距離から）
+    sweep = [('e_r', -77, (-102, 1.392), -102), ('s_r', -58, (-84, 1.44), -76),
+             ('f_r', -32, (-50, 1.505), -42), ('c_r', -9, (-14, 1.535), -14), ('c_l', 9, (14, 1.535), 14),
+             ('f_l', 32, (50, 1.505), 42), ('s_l', 58, (84, 1.44), 76),
              ('e_l', 77, (102, 1.392), 102)]
     lines = []
     for name, th0, via, ang in sweep:
@@ -819,7 +914,7 @@ def hair_locks() -> list[dict]:
                           w_prof=np.interp(tt, [0, 0.08, 0.55, 0.8, 1.0], [0.35, 1.0, 1.0, 0.6, 0.12]))
         add('front_' + sx, Vm, Ft, Fu)
     # 頭頂の後ろからお団子の上へ放射状に集まる房（背面の絵の扇）。真ん中の 2 本の房の間を埋める
-    for name, th0, z0, ang, w in (('b_l', 172, 1.54, 7, 0.024), ('b_r', -172, 1.54, -7, 0.024), ('b_c', 180, 1.556, 0, 0.020)):
+    for name, th0, z0, ang, w in (('b_c', 180, 1.556, 0, 0.026),):
         tip = bun_edge(ang, 0.55, -0.15)
         Vm, Ft, Fu = band([dir_at(th0, z0), unit(tip - C)], w, 0.0015, r_tip=float(np.linalg.norm(tip - C)),
                           w_prof=np.interp(tt, [0, 0.15, 0.5, 1.0], [0.6, 0.9, 1.0, 0.35]))

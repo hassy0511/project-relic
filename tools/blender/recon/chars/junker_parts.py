@@ -751,11 +751,18 @@ def hair_locks() -> list[dict]:
     # つむじ：頭頂の少し後ろ
     crown = (180.0, 1.535)
     # 上の房 3 本：つむじから前へ、頭頂を覆う幅の広い葉（先は前の上で寝かせる。立つのは f_up の 2 本）
-    top = []
-    for i, a in enumerate((-40, 0, 40)):
+    # 3 周目：上の房 3 本（つむじから額の上まで寝た長い葉）は、横・会話のカメラから重ねた皿のように平たく見えた。
+    # 短い 2 段に分け、どちらも先を帽子から 2.6〜3.2cm 浮かせて立てる（絵：頭頂の房も上・前へ立つ）。
+    # 後ろの段はつむじから頭頂の少し前まで、前の段は頭頂の少し後ろから額の上まで（前の段の根は後ろの段の立った先の下）
+    top_a, top_b = [], []
+    for i, a in enumerate((-36, 0, 36)):
         root = (180.0 - a * 0.30 if a <= 0 else -180.0 - a * 0.30, crown[1] - 0.004)
-        top.append((f'top{i}', [root, (a, 1.548)], 0.001, 0.008, None))
-    tier(top, k_w=0.72, thick=0.014, w_max=0.050)
+        top_a.append((f'top{i}', [root, (a * 0.6, HR.HEAD_C[2] + 0.57)], 0.001, 0.026, None))
+    for i, a in enumerate((-44, 0, 44)):
+        root = (180.0 - a * 0.25 if a <= 0 else -180.0 - a * 0.25, HR.HEAD_C[2] + 0.37)
+        top_b.append((f'topf{i}', [root, (a, 1.548)], 0.001, 0.032, None))
+    tier(top_a, k_w=0.72, thick=0.014, w_max=0.046)
+    tier(top_b, k_w=0.72, thick=0.014, w_max=0.046)
     # 頭頂の左右で外・上へはねる大きな房 2 本（正面の外形の上の左右の張り）
     flare = [('flare_l', [(16.0, 1.550), (48.0, 1.538), (84.0, 1.522)], 0.002, 0.046, [0.0, 0.5, 1.0]),
              ('flare_r', [(-16.0, 1.550), (-50.0, 1.535), (-86.0, 1.515)], 0.002, 0.046, [0.0, 0.5, 1.0])]
@@ -847,7 +854,9 @@ def stubble() -> list[dict]:
         z_edge = np.where(jump.any(1), zs[np.argmax(jump, 1)], 1.30)
         z_edge = np.convolve(np.pad(z_edge, 2, mode='edge'), np.ones(5) / 5.0, mode='valid')
         h = 0.012 + 0.014 * smoothstep((degs - 16.0) / 88.0)
-        zig = np.where(np.arange(len(degs)) % 2 == 1, 0.004, 0.0)
+        # 3 周目：上の縁の 1 つおきの 4mm の歯は、会話のカメラの近写でのこぎりの刃に見えた → 小さく不ぞろいに（絵は柔らかい粗い縁）
+        kk = np.arange(len(degs))
+        zig = 0.0012 + 0.0009 * np.sin(kk * 2.3) + 0.0005 * np.sin(kk * 5.1 + 1.0)
         Z = np.array([z_edge + 0.001 + (h + zig) * f for f in (0.0, 0.5, 1.0)])
         Rr = np.array([surf_r(ths, Z[k], 0.0, X0, 0.16, last=True) for k in range(3)]) + 0.0028
         S, Cc = np.sin(ths)[None], np.cos(ths)[None]
@@ -917,8 +926,10 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
     # 肌・ベストの色の斑点になった。2 回目）。上の端は首巻きの上の縁（前 1.262・横と後ろ 1.29）
     th_w = np.arctan2(x - X0, -(y - WRAP_CY))
     ztop_w = 1.290 - 0.028 * np.cos(th_w / 2.0) ** 4 + 0.003
+    # 3 周目：首巻きの外 3cm まで（2 周目）は、肩・胸の上の首巻きの下に生成りの帯が見えた（会話のカメラ）。体の土台は 1.20 で
+    # 首巻きの中に終わるので、首巻きの輪郭の 4mm 外までに狭める（ベストの焦げ茶が首巻きの縁の下まで来る）
     wz = free & (z > WRAP['z'][0] + 0.004) & (z < ztop_w) & ~arm & (
-        (((x - X0) / (wa + 0.018)) ** 2 + ((y - WRAP_CY) / (wb + 0.018)) ** 2 < 1.0) | ((z > 1.20) & (np.hypot(x - X0, y - WRAP_CY) < 0.16)))
+        (((x - X0) / (wa - 0.008)) ** 2 + ((y - WRAP_CY) / (wb - 0.008)) ** 2 < 1.0) | ((z > 1.20) & (np.hypot(x - X0, y - WRAP_CY) < 0.16)))
     under[wz] = NAMES.index('wrap')
     # 首（首巻きの口より上）：肌
     neck = free & ~head & (z > 1.255) & (r_neck < 0.065) & ~arm

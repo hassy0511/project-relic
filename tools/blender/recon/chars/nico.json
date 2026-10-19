@@ -637,7 +637,14 @@
     1.45
    ],
    "fringe_ztop": 1.62,
-   "cover_z": 1.4
+   "cover_z": 1.4,
+   "undercut": {
+    "z": [
+     1.305,
+     1.34
+    ],
+    "margin": 0.006
+   }
   },
   "hair.NECK": {
    "cx": -0.008,
