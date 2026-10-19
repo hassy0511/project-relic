@@ -16,16 +16,19 @@ import os
 
 import numpy as np
 
-# 色は spec_nico_r2.md の色見本（主要 6 色）。つなぎの影の色は使わない
+# 色は spec_nico_r2.md の色見本（主要 6 色）を基に、確認ページで違って見えた所だけ絵の平らに照らされた所の中央値へ寄せた
+# （build/nico/tools/colors.py。つなぎは絵も #54777B）：
+#   髪：spec の #E8C58D は肌 #E7B58D とほぼ同じ明るさ・色合いで、確認ページで髪と肌の境が見えなかった → 絵の髪の中間の調子 #DFB077 寄りの #E0B475
+#   布靴：#A98749 は黄色に見えた（絵 #B48B5D）→ #A88559。ゴーグルの木の縁・ボタン：絵は橙の木（#DB8727・#AF6C1A）→ #C47F2C
 PALETTE = {
     'teal': '#54777B',       # つなぎ（くすんだ青緑の帆布）
     'sand': '#DCC7A7',       # シャツ・靴底
-    'canvas': '#A98749',     # 布靴・ゴーグルの木の縁・ボタン
-    'dark': '#594333',       # ゴーグルの内側・結び帯・ゴーグルの帯
+    'canvas': '#A88559',     # 布靴
+    'wood': '#C47F2C',       # ゴーグルの木の縁・ボタン
+    'dark': '#594333',       # ゴーグルの内側（レンズ）・橋・結び帯・ゴーグルの帯（発光しない）
     'skin': '#E7B58D',
-    'hair': '#E8C58D',       # 麦わら色の髪
-    'lens': '#3F2E25',       # ゴーグルのレンズ（暗い樹脂。発光しない）
-    'teal_dark': '#466569',  # 裾の折り返しの内側・ポケットの縁（つなぎの影の側）
+    'hair': '#E0B475',       # 麦わら色の髪
+    'teal_dark': '#466569',  # 裾の折り返しの下（脚の筒の内側）
 }
 NAMES = list(PALETTE)
 CELLS = 16
@@ -52,8 +55,10 @@ CUFF_Z = (0.203, 0.268)         # 裾の折り返しの下・上
 LEG_C = (0.165, 0.035)          # 裾の折り返しの軸（|x|, y）
 NECK_TOP = 1.155                # 首の上（あごの下）
 COLLAR_Z = (1.064, 1.136)       # えりの前の下・後ろの上
-BOOT_CUT = 0.088        # この高さより下の脚の体は消して、靴の部品に置き換える
-BOOT_RAMP = (0.05, 0.10)
+# 顔のまわりの髪の塗りの下の線（|x − X0| → z）。正面の絵の生え際・ほおの横の髪の縁
+HAIRLINE_PAINT = ([0.0, 0.05, 0.08, 0.10, 0.12, 0.135, 0.15], [1.385, 1.38, 1.36, 1.34, 1.31, 1.27, 1.22])
+BOOT_CUT = 0.100        # この高さより下の脚の体は消して、靴の部品に置き換える（0.088 では靴の口の外に体の足の肌が出た）
+BOOT_RAMP = (0.05, 0.11)
 BOOT_CUT_X = (0.03, 0.34)
 RIGHT_HAND_PART = True
 
@@ -207,11 +212,11 @@ def overalls() -> list[dict]:
                       raw_tol=0.0))
         # 肩ひものボタン（胸当ての上の角）・腰のボタン（横、正面から 79 度）
         xc = side * 0.095
-        P.append(dict(name='strap_button' + sx, bone='chest', color='canvas', frame=fw,
+        P.append(dict(name='strap_button' + sx, bone='chest', color='wood', frame=fw,
                       outline=octagon(xc - 0.015, xc + 0.015, 0.937, 0.966, 0.006), off=0.014, thick=0.007,
                       bevel=0.003, rmax=0.25, h=0.004))
         sc = side * math.radians(79.0) * fw['RN']
-        P.append(dict(name='side_button' + sx, bone='hips', color='canvas', frame=fw,
+        P.append(dict(name='side_button' + sx, bone='hips', color='wood', frame=fw,
                       outline=octagon(sc - 0.014, sc + 0.014, 0.792, 0.820, 0.006), off=0.010, thick=0.007,
                       bevel=0.003, rmax=0.3, h=0.004))
     return P
@@ -228,7 +233,8 @@ def collar_sleeves() -> list[dict]:
     P.append(dict(name='collar', bone='neck', color='sand', frame=fc,
                   outline=[(-sb, COLLAR_Z[0]), (sb, COLLAR_Z[0]), (st_, 1.103), (0.12, 1.128), (0.0, COLLAR_Z[1]),
                            (-0.12, 1.128), (-st_, 1.103)],
-                  off=0.003, thick=0.007, bevel=0.0025, under='sand', rmax=0.2, rmin=0.052, h=0.005))
+                  off=0.003, thick=0.007, bevel=0.0025, under='sand', rmax=0.082, rmin=0.052, h=0.005))
+    # 1 周目は rmax 0.2 で、首の根元の肩の面まで光線が届き、えりが肩の上の平たい翼（セーラーの襟）になった → 首から 8.2cm まで
     # 半袖の折り返し（砂色）：上腕の軸（肩 → 肘）
     for side, sx in ((1.0, '.L'), (-1.0, '.R')):
         s, e = jp('upper_arm', side), jp('forearm', side)
@@ -260,18 +266,18 @@ def goggles() -> list[dict]:
     P = []
     fwd = np.array([0.0, -1.0, -0.12])
     up = np.array([0.0, 0.0, 1.0])
-    yc = -0.112
+    yc = -0.124       # 縁の前の面（1 周目の −0.112 では、胸の前のこぶの中に縁が隠れた。こぶは views.MASK_CUT で外形から消す）
     for side, sx in ((1.0, '.L'), (-1.0, '.R')):
         c = np.array([side * 0.058, yc, 1.035])
         V, F = ring_mesh(c, fwd, up, 0.039, 0.024, 0.022, n=24, bevel=0.004)
-        P.append(dict(name='goggle_rim' + sx, bone='chest', color='canvas', mesh=(V, F)))
+        P.append(dict(name='goggle_rim' + sx, bone='chest', color='wood', mesh=(V, F)))
         Vl, Fl = disc_mesh(c + np.array([0.0, 0.004, 0.0]), -fwd, up, 0.0255, 0.010, n=24)
-        P.append(dict(name='goggle_lens' + sx, bone='chest', color='lens', mesh=(Vl, Fl)))
+        P.append(dict(name='goggle_lens' + sx, bone='chest', color='dark', mesh=(Vl, Fl)))
     Vb, Fb = box_mesh((0.0, yc + 0.010, 1.034), (0.022, 0.008, 0.010))
     P.append(dict(name='goggle_bridge', bone='chest', color='dark', mesh=(Vb, Fb)))
     # 帯：首のまわりの傾いた輪（後ろは襟の上 z 1.11、前は縁の外の横 z 1.035）。えりの外に立てる（rmin）
-    A = np.array([0.10, -0.095, 1.035])
-    B = np.array([-0.10, -0.095, 1.035])
+    A = np.array([0.10, -0.105, 1.035])
+    B = np.array([-0.10, -0.105, 1.035])
     C = np.array([0.0, 0.07, 1.112])
     nrm = np.cross(B - A, C - A)
     nrm = nrm / np.linalg.norm(nrm)
@@ -349,8 +355,8 @@ def boot_pieces(side: float, sx: str) -> list[dict]:
              sec(0.045, X0_ + 0.008, X1_ - 0.009, YF + 0.010, YB - 0.008, 0.056, 0.047, 4),
              sec(0.062, X0_ + 0.013, X1_ - 0.015, YF + 0.034, YB - 0.010, 0.050, 0.045, 4),
              sec(0.078, X0_ + 0.022, X1_ - 0.024, -0.080, YB - 0.014, 0.045, 0.042, 4),
-             sec(0.092, 0.115, 0.230, -0.040, 0.105, 0.040, 0.040, 4),
-             sec(0.102, 0.118, 0.226, -0.020, 0.100, 0.038, 0.038, 4)]
+             sec(0.094, 0.115, 0.230, -0.040, 0.105, 0.040, 0.040, 4),
+             sec(0.108, 0.120, 0.224, -0.018, 0.098, 0.038, 0.038, 4)]
     for name, color, secs in (('sole', 'sand', sole), ('upper', 'canvas', upper)):
         if side < 0:
             secs = [(z, [(-x, y) for (x, y) in pts][::-1]) for z, pts in secs]
@@ -398,9 +404,17 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
     hi = np.nonzero(hb)[0]
     if len(hi):
         f = HR.part_fields_at(pos[hi], x_half=0.30, z0=1.08)
-        zh = z[hi]
+        xh, yh, zh = x[hi], y[hi], z[hi]
         ear = f['ear'] > -0.002
         hair = (f['hair'] > -0.004) & ~ear
+        # 頭の面に沿った帽子（顔の範囲の縁・耳の前）は、線より下なら肌（ヤーナと同じ）。1 周目は顔のまわり・あごの横に
+        # 髪の色、髪の縁に肌の色のまだらが出た。前（正面から 75 度まで）は生え際の線、耳のあたりは耳の上、耳より後ろは帽子の下の端
+        ax = np.abs(xh - X0)
+        th_f = np.degrees(np.arctan2(ax, -(yh - 0.01)))
+        flush = (f['hair'] - f['skin']) < 0.009
+        line = np.where(th_f < 75.0, np.interp(ax, HAIRLINE_PAINT[0], HAIRLINE_PAINT[1]),
+                        np.where(th_f < 108.0, 1.300, 1.17))
+        hair &= ~(flush & (zh < line))
         lab_h = np.full(len(hi), NAMES.index('skin'))
         lab_h[hair] = NAMES.index('hair')
         lab_h[ear] = NAMES.index('skin')

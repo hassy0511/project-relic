@@ -115,8 +115,27 @@ def save_mask(view: str, m: np.ndarray) -> None:
     Image.fromarray((m * 255).astype(np.uint8)).save(mask_path(view))
 
 
+# 外形から、体の形に入れない物（部品として別に作る小物）を切り取る（人物ごと。既定は無し＝今までどおり）。
+#   [{'views': [真横の視点...], 'z': [下, 上], 'front_y': y}]：その高さの間で、y が front_y より前（−y）の外形を消す。
+#   ニコ：首の前に下がる玩具ゴーグルが真横の外形で胸の前へ 3cm 出ていて、面の段の外形への寄せ（snap）で胸がこぶになった
+MASK_CUT = CH.p('views.MASK_CUT', [])
+
+
 def load_mask(view: str) -> np.ndarray:
-    return np.asarray(Image.open(mask_path(view))) > 127
+    m = np.asarray(Image.open(mask_path(view))) > 127
+    cuts = [c for c in MASK_CUT if view in c['views']]
+    if cuts:
+        cam = load_calib()[view]
+        m = m.copy()
+        for c in cuts:
+            ry = cam.r[1]
+            if abs(ry) < 0.5:      # 真横に近い視点だけ（画素の列が y だけで決まる）
+                continue
+            u = np.arange(IMG) + 0.5
+            y = (u - cam.u0) / (cam.ppm * ry)
+            v0, v1 = int(cam.v_of(c['z'][1])), int(math.ceil(cam.v_of(c['z'][0])))
+            m[max(0, v0):min(IMG, v1), y < c['front_y']] = False
+    return m
 
 
 def runs(row: np.ndarray) -> list[tuple[int, int]]:
