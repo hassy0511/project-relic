@@ -59,7 +59,7 @@ HEM = (0.226, 0.262)            # スカートの裾：前・横〜後ろ
 APRON_BOT = 0.392               # 前掛けの前の布の下の縁
 BACK_BOT = 0.420                # 後ろの布の下の縁
 BIB_TOP = 1.105                 # 胸当ての上の縁
-COLLAR_Z = (1.168, 1.218)       # 立ち襟の前の下・上（後ろは 1.235 まで）
+COLLAR_Z = (1.168, 1.225)       # 立ち襟の前の下・上（後ろは 1.244 まで）。2 周目に 7mm 上げた：上の縁の内に首の凸凹が見えた
 NECK_TOP = 1.235                # 首の上（あごの下）
 ELBOW_T = (0.148, 0.192, 0.214)  # 肘の帯の上・下、袖の折り返しの下（上腕の軸に沿った肩からの長さ）
 WRIST_T = (0.112, 0.178)        # 手首の帯（前腕の軸に沿った肘からの長さ）
@@ -442,17 +442,17 @@ def top_parts() -> list[dict]:
     fc['RN'] = 0.05
     sb = 0.05 * (math.pi - math.asin(0.005 / 0.042))
     st_ = 0.05 * (math.pi - math.asin(0.011 / 0.045))
-    out = [(-sb, COLLAR_Z[0]), (sb, COLLAR_Z[0]), (st_, COLLAR_Z[1]), (0.07, 1.230), (0.0, 1.236), (-0.07, 1.230),
+    out = [(-sb, COLLAR_Z[0]), (sb, COLLAR_Z[0]), (st_, COLLAR_Z[1]), (0.07, 1.238), (0.0, 1.244), (-0.07, 1.238),
            (-st_, COLLAR_Z[1])]
-    P.append(dict(name='collar', bone='neck', color='ivory', frame=fc, outline=out, off=0.004, thick=0.006,
-                  bevel=0.002, under='ivory', rmax=0.07, rmin=0.036, h=0.007, env_rings=3, smooth_iters=30,
-                  raw_tol=0.004))
+    P.append(dict(name='collar', bone='neck', color='ivory', frame=fc, outline=out, off=0.003, thick=0.006,
+                  bevel=0.002, under='ivory', rmax=0.07, rmin=0.036, h=0.007, env_rings=2, smooth_iters=30,
+                  raw_tol=0.003))
     # 上の縁の焦げ茶の線（襟の上 6mm）
     P.append(dict(name='collar_trim', bone='neck', color='trim', frame=fc,
                   outline=[(-st_, COLLAR_Z[1] - 0.006), (st_, COLLAR_Z[1] - 0.006), (st_, COLLAR_Z[1] + 0.001),
-                           (0.07, 1.2315), (0.0, 1.2375), (-0.07, 1.2315), (-st_, COLLAR_Z[1] + 0.001)],
-                  off=0.0055, thick=0.006, bevel=0.0015, rmax=0.07, rmin=0.036, h=0.004, env_rings=3,
-                  smooth_iters=30, raw_tol=0.004))
+                           (0.07, 1.2395), (0.0, 1.2455), (-0.07, 1.2395), (-st_, COLLAR_Z[1] + 0.001)],
+                  off=0.0045, thick=0.006, bevel=0.0015, rmax=0.07, rmin=0.036, h=0.004, env_rings=2,
+                  smooth_iters=30, raw_tol=0.003))
     # 前の真鍮の留め（横の棒）
     yb = body_front_y(1.158, X0 - 0.02, X0 + 0.02) - 0.006
     V, F = box_mesh((X0, yb, 1.158), (0.017, 0.004, 0.0045))
@@ -627,6 +627,13 @@ def bun() -> list[dict]:
         tang = np.array([math.cos(a), math.sin(a) * 0.95, 0.15])
         V, F = _petal(c, tang, (0.0, 0.0, 1.0), 0.072, 0.033, 0.029)
         out.append(dict(name=f'hair_bun{i}', bone='head', color='hair', mesh=(V, F)))
+    for i in range(5):
+        a = 2 * math.pi * i / 5 + 0.6
+        d = np.array([math.sin(a), -math.cos(a) * 0.95, 0.0])
+        c = BUN_C + d * 0.024 + np.array([0.0, 0.0, 0.022])
+        tang = np.array([math.cos(a), math.sin(a) * 0.95, 0.25])
+        V, F = _petal(c, tang, (0.0, 0.0, 1.0), 0.052, 0.025, 0.022)
+        out.append(dict(name=f'hair_bun_in{i}', bone='head', color='hair', mesh=(V, F)))
     V, F = _petal(BUN_C + np.array([0.0, 0.006, 0.036]), (1.0, 0.25, 0.0), (0.0, 0.0, 1.0), 0.066, 0.038, 0.027)
     out.append(dict(name='hair_bun_top', bone='head', color='hair', mesh=(V, F)))
     V, F = _petal(BUN_C + np.array([0.0, -0.012, 0.030]), (0.2, -1.0, 0.1), (0.0, 0.0, 1.0), 0.058, 0.034, 0.025)
@@ -669,7 +676,7 @@ def hair_parts() -> list[dict]:
     widths = np.array([0.45, 0.82, 0.97, 1.0, 1.0, 0.98, 0.90, 0.62, 0.0])
     n = len(widths)
 
-    def plank(P, w, lift_min, push=True, wscale=None):
+    def plank(P, w, lift_min, push=True, wscale=None, thick=1.0):
         t = np.linspace(0.0, 1.0, n)
         wv = widths if wscale is None else widths * wscale
         dv = P - C
@@ -685,7 +692,7 @@ def hair_parts() -> list[dict]:
         N /= np.linalg.norm(N, axis=1, keepdims=True)
         B = np.cross(T, N)
         ww = w * wv
-        rings = np.stack([P + B * (ww * px)[:, None] + N * (ww * py)[:, None] for px, py in prof], 1)
+        rings = np.stack([P + B * (ww * px)[:, None] + N * (ww * py * thick)[:, None] for px, py in prof], 1)
         k = len(prof)
         Vs = np.concatenate([rings[:-1].reshape(-1, 3), P[-1:], P[:1] - T[:1] * 0.002])
         tip, root = (n - 1) * k, (n - 1) * k + 1
@@ -708,21 +715,26 @@ def hair_parts() -> list[dict]:
     out = bun()
     # 頭を覆う房：根はお団子の付け根のまわり（z 1.475）、その向き・高さの帽子の面 ＋ 浮きを通って、先は生え際。
     # (名前, 角度（正面 0・本人の左 +）, 先の高さ, 幅, 浮き)
+    # 2 周目：頭の帽子を頭の面から 6mm に締めたので、房が髪の形を決める。絵（head_back・side_right）：横と後ろの髪はえり足・耳の上から
+    # お団子へまとめ上げ、房はお団子の下へ放射状に集まる。房を細く（4〜5cm）本数を多く（19 本）、後ろの房の先はえり足の真ん中へ寄る。
+    # (名前, 根の角度, 先の角度, 先の高さ, 幅, 浮き)。角度は正面 0・本人の左 +
     sweep = [
-        ('front_l', 14, 1.410, 0.058, 0.004), ('front_r', -14, 1.410, 0.058, 0.004),
-        ('front_l2', 38, 1.398, 0.060, 0.004), ('front_r2', -38, 1.398, 0.060, 0.004),
-        ('side_l', 62, 1.385, 0.064, 0.005), ('side_r', -62, 1.385, 0.064, 0.005),
-        ('side_l2', 86, 1.368, 0.066, 0.005), ('side_r2', -86, 1.368, 0.066, 0.005),
-        ('ear_l', 108, 1.345, 0.066, 0.006), ('ear_r', -108, 1.345, 0.066, 0.006),
-        ('back_l', 138, 1.290, 0.058, 0.006), ('back_r', -138, 1.290, 0.058, 0.006),
-        ('back_l2', 158, 1.262, 0.060, 0.006), ('back_r2', -158, 1.262, 0.060, 0.006),
-        ('back_c', 180, 1.250, 0.056, 0.006),
+        ('front_l', 12, 12, 1.410, 0.050, 0.003), ('front_r', -12, -12, 1.410, 0.050, 0.003),
+        ('front_l2', 34, 34, 1.398, 0.050, 0.003), ('front_r2', -34, -34, 1.398, 0.050, 0.003),
+        ('side_l', 56, 58, 1.384, 0.046, 0.003), ('side_r', -56, -58, 1.384, 0.046, 0.003),
+        ('side_l2', 78, 80, 1.368, 0.046, 0.003), ('side_r2', -78, -80, 1.368, 0.046, 0.003),
+        ('ear_l', 98, 102, 1.352, 0.044, 0.003), ('ear_r', -98, -102, 1.352, 0.044, 0.003),
+        ('back_l', 118, 132, 1.322, 0.042, 0.003), ('back_r', -118, -132, 1.322, 0.042, 0.003),
+        ('back_l2', 136, 150, 1.296, 0.042, 0.003), ('back_r2', -136, -150, 1.296, 0.042, 0.003),
+        ('back_l3', 152, 164, 1.272, 0.042, 0.003), ('back_r3', -152, -164, 1.272, 0.042, 0.003),
+        ('back_l4', 166, 174, 1.258, 0.040, 0.003), ('back_r4', -166, -174, 1.258, 0.040, 0.003),
+        ('back_c', 180, 180, 1.246, 0.048, 0.004),
     ]
     sgrid = np.linspace(0.0, 1.0, n)
-    for name, thd, zt, w, lift in sweep:
+    for name, thd, tht, zt, w, lift in sweep:
         z0 = 1.478
         zz = z0 - (z0 - zt) * sgrid ** 1.1
-        th = np.full(n, float(thd))
+        th = thd + (tht - thd) * np.clip((sgrid - 0.25) / 0.75, 0, 1)
         rho_s = np.array([horiz(a, b) for a, b in zip(th, zz)])
         rho = rho_s + lift + 0.10 * w * widths
         k_wide = int(np.argmax(rho))
@@ -735,22 +747,31 @@ def hair_parts() -> list[dict]:
         out.append(dict(name='hair_' + name, bone='head', color='hair', mesh=(Vm, Fm)))
     # 前髪（真ん中の分け目から左右へ流れる）・顔の横の長い房（耳の前、あごまで）・えり足の房。(名前, 根, 先, 幅, 浮き)
     xr = X0
+    # (名前, 根, 先, 幅, 浮き, 先のはね（外へ m）, 厚みの倍率)。2 周目：前髪は厚く（1.5 倍）、先の 4 割で外へはねる（絵のとがった房）
     top = [
-        ('fringe_l', [xr + 0.014, -0.104, 1.448], [xr + 0.084, -0.098, 1.362], 0.032, 0.004),
-        ('fringe_r', [xr - 0.014, -0.104, 1.448], [xr - 0.084, -0.098, 1.362], 0.032, 0.004),
-        ('fringe_l2', [xr + 0.034, -0.096, 1.452], [xr + 0.100, -0.072, 1.305], 0.032, 0.005),
-        ('fringe_r2', [xr - 0.034, -0.096, 1.452], [xr - 0.100, -0.072, 1.305], 0.032, 0.005),
-        ('cheek_l', [xr + 0.074, -0.066, 1.415], [xr + 0.098, -0.046, 1.245], 0.026, 0.005),
-        ('cheek_r', [xr - 0.074, -0.066, 1.415], [xr - 0.098, -0.046, 1.245], 0.026, 0.005),
-        ('nape_l', [xr + 0.050, 0.075, 1.300], [xr + 0.062, 0.050, 1.232], 0.026, 0.004),
-        ('nape_r', [xr - 0.050, 0.075, 1.300], [xr - 0.062, 0.050, 1.232], 0.026, 0.004),
+        ('fringe_l', [xr + 0.014, -0.104, 1.448], [xr + 0.086, -0.098, 1.360], 0.034, 0.004, 0.010, 1.5),
+        ('fringe_r', [xr - 0.014, -0.104, 1.448], [xr - 0.086, -0.098, 1.360], 0.034, 0.004, 0.010, 1.5),
+        ('fringe_l2', [xr + 0.034, -0.096, 1.452], [xr + 0.102, -0.072, 1.302], 0.034, 0.005, 0.012, 1.5),
+        ('fringe_r2', [xr - 0.034, -0.096, 1.452], [xr - 0.102, -0.072, 1.302], 0.034, 0.005, 0.012, 1.5),
+        ('fringe_l3', [xr + 0.004, -0.108, 1.446], [xr + 0.052, -0.121, 1.392], 0.026, 0.004, 0.007, 1.4),
+        ('fringe_r3', [xr - 0.004, -0.108, 1.446], [xr - 0.052, -0.121, 1.392], 0.026, 0.004, 0.007, 1.4),
+        ('cheek_l', [xr + 0.074, -0.066, 1.415], [xr + 0.098, -0.046, 1.245], 0.026, 0.005, 0.006, 1.2),
+        ('cheek_r', [xr - 0.074, -0.066, 1.415], [xr - 0.098, -0.046, 1.245], 0.026, 0.005, 0.006, 1.2),
+        ('nape_l', [xr + 0.046, 0.072, 1.300], [xr + 0.060, 0.050, 1.232], 0.024, 0.003, 0.004, 1.0),
+        ('nape_r', [xr - 0.046, 0.072, 1.300], [xr - 0.060, 0.050, 1.232], 0.024, 0.003, 0.004, 1.0),
     ]
-    for name, r0, r1, w, lift in top:
+    for name, r0, r1, w, lift, flick, thk in top:
         R0, T2 = np.asarray(r0, float), np.asarray(r1, float)
         dm = (R0 - C) / np.linalg.norm(R0 - C) + (T2 - C) / np.linalg.norm(T2 - C)
         dm /= np.linalg.norm(dm)
         M = C + dm * (radial(dm[None])[0] + lift + 0.10 * w)
-        Vm, Fm = plank(curve(R0, M, T2), w, lift)
+        P = curve(R0, M, T2)
+        # 先の 4 割で外へはねる（頭の縦の軸から外の水平の向き）
+        t = np.linspace(0.0, 1.0, n)
+        od = P[:, :2] - C[:2]
+        od /= np.maximum(np.linalg.norm(od, axis=1, keepdims=True), 1e-6)
+        P[:, :2] += od * (flick * np.clip((t - 0.6) / 0.4, 0, 1) ** 2)[:, None]
+        Vm, Fm = plank(P, w, lift, thick=thk)
         out.append(dict(name='hair_' + name, bone='head', color='hair', mesh=(Vm, Fm)))
     return out
 
