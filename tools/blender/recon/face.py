@@ -570,9 +570,16 @@ def quadrant_grid(layout: dict) -> tuple[np.ndarray, np.ndarray]:
     return wx0 + (ax - qx0) / k, wy0 + (ay - qy0) / k
 
 
+# 色の当てはめ（顔の絵 → 全身の正面の絵、表情の絵 → 土台）。False は当てはめない（絵の色のまま）。既定は True（今までどおり）。
+# トルーデ：肌の赤の幅が狭く、赤の倍率が下限 0.75 に当たって切片が +0.48 になり、灰の眉が桃色・茶の目が赤になった
+COLOR_FIT = CH.p('face.COLOR_FIT', True)
+
+
 def fit_gain_offset(src: np.ndarray, dst: np.ndarray, mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """色ごとに dst ≈ gain * src + offset を当てはめる（外れの大きい 1 割を捨てて 2 回）"""
     gain, offset = np.ones(3), np.zeros(3)
+    if not COLOR_FIT:
+        return gain, offset
     for c in range(3):
         x, y = src[..., c][mask], dst[..., c][mask]
         keep = np.ones_like(x, bool)

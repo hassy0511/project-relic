@@ -1573,6 +1573,27 @@ LEFT_HAND_CUT = 0.006          # 体の左手を消す所（手首から手の�
 LEFT_HAND_RAMP = (-0.006, 0.014)   # 掌の手首の側と残した手首の体の重みを、前腕から hand.L へなめらかに移す範囲
 
 
+def _build_grip_hand(HD, sec: np.ndarray, grip: dict) -> dict:
+    """持ち物を握る右手（NPC、chars/<id>_parts.py の HAND['GRIP']。トルーデの杖）：開いた手（hand.build_open）を、指・親指の
+    曲げを GRIP['hand'] の値に替えて作り、握る物（GRIP['prop']()：手の座標の V・F・面ごとの色の名前・目印）を同じ部品に足す"""
+    saved = {k: getattr(HD, k) for k in grip.get('hand', {})}
+    try:
+        for k, v in grip.get('hand', {}).items():
+            setattr(HD, k, v)
+        H = HD.build_open(sec)
+    finally:
+        for k, v in saved.items():
+            setattr(HD, k, v)
+    prop = grip['prop']()
+    n = len(H['V'])
+    H['V'] = np.concatenate([H['V'], np.asarray(prop['V'], float)])
+    H['F'] = np.concatenate([np.asarray(H['F']), np.asarray(prop['F']) + n])
+    H['color'] = list(H['color']) + list(prop['color'])
+    H['report'] = dict(H['report'], prop_tris=int(len(prop['F'])),
+                       prop_points={k: [round(float(c), 5) for c in v] for k, v in prop.get('points', {}).items()})
+    return H
+
+
 def add_left_hand_part(body: bpy.types.Object, arm: bpy.types.Object, sx: str = '.L') -> dict:
     """体の左手（手首から先、絵から起こした開いた手）を消し、開いた手の部品（recon/hand.build_open）に置き換える（8 回目）。
 
@@ -1621,7 +1642,11 @@ def add_left_hand_part(body: bpy.types.Object, arm: bpy.types.Object, sx: str = 
     sec = loc[band][:, 1:]
     # 義手（ヤーナの右手、HAND['MECH']）。ほかのキャラクターは MECH が無いので今までどおり
     mech = CO.HAND.get('MECH') if sx == '.R' else None
-    H = HD.build_open(sec, mech=mech) if mech else HD.build_open(sec)
+    grip = CO.HAND.get('GRIP') if sx == '.R' else None
+    if grip:     # 持ち物を握る右手（トルーデの杖）。GRIP の無い人物は今までどおり
+        H = _build_grip_hand(HD, sec, grip)
+    else:
+        H = HD.build_open(sec, mech=mech) if mech else HD.build_open(sec)
     gone = near & (loc[:, 0] > cut)
     bm = bmesh.new()
     bm.from_mesh(me)
@@ -1667,6 +1692,9 @@ def add_left_hand_part(body: bpy.types.Object, arm: bpy.types.Object, sx: str = 
                 vg.remove([int(vi)])
     V = H['V'] @ Rm.T + W
     F = H['F']
+    if 'prop_points' in H['report']:     # 握った持ち物の目印（基準の姿勢の骨の物体の座標。動作の姿勢を解くのに使う）
+        H['report']['prop_points_rest'] = {k: (np.asarray(p, float) @ Rm.T + W).round(5).tolist()
+                                           for k, p in H['report']['prop_points'].items() if k != 'bar_r'}
     if np.linalg.det(Rm) < 0:            # 左手系なら面を裏返す（外向きのまま）
         F = F[:, ::-1]
     pm = bpy.data.meshes.new('hand' + sx.replace('.', '_'))
@@ -1852,8 +1880,8 @@ def main() -> None:
     ap.add_argument('--no-weapon', action='store_true', help='銃・光刃・目印を付けない（NPC）')
     ap.add_argument('--final-height', type=float, default=None, help='最後に一様に拡大する身長（m）')
     ap.add_argument('--name', default='Haru', help='物体の名前（骨は <名前>Rig）')
-    ap.add_argument('--clips', default='standard', choices=('standard', 'child'),
-                    help='焼く動作：standard＝humanoid_anims の 14 動作、child＝子どもの住人の待機・歩き・走り・怖がる（child_anims）')
+    ap.add_argument('--clips', default='standard', choices=('standard', 'child', 'elder'),
+                    help='焼く動作：standard＝humanoid_anims の 14 動作、child＝子どもの住人の待機・歩き・走り・怖がる（child_anims）、elder＝杖をついた老人の住人の待機（elder_anims）')
     ap.add_argument('--foot-contacts', default=None,
                     help='足の裏の接地点（足首からのずれ、再構築の座標 m）：つま先の y,かかとの y,下への z（既定はハルの値）')
     ap.add_argument('--stats', help='数値の記録の JSON（既定は <出力>.stats.json）')
@@ -1969,6 +1997,10 @@ def main() -> None:
     if args.clips == 'child':
         from models import child_anims
         H.bake_clips(arm, child_anims.all_clips(), contacts)
+    elif args.clips == 'elder':
+        # 杖をついた老人の住人（トルーデ）：右手の杖の先が床に着く腕の姿勢を、骨と杖の目印から解いてから焼く
+        from models import elder_anims
+        H.bake_clips(arm, elder_anims.all_clips(arm, (hand_info or {}).get('hand.R', {})), contacts)
     else:
         H.bake_clips(arm, A.all_clips(), contacts)
     final_scale = 1.0

@@ -150,7 +150,8 @@ def stages(standin: bool) -> list[Stage]:
               inputs=rig_inputs,
               deps=[f'{RECON_PY}/costume.py', f'{RECON_PY}/hand.py'] + PARTS_FILES + ['tools/blender/lib/humanoid.py', 'tools/blender/lib/mesh.py', 'tools/blender/lib/common.py',
                     'tools/blender/models/humanoid_anims.py', 'tools/blender/models/haru_a.py']
-              + (['tools/blender/models/child_anims.py'] if 'child' in rig_args else []),
+              + (['tools/blender/models/child_anims.py'] if 'child' in rig_args else [])
+              + (['tools/blender/models/elder_anims.py'] if 'elder' in rig_args else []),
               note='骨・重み・腕を下ろした基準の姿勢・14 動作・持ち物・目印を付けて、ゲームの GLB に'),
     ]
     if standin:
