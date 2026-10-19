@@ -403,7 +403,7 @@ func _physics_process(dt: float) -> void:
 	enemy_view.sync(game.enemies, dt)
 	_update_lines(dt)
 	props_view.sync(game, dt)
-	fx.sync(game, dt, player_view, enemy_view)
+	fx.sync(game, dt, player_view, enemy_view, nagomi_view)
 	camera.sync(game, game.player.pos, dt, fx.shake)
 
 

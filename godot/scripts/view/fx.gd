@@ -59,10 +59,19 @@ var _picks := {}
 var _scan_target = null
 var _scan_done := false
 var _frame_state := Vector3i(-1, -1, -1)
-## ノードの記憶の取り込み（会話 ch1.node の間）：残りの秒数と、光の出る所
-var _dlg_id := ""
+## フレームの装着：台本の途中で力が付き、合図（fx: frame_fit）を待っている部位（部位 → true）と、届いた合図の部位
+var _fit_wait := {}
+var _fit_cues: Array = []
+## ノードの記憶の取り込み（台本の合図 fx: node_memory から）：残りの秒数と、光の出る所（ノード）
 var _node_t := 0.0
 var _node_from := Vector3.ZERO
+## ナゴミの見た目（解析の光の帯の出る所。無ければハルの右肩の横から計算する）
+var _nv: Node3D = null
+## 遺物：前の刻みの数（増えたら拾った）と、出た所（開けた宝箱・置いてあった所。無ければハルの胸）
+var _relic_n := -1
+var _relic_at = null
+## 盾型の守り：前の刻みの値と、削られた瞬間の光（敵 → [守り, 光 0〜1]）
+var _guards := {}
 
 
 func _ready() -> void:
@@ -277,6 +286,21 @@ func handle(e: Dictionary) -> void:
 				for c in _game.chests:
 					if c.id == e.id:
 						_chest_open(c)
+						_relic_at = c.pos + Vector3(0, 0.75, 0)
+		"lootTaken":
+			if _game != null:
+				for lt in _game.loot:
+					if lt.id == e.id:
+						_relic_at = lt.pos + Vector3(0, 0.6, 0)
+		"fx":
+			# 台本の見た目の合図（Story の fx の手順）
+			match String(e.id):
+				"frame_fit":
+					_fit_cues.append(String(e.get("part", "core")))
+				"node_memory":
+					if e.get("at") is Vector3:
+						_node_t = 1.4
+						_node_from = e.at
 		"doorOpened":
 			if _game != null and String(e.id).contains("seal"):
 				for dr in _game.doors:
@@ -290,6 +314,8 @@ func handle(e: Dictionary) -> void:
 				_est.clear()
 				_picks.clear()
 				_arm_smoke.clear()
+				_guards.clear()
+				_node_t = 0.0
 		"shake":
 			shake = maxf(shake, e.strength)
 
@@ -312,12 +338,13 @@ func _is_wall_center(at: Vector3) -> bool:
 
 # ---------------------------------------------------------------- 毎刻み
 
-func sync(game: GameSim, dt: float, pv: PlayerView = null, ev: EnemyView = null) -> void:
+func sync(game: GameSim, dt: float, pv: PlayerView = null, ev: EnemyView = null, nv: Node3D = null) -> void:
 	_time += dt
 	_frame += 1
 	_game = game
 	_pv = pv
 	_ev = ev
+	_nv = nv
 	if ev != null and not ev.on_land.is_valid():
 		ev.on_land = debris_landed
 	_sync_shots(game)
@@ -916,6 +943,9 @@ func _sync_enemies(game: GameSim, dt: float) -> void:
 		for k in _est.keys():
 			if not game.enemies.has(k):
 				_est.erase(k)
+		for k in _guards.keys():
+			if not game.enemies.has(k):
+				_guards.erase(k)
 
 
 func _part_pos(e, name: String) -> Variant:
@@ -992,6 +1022,61 @@ func _banki(game: GameSim, e, prev: String) -> void:
 			if e.state == "attack" and _frame % 2 == 0:
 				var q3 := vfx.emit(Vfx.GRAIN, e.pos + Vector3(0, 0.25, 0), Vector3.ZERO, 0.25, 0.3, 0.1, _c(CORAL, 0.35))
 				q3.fin = 0.1
+		"shield":
+			_shield_crack(game, e)
+
+
+## 盾の亀裂の形：盾の面の上の割れ目 [u0, v0, u1, v1, 見せ始める削れの割合]。u：盾の下 0 → 上 1、v：内側 0 → 外側 1。
+## 削れるほど真ん中の割れ目が上下へ伸び、枝が増える（見本 shield_break の 0.18 秒・0.35 秒のこま）
+const CRACKS := [
+	[0.55, 0.5, 0.62, 0.36, 0.0], [0.55, 0.5, 0.48, 0.64, 0.0],
+	[0.62, 0.36, 0.68, 0.46, 0.12], [0.48, 0.64, 0.42, 0.54, 0.12],
+	[0.68, 0.46, 0.77, 0.3, 0.25], [0.42, 0.54, 0.33, 0.7, 0.25],
+	[0.77, 0.3, 0.85, 0.38, 0.4], [0.33, 0.7, 0.25, 0.6, 0.4],
+	[0.68, 0.46, 0.72, 0.66, 0.5], [0.48, 0.64, 0.45, 0.38, 0.55],
+	[0.72, 0.66, 0.79, 0.76, 0.62], [0.45, 0.38, 0.39, 0.26, 0.68],
+	[0.55, 0.5, 0.6, 0.74, 0.75], [0.85, 0.38, 0.92, 0.31, 0.82], [0.25, 0.6, 0.17, 0.68, 0.88],
+]
+
+
+## 盾の面の点（部品 shield の座標。banki_shield.glb の盾は縦長の板を斜めに構えた形：x が下 -0.92 から上 0.22（尖りは -1.06・0.5）、
+## z が内側 0.105 から外側 0.468、表の面は y = 0.31 − 0.77 (z − 0.105)）。表から 2.5 cm 前
+static func _shield_pt(u: float, v: float) -> Vector3:
+	var z := lerpf(0.12, 0.45, v)
+	return Vector3(lerpf(-0.9, 0.3, u), 0.335 - 0.771 * (z - 0.105), z)
+
+
+## 盾を削っている間の亀裂（shield_break：亀裂 0.25 → 破断 0.8 は _shield_break）：守り（ShieldBanki.guard）が減るほど割れ目が伸びて
+## 枝分かれし、割れ目から琥珀の光が漏れる。削られた瞬間（0.3 秒）は割れ目が明るくなり、小さな火花が散る。守りが戻れば消える
+func _shield_crack(game: GameSim, e) -> void:
+	var gmax := float(game.tuning.enemies.shield.guard)
+	var prev: Array = _guards.get(e, [gmax, -9.0])
+	var chip_t: float = prev[1]
+	if e.guard < float(prev[0]) - 0.01 and e.state != "stunned":
+		chip_t = _time
+	_guards[e] = [e.guard, chip_t]
+	var k := clampf(1.0 - e.guard / gmax, 0.0, 1.0)
+	if k < 0.02 or e.state == "stunned" or _ev == null or not is_instance_valid(_ev):
+		return
+	var xf = _ev.part_xform(e, "shield")
+	if xf == null:
+		return
+	var t: Transform3D = xf
+	var glow := clampf(1.0 - (_time - chip_t) / 0.3, 0.0, 1.0)
+	var b := 0.25 + 0.4 * glow
+	for seg in CRACKS:
+		if k < float(seg[4]) + 0.02:
+			continue
+		var a: Vector3 = t * _shield_pt(seg[0], seg[1])
+		var c: Vector3 = t * _shield_pt(seg[2], seg[3])
+		vfx.streak(Vfx.DOT, a, c, 0.03, Color(0.66, 0.26, 0.07, 0.95))
+		vfx.streak(Vfx.GRAIN, a, c, 0.12, _c(AMBER, b))
+	if chip_t == _time:
+		var mid: Vector3 = t * _shield_pt(0.55, 0.5)
+		var n: Vector3 = (t.basis * Vector3(0, 0.79, 0.61)).normalized()
+		_flash(Vfx.GLINT, mid, 0.55, 0.3, 0.12, _c(AMBER, 0.45))
+		for i in 4:
+			_spark(Vfx.SPARK, mid, _cone(n, 0.8) * _rng.randf_range(2, 5), 0.18, 0.04, _c(AMBER, 0.6))
 
 
 ## 突撃型が壁に激突（banki_crash：衝突 0.75→電気 0.15→0、衝突 0.3 秒、硬直 2 秒、火花約 1 m）
@@ -1354,7 +1439,8 @@ func _sync_world(game: GameSim, dt: float) -> void:
 			if k.collected and k.age < 30.0:
 				_pickup(_picks[k], game.player.chest())
 			_picks.erase(k)
-	# 解析（scan：細輪 0.3→弱点 0.65→0、1.5 秒、輪の直径約 2.5 m）：ロックオンした相手を輪が上から下へなぞる
+	# 解析（scan：細輪 0.3→弱点 0.65→0、1.5 秒、輪の直径約 2.5 m）：ロックオンした相手を輪が上から下へなぞり、
+	# ナゴミの目から輪へ光の帯が伸びる。終わると弱点へ光の線と照準の十字
 	var t = game.lock_on.target
 	if t != _scan_target:
 		_scan_target = t
@@ -1365,44 +1451,148 @@ func _sync_world(game: GameSim, dt: float) -> void:
 			var top: float = t.pos.y + t.height + 0.2
 			var y := lerpf(top, t.pos.y + 0.1, pr)
 			var rad := clampf(t.radius * 1.6, 0.6, 2.5) if t.kind != "kannuki" else 3.0
-			vfx.sprite(Vfx.RING, Vector3(t.pos.x, y, t.pos.z), rad / Vfx.RING_FRAC, _c(AMBER, 0.3), Vfx.FLAT, _flat(_time))
+			var rc := Vector3(t.pos.x, y, t.pos.z)
+			vfx.sprite(Vfx.RING, rc, rad / Vfx.RING_FRAC, _c(AMBER, 0.3), Vfx.FLAT, _flat(_time))
+			_scan_beam(_nagomi_eye(game, rc), rc, rad, pr)
 		elif not _scan_done:
 			_scan_done = true
 			var wp: Vector3 = t.center()
 			_flash(Vfx.GLINT, wp, 0.7, 0.4, 0.3, _c(AMBER, 0.65))
 			_ring(wp, 0.2, 0.8, 0.3, _c(AMBER, 0.5))
-	# フレームの部品が付いた（frame_fit：粒 0.2→部位ごと 0.5→完成 0.8→0.2、約 1.8 秒）。胴は適合、籠手は r10、脚は r12
+			_scan_lock(_nagomi_eye(game, wp), wp)
+	_frame_fits(game)
+	_relics(game)
+	# 開ける前の宝箱の縁と目印、置いてある遺物の目印（relic_glow の待機）
+	for c in game.chests:
+		if not c.opened:
+			_chest_idle(c)
+	for lt in game.loot:
+		if not lt.taken and lt.contents.has("relics"):
+			_loot_idle(lt)
+	for b in game.beacons:
+		_beacon_beam(b)
+
+
+## セーブビーコンの定常の光（beacon：定常 0.3）：光柱の素材の筋を台の上から天へ（足し合わせ。軸のまわりでカメラを向く）。
+## 下ほど明るく、上へ消える。素材の光柱は上下の端で消えるので、台を中心に上下へ伸ばし、下半分は床に隠す。
+## 前は PropsView の半透明の円柱（一様な淡い色で、光より白っぽい柱に見えた）
+func _beacon_beam(b) -> void:
+	var base: Vector3 = b.pos + Vector3(0, 0.35, 0)
+	var pl := 0.9 + 0.1 * sin(_time * 2.0 + b.pos.x)
+	vfx.streak(Vfx.PILLAR, base - Vector3(0, 12.0, 0), base + Vector3(0, 12.0, 0), 1.5, _c(AMBER, 0.3 * pl))
+	vfx.streak(Vfx.PILLAR, base - Vector3(0, 8.0, 0), base + Vector3(0, 8.0, 0), 0.7, _c(PALE, 0.2 * pl))
+
+
+## ナゴミの目（核の前）：見た目があればその位置から、無ければハルの右肩の横（NagomiView.OFFSET）から、look の向きへ 0.13 m
+func _nagomi_eye(game: GameSim, look: Vector3) -> Vector3:
+	var c: Vector3
+	if _nv != null and is_instance_valid(_nv) and _nv.is_visible_in_tree():
+		c = _nv.global_position
+	else:
+		var p := game.player
+		c = p.pos + Vector3(-cos(p.yaw), 0.0, sin(p.yaw)) * NagomiView.OFFSET.x + Vector3(0, NagomiView.OFFSET.y, 0) + U.yaw_to_dir(p.yaw) * NagomiView.OFFSET.z
+	var d := look - c
+	return c + d.normalized() * 0.13 if d.length() > 0.3 else c
+
+
+## 解析の光の帯（scan：細輪 0.3）：ナゴミの目から、相手をなぞる輪の左右の端（画面で見た左右）へ細い光の線、その間に淡い琥珀の扇。
+## 目に小さな光。扇は解析の始めの 0.2 秒ほどで開く
+func _scan_beam(eye: Vector3, rc: Vector3, rad: float, pr: float) -> void:
+	var to := rc - eye
+	if to.length() < 0.5:
+		return
+	var right := Vector3(to.z, 0.0, -to.x)
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam != null:
+		right = cam.global_basis.x
+		right.y = 0.0
+	right = right.normalized() if right.length() > 0.01 else Vector3.RIGHT
+	var k := clampf(pr / 0.13, 0.15, 1.0)
+	var fl := 0.85 + 0.15 * sin(_time * 37.0)
+	var e1 := rc + right * rad * k
+	var e2 := rc - right * rad * k
+	vfx.streak(Vfx.GRAIN, eye, e1, 0.04, _c(AMBER, 0.32 * fl))
+	vfx.streak(Vfx.GRAIN, eye, e2, 0.04, _c(AMBER, 0.32 * fl))
+	# 扇の中の淡い光（普通の半透明の琥珀。目の側は細く、輪の側は広く：2 枚の筋を重ねる）
+	vfx.streak(Vfx.SOFT, eye.lerp(rc, 0.06), eye.lerp(rc, 0.62), rad * k * 0.55, Color(AMBER, 0.13))
+	vfx.streak(Vfx.SOFT, eye.lerp(rc, 0.42), rc, rad * k * 1.5, Color(AMBER, 0.11))
+	vfx.sprite(Vfx.GRAIN, eye, 0.24, _c(AMBER, 0.5 * fl))
+
+
+## 解析の終わり（弱点 0.65）：ナゴミの目から弱点へ光の線が走り、弱点に照準の十字（0.4 秒）
+func _scan_lock(eye: Vector3, wp: Vector3) -> void:
+	var d := wp - eye
+	if d.length() < 0.5:
+		return
+	var q := vfx.emit(Vfx.GRAIN, (eye + wp) * 0.5, Vector3.ZERO, 0.4, 0.05, 0.05, _c(AMBER, 0.6))
+	q.mode = Vfx.STREAK
+	q.basis = Basis(Vector3.RIGHT, d.normalized(), Vector3.BACK)
+	q.aspect = d.length() / 0.05
+	q.fin = 0.05
+	var across := Vector3(d.z, 0.0, -d.x).normalized()
+	for ax in [Vector3.UP, across]:
+		var c := vfx.emit(Vfx.GRAIN, wp, Vector3.ZERO, 0.45, 0.045, 0.045, _c(AMBER, 0.6))
+		c.mode = Vfx.STREAK
+		c.basis = Basis(Vector3.RIGHT, ax, Vector3.BACK)
+		c.aspect = 0.9 / 0.045
+		c.fin = 0.1
+
+
+## フレームの部品が付いた（frame_fit：粒 0.2→部位ごと 0.5→完成 0.8→0.2、約 1.8 秒）。胴は封印室の適合、籠手は弁の間、脚は駆動回廊。
+## 台本の合図（fx: frame_fit）で出す。台本の途中で力が付いたら、その部位の部品は合図か台本の終わりまで隠して待つ
+## （台本は力のフラグを先に立てることがある：駆動回廊は動力のフラグでピストンが動き、脚はナゴミの会話のあとで目覚める）。
+## 台本の外で付いたら（確認用のフラグなど）すぐ出す
+func _frame_fits(game: GameSim) -> void:
 	var fs := Vector3i(int(game.has_ability("lock_on")), int(game.has_ability("sword")), int(game.has_ability("dash")))
-	if _frame_state.x >= 0 and fs != _frame_state and _pv != null and is_instance_valid(_pv):
+	var pv_ok := _pv != null and is_instance_valid(_pv)
+	if _frame_state.x >= 0 and fs != _frame_state and pv_ok:
+		var on := []
 		if fs.x > _frame_state.x:
-			_frame_fit(game.player, "core")
+			on.append("core")
 		if fs.y > _frame_state.y:
-			_frame_fit(game.player, "arm")
+			on.append("arm")
 		if fs.z > _frame_state.z:
-			_frame_fit(game.player, "legs")
+			on.append("legs")
+		for part in on:
+			if game.story.running_event():
+				_fit_wait[part] = true
+				_pv.reveal_later(part, 600.0)
+			else:
+				_frame_fit(game.player, part)
 	_frame_state = fs
+	for part in _fit_cues:
+		_fit_wait.erase(part)
+		_frame_fit(game.player, part)
+	_fit_cues.clear()
+	if not _fit_wait.is_empty() and not game.story.running_event():
+		for part in _fit_wait.keys():
+			_frame_fit(game.player, part)
+		_fit_wait.clear()
+
+
+## 遺物を拾った（数が増えた）：開けた宝箱・置いてあった所（無ければハルの胸）で relic_glow
+func _relics(game: GameSim) -> void:
+	var n: int = game.relics.size()
+	if _relic_n >= 0 and n > _relic_n:
+		_relic_glow(_relic_at if _relic_at is Vector3 else game.player.chest())
+	_relic_n = n
+	_relic_at = null
 
 
 ## ノードの記憶の取り込み（node_memory：ノード 0→0.45→殻内 0.65→0、1.4 秒、流路約 2 m）：
-## ナゴミが「ch1.node」を話し始めたら、注視点（台本のカメラ。無ければハルの前）からナゴミへ光の点が流れ込む
+## 台本の合図（fx: node_memory。ch1.restart の、ナゴミの「ch1.node」の直前）で、ノード（台本の位置）からナゴミへ光の点が流れ込む
 func _node_memory(game: GameSim, dt: float) -> void:
-	var d: Dictionary = game.story.dialogue
-	var did := "" if d.is_empty() else String(d.get("id", ""))
-	if did == "ch1.node" and _dlg_id != "ch1.node" and game.nagomi_present():
-		_node_t = 1.4
-		var p := game.player
-		_node_from = game.cam_focus if game.cam_focus is Vector3 else p.pos + U.yaw_to_dir(p.yaw) * 2.0 + Vector3(0, 1.2, 0)
-	_dlg_id = did
 	if _node_t <= 0.0:
 		return
 	_node_t -= dt
-	var pl := game.player
-	var to := pl.pos + Vector3(-cos(pl.yaw), 0.0, sin(pl.yaw)) * 0.4 + Vector3(0, 1.32, 0) - U.yaw_to_dir(pl.yaw) * 0.08
+	var to := _nagomi_eye(game, _node_from)
 	var k := clampf(1.0 - _node_t / 1.4, 0.0, 1.0)
-	vfx.sprite(Vfx.GRAIN, _node_from, 0.6, _c(AMBER, 0.45 * (1.0 - k * 0.6)))
-	vfx.sprite(Vfx.SOFT, _node_from, 0.3, Color(AMBER, 0.5 * (1.0 - k * 0.6)))
-	if _node_t > 0.35 and _frame % 2 == 0:
-		var q := vfx.emit(Vfx.GRAIN, _node_from + _sphere() * 0.1, (to - _node_from) / 0.5, 0.5, 0.12, 0.07, _c(AMBER, 0.55))
+	vfx.sprite(Vfx.GRAIN, _node_from, 0.7, _c(AMBER, 0.45 * (1.0 - k * 0.6)))
+	vfx.sprite(Vfx.SOFT, _node_from, 0.35, Color(AMBER, 0.5 * (1.0 - k * 0.6)))
+	# 光の点の列（ノードが遠いほどゆっくり。炉心のノードはハルから約 6 m）
+	var travel := clampf(to.distance_to(_node_from) / 8.0, 0.5, 0.8)
+	if _node_t > travel * 0.6 and _frame % 2 == 0:
+		var q := vfx.emit(Vfx.GRAIN, _node_from + _sphere() * 0.1, (to - _node_from) / travel, travel, 0.13, 0.07, _c(AMBER, 0.55))
 		q.fin = 0.2
 	if k > 0.4:
 		vfx.sprite(Vfx.GRAIN, to, 0.5, _c(AMBER, 0.65 * minf(1.0, (k - 0.4) * 3.0)))
@@ -1453,6 +1643,60 @@ func _chest_open(c) -> void:
 	for i in 8:
 		var q := vfx.emit(Vfx.GLINT, g + Vector3(_rng.randf_range(-0.5, 0.5), 0.0, _rng.randf_range(-0.3, 0.3)), Vector3(0, _rng.randf_range(0.8, 2.0), 0), _rng.randf_range(0.6, 1.0), 0.25, 0.1, _c(AMBER, 0.6))
 		q.fin = 0.2
+
+
+## 開ける前の宝箱（relic_glow：箱縁 0.2）：蓋の合わせ目が琥珀の細い光で縁取られ、錠前が淡く脈打つ。
+## 目印（0.3）：ときどき箱の上へ光の点が浮かぶ（遠くからも見つけやすく）。箱は PropsView の形（1.2×0.55×0.8、蓋は 0.55 から上、正面 +Z）
+func _chest_idle(c) -> void:
+	var b := Basis(Vector3.UP, c.yaw)
+	var pl := 0.8 + 0.2 * sin(_time * 2.4 + c.pos.x * 0.7)
+	var corners := [Vector3(-0.62, 0.56, -0.42), Vector3(0.62, 0.56, -0.42), Vector3(0.62, 0.56, 0.42), Vector3(-0.62, 0.56, 0.42)]
+	for i in 4:
+		vfx.streak(Vfx.GRAIN, c.pos + b * corners[i], c.pos + b * corners[(i + 1) % 4], 0.08, _c(AMBER, 0.2 * pl))
+	var lock: Vector3 = c.pos + b * Vector3(0, 0.47, 0.44)
+	vfx.sprite(Vfx.SOFT, lock, 0.14, Color(AMBER, 0.6 * pl))
+	vfx.sprite(Vfx.GRAIN, lock, 0.42, _c(AMBER, 0.3 * pl))
+	if (_frame + int(c.pos.x * 7.0)) % 30 == 0:
+		var g := vfx.emit(Vfx.GLINT, c.pos + b * Vector3(_rng.randf_range(-0.45, 0.45), 0.85, _rng.randf_range(-0.25, 0.25)), Vector3(0, 0.45, 0),
+			1.3, 0.2, 0.08, _c(AMBER, 0.3))
+		g.fin = 0.35
+
+
+## 置いてある遺物（relic_glow の待機：目印 0.3）：足元の淡い輪と、まわりをゆっくり上がる光の点（遺物の光の玉は PropsView）
+func _loot_idle(lt) -> void:
+	var g: Vector3 = lt.pos + Vector3(0, 0.04, 0)
+	var pl := 0.8 + 0.2 * sin(_time * 2.0 + lt.pos.z)
+	vfx.sprite(Vfx.RING, g, 0.45 / Vfx.RING_FRAC, _c(AMBER, 0.3 * pl), Vfx.FLAT, _flat(_time * 0.4))
+	vfx.sprite(Vfx.PILLAR, g + Vector3(0, 0.55, 0), 0.32, _c(AMBER, 0.18 * pl), Vfx.FACE, Basis.IDENTITY, 0.0, 3.4)
+	if (_frame + int(lt.pos.x * 5.0)) % 26 == 0:
+		var a := _rng.randf() * TAU
+		var q := vfx.emit(Vfx.GLINT, g + Vector3(sin(a) * 0.35, 0.3, cos(a) * 0.35), Vector3(0, 0.5, 0), 1.2, 0.16, 0.06, _c(AMBER, 0.3))
+		q.fin = 0.35
+
+
+## 遺物を拾った（relic_glow：開放 0.65 → 目印 0.3、約 0.8 秒、遺物約 0.4 m）：遺物の光が床（箱の底）の輪から上がり、
+## 細い光の柱と、遺物のまわりを回って上がる輪 2 つ、光の点。at：遺物の出た所（開けた宝箱の中・置いてあった所・ハルの胸）
+func _relic_glow(at: Vector3) -> void:
+	var core := _flash(Vfx.GLINT, at, 0.75, 0.4, 0.8, _c(AMBER, 0.65))
+	core.vel = Vector3(0, 1.1, 0)
+	core.fin = 0.3
+	var soft := _soft(at, 0.4, 0.25, 0.8, AMBER, 0.6)
+	soft.vel = Vector3(0, 1.1, 0)
+	soft.fin = 0.3
+	_ring(at - Vector3(0, 0.3, 0), 0.3, 0.55, 0.8, _c(AMBER, 0.3), _flat())
+	var p := _flash(Vfx.PILLAR, at + Vector3(0, 0.55, 0), 0.5, 0.35, 0.8, _c(AMBER, 0.5))
+	p.aspect = 3.2
+	p.rot = 0.0
+	p.fin = 0.55
+	for i in 2:
+		var r := _ring(at, 0.32, 0.42, 0.7, _c(AMBER, 0.45), _facing(Vector3(0.35 * (1 - 2 * i), 1.0, 0.25).normalized(), i * 1.3))
+		r.vel = Vector3(0, 0.9 + 0.3 * i, 0)
+		r.fin = 0.2
+	for i in 8:
+		var a := TAU * i / 8.0
+		var g := vfx.emit(Vfx.GLINT, at + Vector3(sin(a) * 0.45, _rng.randf_range(-0.2, 0.3), cos(a) * 0.45), Vector3(0, _rng.randf_range(0.6, 1.4), 0),
+			_rng.randf_range(0.6, 0.9), 0.16, 0.06, _c(AMBER, 0.5))
+		g.fin = 0.25
 
 
 ## フレームの装着：床から光の粒が上がり、部位のまわりに陶器の板のかけらが集まって、光って付く（カプセルなし）

@@ -1,6 +1,7 @@
 class_name VfxShots
 ## エフェクト（W2-09）の確認の撮影と、描画の回数の計測。Demo（--demo=<フォルダ>）から使う：
 ##   --vfx_shots           エフェクトの決まった場面を撮る（vfx_<群>_<場面>.png）。撮るたびに「描画 …」の行を出す
+##   --vfx_shots=h         残りの仕上げ（H 群：解析の光の帯・盾の亀裂・フレームの装着・遺物・ノードの記憶・ビーコン・フラッシュの強さ）だけ
 ##   --vfx_bench=r09,r15,r19,arena  戦闘の重い場面（配管広間・伝導路・ボス部屋・試しの部屋の閂）を数秒ずつ毎こま描いて、描画の回数の最大・平均を出す
 ## どちらも god_mode で、ゲームの中身には手を加えない（状態を作るのは確認用の関数・敵の状態の書き換えだけ）
 
@@ -42,6 +43,9 @@ static func _place(g: GameSim, e, at: Vector3, face: Vector3) -> void:
 
 static func steps(d) -> Array:
 	var m = d.main
+	# --vfx_shots=h：残りの仕上げ（H 群）だけを撮る
+	if String(m.args.get("vfx_shots", "")) == "h":
+		return leftover_steps(d)
 	var s := []
 	# ---- A：主武器（連射・溜め・弱点・装甲）
 	s.append_array([
@@ -464,6 +468,269 @@ static func steps(d) -> Array:
 		{"ticks": 30, "input": {}},
 		_shot("g3_seal_open"),
 	])
+	s.append_array(leftover_steps(d))
+	return s
+
+
+# ---------------------------------------------------------------- H 群：残りの仕上げ
+
+## 撮る直前にカメラを置く（ゲームのカメラは次の刻みで戻る）
+static func _cam_at(d, at: Vector3, look: Vector3) -> void:
+	var c: Camera3D = d.main.camera
+	c.global_position = at
+	c.look_at(look, Vector3.UP)
+	c.reset_physics_interpolation()
+
+
+## 第 1 章の部屋から、フラグを立てて始める（イベントの途中の場面を撮るため）。quiet：部屋のトリガーを走らせない
+## （フラグは部屋を作ったあとに立つので、trigger.<id> のフラグでは止まらない）・敵を消す
+static func _room_start(d, room: String, flags: String, quiet := false) -> void:
+	var m = d.main
+	m.arena_kind = ""
+	m.args["room"] = room
+	m.args["flags"] = flags
+	m.start_game(null)
+	m.args.erase("flags")
+	m.game.god_mode = true
+	if quiet:
+		for t in m.game.triggers:
+			t.fired = true
+		_targets(m.game, [])
+
+
+## 会話 id が出て、閉じたあとに真になる条件
+static func _after_dialogue(d, id: String) -> Callable:
+	var st := {"seen": false}
+	return func() -> bool:
+		var dl: Dictionary = d.main.game.story.dialogue
+		if String(dl.get("id", "")) == id:
+			st.seen = true
+		return st.seen and String(dl.get("id", "")) != id
+
+
+## 盾型（試しの部屋の盾型の組の 2 体目）の盾を光刃で削る（守り 40 から amount 減る。崩れはしない）
+static func _chip(g: GameSim, amount: float) -> void:
+	var e = g.enemies[1]
+	g.damage_enemy(e, amount, g.player.pos, {"melee": true, "at": e.center() + e.forward() * 0.6})
+
+
+## cond が真になった刻みから、offsets（刻み）ごとに撮る（vfx_<names>）。真になるまでは会話を決定で送る（台本のイベントを進める）。
+## 撮り終えたら次の手順へ。max_ticks までに真にならなければ ✗
+static func _shots_after(d, what: String, cond: Callable, offsets: Array, names: Array, max_ticks := 3600) -> Dictionary:
+	var st := {"t0": -1}
+	var fn := func(i: int) -> Dictionary:
+		var g: GameSim = d.main.game
+		if st.t0 < 0:
+			if not cond.call():
+				if i == max_ticks - 1:
+					d._check(false, "%s：撮る場面にならなかった" % what)
+				return {"jump": g.story.blocking() and (i % 6) < 3}
+			st.t0 = i
+			d._check(true, what)
+		var k: int = i - st.t0
+		if offsets.has(k - 1):
+			print("描画 vfx_%s：%s" % [names[offsets.find(k - 1)], _draws()])
+		if offsets.has(k):
+			d._pending_shot = "vfx_" + String(names[offsets.find(k)])
+		if k > int(offsets[-1]):
+			d._tick = max_ticks
+		return {}
+	return {"ticks": max_ticks, "input_fn": fn}
+
+
+## H 群：W2-09 の残りの仕上げ（docs/art_orders/W2_エフェクトの結果.md 4 章）。前と後を同じ手順で撮って並べる
+static func leftover_steps(d) -> Array:
+	var m = d.main
+	var s := []
+	# ---- 解析の光の帯：ナゴミの目から相手へ（横から撮る）
+	var side_cam := func(): _cam_at(d, Vector3(5.4, 2.1, 9.8), Vector3(0, 0.95, 7.5))
+	s.append_array([
+		{"ticks": 2, "setup": func():
+			d._arena_start("sentry")
+			var g: GameSim = m.game
+			var e = g.enemies[0]
+			_targets(g, [e])
+			_place(g, e, Vector3(0, 0, 5.4), Vector3(0, 0, 10))
+			d._stand(Vector3(0, 0, 10), Vector3(0, 0, 5.4))},
+		{"ticks": 30, "input": {}},
+		{"ticks": 36, "input": {"lock_on": true}},
+		_shot("h01_scan_beam", {"input": {"lock_on": true}, "cam": side_cam}),
+		{"ticks": 55, "input": {"lock_on": true}},
+		_shot("h02_scan_done", {"input": {"lock_on": true}, "cam": side_cam}),
+	])
+	# ---- 盾の亀裂：光刃で守りを削っている間（亀裂 0.25）。盾の表を斜め前から
+	var shield_cam := func(): _cam_at(d, Vector3(-2.3, 1.9, 7.6), Vector3(0.45, 1.05, 3.2))
+	s.append_array([
+		{"ticks": 2, "setup": func():
+			d._arena_start("shield")
+			var g: GameSim = m.game
+			var e = g.enemies[1]
+			_targets(g, [e])
+			_place(g, e, Vector3(0, 0, 3), Vector3(0, 0, 9))
+			d._stand(Vector3(-1.0, 0, 6.4), Vector3(0.4, 0, 3))},
+		{"ticks": 20, "input": {}},
+		{"ticks": 1, "input": {}, "setup": func(): _chip(m.game, 12.0)},
+		{"ticks": 6, "input": {}},
+		_shot("h03_shield_chip", {"cam": shield_cam}),
+		{"ticks": 1, "input": {}, "setup": func(): _chip(m.game, 16.0)},
+		{"ticks": 40, "input": {}},
+		_shot("h04_shield_cracked", {"cam": shield_cam}),
+	])
+	# ---- フレームの装着（台本のカメラと時間のまま。会話は決定で送る）
+	# 封印室の適合（胴）：入口から歩いてきてトリガーに入った所
+	s.append_array([
+		{"ticks": 2, "setup": func():
+			_room_start(d, "ch1.r08", "ch1.got_spark,ch1.fell_to_b2")
+			d._stand(Vector3(0, 0, -6.5), Vector3(0, 0, 0))},
+		{"ticks": 20, "input": {}},
+		{"ticks": 1, "input": {}, "setup": func(): d._stand(Vector3(0, 0, -5.4), Vector3(0, 0, 0))},
+		_shots_after(d, "封印室で適合のフラグが立つ（エフェクトの確認）", func(): return m.game.flag("ch1.frame_fitted"),
+			[12, 36, 66, 100], ["h05_fit_02", "h06_fit_06", "h07_fit_11", "h08_fit_17"]),
+	])
+	# 弁の間の籠手（腕）
+	s.append_array([
+		{"ticks": 2, "setup": func():
+			_room_start(d, "ch1.r10", "ch1.got_spark,ch1.fell_to_b2,ch1.frame_fitted")
+			_targets(m.game, [])
+			d._stand(Vector3(0, 0, -9.5), Vector3(0, 0, 0))},
+		{"ticks": 20, "input": {}},
+		{"ticks": 1, "input": {}, "setup": func(): d._stand(Vector3(0, 0, -7.0), Vector3(0, 0, 0))},
+		_shots_after(d, "弁の間で籠手が目覚める（エフェクトの確認）", func(): return m.game.flag("ch1.blade_online"),
+			[12, 40, 70], ["h09_arm_02", "h10_arm_07", "h11_arm_12"]),
+	])
+	# 駆動回廊の脚：動力が通った瞬間（カメラはピストンへ）と、ナゴミの「動力の伝達を確認」のあと
+	s.append_array([
+		{"ticks": 2, "setup": func():
+			_room_start(d, "ch1.r12", "ch1.got_spark,ch1.fell_to_b2,ch1.frame_fitted,ch1.blade_online,ch1.first_beacon")
+			for t in m.game.triggers:
+				if t.id == "ch1.r12.enter":
+					t.fired = true
+			_targets(m.game, [])
+			d._stand(Vector3(0, 0, -14.5), Vector3(0, 0, -5))},
+		{"ticks": 20, "input": {}},
+		{"ticks": 1, "input": {}, "setup": func():
+			m.game.set_flag("switch.ch1.r12.s1")
+			m.game.set_flag("switch.ch1.r12.s2")},
+		_shots_after(d, "駆動回廊に動力が通る（エフェクトの確認）", func(): return m.game.flag("ch1.drive_powered"),
+			[18], ["h12_legs_power_03"]),
+		_shots_after(d, "ナゴミの「動力の伝達を確認」が終わる（エフェクトの確認）", _after_dialogue(d, "ch1.r12.powered"),
+			[18, 48, 78], ["h13_legs_03", "h14_legs_08", "h15_legs_13"]),
+	])
+	# ---- 遺物：開ける前の宝箱の縁と目印、開けて遺物を拾う（弁の間の宝箱）
+	s.append_array([
+		{"ticks": 2, "setup": func():
+			_room_start(d, "ch1.r10", "ch1.got_spark,ch1.fell_to_b2,ch1.frame_fitted,ch1.blade_online", true)
+			d._stand(Vector3(6.3, 0, -6.3), Vector3(9, 0, -9))
+			_view(d, 0.5)},
+		{"ticks": 30, "input": {}},
+		_shot("h16_chest_idle"),
+		{"ticks": 2, "setup": func():
+			d._stand(Vector3(8.0, 0, -8.0), Vector3(9, 0, -9))
+			_view(d, 0.75)},
+		{"ticks": 10, "input": {}},
+		{"ticks": 1, "input": {"jump": true}},
+		{"ticks": 11, "input": {}},
+		_shot("h17_relic_02", {"check": func(): return d._check(m.game.relics.size() > 0, "宝箱から遺物を拾う（エフェクトの確認）")}),
+		{"ticks": 15, "input": {}},
+		_shot("h18_relic_045"),
+		{"ticks": 20, "input": {}},
+		_shot("h19_relic_08"),
+	])
+	# ---- 置いてある遺物の目印と、拾ったとき（ジャンク溜まりの台の上）
+	s.append_array([
+		{"ticks": 2, "setup": func():
+			_room_start(d, "ch1.r02", "ch1.got_spark", true)
+			d._stand(Vector3(2.6, 0, 0.6), Vector3(7.2, 0, 5.2))
+			_view(d, 0.3)},
+		{"ticks": 30, "input": {}},
+		_shot("h20_relic_loot_idle"),
+		{"ticks": 2, "setup": func():
+			d._stand(Vector3(7.2, 1.8, 4.5), Vector3(7.2, 1.8, 6.0))
+			_view(d, 0.9)},
+		{"ticks": 16, "input": {}},
+		_shot("h21_relic_loot_taken", {"check": func(): return d._check(m.game.relics.size() > 0, "置いてある遺物を拾う（エフェクトの確認）")}),
+	])
+	# ---- ノードの記憶：炉心の再始動のイベント（台本のカメラと時間のまま）
+	s.append_array([
+		{"ticks": 2, "setup": func():
+			_room_start(d, "ch1.r20", "ch1.got_spark,ch1.fell_to_b2,ch1.frame_fitted,ch1.blade_online,ch1.first_beacon,ch1.drive_powered,ch1.shortcut_open,ch1.diagnosis,ch1.boss_defeated,ch1.night")
+			d._stand(Vector3(0, 0, -8), Vector3(0, 0, 2))},
+		{"ticks": 20, "input": {}},
+		{"ticks": 1, "input": {}, "setup": func(): d._stand(Vector3(0, 0, -6.2), Vector3(0, 0, 2))},
+		_shots_after(d, "炉心で「ch1.node」の会話が始まる（エフェクトの確認）", func(): return String(m.game.story.dialogue.get("id", "")) == "ch1.node",
+			[10, 40, 72], ["h22_node_02", "h23_node_07", "h24_node_12"]),
+	])
+	# ---- ビーコンの定常の光（心臓部前室）
+	s.append_array([
+		{"ticks": 2, "setup": func():
+			_room_start(d, "ch1.r18", "ch1.got_spark,ch1.fell_to_b2,ch1.frame_fitted,ch1.blade_online,ch1.first_beacon,ch1.drive_powered,ch1.shortcut_open", true)
+			d._stand(Vector3(1.0, 0, -3.0), Vector3(-5, 0, 3))
+			_view(d, 0.35)},
+		{"ticks": 30, "input": {}},
+		_shot("h25_beacon_steady"),
+		_shot("h26_beacon_steady_far", {"cam": func(): _cam_at(d, Vector3(6.5, 3.4, -9.5), Vector3(-5, 4.2, 3))}),
+	])
+	# ---- フラッシュの強さ（標準・弱め・最小）：弱点の命中と閂の体の被弾の光、被弾（画面の赤）、閂の撃破
+	for fl in PadConfig.FLASH_STEPS:
+		var tag: String = {1.0: "std", 0.5: "half", 0.2: "min"}[fl]
+		s.append_array([
+			{"ticks": 2, "setup": func():
+				PadConfig.flash = fl
+				d._arena_start("kannuki")
+				var g: GameSim = m.game
+				g.boss.passive = true
+				for b in g.breakables:
+					b.broken = true
+					g.phys.remove(b.body)
+					b.body = null},
+			{"ticks": 150, "input": {}},
+			{"ticks": 2, "setup": func():
+				var g: GameSim = m.game
+				var bs = g.boss
+				bs.debug_set_phase(2)
+				bs.pos = Vector3(0, 0, -2)
+				bs.yaw = U.dir_to_yaw(-2.0, 11.0)
+				g.phys.set_feet(bs.body, bs.pos)
+				bs.set_state("recover")
+				d._stand(Vector3(-2, 0, 9), Vector3(0, 0, -2))
+				_view(d, 0.3)},
+			{"ticks": 10, "input": {}},
+			{"ticks": 1, "input": {}, "setup": func():
+				var g: GameSim = m.game
+				var bs = g.boss
+				var at: Vector3 = bs.axis_center() + (g.player.pos - bs.axis_center()).normalized() * 2.2
+				g.emit_event({"type": "hit", "at": at, "kind": "weak"})
+				g.damage_enemy(bs, 4.0, g.player.pos, {})},
+			{"ticks": 2, "input": {}},
+			_shot("h27_flash_%s_hit" % tag),
+			{"ticks": 40, "input": {}},
+			{"ticks": 1, "input": {}, "setup": func():
+				var g: GameSim = m.game
+				g.god_mode = false
+				g.player.take_damage(6.0, g.player.pos + U.yaw_to_dir(g.player.yaw) * 3.0 + Vector3(0, 1, 0), false)
+				g.god_mode = true},
+			{"ticks": 2, "input": {}},
+			_shot("h28_flash_%s_hurt" % tag),
+			{"ticks": 40, "input": {}},
+			{"ticks": 2, "setup": func():
+				var g: GameSim = m.game
+				var bs = g.boss
+				bs.debug_set_phase(3)
+				bs.core_open = true
+				var guard := 0
+				while bs.alive and guard < 100:
+					g.damage_enemy(bs, 60.0, g.player.pos, {"melee": true, "at": bs.axis_center()})
+					guard += 1},
+			{"ticks": 19, "input": {}},
+			_shot("h29_flash_%s_destroy" % tag),
+		])
+	s.append({"ticks": 1, "setup": func(): PadConfig.flash = 1.0})
+	# ---- 設定の画面：フラッシュの強さの行を選んだところ
+	s.append(_shot("h30_settings_flash", {"setup": func():
+		m.pause()
+		m.menu.show_controls(func(): m.resume(), PadConfig.ACTIONS.size() + 4),
+		"after": func(): m.resume()}))
+	s.append({"ticks": 2, "input": {}})
 	return s
 
 

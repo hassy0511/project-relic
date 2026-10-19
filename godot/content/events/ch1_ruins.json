@@ -232,13 +232,24 @@
       "say": "ch1.fit.b"
      },
      {
-      "shake": 0.7
+      "camera": {
+       "pos": [
+        0,
+        0,
+        -5.4
+       ],
+       "height": 1.05,
+       "eye": [
+        -2.6,
+        1.7,
+        -3.0
+       ],
+       "time": 3.6,
+       "wait": false
+      }
      },
      {
-      "sfx": "alert"
-     },
-     {
-      "wait": 1.2
+      "wait": 0.5
      },
      {
       "give": {
@@ -247,6 +258,19 @@
      },
      {
       "flag": "ch1.frame_fitted"
+     },
+     {
+      "fx": "frame_fit",
+      "part": "core"
+     },
+     {
+      "shake": 0.7
+     },
+     {
+      "sfx": "alert"
+     },
+     {
+      "wait": 1.9
      },
      {
       "camera": {}
@@ -398,10 +422,17 @@
       "flag": "ch1.blade_online"
      },
      {
+      "fx": "frame_fit",
+      "part": "arm"
+     },
+     {
       "shake": 0.2
      },
      {
       "message": "左腕の籠手が目覚めた：光刃が使えるようになった"
+     },
+     {
+      "wait": 1.5
      }
     ]
    },
@@ -486,10 +517,17 @@
     "say": "ch1.r12.powered"
    },
    {
-    "say": "ch1.r12.thrusters"
+    "fx": "frame_fit",
+    "part": "legs"
    },
    {
     "sfx": "item"
+   },
+   {
+    "wait": 1.5
+   },
+   {
+    "say": "ch1.r12.thrusters"
    },
    {
     "message": "脚のスラスターが目覚めた：ダッシュが使えるようになった"
@@ -723,6 +761,27 @@
    },
    {
     "wait": 0.6
+   },
+   {
+    "camera": {
+     "pos": [
+      0,
+      0,
+      0.78
+     ],
+     "height": 3.05,
+     "time": 1.6,
+     "wait": false
+    }
+   },
+   {
+    "fx": "node_memory",
+    "pos": [
+     0,
+     0,
+     0.78
+    ],
+    "height": 3.05
    },
    {
     "say": "ch1.node"

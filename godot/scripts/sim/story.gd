@@ -11,6 +11,7 @@ extends RefCounted
 ##   camera（注視点）/ freeze（操作ロック）/ mark（印）/ shop・workshop・guild（画面を開く）/ accept・complete（依頼）/ autosave
 ##   hint（操作の案内を出し続ける。{ kb, pad, touch } か文字列。"" で消す）/ remove（住人 id を今の部屋から消す）
 ##   shake（画面の揺れの強さ。0.4 くらい）/ despawn（グループの敵を倒さずに消す）
+##   fx（見た目の合図。出来事 {type: "fx", id, part?, at?} を出すだけで遊びは変えない。Fx が描く：frame_fit・node_memory）
 
 const CHARS_PER_SEC := 45.0
 
@@ -215,6 +216,14 @@ func _run_step(step: Dictionary) -> void:
 			h.emit_event({"type": "sfx", "id": "rumble"})
 	elif step.has("despawn"):
 		h.despawn_group(String(step.despawn))
+	elif step.has("fx"):
+		# 見た目の合図（Fx.handle が描く）："part"（フレームの部位）、"pos" か "at"＋"height"（エフェクトの出る所）
+		var e := {"type": "fx", "id": String(step.fx)}
+		if step.has("part"):
+			e["part"] = String(step.part)
+		if step.has("pos") or step.has("at"):
+			e["at"] = h.place(step).pos + Vector3(0, float(step.get("height", 0.0)), 0)
+		h.emit_event(e)
 	else:
 		push_error("知らないイベントの手順: %s" % str(step))
 
