@@ -18,7 +18,7 @@ var _leaving := {}   # 走り去っている住人：id → _npc_models の値�
 ## 住人の 3D モデル（絵から起こした GLB。tools/blender/recon/build_char.py）。無ければ従来の簡単な形で描く
 const NPC_MODELS := {"npc_yana": "res://assets/models/yana.glb", "npc_burton": "res://assets/models/burton.glb",
 	"npc_nico": "res://assets/models/nico.glb", "npc_trude": "res://assets/models/trude.glb",
-	"npc_shopkeeper": "res://assets/models/shopkeeper.glb"}
+	"npc_shopkeeper": "res://assets/models/shopkeeper.glb", "npc_junker": "res://assets/models/junker.glb"}
 ## 会話の行の顔（dialogue の face）→ 顔のテクスチャの 2×2 の区画（ヤーナ：0 通常、1 豪快に笑う、2 驚き、3 怒る）。
 ## 区画の無い顔は近いものか通常にする
 const NPC_FACES := {"normal": 0, "smile": 0, "smirk": 0, "serious": 0, "sad": 0, "laugh": 1, "surprised": 2, "angry": 3}
@@ -26,8 +26,11 @@ const NPC_FACES := {"normal": 0, "smile": 0, "smirk": 0, "serious": 0, "sad": 0,
 const NICO_FACES := {"normal": 0, "serious": 0, "sad": 0, "smile": 1, "smirk": 1, "laugh": 1, "surprised": 2, "angry": 3}
 ## 雑貨屋の店主の顔の区画（shopkeeper_face_expressions.png は通常・笑顔を 2 回描いた 2×2。笑顔は口の色のよい右下の区画 3）
 const SHOPKEEPER_FACES := {"normal": 0, "serious": 0, "sad": 0, "surprised": 0, "angry": 0, "smile": 3, "smirk": 3, "laugh": 3}
+## ジャンク屋の顔の区画（junker_face_expressions.png は通常・笑顔を 2 回描いた 2×2：0 通常、1 笑顔）
+const JUNKER_FACES := {"normal": 0, "serious": 0, "sad": 0, "surprised": 0, "angry": 0, "smile": 1, "smirk": 1, "laugh": 1}
 ## 表情を切り替える住人（顔のテクスチャが 2×2 の区画）。バートンは顔が 1 枚なので通常のまま
-const NPC_FACE_SETS := {"npc_yana": NPC_FACES, "npc_nico": NICO_FACES, "npc_trude": NICO_FACES, "npc_shopkeeper": SHOPKEEPER_FACES}
+const NPC_FACE_SETS := {"npc_yana": NPC_FACES, "npc_nico": NICO_FACES, "npc_trude": NICO_FACES, "npc_shopkeeper": SHOPKEEPER_FACES,
+	"npc_junker": JUNKER_FACES}
 ## 会話の話し手の名前が名札と違う住人（ch1.plaza の話し手は「トルーデ」、名札は「町長トルーデ」）
 const NPC_SPEAKERS := {"npc_trude": ["トルーデ"]}
 ## 名札の高さ（m）。既定は 2.1（大人の背丈）。ニコは 120cm、トルーデは 140cm、店主は 160cm（お団子の上 0.4m）

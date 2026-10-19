@@ -84,6 +84,9 @@ func _ready() -> void:
 		_steps.clear()
 	if main.args.has("ch1_full"):
 		_steps.clear()
+	elif main.args.has("junker_shots"):
+		_steps.clear()
+		_steps.append_array(_junker_steps())
 	elif main.args.has("pad_shots"):
 		_steps.append_array(_pad_steps())
 	elif main.args.has("ui_shots"):
@@ -1177,6 +1180,8 @@ func _process(_dt: float) -> void:
 			return
 		if not (main.args.has("ch1_shots") or main.args.has("town_shots") or main.args.has("town_audit") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("pad_shots") or main.args.has("nico_shots") or main.args.has("trude_shots") or main.args.has("shopkeeper_shots")):
 			main.args["mvp"] = "1"   # 見本の前半は古い試験場（mvp.main）で進める
+		if main.args.has("junker_shots"):
+			main.args.erase("mvp")
 		main.start_game(null)
 		main.game.god_mode = true
 		for i in 30:
@@ -1272,3 +1277,42 @@ func _stage_steps() -> Array:
 			var missing: Array = main.level.get_meta("missing_parts", [])
 			return _check(missing.is_empty(), "部屋 %s の飾りの部品がそろっている（%s）" % [v[1], missing])})
 	return steps
+
+
+## ジャンク屋（junker.glb）の確認（--junker_shots）：中段のジャンク屋の前に立つ（待機）・話す（smirk → 笑顔の区画 1）・会話のあと
+func _junker_steps() -> Array:
+	var skip := func(n: int):
+		for i in n:
+			if main.game.story.blocking():
+				main.game.story.confirm()
+	var info := func() -> Dictionary: return main.props_view._npc_models.get("npc_junker", {})
+	var clip := func() -> String: return String(info.call().get("clip", ""))
+	var expr := func() -> int: return int(info.call().get("expr", -1))
+	var go := func(at: Vector3, look: Vector3):
+		var g: GameSim = main.game
+		g.god_mode = true
+		for f in ["ch1.opening_done", "ch1.chores_started", "ch1.t_move"]:
+			g.set_flag(f)
+		g.load_room("ch1.mid", "start")
+		for t in g.triggers:
+			t.fired = true
+		_stand(at, look)
+	return [
+		{"ticks": 230, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(30)},
+		{"ticks": 60, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(30)},
+		# ハルをジャンク屋の正面から横へ（店主と同じ 1.3m では、ハルの頭でジャンク屋が隠れた）
+		{"ticks": 2, "setup": func(): go.call(Vector3(40.4, 0, 2.5), Vector3(38.0, 0, 5))},
+		{"ticks": 50, "input": {}},
+		{"ticks": 1, "shot": "junker_01_stall", "input": {}, "check": func():
+			return _check(not info.call().is_empty() and clip.call() == "idle", "ジャンク屋のモデルが立つ（%s）" % clip.call())},
+		{"ticks": 2, "setup": func(): main.game.story.start_dialogue("ch1.junker.day")},
+		{"ticks": 100, "input": {}},
+		{"ticks": 1, "shot": "junker_02_talk", "input": {}, "check": func():
+			return _check(expr.call() == 1, "ジャンク屋の笑み（smirk → 区画 1、%d）" % expr.call())},
+		{"ticks": 2, "setup": func(): skip.call(10)},
+		{"ticks": 30, "input": {}},
+		{"ticks": 1, "shot": "junker_03_after", "input": {}, "check": func():
+			return _check(expr.call() == 0, "会話のあとは通常の顔（区画 0、%d）" % expr.call())},
+	]
