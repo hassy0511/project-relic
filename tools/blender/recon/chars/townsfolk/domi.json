@@ -1,0 +1,22 @@
+{
+  "id": "domi",
+  "name": "食堂のドミ",
+  "npc": "npc_domi",
+  "variation": 6,
+  "body": "man",
+  "height": 1.68,
+  "scheme": "graphite_sand",
+  "face": {"iris": "#4A3020", "brow": "hair_grey_dark", "mouth": "smile"},
+  "hair": {"style": "swept", "color": "hair_grey"},
+  "top": {"color": "cream", "trim": "cream_dark", "length": "tucked", "sleeve": "short"},
+  "jacket": {"kind": "short", "color": "ochre", "trim": "cream", "inner": "ochre_dark", "sleeve": "short", "cuff": "ochre_dark",
+             "open": 24, "hem": 0.84,
+             "pockets": [{"side": "R", "z": 0.25, "a": 38, "w": 0.07, "h": 0.05, "color": "ochre_dark"}]},
+  "belt": {"color": "brown_dark", "buckle": "brass"},
+  "lower": {"kind": "knickers", "color": "brown", "cuff": "cream", "leg": "brown_dark", "bag": 1.05},
+  "shoes": {"kind": "boots", "color": "boot", "toe": "sand", "cuff": "leather"},
+  "gloves": {"color": "glove"},
+  "scarf": {"kind": "snood", "color": "scarf_brown", "buckle": "brown_dark"},
+  "patches": [{"on": "leg_R", "z": 0.48, "a": -5, "w": 0.08, "h": 0.08, "color": "brown_dark"},
+              {"on": "body", "z": 0.86, "a": 38, "w": 0.07, "h": 0.08, "color": "sand"}]
+}

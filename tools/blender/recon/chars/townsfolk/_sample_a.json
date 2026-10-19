@@ -1,0 +1,16 @@
+{
+  "id": "_sample_a",
+  "name": "部品の見本 A（8 人が使っていない部品：フード・三角の首巻き・前を重ねる上着・まっすぐのズボン・短い靴）",
+  "body": "man",
+  "scheme": "cream_brown",
+  "face": {"mouth": "smile"},
+  "hair": {"style": "short", "color": "hair_brown"},
+  "top": {"color": "$a", "trim": "$a_dark", "length": "tucked", "sleeve": "short"},
+  "jacket": {"kind": "wrap", "color": "$a", "trim": "sand", "inner": "cream_dark", "sleeve": "rolled", "cuff": "sand",
+             "hem_color": "sand"},
+  "belt": {"color": "brown_dark", "buckle": null, "sash": true},
+  "lower": {"kind": "trousers", "color": "$b", "cuff": "$b_dark", "leg": "sock"},
+  "shoes": {"kind": "low", "color": "brown", "toe": "cream_dark", "sock": "sock"},
+  "scarf": {"kind": "bandana", "color": "rust"},
+  "hat": {"kind": "hood", "color": "rust", "band": "rust_dark"}
+}

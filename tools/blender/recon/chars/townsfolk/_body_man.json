@@ -1,0 +1,13 @@
+{
+  "id": "_body_man",
+  "name": "体の土台：大人の男（townsfolk_bodies.png の 1 段目）",
+  "body": "man",
+  "scheme": "sand_rust",
+  "face": {},
+  "hair": {"style": "short", "color": "hair_brown"},
+  "beard": {"color": "beard_brown", "size": "short"},
+  "top": {"color": "cream", "trim": "sand", "length": "tunic", "sleeve": "short"},
+  "belt": {"color": "leather", "buckle": null, "sash": true},
+  "lower": {"kind": "pants", "color": "$a", "cuff": "cream", "leg": "sock"},
+  "shoes": {"kind": "boots", "color": "boot", "toe": "boot_toe", "cuff": "boot"}
+}

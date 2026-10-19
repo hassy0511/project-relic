@@ -1,0 +1,21 @@
+{
+  "id": "tobi",
+  "name": "少年トビ",
+  "npc": "npc_tobi",
+  "variation": 1,
+  "body": "child",
+  "height": 1.13,
+  "scheme": "sand_rust",
+  "face": {"iris": "#5A3A28", "brow": "hair_brown_dark", "mouth": "smile"},
+  "hair": {"style": "spiky", "color": "hair_brown"},
+  "top": {"color": "cream", "trim": "cream_dark", "length": "tucked", "sleeve": "short"},
+  "jacket": {"kind": "short", "color": "$b", "trim": "$b_dark", "sleeve": "short", "cuff": "$b_dark", "open": 30, "hem": 0.53},
+  "belt": {"color": "leather", "buckle": "brass", "pouch": ["L"], "strap": "brown_dark"},
+  "lower": {"kind": "shorts", "color": "olive", "cuff": "olive_dark", "leg": "skin"},
+  "shoes": {"kind": "boots", "color": "boot", "toe": "cream_dark", "cuff": "leather", "strap": "leather"},
+  "gloves": {"color": "glove", "cuff": "sand"},
+  "scarf": {"kind": "cowl", "color": "cream"},
+  "hat": {"kind": "cap", "color": "leather", "band": "brown_dark", "visor": "leather", "flap": "leather", "goggles": true},
+  "patches": [{"on": "leg_R", "z": 0.29, "a": -15, "w": 0.06, "h": 0.06, "color": "sand"},
+              {"on": "leg_L", "z": 0.33, "a": 30, "w": 0.05, "h": 0.05, "color": "cream"}]
+}

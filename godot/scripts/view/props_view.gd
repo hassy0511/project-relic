@@ -17,6 +17,11 @@ var _leaving := {}   # 走り去っている住人：id → _npc_models の値�
 
 ## 住人の 3D モデル（絵から起こした GLB。tools/blender/recon/build_char.py）。無ければ従来の簡単な形で描く
 const NPC_MODELS := {"npc_yana": "res://assets/models/yana.glb", "npc_burton": "res://assets/models/burton.glb",
+	# 町の住人 8 人（tools/blender/models/townsfolk.py のキット。1 人の設定は tools/blender/recon/chars/townsfolk/<名前>.json）
+	"npc_gen": "res://assets/models/tf_gen.glb", "npc_martha": "res://assets/models/tf_martha.glb",
+	"npc_domi": "res://assets/models/tf_domi.glb", "npc_tobi": "res://assets/models/tf_tobi.glb",
+	"npc_woman": "res://assets/models/tf_mina.glb", "npc_lookout": "res://assets/models/tf_rob.glb",
+	"npc_clerk": "res://assets/models/tf_clerk.glb", "npc_rita": "res://assets/models/tf_rita.glb",
 	"npc_nico": "res://assets/models/nico.glb", "npc_trude": "res://assets/models/trude.glb",
 	"npc_shopkeeper": "res://assets/models/shopkeeper.glb", "npc_junker": "res://assets/models/junker.glb"}
 ## 会話の行の顔（dialogue の face）→ 顔のテクスチャの 2×2 の区画（ヤーナ：0 通常、1 豪快に笑う、2 驚き、3 怒る）。
@@ -35,6 +40,9 @@ const NPC_FACE_SETS := {"npc_yana": NPC_FACES, "npc_nico": NICO_FACES, "npc_trud
 const NPC_SPEAKERS := {"npc_trude": ["トルーデ"]}
 ## 名札の高さ（m）。既定は 2.1（大人の背丈）。ニコは 120cm、トルーデは 140cm、店主は 160cm（お団子の上 0.4m）
 const NPC_LABEL_Y := {"npc_nico": 1.6, "npc_trude": 1.8, "npc_shopkeeper": 2.0}
+## 町の住人の名札の高さ（体の土台ごと：子ども 113cm 1.6・老人 140〜150cm 1.8〜1.85・大人の女 156〜160cm 1.95〜2.0。大人の男は既定の 2.1）
+const TOWNSFOLK_LABEL_Y := {"npc_tobi": 1.6, "npc_woman": 1.8, "npc_gen": 1.85, "npc_rita": 1.95, "npc_martha": 2.0,
+	"npc_clerk": 2.0}
 ## イベントで消える（remove）とき、走り去ってから消える住人と、その秒数（ニコは禁足扉へ走っていく。ch1.nico_run）
 const NPC_RUN_OFF := {"npc_nico": 1.3}
 const NPC_RUN_SPEED := 3.6
@@ -87,7 +95,7 @@ func build(game: GameSim) -> void:
 			MeshKit.add(root, MeshKit.sphere(0.2), MeshKit.mat(Color("#d9a07a")), Vector3(0, 1.55, 0))
 			MeshKit.add(root, MeshKit.box(Vector3(0.45, 0.7, 0.05)), MeshKit.mat(Color("#4d5a4a")), Vector3(0, 0.8, 0.3))
 			MeshKit.add(root, MeshKit.box(Vector3(0.12, 0.6, 0.12)), MeshKit.mat(Color("#8a8a8a"), 0.3, 0.7), Vector3(-0.4, 0.95, 0))
-		root.add_child(MeshKit.label(n.name, float(NPC_LABEL_Y.get(n.id, 2.1)), Color("#ffe7b8"), 48))
+		root.add_child(MeshKit.label(n.name, float(NPC_LABEL_Y.get(n.id, TOWNSFOLK_LABEL_Y.get(n.id, 2.1))), Color("#ffe7b8"), 48))
 		_npcs[n.id] = root
 	# セーブビーコンの台（定常の光の柱は Fx._beacon_beam が光柱の素材で描く）
 	for b in game.beacons:

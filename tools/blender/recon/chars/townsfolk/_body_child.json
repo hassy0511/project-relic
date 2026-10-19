@@ -1,0 +1,12 @@
+{
+  "id": "_body_child",
+  "name": "体の土台：子ども（townsfolk_bodies.png の 3 段目）",
+  "body": "child",
+  "scheme": "sand_rust",
+  "face": {},
+  "hair": {"style": "spiky", "color": "hair_ginger"},
+  "top": {"color": "cream", "trim": "sand", "length": "tunic", "sleeve": "short"},
+  "belt": {"color": "leather", "buckle": null, "sash": true},
+  "lower": {"kind": "knickers", "color": "$a", "cuff": "cream", "leg": "skin"},
+  "shoes": {"kind": "boots", "color": "boot", "toe": "boot_toe", "cuff": "boot"}
+}
