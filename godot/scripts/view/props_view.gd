@@ -14,6 +14,7 @@ var _movers := {}
 var _loot := {}
 var _door_amt := {}
 var _leaving := {}   # 走り去っている住人：id → _npc_models の値（leave：残りの秒数、leave_dir：向き）
+var _label_fade := 0.0   # 住人の名札を薄くしている割合（fade_labels）
 
 ## 住人の 3D モデル（絵から起こした GLB。tools/blender/recon/build_char.py）。無ければ従来の簡単な形で描く
 const NPC_MODELS := {"npc_yana": "res://assets/models/yana.glb", "npc_burton": "res://assets/models/burton.glb",
@@ -350,13 +351,16 @@ func _sync_leaving(game: GameSim, dt: float) -> void:
 		r.position += dir * NPC_RUN_SPEED * dt
 
 
-## 会話のカメラ（CameraRig）で話し相手へ寄せている間は、その住人の頭の上の名札を薄くする（近くから映すと大きく、会話の窓にも名前が出ている）。
-## id：会話のカメラが映している住人（無ければ ""）、w：寄せた割合（0〜1）
-func fade_talk_label(id: String, w: float) -> void:
+## 会話のカメラ（CameraRig）で話し相手へ寄せている間は、住人の頭の上の名札を薄くする（近くから映すと話し相手の名札が大きく、
+## まわりの住人の名札も画面の端・HUD に掛かる。話し手の名前は会話の窓に出ている）。w：寄せた割合（0〜1）
+func fade_labels(w: float) -> void:
+	if w == _label_fade:
+		return
+	_label_fade = w
 	for nid in _npcs:
 		for ch in (_npcs[nid] as Node3D).get_children():
 			if ch is Label3D:
-				(ch as Label3D).transparency = w if nid == id else 0.0
+				(ch as Label3D).transparency = w
 
 
 func _set_npc_face(info: Dictionary, i: int) -> void:

@@ -230,12 +230,12 @@ func _talk_path(game: GameSim, a: Vector3, s: float) -> Vector3:
 	return _pivot + v / len * minf(len, _room(game, v / len, len))
 
 
-## 会話のカメラで、今どれだけ寄せているか（0〜1。テスト・見本の確かめ用）
+## 会話のカメラで、今どれだけ寄せているか（0〜1。main が住人の名札を薄くするのに使う。テスト・見本の確かめにも）
 func talk_weight() -> float:
 	return _talk_w
 
 
-## 今使っている会話の構図（{ id, pos, look, fov, side, at }。使っていなければ {}。main が話し相手の名札を薄くするのにも使う）
+## 今使っている会話の構図（{ id, pos, look, fov, side, at }。使っていなければ {}。テスト・見本の確かめ用）
 func talk_frame() -> Dictionary:
 	return _talk
 

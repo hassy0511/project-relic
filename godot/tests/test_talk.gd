@@ -341,6 +341,38 @@ func test_talk_camera_keeps_framing_and_yields_to_event_camera() -> void:
 	h.free_game(g)
 
 
+func test_talk_camera_fades_name_labels() -> void:
+	# 会話のカメラで寄せている間は、住人の頭の上の名札を、寄せた割合だけ薄くする（戻ると元どおり）
+	var g := _game()
+	await h.settle()
+	var cam := _rig()
+	var pv := PropsView.new()
+	h.tree.root.add_child(pv)
+	pv.build(g)
+	var labels: Array = pv.find_children("*", "Label3D", true, false)
+	var alpha := func() -> float:
+		var worst := 0.0
+		for lb in labels:
+			worst = maxf(worst, (lb as Label3D).transparency)
+		return worst
+	h.expect(labels.size() >= 4, "住人の名札がある（%d）" % labels.size())
+	_face(g, Vector3(0, 0, 2.2), "npc_a")
+	await _ticks(g, [cam], 20)
+	pv.fade_labels(cam.talk_weight())
+	h.expect(alpha.call() == 0.0, "話す前の名札はそのまま")
+	await _tick(g, [cam], {"jump": true})
+	await _ticks(g, [cam], 40)
+	pv.fade_labels(cam.talk_weight())
+	h.expect(labels.all(func(lb): return (lb as Label3D).transparency == 1.0), "寄せている間は名札を消す")
+	await _finish_dialogue(g, [cam])
+	await _ticks(g, [cam], 40)
+	pv.fade_labels(cam.talk_weight())
+	h.expect(alpha.call() == 0.0, "戻ると名札も元どおり")
+	pv.queue_free()
+	cam.queue_free()
+	h.free_game(g)
+
+
 func test_talk_camera_no_framing_keeps_normal_camera() -> void:
 	# 天井の低い細い通路（幅 1.4m・高さ 2.2m）で、ハルのすぐ後ろが壁：肩越しにも横にも置けないので、ふだんのカメラのまま
 	var walls := [{"t": "box", "pos": [30.95, 0, 3], "size": [0.5, 2.2, 8]}, {"t": "box", "pos": [29.05, 0, 3], "size": [0.5, 2.2, 8]},

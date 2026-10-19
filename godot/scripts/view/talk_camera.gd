@@ -180,10 +180,10 @@ static func _compose(c: Vector3, face: Vector3, shoulder: Vector3, p: Vector3, n
 	var hs := _screen(t, head, tf, aspect)
 	if fs.z <= 0.0 or absf(fs.x) > 0.5 or fs.y < 0.25 or fs.y > 0.62 or ss.y < 0.0:
 		return {"why": "顔・肩が画面の上の方に入らない"}
-	# ハルが画面の横（中心から 0.2〜0.85、スマホの会話の窓より上）に見えるほど、顔までの距離が 3.2m に近いほど高い点
+	# ハルが画面の横（中心から 0.2〜0.85、スマホの会話の窓（中心から下 0.08 より下）より上）に見えるほど、顔までの距離が 3.2m に近いほど高い点
 	var score := 0.0
 	var hx := absf(hs.x)
-	if hs.z > 0.0 and hx >= 0.2 and hx <= 0.85 and hs.y > -0.1 and hs.y < 0.8:
+	if hs.z > 0.0 and hx >= 0.2 and hx <= 0.85 and hs.y > 0.0 and hs.y < 0.8:
 		score += 3.0
 	elif hs.z > 0.0 and hx <= 1.0 and hs.y > -0.6:
 		score += 1.5

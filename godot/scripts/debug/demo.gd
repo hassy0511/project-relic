@@ -1309,6 +1309,74 @@ func _finish() -> void:
 	get_tree().quit(1 if failures.size() > 0 else 0)
 
 
+## 会話のカメラ（view/talk_camera.gd）の確認（--talk_cam_shots。--talk_cam=shopkeeper,yana で一部だけ）：住人の正面に立って調べるボタンで話しかけ、
+## 会話のカメラを切った画面（前：ふだんのカメラのまま）と入れた画面（後）を撮る。会話を送り終えると、話しかける前のカメラ（yaw・pitch）へ戻る
+func _talk_cam_steps() -> Array:
+	# [名前, 部屋, 住人の id, ハルの立つ所]（立つ所は、住人に話せる距離 2.2m 以内の正面）
+	var cases := [["shopkeeper", "ch1.mid", "npc_shopkeeper", Vector3(24, 0, 3.0)], ["junker", "ch1.mid", "npc_junker", Vector3(38, 0, 3.0)],
+		["yana", "ch1.workshop", "npc_yana", Vector3(2.45, 0, 2.0)], ["burton", "ch1.guild", "npc_burton", Vector3(0, 0, 3.4)],
+		["trude", "ch1.mayor", "npc_trude", Vector3(0, 0, 1.4)], ["gen", "ch1.lower", "npc_gen", Vector3(-6.4, 0, -8)],
+		["martha", "ch1.lower", "npc_martha", Vector3(30, 0, 1.4)]]
+	if main.args.has("talk_cam"):
+		var want: PackedStringArray = String(main.args.talk_cam).split(",")
+		cases = cases.filter(func(c): return c[0] in want)
+	var cam0 := {}
+	var steps := [
+		{"ticks": 230, "input": {}},
+		{"ticks": 2, "setup": func(): _talk_skip()},
+		{"ticks": 60, "input": {}},
+		{"ticks": 2, "setup": func(): _talk_skip()},
+	]
+	for cs in cases:
+		steps.append_array([
+			{"ticks": 2, "setup": func():
+				var g: GameSim = main.game
+				g.god_mode = true
+				for f in ["ch1.opening_done", "ch1.chores_started", "ch1.t_move"]:
+					g.set_flag(f)
+				if g.room_id != cs[1]:
+					g.load_room(cs[1], "")
+				for t in g.triggers:
+					t.fired = true
+				main.camera.talk_enabled = false
+				var npc: Array = g.npcs.filter(func(n): return n.id == cs[2])
+				_stand(cs[3], npc[0].pos if not npc.is_empty() else cs[3] + Vector3(0, 0, 2))},
+			{"ticks": 40, "input": {}},
+			{"ticks": 2, "input": {"jump": true}, "setup": func():
+				cam0["yaw"] = main.game.cam.yaw
+				cam0["pitch"] = main.game.cam.pitch},
+			{"ticks": 90, "input": {}},
+			{"ticks": 1, "shot": "talk_%s_before" % cs[0], "input": {}, "check": func():
+				return _check(not main.game.story.dialogue.is_empty() and main.game.talk_npc == cs[2], "%s に話しかけると会話が始まる（%s）" % [cs[2], main.game.talk_npc])},
+			{"ticks": 60, "input": {}, "setup": func(): main.camera.talk_enabled = true},
+			{"ticks": 1, "shot": "talk_%s_after" % cs[0], "input": {}, "check": func():
+				var f: Dictionary = main.camera.talk_frame()
+				print("会話のカメラ %s：%s" % [cs[0], f])
+				return _check(main.camera.talk_weight() >= 1.0 and not f.is_empty(), "%s：会話のカメラが話し相手へ寄る" % cs[0])},
+			{"ticks": 2, "setup": func():
+				_talk_skip()
+				# 店の画面が開いたら閉じる（開いている間はゲームが進まない）
+				get_tree().create_timer(0.4).timeout.connect(func():
+					if main.state == "paused" and main.menu.is_open():
+						main.resume())},
+			{"ticks": 45, "input": {}},
+			{"ticks": 1, "check": func():
+				var fwd: Vector3 = main.camera.forward_dir()
+				var ok: bool = main.camera.talk_weight() == 0.0 and main.game.story.dialogue.is_empty() \
+					and main.game.cam.yaw == cam0.yaw and main.game.cam.pitch == cam0.pitch \
+					and absf(U.wrap_angle(atan2(fwd.x, fwd.z) - cam0.yaw)) < 0.02
+				return _check(ok, "%s：会話のあとは話しかける前のカメラへ戻る" % cs[0])},
+		])
+	return steps
+
+
+## 会話を送り終える（会話の続きのイベントの会話も）
+func _talk_skip() -> void:
+	for i in 40:
+		if main.game.story.blocking():
+			main.game.story.confirm()
+
+
 ## 部屋の見た目の確認（--stage_shots）：キットを付けた部屋を、プレイヤーのカメラでいくつかの向きから撮る。イベントは走らせない
 ## [名前, 部屋, 目印, 立つ所, 見る所, 見下ろす角度（度）]
 func _stage_steps() -> Array:
@@ -1392,71 +1460,3 @@ func _junker_steps() -> Array:
 		{"ticks": 1, "shot": "junker_03_after", "input": {}, "check": func():
 			return _check(expr.call() == 0, "会話のあとは通常の顔（区画 0、%d）" % expr.call())},
 	]
-
-
-## 会話のカメラ（view/talk_camera.gd）の確認（--talk_cam_shots。--talk_cam=shopkeeper,yana で一部だけ）：住人の正面に立って調べるボタンで話しかけ、
-## 会話のカメラを切った画面（前：ふだんのカメラのまま）と入れた画面（後）を撮る。会話を送り終えると、話しかける前のカメラ（yaw・pitch）へ戻る
-func _talk_cam_steps() -> Array:
-	# [名前, 部屋, 住人の id, ハルの立つ所]（立つ所は、住人に話せる距離 2.2m 以内の正面）
-	var cases := [["shopkeeper", "ch1.mid", "npc_shopkeeper", Vector3(24, 0, 3.0)], ["junker", "ch1.mid", "npc_junker", Vector3(38, 0, 3.0)],
-		["yana", "ch1.workshop", "npc_yana", Vector3(2.45, 0, 2.0)], ["burton", "ch1.guild", "npc_burton", Vector3(0, 0, 3.4)],
-		["trude", "ch1.mayor", "npc_trude", Vector3(0, 0, 1.4)], ["gen", "ch1.lower", "npc_gen", Vector3(-6.4, 0, -8)],
-		["martha", "ch1.lower", "npc_martha", Vector3(30, 0, 1.4)]]
-	if main.args.has("talk_cam"):
-		var want: PackedStringArray = String(main.args.talk_cam).split(",")
-		cases = cases.filter(func(c): return c[0] in want)
-	var cam0 := {}
-	var steps := [
-		{"ticks": 230, "input": {}},
-		{"ticks": 2, "setup": func(): _talk_skip()},
-		{"ticks": 60, "input": {}},
-		{"ticks": 2, "setup": func(): _talk_skip()},
-	]
-	for cs in cases:
-		steps.append_array([
-			{"ticks": 2, "setup": func():
-				var g: GameSim = main.game
-				g.god_mode = true
-				for f in ["ch1.opening_done", "ch1.chores_started", "ch1.t_move"]:
-					g.set_flag(f)
-				if g.room_id != cs[1]:
-					g.load_room(cs[1], "")
-				for t in g.triggers:
-					t.fired = true
-				main.camera.talk_enabled = false
-				var npc: Array = g.npcs.filter(func(n): return n.id == cs[2])
-				_stand(cs[3], npc[0].pos if not npc.is_empty() else cs[3] + Vector3(0, 0, 2))},
-			{"ticks": 40, "input": {}},
-			{"ticks": 2, "input": {"jump": true}, "setup": func():
-				cam0["yaw"] = main.game.cam.yaw
-				cam0["pitch"] = main.game.cam.pitch},
-			{"ticks": 90, "input": {}},
-			{"ticks": 1, "shot": "talk_%s_before" % cs[0], "input": {}, "check": func():
-				return _check(not main.game.story.dialogue.is_empty() and main.game.talk_npc == cs[2], "%s に話しかけると会話が始まる（%s）" % [cs[2], main.game.talk_npc])},
-			{"ticks": 60, "input": {}, "setup": func(): main.camera.talk_enabled = true},
-			{"ticks": 1, "shot": "talk_%s_after" % cs[0], "input": {}, "check": func():
-				var f: Dictionary = main.camera.talk_frame()
-				print("会話のカメラ %s：%s" % [cs[0], f])
-				return _check(main.camera.talk_weight() >= 1.0 and not f.is_empty(), "%s：会話のカメラが話し相手へ寄る" % cs[0])},
-			{"ticks": 2, "setup": func():
-				_talk_skip()
-				# 店の画面が開いたら閉じる（開いている間はゲームが進まない）
-				get_tree().create_timer(0.4).timeout.connect(func():
-					if main.state == "paused" and main.menu.is_open():
-						main.resume())},
-			{"ticks": 45, "input": {}},
-			{"ticks": 1, "check": func():
-				var fwd: Vector3 = main.camera.forward_dir()
-				var ok: bool = main.camera.talk_weight() == 0.0 and main.game.story.dialogue.is_empty() \
-					and main.game.cam.yaw == cam0.yaw and main.game.cam.pitch == cam0.pitch \
-					and absf(U.wrap_angle(atan2(fwd.x, fwd.z) - cam0.yaw)) < 0.02
-				return _check(ok, "%s：会話のあとは話しかける前のカメラへ戻る" % cs[0])},
-		])
-	return steps
-
-
-## 会話を送り終える（会話の続きのイベントの会話も）
-func _talk_skip() -> void:
-	for i in 40:
-		if main.game.story.blocking():
-			main.game.story.confirm()
