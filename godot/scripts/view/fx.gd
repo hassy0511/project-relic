@@ -72,6 +72,8 @@ var _relic_n := -1
 var _relic_at = null
 ## 盾型の守り：前の刻みの値と、削られた瞬間の光（敵 → [守り, 光 0〜1]）
 var _guards := {}
+## 部屋の飾りの小さなエフェクト（落砂の砂ぼこり・蒸気の吹き出し）。自分の乱数で出す（この Fx の乱数の並びは変えない）
+var ambient := AmbientFx.new()
 
 
 func _ready() -> void:
@@ -360,6 +362,10 @@ func sync(game: GameSim, dt: float, pv: PlayerView = null, ev: EnemyView = null,
 	_sync_player(game, dt)
 	_sync_enemies(game, dt)
 	_sync_world(game, dt)
+	# 部屋の飾りの小さなエフェクト（AmbientFx。キットの "emitters"）：部屋が変わったら出所を作り直す
+	if game.room_id != ambient.room_id:
+		ambient.build(game.room_id, game.room)
+	ambient.step(dt, vfx)
 	vfx.step(dt)
 	shake = maxf(0.0, shake - dt * 2.5)
 

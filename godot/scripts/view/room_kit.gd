@@ -5,7 +5,8 @@ extends RefCounted
 ##   部屋 { "kit": "ruins_b1", "dress": [ { "part": "ruins/b1_pillar", "pos": [x,y,z], "yaw": 90, "scale": 1.0 } ] }
 ##   形   { ..., "skin": "metal" | { "floor": "sand", "wall": "plate" }, "hide": true, "trim": false }
 ## 軽さのため：材質はキットごとに 1 回だけ作って共有、部屋の面は材質ごとに 1 つのメッシュ、同じ部品は MultiMesh でまとめて 1 回で描く。
-## 毎フレームの処理は無い。
+## 毎フレームの処理は無い（風で揺れる布・垂れたケーブル・落砂の流れ・蒸気の濃淡はシェーダーの中で TIME から：材質の "sway"・"flow"。
+## 落砂の砂ぼこり・蒸気の吹き出しの粒はキットの "emitters" から AmbientFx が出す。42 章 14.2.2）。
 
 const KIT_PATH := "res://content/kits/%s.json"
 const PART_PATH := "res://assets/kit/%s.glb"
@@ -103,6 +104,7 @@ static func inherit(data: Dictionary) -> Dictionary:
 ##   "near_fade": [0.8, 1.5]：カメラから 0.8 m より近い所を網目で消し、1.5 m で元に戻す（当たり判定の無い飾りの部品の材質に付ける。
 ##   日よけ・柱・灯がカメラの前を塞がない）。網目は discard を使うので、軽さを優先するスマホ・ブラウザ版（gl_compatibility）では付けない
 ##   "detail": [ 層, … ]（4 つまで）：汚れ・傷みの層（_set_detail・42 章 14.2.1）。無ければ今までのシェーダーのまま（見た目は変わらない）
+##   "sway"・"flow"：動き（風で揺れる布・垂れたケーブル、落砂の流れ。_set_motion・42 章 14.2.2）。層・near_fade のどの版とも一緒に使える
 static func make_material(def: Dictionary) -> Material:
 	var m := ShaderMaterial.new()
 	if def.get("blend", "") == "decal":
@@ -125,6 +127,11 @@ static func make_material(def: Dictionary) -> Material:
 		m.set_shader_parameter("color", Color(def.get("color", "#ffd9a0")))
 		m.set_shader_parameter("strength", float(def.get("strength", 0.25)))
 		m.set_shader_parameter("fade_m", float(def.get("fade_m", 7.0)))
+		# 蒸気の流れ（"flow"：外へ流れる濃淡とゆっくりした強弱。kit_glow.gdshader）
+		if def.has("flow"):
+			var f: Dictionary = def.flow
+			m.set_shader_parameter("flow", Vector4(float(f.get("speed", 0.9)), float(f.get("size", 0.5)),
+				float(f.get("contrast", 0.6)), float(f.get("breath", 0.3))))
 		return m
 	# しみ（"blend": "mul"）：下の色に掛ける（kit_stain.gdshader。遺構の汚れの置き場所の部品）
 	if def.get("blend", "") == "mul":
@@ -167,7 +174,26 @@ static func make_material(def: Dictionary) -> Material:
 		m.set_shader_parameter("emission_energy", float(em.get("energy", 2.0)))
 	if not layers.is_empty():
 		_set_detail(m, def, layers)
+	_set_motion(m, def)
 	return m
+
+
+## 動き（kit_motion.gdshaderinc。どのシェーダーの版にも入っていて、値が 0 なら何もしない。42 章 14.2.2）。動かすのは
+## 部品の頂点の色のアルファ（1 - 動きの重み。Blender の書き出しが付ける）のある所だけ：
+##   "sway"：風で揺れる布・垂れたケーブル { "push": 突風で風下へ押す m, "flutter": 揺れの幅 m, "wave": 風下へ進む波（1 m あたり）,
+##            "gust": 突風の強さ 0〜1, "speed": 速さの倍率, "wind": [x, y, z]（風の吹いていく向き。既定 [0, 0, -1] = 船首からの風） }
+##   "flow"：落砂の流れの面 { "speed": 下へ流れる m/s, "size": 模様の縦の大きさ m, "contrast": 明暗 0〜1, "edge": 縁のちらつき 0〜1 }
+static func _set_motion(m: ShaderMaterial, def: Dictionary) -> void:
+	if def.has("sway"):
+		var s: Dictionary = def.sway
+		m.set_shader_parameter("sway_amp", Vector4(float(s.get("push", 0.03)), float(s.get("flutter", 0.03)),
+			float(s.get("wave", 0.5)), float(s.get("gust", 0.6))))
+		var w := RoomGeo.v3(s.get("wind", [0, 0, -1]))
+		m.set_shader_parameter("sway_wind", Vector4(w.x, w.y, w.z, float(s.get("speed", 1.0))))
+	if def.has("flow"):
+		var f: Dictionary = def.flow
+		m.set_shader_parameter("flow", Vector4(float(f.get("speed", 2.5)), float(f.get("size", 0.45)),
+			float(f.get("contrast", 0.35)), float(f.get("edge", 0.5))))
 
 
 ## 材質の "detail"（層の配列。1 つなら辞書のままでもよい）。4 つを超える分は使わない
@@ -422,16 +448,10 @@ static func dress(room: Dictionary, kit: Dictionary, missing: Array) -> Node3D:
 			if not part in missing:
 				missing.append(part)
 			continue
-		var basis := Basis.from_euler(RoomGeo.v3(d.rot) * U.DEG) if d.has("rot") else Basis(Vector3.UP, float(d.get("yaw", 0.0)) * U.DEG)
-		var sc = d.get("scale", 1.0)
-		basis = basis.scaled_local(RoomGeo.v3(sc) if sc is Array else Vector3.ONE * float(sc))
-		var pos := RoomGeo.v3(d.get("pos", [0, 0, 0]))
-		var step := RoomGeo.v3(d.get("step", [0, 0, 0]))
 		var key := "%s|%s" % [part, str(d.get("shadow", default_shadow))]
 		if not groups.has(key):
 			groups[key] = []
-		for k in maxi(1, int(d.get("count", 1))):
-			var xf := Transform3D(basis, pos + step * k)
+		for xf in dress_xforms(d):
 			groups[key].append(xf)
 			if d.has("light"):
 				root.add_child(_light(d.light, xf))
@@ -462,6 +482,41 @@ static func dress(room: Dictionary, kit: Dictionary, missing: Array) -> Node3D:
 	if not missing.is_empty():
 		push_warning("飾りの部品が無い（%s）：%s" % [room.get("id", "?"), ", ".join(missing)])
 	return root
+
+
+## 飾り 1 件の置き場所（count 個なら count 個の変換）："rot"（度）か "yaw"、"scale"、"pos"、"count"・"step"
+static func dress_xforms(d: Dictionary) -> Array:
+	var basis := Basis.from_euler(RoomGeo.v3(d.rot) * U.DEG) if d.has("rot") else Basis(Vector3.UP, float(d.get("yaw", 0.0)) * U.DEG)
+	var sc = d.get("scale", 1.0)
+	basis = basis.scaled_local(RoomGeo.v3(sc) if sc is Array else Vector3.ONE * float(sc))
+	var pos := RoomGeo.v3(d.get("pos", [0, 0, 0]))
+	var step := RoomGeo.v3(d.get("step", [0, 0, 0]))
+	var out := []
+	for k in maxi(1, int(d.get("count", 1))):
+		out.append(Transform3D(basis, pos + step * k))
+	return out
+
+
+## 部屋の飾りの小さなエフェクトの出所（AmbientFx が使う）。キットの "emitters"（部品 → 出し方。42 章 14.2.2）と部屋の "dress" から：
+##   [{ "kind": "dust" | "steam", "at": ワールドの位置, "dir": ワールドの向き（大きさ 1）, "scale": 部品の大きさ, "every": [短い秒, 長い秒] }, …]
+## 出し方の "at"・"dir" は部品の中の位置・向き（"dir" の既定は [0, 1, 0]）
+static func emitters(room: Dictionary, kit: Dictionary) -> Array:
+	var table: Dictionary = kit.get("data", {}).get("emitters", {})
+	var out := []
+	if table.is_empty():
+		return out
+	for d in room.get("dress", []):
+		var part := String(d.get("part", ""))
+		if not table.has(part):
+			continue
+		var e: Dictionary = table[part]
+		var ev = e.get("every", [1.0, 2.0])
+		for xf in dress_xforms(d):
+			var dir: Vector3 = (xf.basis * RoomGeo.v3(e.get("dir", [0, 1, 0])))
+			out.append({"kind": String(e.get("kind", "dust")), "at": xf * RoomGeo.v3(e.get("at", [0, 0, 0])),
+				"dir": dir.normalized() if dir.length() > 1e-4 else Vector3.UP, "scale": xf.basis.get_scale().length() / sqrt(3.0),
+				"every": Vector2(float(ev[0]), float(ev[1])) if ev is Array else Vector2(float(ev), float(ev))})
+	return out
 
 
 ## 部品の明かり：{ "at": 部品の中の位置, "color", "range", "energy" }。"type": "spot" なら "dir"（部品の中の向き）・"angle"（度）・
