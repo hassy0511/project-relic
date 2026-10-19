@@ -1302,8 +1302,8 @@ func _junker_steps() -> Array:
 		{"ticks": 2, "setup": func(): skip.call(30)},
 		{"ticks": 60, "input": {}},
 		{"ticks": 2, "setup": func(): skip.call(30)},
-		# ハルをジャンク屋の正面から少し横へ（ハルの体でジャンク屋が隠れないように）
-		{"ticks": 2, "setup": func(): go.call(Vector3(39.3, 0, 2.7), Vector3(38.1, 0, 5))},
+		# ハルをジャンク屋の正面から横へ（店主と同じ 1.3m では、ハルの頭でジャンク屋が隠れた）
+		{"ticks": 2, "setup": func(): go.call(Vector3(40.4, 0, 2.5), Vector3(38.0, 0, 5))},
 		{"ticks": 50, "input": {}},
 		{"ticks": 1, "shot": "junker_01_stall", "input": {}, "check": func():
 			return _check(not info.call().is_empty() and clip.call() == "idle", "ジャンク屋のモデルが立つ（%s）" % clip.call())},
