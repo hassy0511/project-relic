@@ -833,6 +833,30 @@ def goatee() -> list[dict]:
     return out
 
 
+def stubble() -> list[dict]:
+    """あごの線の無精ひげ（2 周目。絵の正面・真横：もみあげからあごひげへ、あごの縁に沿った灰色の帯で、上の縁はぎざぎざ）。
+    顔の画像の範囲（FACE_FEATURE_BOXES）でも拾ったが、あごの縁は顔の材質の外で見えなかったので、頭の面に沿った薄い板にする。
+    あごの縁の高さは角度ごとに首の軸から撃った半径の跳び（首 → あご）で決める"""
+    out = []
+    zs = np.arange(1.250, 1.372, 0.002)
+    for side, sx in ((1.0, 'l'), (-1.0, 'r')):
+        degs = np.linspace(16.0, 104.0, 31)
+        ths = np.radians(side * degs)
+        R = np.array([surf_r(np.full(len(zs), t), zs, 0.0, X0, 0.16, last=True) for t in ths])
+        jump = R > R[:, :1] + 0.012
+        z_edge = np.where(jump.any(1), zs[np.argmax(jump, 1)], 1.30)
+        z_edge = np.convolve(np.pad(z_edge, 2, mode='edge'), np.ones(5) / 5.0, mode='valid')
+        h = 0.012 + 0.014 * smoothstep((degs - 16.0) / 88.0)
+        zig = np.where(np.arange(len(degs)) % 2 == 1, 0.004, 0.0)
+        Z = np.array([z_edge + 0.001 + (h + zig) * f for f in (0.0, 0.5, 1.0)])
+        Rr = np.array([surf_r(ths, Z[k], 0.0, X0, 0.16, last=True) for k in range(3)]) + 0.0028
+        S, Cc = np.sin(ths)[None], np.cos(ths)[None]
+        inner = np.stack([X0 + Rr * S, -Rr * Cc, Z], -1)
+        outer = np.stack([X0 + (Rr + 0.0018) * S, -(Rr + 0.0018) * Cc, Z], -1)
+        out.append(dict(name='stubble_' + sx, bone='head', color='hair', mesh=slab(outer, inner)))
+    return out
+
+
 def pieces() -> list[dict]:
     P = []
     P += wrap_parts()
@@ -843,6 +867,7 @@ def pieces() -> list[dict]:
         P += boot_pieces(side, sx)
     P += hair_locks()
     P += goatee()
+    P += stubble()
     return P
 
 
