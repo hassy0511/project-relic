@@ -88,7 +88,7 @@ WHITE = (250, 246, 238)
 MOUTH = (128, 62, 50)
 NOSE = (205, 132, 104)
 BLUSH = (238, 140, 118)
-WRINKLE = (196, 128, 100)
+WRINKLE = (212, 146, 114)
 
 
 class Canvas:
@@ -224,7 +224,7 @@ def draw_blush(cv: Canvas, f: dict) -> None:
 def draw_wrinkles(cv: Canvas, f: dict) -> None:
     """年寄りの線：ほうれい線と額の線（薄く）"""
     for side in (-1, 1):
-        cv.stroke(curve((side * 0.095, 0.245), (side * 0.112, 0.205), (side * 0.100, 0.175)), 0.006, 0.003, fill=WRINKLE)
+        cv.stroke(curve((side * 0.100, 0.235), (side * 0.112, 0.210), (side * 0.104, 0.190)), 0.005, 0.003, fill=WRINKLE)
     if f.get('forehead', True):
         for k in range(2):
             v = f['eye_v'] + 0.20 + k * 0.035
