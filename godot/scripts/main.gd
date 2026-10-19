@@ -390,6 +390,7 @@ func _physics_process(dt: float) -> void:
 	input.lock_target = game.lock_on.target != null
 	var f: InputFrame = demo.next_input() if demo else input.sample(dt)
 	game.cam.follow = PadConfig.cam_follow
+	apply_flash()
 	game.step(f)
 	_handle_events()
 	_update_audio()
@@ -404,6 +405,16 @@ func _physics_process(dt: float) -> void:
 	props_view.sync(game, dt)
 	fx.sync(game, dt, player_view, enemy_view)
 	camera.sync(game, game.player.pos, dt, fx.shake)
+
+
+## 設定画面の「フラッシュの強さ」（PadConfig.flash）を、大きな光（Fx・Vfx）・番機の被弾の光（EnemyView）・被弾の画面の赤（Hud）へ入れる
+func apply_flash() -> void:
+	var fl: float = PadConfig.flash
+	if fx != null:
+		fx.flash_scale = fl
+	if enemy_view != null:
+		enemy_view.flash_scale = fl
+	hud.flash_scale = fl
 
 
 func _process(dt: float) -> void:

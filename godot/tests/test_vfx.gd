@@ -34,6 +34,78 @@ func test_vfx_layers_cap_and_clear() -> void:
 	v.queue_free()
 
 
+## 層の中でいちばん明るい粒の明るさ（色のいちばん強い成分 × 濃さ）。Vfx.step のあとに読む
+static func _peak(v: Vfx, layer: int) -> float:
+	var l = v._layers[layer]
+	var best := 0.0
+	for i in l.mm.visible_instance_count:
+		var o: int = i * 20
+		best = maxf(best, maxf(l.buf[o + 12], maxf(l.buf[o + 13], l.buf[o + 14])) * l.buf[o + 15])
+	return best
+
+
+## フラッシュの強さ（設定の PadConfig.flash。main が毎刻み Fx・EnemyView・Hud へ入れる）：
+## 大きな光（弱点の命中）は倍率どおり暗く、Vfx は足し合わせの明るい光の頭を抑える（暗い光・半透明の層はそのまま）。
+## 番機の被弾の光と、被弾の画面の赤も弱まる
+func test_flash_scale() -> void:
+	# Fx：弱点の命中の閃き（大きな光）
+	var peaks := []
+	for fl in [1.0, 0.5, 0.2]:
+		var fx := Fx.new()
+		h.tree.root.add_child(fx)
+		fx.flash_scale = fl
+		h.expect(fx.vfx.flash_scale == fl, "Fx のフラッシュの強さが Vfx にも入る（%.1f）" % fl)
+		fx.handle({"type": "hit", "at": Vector3(0, 1, 0), "kind": "weak"})
+		fx.vfx.step(1.0 / 60.0)
+		peaks.append(_peak(fx.vfx, Vfx.GLINT))
+		fx.queue_free()
+	h.expect(peaks[0] > 0.9 and peaks[1] < peaks[0] * 0.55 and peaks[2] < peaks[0] * 0.25,
+		"弱点の閃きは 標準 %.2f → 弱め %.2f → 最小 %.2f と暗くなる" % peaks)
+	# Vfx：明るい光の頭だけを縮める
+	var v := Vfx.new()
+	h.tree.root.add_child(v)
+	v.flash_scale = 0.2
+	v.sprite(Vfx.GLINT, Vector3.ZERO, 1.0, Color(2.0, 1.2, 0.3, 1.0))
+	v.sprite(Vfx.GRAIN, Vector3.ZERO, 1.0, Color(0.5, 0.3, 0.1, 1.0))
+	v.sprite(Vfx.SMOKE, Vector3.ZERO, 1.0, Color(0.9, 0.9, 0.9, 1.0))
+	var q := v.emit(Vfx.SPARK, Vector3.ZERO, Vector3.UP, 1.0, 0.1, 0.1, Color(1.5, 1.0, 0.5, 1.0))
+	q.fin = 0.001
+	v.step(1.0 / 60.0)
+	h.near(_peak(v, Vfx.GLINT), Vfx.FLASH_KNEE + (2.0 - Vfx.FLASH_KNEE) * 0.2, 0.01, "明るい光（2.0）は上限の所から先を 2 割に")
+	h.near(_peak(v, Vfx.GRAIN), 0.5, 0.001, "暗い光（0.5）はそのまま")
+	h.near(_peak(v, Vfx.SMOKE), 0.9, 0.001, "半透明の層（煙）はそのまま")
+	h.expect(_peak(v, Vfx.SPARK) < 0.85, "寿命のある粒も抑える（1.47 → %.2f）" % _peak(v, Vfx.SPARK))
+	v.flash_scale = 1.0
+	v.sprite(Vfx.GLINT, Vector3.ZERO, 1.0, Color(2.0, 1.2, 0.3, 1.0))
+	v.step(1.0 / 60.0)
+	h.near(_peak(v, Vfx.GLINT), 2.0, 0.001, "標準では抑えない")
+	v.queue_free()
+	# 被弾の画面の赤
+	var hud := Hud.new()
+	h.tree.root.add_child(hud)
+	await h.tree.process_frame
+	hud.flash_damage()
+	var full := hud.damage_alpha()
+	hud.flash_scale = 0.2
+	h.expect(full > 0.2 and hud.damage_alpha() < full * 0.25, "被弾の画面の赤も弱まる（%.2f → %.2f）" % [full, hud.damage_alpha()])
+	hud.queue_free()
+	# 番機の被弾の光（白磁の殻）
+	var g := h.make_game({"geometry": Arena.geometry(16.0), "placement": Arena.placement("sentry")})
+	await h.settle()
+	var ev := EnemyView.new()
+	h.tree.root.add_child(ev)
+	var e = g.enemies[0]
+	e.flash = 1.0
+	ev.sync(g.enemies, 1.0 / 60.0)
+	var b = ev._built.get(e)
+	var lit: float = b.shell.emission.r
+	ev.flash_scale = 0.2
+	ev.sync(g.enemies, 1.0 / 60.0)
+	h.expect(lit > 0.9 and b.shell.emission.r < 0.25, "番機の被弾の光も弱まる（%.2f → %.2f）" % [lit, b.shell.emission.r])
+	ev.queue_free()
+	h.free_game(g)
+
+
 func test_vfx_no_multiply_blend() -> void:
 	for path in ["res://assets/shaders/vfx_add.gdshader", "res://assets/shaders/vfx_mix.gdshader"]:
 		var modes := ""

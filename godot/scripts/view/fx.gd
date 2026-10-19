@@ -4,7 +4,7 @@ extends Node3D
 ## 粒は Vfx（層ごとに 1 回の描画）で描く。ゲームの中身の出来事（handle）と、毎刻みの状態（sync）から出す。見た目だけで、遊びは変えない。
 ## 色の決まり：ハル・ナゴミ・拾い物の光は琥珀 #FFBC52。番機と閂の攻撃の予兆・敵弾は珊瑚色 #E26A4A。
 ## 閂の錠前核は琥珀のまま、第 3 段階（過熱）だけ珊瑚色。ふだんの銃口・命中は小さく、弱点と大技だけ短く明るく。長い全画面の光はしない。
-## 明るさは見本の表（spec.md）の 0〜1 を GAIN 倍した色の強さ。大きな光（弱点・破断・撃破）は flash_scale（低フラッシュ設定用）を掛ける。
+## 明るさは見本の表（spec.md）の 0〜1 を GAIN 倍した色の強さ。大きな光（弱点・破断・撃破）は flash_scale（設定の「フラッシュの強さ」）を掛ける。
 
 ## 琥珀 #FFBC52・珊瑚色 #E26A4A（見本の色）。環境の色調（AgX）は明るい色をくすませる（#FFBC52 をそのまま渡すと黄土色に見える）ので、
 ## 画面で見本の色に見える、少し濃い色を渡す（ゲームと同じ環境に色を並べて写して合わせた。docs/art_orders/W2_エフェクトの結果.md）
@@ -24,8 +24,13 @@ const ARMS := ["fl", "fr", "rl", "rr"]
 
 var shake := 0.0
 var vfx: Vfx
-## 大きな光の強さの倍率（低フラッシュ設定用。1 = 見本どおり）
-var flash_scale := 1.0
+## フラッシュの強さ（設定の PadConfig.flash を main が毎刻み入れる。1 = 見本どおり、弱め 0.5、最小 0.2）。
+## 大きな光（弱点・破断・撃破など、_cf で出す光）の明るさに掛け、Vfx の明るい光の上限（Vfx.flash_scale）にも同じ値を渡す
+var flash_scale := 1.0:
+	set(v):
+		flash_scale = v
+		if vfx != null:
+			vfx.flash_scale = v
 
 var _rng := RandomNumberGenerator.new()
 var _time := 0.0
@@ -63,6 +68,7 @@ var _node_from := Vector3.ZERO
 func _ready() -> void:
 	_rng.seed = 7
 	vfx = Vfx.new()
+	vfx.flash_scale = flash_scale
 	add_child(vfx)
 	_band = MeshInstance3D.new()
 	_band.mesh = _ring_band(48)

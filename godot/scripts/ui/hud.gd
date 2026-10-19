@@ -81,6 +81,8 @@ var _toast: Label
 var _toast_time := 0.0
 var _dmg: ColorRect
 var _dmg_time := 0.0
+## フラッシュの強さ（設定の PadConfig.flash を main が入れる）：被弾の画面の赤の濃さに掛ける
+var flash_scale := 1.0
 var _last_cells := -1
 var _cells_time := 0.0
 var _boss_box: Control
@@ -561,6 +563,11 @@ func flash_damage() -> void:
 	_dmg_time = 0.4
 
 
+## 被弾の画面の赤の濃さ（0.4 秒で消える。最大 0.24 × フラッシュの強さ）
+func damage_alpha() -> float:
+	return _dmg_time * 0.6 * flash_scale
+
+
 ## 弱点が今あいているか（解析済みの敵の、狙い時）
 static func weak_open(t) -> bool:
 	match String(t.kind):
@@ -733,7 +740,7 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 		_toast_box.offset_bottom = _toast_box.offset_top
 		_fit(_toast_box)
 	_dmg_time = maxf(0.0, _dmg_time - dt)
-	_dmg.color.a = _dmg_time * 0.6
+	_dmg.color.a = damage_alpha()
 
 
 func _sync_dialogue(d: Dictionary, vs: Vector2) -> void:
