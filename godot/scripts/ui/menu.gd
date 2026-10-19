@@ -440,6 +440,9 @@ func _screen(title: String, sub: String, rows: Array, focus := 0, back := Callab
 			rl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			btn.add_child(rl)
 			_reserve_right(btn, rl.get_minimum_size().x + 40.0)
+			# 値のラベルは木に入ってから文字の大きさ（タッチの大きな文字・太字）が決まり、幅が広がる。そのとき空きを測り直す
+			# （前は小さな文字の幅のまま空け、スマホで長い値が行の見出しに重なった）
+			rl.minimum_size_changed.connect(func(): _reserve_right(btn, rl.get_minimum_size().x + 40.0))
 		var detail := String(row.get("detail", ""))
 		btn.focus_entered.connect(func():
 			_detail.text = detail
@@ -555,7 +558,7 @@ func show_controls(back: Callable, focus := 0, note := "") -> void:
 		"cb": func():
 			PadConfig.cycle_dead(false)
 			show_controls(back, PadConfig.ACTIONS.size() + 2, "右スティックの遊び：%s" % PadConfig.dead_text(false))})
-	rows.append({"label": "カメラの自動回り込み", "right": PadConfig.CAM_FOLLOW_TEXT[PadConfig.cam_follow],
+	rows.append({"label": "カメラの自動回り込み", "right": PadConfig.CAM_FOLLOW_SHORT[PadConfig.cam_follow],
 		"detail": "歩いているとき、カメラが自動でハルの背後へ回るかどうか。\n弱い：前へ進むときだけゆっくり回る（横や後ろへ歩いてもカメラは回らない）。\n切：自動では回らない（右スティック・マウスで回す。背後のボタンで真後ろへ）。\n強い：横・後ろへ進んでも回る。\n決定で切り替える。",
 		"cb": func():
 			PadConfig.cycle_cam_follow()

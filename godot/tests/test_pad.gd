@@ -372,6 +372,43 @@ func test_flash_setting() -> void:
 	_end()
 
 
+## 設定画面の行の右の値（割り当て・表記・遊び・カメラの回り込み・フラッシュ）は、スマホ（844×390 と同じ UI の大きさ・タッチの文字）でも
+## 行の見出しに重ならない：行は右の値の幅だけ文字の領域を空ける（値のラベルが木に入って文字の大きさが決まってから測る）。
+## カメラの自動回り込みの値は短い表記（くわしくは右の説明）
+func test_settings_values_fit_on_phone() -> void:
+	_begin()
+	PadConfig.reset_all()
+	var vp := SubViewport.new()
+	vp.size = Vector2i(1477, 682)
+	h.tree.root.add_child(vp)
+	var menu := Menu.new()
+	menu.touch_mode = true
+	vp.add_child(menu)
+	await h.tree.process_frame
+	for mode in PadConfig.CAM_FOLLOWS:
+		PadConfig.cam_follow = mode
+		menu.show_controls(func(): pass)
+		await h.tree.process_frame
+		await h.tree.process_frame
+		var bad := []
+		var cam_value := ""
+		for b in menu.buttons:
+			for c in b.get_children():
+				if c is Label:
+					var need: float = c.get_minimum_size().x + 22.0
+					var got: float = b.get_theme_stylebox("normal").content_margin_right
+					if got < need:
+						bad.append("%s：値 %s の幅 %.0f に空き %.0f" % [b.text, c.text, need, got])
+					if b.text == "カメラの自動回り込み":
+						cam_value = c.text
+		h.expect(bad.is_empty(), "スマホ：行の右の値が見出しに重ならない（%s）" % mode + ("" if bad.is_empty() else "：" + "、".join(bad)))
+		h.expect(cam_value == PadConfig.CAM_FOLLOW_SHORT[mode], "カメラの自動回り込みの値は短い表記（%s）" % cam_value)
+	menu.queue_free()
+	vp.queue_free()
+	PadConfig.reset_all()
+	_end()
+
+
 func test_help_and_hint_follow_mapping() -> void:
 	_begin()
 	PadConfig.assign_pad("jump", "b3")

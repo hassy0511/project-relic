@@ -57,6 +57,8 @@ static var dead_r := 0.2
 ## カメラの自動回り込み（CameraOrbit.follow）。初期は「弱い」：前へ進むときだけゆっくり背後へ回る
 const CAM_FOLLOWS := ["weak", "off", "normal"]
 const CAM_FOLLOW_TEXT := {"weak": "弱い（前へ進むときだけ）", "off": "切（自分で回す）", "normal": "強い（横・後ろへ進んでも回る）"}
+## 設定の画面の行の右に出す短い表記（スマホの幅でも見出しに重ならない。くわしくは右の説明と、切り替えたときの通知）
+const CAM_FOLLOW_SHORT := {"weak": "弱い", "off": "切", "normal": "強い"}
 static var cam_follow := "weak"
 ## フラッシュの強さ（設定画面の「フラッシュの強さ」。20 章 22 節のフラッシュの抑制）：大きな光（弱点・撃破・破断など）・明るい光の上限（Fx・Vfx）、
 ## 番機の被弾の光（EnemyView）、被弾の画面の赤（Hud）に掛ける倍率。main が毎刻み入れる。標準 1.0 ／ 弱め 0.5 ／ 最小 0.2
