@@ -20,12 +20,13 @@ import numpy as np
 # （build/nico/tools/colors.py・colors2.py。つなぎは絵も #54777B）：
 #   髪：spec #E8C58D は肌 #E7B58D と見分けにくく、1 周目に #E0B475 へ寄せたら黄色すぎた（統括の確認）。絵の髪の中央値 #EBC696〜#EFCA9B
 #       （明るい砂色の金髪）を、描画で明るく見える分だけ下げた #E1BE8E。肌との見分けは房の面の陰で出す
-#   シャツ：spec #DCC7A7 は描画で生成りの白に見えた（統括の確認）。絵の首・袖の中央値 #E8C498（明るい黄土）を下げた #D9B487
+#   シャツ：spec #DCC7A7 は描画で生成りの白に見えた（統括の確認）。絵の首・袖の中央値 #E8C498（明るい黄土）から、肌と見分けられる
+#       よう彩度を下げたカーキ #D4BE98
 #   靴底：spec はシャツと同じ #DCC7A7。絵の靴底 #E4C69C に近い淡い色のまま（シャツの色とは別の 'sole'）
 #   布靴：#A98749 は黄色に見えた（絵 #B48B5D）→ #A88559。ゴーグルの木の縁・ボタン：絵は橙の木（#DB8727・#AF6C1A）→ #C47F2C
 PALETTE = {
     'teal': '#54777B',       # つなぎ（くすんだ青緑の帆布）
-    'sand': '#D9B487',       # シャツ
+    'sand': '#D4BE98',       # シャツ（明るい黄土・カーキ。#D9B487 は確認ページで肌と同じ桃色に見えた）
     'canvas': '#A88559',     # 布靴
     'wood': '#C47F2C',       # ゴーグルの木の縁・ボタン
     'dark': '#594333',       # ゴーグルの内側（レンズ）・橋・結び帯・ゴーグルの帯（発光しない）
@@ -34,6 +35,7 @@ PALETTE = {
     'teal_dark': '#466569',  # 裾の折り返しの下（脚の筒の内側）
     'sole': '#E0CAA4',       # 靴底
     'tie': '#C26A2E',        # 結び帯（絵は橙の布。spec の #594333 より絵に合わせる）
+    'hair_dark': '#BF9A6A',  # 帽子（髪の土台）の下の縁：房の先のすき間に見える内側の髪（絵の髪の暗い面）
 }
 NAMES = list(PALETTE)
 CELLS = 16
@@ -573,6 +575,8 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
         hair &= ~(flush & (zh < line))
         lab_h = np.full(len(hi), NAMES.index('skin'))
         lab_h[hair] = NAMES.index('hair')
+        # 帽子の下の縁（あごの高さ）は内側の髪の暗い色：房の先のすき間から見える（絵の房の先の間の暗い面）
+        lab_h[hair & (zh < 1.232) & (zh > 1.16)] = NAMES.index('hair_dark')
         lab_h[ear] = NAMES.index('skin')
         lab_h[zh < COLLAR_Z[0] - 0.01] = NAMES.index('sand')
         keep = under[hi] >= 0
