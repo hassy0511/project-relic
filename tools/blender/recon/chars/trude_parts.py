@@ -30,9 +30,9 @@ PALETTE = {
     'brass': '#C2954F',       # 留め具・ベルトの輪・靴の留め具・杖の金具（くすんだ真鍮。絵 #DFA95D の照り、spec #A98749）
     'trim': '#C39050',        # 袖口・前掛けの裾の帯（黄土の布。絵 #C69152）
     'skin': '#E7B58D',
-    'hair': '#C6B5AD',        # 灰白の髪：房の上の面（絵の照った面 #DCCAC1、spec #D6CCC4。描画で明るく見える分を下げた）
+    'hair': '#B3A39C',        # 灰白の髪：房の上の面（絵の照った面 #DCCAC1、spec #D6CCC4。確認ページの描画は絵より約 1.2 倍明るく白く見えたので下げた）
     'hair_dark': '#94857F',   # 髪の土台（房のすき間に見える内側の髪。生え際の近くは房と同じ色）
-    'hair_shadow': '#A4938C',  # 房の横・下の面（絵の陰の面 #C0AFA7・耳の前の房 #B5A299）
+    'hair_shadow': '#958781',  # 房の横・下の面（絵の陰の面 #C0AFA7・耳の前の房 #B5A299。同じく下げた）
     'boot': '#583D2C',        # 靴の胴（茶の革。絵 #50382A）
     'boot_light': '#76533A',  # 靴の爪先
     'sole': '#2E2724',        # 靴底・かかと
@@ -613,13 +613,13 @@ BUN_R = (0.084, 0.062, 0.068)            # 半径（左右・前後・上下。2
 def bun() -> list[dict]:
     """後ろの低いお団子：房が渦に巻いた丸い塊（経緯の格子の球を、6 本の渦の筋でふくらませた低い多面体）。
     筋の山は髪の色、谷（筋の間）は陰の色（2 周目：1 色では白い玉に見えた）"""
-    nl, nm = 9, 18
+    nl, nm = 9, 24
     V = []
     for i in range(1, nl):
         ph = math.pi * i / nl - math.pi / 2          # 緯度（−90 = 前の付け根、+90 = 後ろの端）
         for k in range(nm):
             lam = 2 * math.pi * k / nm
-            w = 1.0 + 0.13 * math.cos(6 * lam + 1.8 * ph) * math.cos(ph)
+            w = 1.0 + 0.10 * math.cos(6 * lam + 0.9 * ph) * math.cos(ph)
             cx = math.cos(ph) * math.cos(lam) * BUN_R[0] * w
             cz = math.cos(ph) * math.sin(lam) * BUN_R[2] * w
             cy = math.sin(ph) * BUN_R[1] * (1.0 + 0.06 * math.cos(6 * lam))
@@ -634,7 +634,7 @@ def bun() -> list[dict]:
             a, b = i * nm + k, i * nm + (k + 1) % nm
             F += [(a, b + nm, b), (a, a + nm, b + nm)]
             lam = 2 * math.pi * (k + 0.5) / nm
-            v = math.cos(6 * lam + 1.8 * ph)
+            v = math.cos(6 * lam + 0.9 * ph)
             val += [v, v]
     s0, s1 = len(V) - 2, len(V) - 1
     last = (nl - 2) * nm
@@ -810,8 +810,11 @@ def hair_locks() -> list[dict]:
     # ほかの房の根（板の切り口）を上から覆い、生え際の線をすっきりさせる。探す半径は頭の大きさに限る（下向きの道が肩に届かない）
     for side, sx in ((1.0, 'l'), (-1.0, 'r')):
         keys = [dir_at(side * 3, hairline_z(3) + 0.014), dir_at(side * 36, hairline_z(36) + 0.018),
-                dir_at(side * 64, 1.43), dir_at(side * 76, 1.37), dir_at(side * 80, 1.30)]
-        Vm, Ft, Fu = band(keys, 0.023, 0.006, sink=0.006, r_max=0.15,
+                dir_at(side * 62, 1.405), dir_at(side * 76, 1.37), dir_at(side * 80, 1.30)]   # こめかみは生え際の近くを通る
+        # こめかみ（生え際の下の肌の面は帽子より 1.4cm 外）では浮きを上げ、房の下の縁が肌の面の下へもぐらないように
+        # （もぐると肌が房の上に出て、左のこめかみの肌の色のしみに見えた）
+        lift = np.interp(tt, [0.0, 0.2, 0.35, 0.8, 1.0], [0.006, 0.012, 0.022, 0.016, 0.008])
+        Vm, Ft, Fu = band(keys, 0.023, lift, sink=0.006, r_max=0.15,
                           fkeys=np.array([0.0, 0.25, 0.52, 0.74, 1.0]),
                           w_prof=np.interp(tt, [0, 0.08, 0.55, 0.8, 1.0], [0.35, 1.0, 1.0, 0.6, 0.12]))
         add('front_' + sx, Vm, Ft, Fu)
