@@ -44,29 +44,33 @@ BUILD_DIR = os.path.join(C.REPO, 'build', 'townsfolk')
 # hem：上着（チュニック）の裾、crotch：股、hip_z：股関節、knee・ankle：（z, x）、arm_deg：腕の開き、elbow・wrist・hand_end：z、
 # r_*：手足の半径、head：(半幅, 半奥行き)、foot：（つま先の前の長さ, かかとの後ろ, 半幅）
 BODIES = {
-    'man': dict(S=1.67, chin=1.44, neck=1.385, sh=(0.175, 1.30), sh_top=0.20,
-                chest=(1.17, 0.165, 0.118), belt=(0.995, 0.150, 0.106), hip=(0.86, 0.160, 0.112), hem=(0.68, 0.215, 0.150),
-                crotch=0.73, hip_z=0.80, knee=(0.44, 0.125), ankle=(0.10, 0.165), arm_deg=13.0, elbow=1.02, wrist=0.77,
-                hand_end=0.665, r_upper=0.048, r_fore=0.041, r_wrist=0.032, r_thigh=0.078, r_calf=0.056, r_ankle=0.040,
-                r_neck=0.052, head=(0.092, 0.104), foot=(0.175, 0.075, 0.062), hand=1.0, clips='adult'),
-    'woman': dict(S=1.58, chin=1.32, neck=1.268, sh=(0.150, 1.19), sh_top=0.168,
-                  chest=(1.07, 0.136, 0.104), belt=(0.965, 0.118, 0.090), hip=(0.84, 0.150, 0.108), hem=(0.59, 0.195, 0.140),
-                  crotch=0.66, hip_z=0.74, knee=(0.42, 0.110), ankle=(0.10, 0.145), arm_deg=14.0, elbow=0.955, wrist=0.71,
-                  hand_end=0.615, r_upper=0.038, r_fore=0.034, r_wrist=0.027, r_thigh=0.070, r_calf=0.050, r_ankle=0.035,
-                  r_neck=0.042, head=(0.103, 0.114), foot=(0.150, 0.065, 0.052), hand=0.88, clips='adult'),
-    'child': dict(S=1.15, chin=0.865, neck=0.828, sh=(0.122, 0.768), sh_top=0.140,
-                  chest=(0.68, 0.115, 0.090), belt=(0.555, 0.108, 0.084), hip=(0.48, 0.114, 0.088), hem=(0.385, 0.145, 0.105),
-                  crotch=0.39, hip_z=0.44, knee=(0.215, 0.085), ankle=(0.075, 0.108), arm_deg=16.0, elbow=0.585, wrist=0.448,
-                  hand_end=0.372, r_upper=0.034, r_fore=0.030, r_wrist=0.025, r_thigh=0.056, r_calf=0.043, r_ankle=0.031,
-                  r_neck=0.036, head=(0.121, 0.128), foot=(0.125, 0.055, 0.046), hand=0.78, clips='child'),
-    'elder': dict(S=1.43, chin=1.12, neck=1.075, sh=(0.150, 0.98), sh_top=0.170,
-                  chest=(0.90, 0.146, 0.116), belt=(0.83, 0.140, 0.110), hip=(0.71, 0.152, 0.114), hem=(0.545, 0.200, 0.140),
-                  crotch=0.555, hip_z=0.62, knee=(0.33, 0.100), ankle=(0.09, 0.135), arm_deg=13.0, elbow=0.77, wrist=0.59,
-                  hand_end=0.49, r_upper=0.043, r_fore=0.037, r_wrist=0.030, r_thigh=0.068, r_calf=0.051, r_ankle=0.037,
-                  r_neck=0.045, head=(0.122, 0.133), foot=(0.150, 0.065, 0.055), hand=0.92, clips='elder'),
+    'man': dict(S=1.67, chin=1.425, neck=1.385, sh=(0.178, 1.30), sh_top=0.205,
+                chest=(1.17, 0.168, 0.128), belt=(0.995, 0.152, 0.112), hip=(0.86, 0.162, 0.118), hem=(0.68, 0.215, 0.155),
+                crotch=0.73, hip_z=0.80, knee=(0.44, 0.125), ankle=(0.10, 0.170), boot_top=0.19, arm_deg=13.0, elbow=1.02,
+                wrist=0.77, hand_end=0.655, r_upper=0.056, r_fore=0.048, r_wrist=0.036, r_thigh=0.080, r_calf=0.058,
+                r_ankle=0.042, r_neck=0.056, head=(0.112, 0.118), foot=(0.195, 0.095, 0.068), hand=1.35, clips='adult'),
+    'woman': dict(S=1.58, chin=1.305, neck=1.268, sh=(0.152, 1.19), sh_top=0.172,
+                  chest=(1.07, 0.138, 0.115), belt=(0.965, 0.120, 0.096), hip=(0.84, 0.152, 0.114), hem=(0.59, 0.195, 0.142),
+                  crotch=0.66, hip_z=0.74, knee=(0.42, 0.112), ankle=(0.10, 0.150), boot_top=0.175, arm_deg=14.0,
+                  elbow=0.955, wrist=0.71, hand_end=0.605, r_upper=0.044, r_fore=0.038, r_wrist=0.030, r_thigh=0.072,
+                  r_calf=0.052, r_ankle=0.037, r_neck=0.046, head=(0.114, 0.120), foot=(0.175, 0.085, 0.060), hand=1.15,
+                  clips='adult'),
+    'child': dict(S=1.15, chin=0.855, neck=0.826, sh=(0.124, 0.765), sh_top=0.142,
+                  chest=(0.68, 0.118, 0.100), belt=(0.555, 0.110, 0.092), hip=(0.48, 0.116, 0.094), hem=(0.385, 0.145, 0.110),
+                  crotch=0.39, hip_z=0.44, knee=(0.215, 0.088), ankle=(0.075, 0.112), boot_top=0.135, arm_deg=16.0,
+                  elbow=0.585, wrist=0.448, hand_end=0.365, r_upper=0.040, r_fore=0.036, r_wrist=0.029, r_thigh=0.058,
+                  r_calf=0.045, r_ankle=0.033, r_neck=0.040, head=(0.135, 0.138), foot=(0.150, 0.070, 0.054), hand=1.05,
+                  clips='child'),
+    'elder': dict(S=1.43, chin=1.11, neck=1.075, sh=(0.152, 0.98), sh_top=0.175,
+                  chest=(0.90, 0.148, 0.128), belt=(0.83, 0.142, 0.118), hip=(0.71, 0.154, 0.120), hem=(0.545, 0.200, 0.145),
+                  crotch=0.555, hip_z=0.62, knee=(0.33, 0.102), ankle=(0.09, 0.140), boot_top=0.16, arm_deg=13.0,
+                  elbow=0.77, wrist=0.59, hand_end=0.485, r_upper=0.050, r_fore=0.043, r_wrist=0.034, r_thigh=0.070,
+                  r_calf=0.053, r_ankle=0.039, r_neck=0.048, head=(0.135, 0.140), foot=(0.170, 0.085, 0.062), hand=1.2,
+                  clips='elder'),
 }
 
 TORSO = ['hips', 'spine', 'chest', 'neck']
+ARM_K = 1.12   # 腕の太さ（絵の腕は太い。表の値に掛ける）
 
 
 class Body:
@@ -89,10 +93,11 @@ class Body:
         self.crotch, self.hip_z = s(d['crotch']), s(d['hip_z'])
         self.knee = tuple(s(v) for v in d['knee'])
         self.ankle = tuple(s(v) for v in d['ankle'])
+        self.boot_top = s(d['boot_top'])
         self.arm_deg = d['arm_deg']
         self.elbow_z, self.wrist_z, self.hand_end_z = s(d['elbow']), s(d['wrist']), s(d['hand_end'])
         for key in ('r_upper', 'r_fore', 'r_wrist', 'r_thigh', 'r_calf', 'r_ankle', 'r_neck'):
-            setattr(self, key, s(d[key]))
+            setattr(self, key, s(d[key]) * (ARM_K if key in ('r_upper', 'r_fore', 'r_wrist') else 1.0))
         self.head_h = self.S - self.chin
         self.head_rx, self.head_ry = s(d['head'][0]), s(d['head'][1])
         self.head_c = Vector((0.0, 0.004 * k, self.chin + 0.53 * self.head_h))
@@ -150,7 +155,9 @@ class Body:
         """胴（シャツの面）の半幅・半奥行き。輪切りの表をなめらかにつなぐ"""
         tab = [(self.hem[0], self.hip[1] * 0.98, self.hip[2] * 0.98), (self.hip[0], self.hip[1], self.hip[2]),
                (self.belt[0], self.belt[1], self.belt[2]), (self.chest[0], self.chest[1], self.chest[2]),
-               (self.sh_z, self.sh_top * 0.92, self.chest[2] * 0.92), (self.neck, self.r_neck * 1.9, self.r_neck * 1.7)]
+               (self.sh_z, self.sh_top * 0.95, self.chest[2] * 0.94),
+               (self.sh_z + 0.045 * self.k, self.sh_top * 0.80, self.chest[2] * 0.82),
+               (self.neck, self.r_neck * 1.9, self.r_neck * 1.7)]
         if z <= tab[0][0]:
             return tab[0][1], tab[0][2]
         for (z0, a0, b0), (z1, a1, b1) in zip(tab, tab[1:]):
@@ -315,14 +322,14 @@ def build_head(p: Person) -> None:
 def face_params(p: Person) -> dict:
     """顔の設定（体の種類の既定 ＋ 設定の face で上書き）"""
     defaults = {
-        'man': dict(eye_u=0.150, eye_v=0.37, eye_size=0.82, eye_tall=0.95, brow_w=0.034, brow_dv=0.105, brow_tilt=0.012,
-                    mouth='flat', mouth_v=0.15, nose_v=0.25, lid_w=0.024),
-        'woman': dict(eye_u=0.155, eye_v=0.36, eye_size=0.98, brow_w=0.022, brow_dv=0.120, mouth='smile', mouth_v=0.15,
-                      nose_v=0.25, lash=True, blush=0.8),
-        'child': dict(eye_u=0.160, eye_v=0.35, eye_size=1.06, eye_tall=1.05, brow_w=0.026, brow_dv=0.120, mouth='smile',
-                      mouth_v=0.14, nose_v=0.24, blush=0.9),
-        'elder': dict(eye_u=0.150, eye_v=0.37, eye_size=0.80, eye_tall=0.85, lid=0.18, brow_w=0.030, brow_dv=0.110,
-                      mouth='smile', mouth_v=0.15, nose_v=0.25, old=True, wrinkles=True, blush=0.4),
+        'man': dict(eye_u=0.185, eye_v=0.355, eye_size=1.05, eye_tall=0.90, brow_w=0.042, brow_dv=0.110, brow_tilt=0.016,
+                    mouth='flat', mouth_v=0.15, mouth_w=0.046, nose_v=0.25, lid_w=0.026),
+        'woman': dict(eye_u=0.185, eye_v=0.345, eye_size=1.25, brow_w=0.026, brow_dv=0.130, mouth='smile', mouth_v=0.15,
+                      nose_v=0.245, lash=True, blush=0.8, lid_w=0.026),
+        'child': dict(eye_u=0.190, eye_v=0.330, eye_size=1.35, eye_tall=1.05, brow_w=0.032, brow_dv=0.135, mouth='smile',
+                      mouth_v=0.14, nose_v=0.235, blush=0.9, lid_w=0.026),
+        'elder': dict(eye_u=0.180, eye_v=0.355, eye_size=1.02, eye_tall=0.82, lid=0.18, brow_w=0.038, brow_dv=0.120,
+                      mouth='smile', mouth_v=0.15, nose_v=0.25, old=True, wrinkles=True, blush=0.5, lid_w=0.026),
     }[p.body.kind]
     f = dict(defaults)
     f.update(p.conf.get('face', {}))
@@ -339,9 +346,12 @@ def head_pt(b: Body, lon: float, lat: float, gap: float = 0.0) -> Vector:
     lo, la = math.radians(lon), math.radians(lat)
     rz = b.head_rz_top if la >= 0 else b.head_rz_bot
     x = (b.head_rx + gap) * math.cos(la) * math.sin(lo)
-    y = -(b.head_ry + gap) * math.cos(la) * math.cos(lo)
+    y = -(b.head_ry * (FACE_FLAT if math.cos(lo) > 0 else 1.0) + gap) * math.cos(la) * math.cos(lo)
     z = (rz + gap) * math.sin(la)
     return b.head_c + Vector((x, y, z))
+
+
+FACE_FLAT = 0.86   # 頭の前半分の前後の縮め（build_head の face_flat）
 
 
 def hair_cap(p: Person, color: str, front_lat: float, side_lat: float, back_lat: float, gap: float = 0.010,
@@ -349,9 +359,10 @@ def hair_cap(p: Person, color: str, front_lat: float, side_lat: float, back_lat:
     """頭を覆う髪の土台。生え際（正面 front_lat・横 side_lat・後ろ back_lat、度）より下の面は消す"""
     b = p.body
     g = gap * b.k * bulk
+    p.hair_gap = g
     cap = M.head_shape('hair_cap', tuple(b.head_c + Vector((0, 0.006 * b.k, 0.004 * b.k))), rx=b.head_rx + g * 1.3,
                        ry=b.head_ry + g * 1.2, rz_top=b.head_rz_top + g * 1.5, rz_bot=b.head_rz_bot + g, segments=16, rings=12,
-                       jaw=0.0, chin_fwd=0.0, face_flat=1.0)
+                       jaw=0.0, chin_fwd=0.0, face_flat=0.90)
     bm = bmesh.new()
     bm.from_mesh(cap.data)
     kill = []
@@ -380,8 +391,9 @@ def lock_on(p: Person, color: str, base: tuple, tip: tuple, width: float, depth:
     """頭の面の (経度, 緯度) の根から、(経度, 緯度, 外への浮き) の先へ伸びる房"""
     b = p.body
     k = b.k
-    root = head_pt(b, base[0], base[1], gap * k)
-    tp = head_pt(b, tip[0], tip[1], tip[2] * k if len(tip) > 2 else gap * k)
+    g0 = getattr(p, 'hair_gap', 0.0) * 0.7
+    root = head_pt(b, base[0], base[1], g0 + gap * k)
+    tp = head_pt(b, tip[0], tip[1], g0 + (tip[2] * k if len(tip) > 2 else gap * k))
     mid = lerp(root, tp, 0.5)
     out = (mid - b.head_c).normalized()
     ctrl = mid + out * bend * k
@@ -390,6 +402,8 @@ def lock_on(p: Person, color: str, base: tuple, tip: tuple, width: float, depth:
 
 
 def build_hair(p: Person) -> None:
+    """髪の形（style）：short・spiky・bun・grey_bun・pigtails・long・grey_bob・grey_short・swept。
+    緯度の目安（頭の中心が 0 度）：眉 −5、目 −19、口 −46、額の生え際 20〜30、耳の中心 −11、えり足 −45"""
     h = p.conf.get('hair')
     if not h:
         return
@@ -399,108 +413,118 @@ def build_hair(p: Person) -> None:
     col = h.get('color', 'hair_brown')
     dark = h.get('dark', col)
     hat = p.conf.get('hat')
+    bulk = h.get('bulk', 1.0)
     if style == 'short':
-        # 短い髪：土台 ＋ 上と横の小さな房、前髪 3 本
-        hair_cap(p, col, 52, 2, -38, gap=0.012)
+        # 短い髪（大人の男）：額の上で立ち、横へ流れる前髪。横は短い
+        hair_cap(p, col, 26, -4, -46, gap=0.014, bulk=1.25 * bulk)
         if not hat:
-            for lon, lat, tl, tt, w in ((0, 70, 25, 80, 0.045), (40, 62, 70, 52, 0.040), (-40, 62, -70, 52, 0.040),
-                                        (120, 55, 150, 30, 0.042), (-120, 55, -150, 30, 0.042), (180, 60, 180, 20, 0.045),
-                                        (80, 70, 110, 55, 0.040), (-80, 70, -110, 55, 0.040)):
-                lock_on(p, col, (lon, lat), (tl, tt, 0.026), w, 0.022, bend=0.018)
-        for lon, tl in ((-22, -30), (8, 18), (34, 44)):
-            lock_on(p, col, (lon, 62), (tl, 30, 0.012), 0.040, 0.016, bend=0.012)
+            for lon, lat, tl, tt, w in ((0, 80, 30, 88, 0.065), (35, 62, 70, 66, 0.060), (-35, 62, -72, 64, 0.060),
+                                        (110, 55, 140, 40, 0.060), (-110, 55, -140, 40, 0.060), (180, 62, 180, 30, 0.065),
+                                        (150, 40, 165, 0, 0.055), (-150, 40, -165, 0, 0.055)):
+                lock_on(p, col, (lon, lat), (tl, tt, 0.036), w, 0.028, bend=0.022)
+        for lon, lat, tl, tt in ((-30, 52, -44, 18), (-8, 58, -18, 16), (16, 56, 30, 20), (40, 48, 56, 14)):
+            lock_on(p, col, (lon, lat), (tl, tt, 0.020), 0.060, 0.022, bend=0.016)
         for s in (1, -1):
-            lock_on(p, col, (s * 70, 30), (s * 76, -8, 0.010), 0.034, 0.016, bend=0.008)
+            lock_on(p, col, (s * 72, 18), (s * 78, -22, 0.012), 0.040, 0.016, bend=0.008)
     elif style == 'spiky':
-        # 子どもの立った髪：大きな房を多く
-        hair_cap(p, col, 50, 0, -40, gap=0.016, bulk=1.3)
+        # 子どもの立った髪：大きな房を多く。耳を半分隠す
+        hair_cap(p, col, 24, -12, -46, gap=0.020, bulk=1.5 * bulk)
         if not hat:
-            for lon, lat, tl, tt, w in ((0, 75, 20, 95, 0.060), (45, 60, 80, 55, 0.055), (-45, 60, -80, 55, 0.055),
-                                        (130, 50, 160, 25, 0.055), (-130, 50, -160, 25, 0.055), (180, 55, 180, 10, 0.06),
-                                        (90, 62, 125, 40, 0.05), (-90, 62, -125, 40, 0.05)):
-                lock_on(p, col, (lon, lat), (tl, tt, 0.040), w, 0.030, bend=0.026)
-        for lon, tl in ((-30, -40), (-8, -2), (14, 22), (36, 46)):
-            lock_on(p, col, (lon, 64), (tl, 28, 0.016), 0.048, 0.020, bend=0.016)
+            for lon, lat, tl, tt, w in ((0, 80, 15, 100, 0.075), (40, 62, 75, 64, 0.070), (-40, 62, -75, 64, 0.070),
+                                        (120, 50, 150, 30, 0.070), (-120, 50, -150, 30, 0.070), (180, 55, 180, 15, 0.075),
+                                        (85, 65, 115, 50, 0.065), (-85, 65, -115, 50, 0.065), (150, 30, 160, -20, 0.065),
+                                        (-150, 30, -160, -20, 0.065)):
+                lock_on(p, col, (lon, lat), (tl, tt, 0.050), w, 0.034, bend=0.030)
+        for lon, lat, tl, tt in ((-36, 50, -50, 6), (-14, 56, -18, 2), (8, 56, 12, 2), (30, 52, 44, 8)):
+            lock_on(p, col, (lon, lat), (tl, tt, 0.024), 0.064, 0.024, bend=0.020)
         for s in (1, -1):
-            lock_on(p, col, (s * 72, 35), (s * 80, -12, 0.016), 0.042, 0.020, bend=0.010)
-            lock_on(p, col, (s * 120, 30), (s * 130, -25, 0.016), 0.050, 0.020, bend=0.010)
+            lock_on(p, col, (s * 68, 30), (s * 80, -28, 0.024), 0.056, 0.024, bend=0.014)
+            lock_on(p, col, (s * 110, 25), (s * 122, -38, 0.024), 0.064, 0.024, bend=0.014)
     elif style in ('bun', 'grey_bun'):
-        # まとめ髪：土台（えり足まで）＋ 上のお団子 ＋ 顔の横の房 ＋ 前髪
-        hair_cap(p, col, 56, 8, -30, gap=0.010)
-        bun_c = head_pt(b, 180, 55 if style == 'bun' else 20, 0.040 * k)
-        r = (0.058 if style == 'bun' else 0.050) * k
-        bun = M.head_shape('bun', tuple(bun_c), rx=r, ry=r * 0.9, rz_top=r * 0.9, rz_bot=r * 0.85, segments=10, rings=7,
+        # まとめ髪：土台（えり足まで）＋ お団子（bun は頭の上、grey_bun は後ろの低い所）＋ 分けた前髪 ＋ 顔の横の長い房
+        hair_cap(p, col, 30, -2, -42, gap=0.012, bulk=1.2 * bulk)
+        bun_c = head_pt(b, 180, 72, 0.050 * k) if style == 'bun' else head_pt(b, 180, 12, 0.050 * k)
+        r = (0.064 if style == 'bun' else 0.056) * k
+        bun = M.head_shape('bun', tuple(bun_c), rx=r, ry=r * 0.95, rz_top=r * 0.92, rz_bot=r * 0.85, segments=10, rings=7,
                            jaw=0.0, chin_fwd=0.0, face_flat=1.0)
         p.add(bun, 'hair', dark, 'head', shade=0)
-        for lon, tl in ((-26, -36), (6, 14), (30, 44)):
-            lock_on(p, col, (lon, 64), (tl, 34, 0.010), 0.046, 0.016, bend=0.012)
+        for lon, lat, tl, tt in ((-6, 62, -40, 22), (6, 62, 40, 22), (-20, 56, -58, 8), (20, 56, 58, 8)):
+            lock_on(p, col, (lon, lat), (tl, tt, 0.020), 0.062, 0.020, bend=0.016)
         for s in (1, -1):
-            lock_on(p, col, (s * 58, 40), (s * 66, -40, 0.012), 0.030, 0.014, bend=0.010)
+            lock_on(p, col, (s * 56, 30), (s * 64, -48, 0.016), 0.040, 0.016, bend=0.012)
         if h.get('band'):
-            ring = [head_pt(b, 360 * i / 14, 46 + 14 * math.cos(math.radians(360 * i / 14)), 0.018 * k) for i in range(14)]
-            band = M.loft('band', [tuple(v) for v in ring], [(0.020 * k, 0.007 * k)] * 14, sides=4, loop=True,
+            ring = [head_pt(b, 360 * i / 14, 40 + 16 * math.cos(math.radians(360 * i / 14)), 0.028 * k) for i in range(14)]
+            band = M.loft('band', [tuple(v) for v in ring], [(0.024 * k, 0.008 * k)] * 14, sides=4, loop=True,
                           ref=(0, 0, 1), angle0=math.pi / 4)
             p.add(band, 'hair', h['band'], 'head', shade=0)
     elif style == 'pigtails':
-        hair_cap(p, col, 56, 4, -40, gap=0.012)
-        for lon, tl in ((-30, -40), (-10, -6), (12, 18), (32, 44)):
-            lock_on(p, col, (lon, 66), (tl, 30, 0.012), 0.046, 0.018, bend=0.014)
+        hair_cap(p, col, 28, -6, -46, gap=0.014, bulk=1.2 * bulk)
+        for lon, lat, tl, tt in ((-34, 54, -46, 6), (-12, 58, -14, 4), (10, 58, 14, 4), (32, 54, 46, 6)):
+            lock_on(p, col, (lon, lat), (tl, tt, 0.020), 0.060, 0.020, bend=0.016)
         for s in (1, -1):
-            root = head_pt(b, s * 105, -5, 0.010 * k)
-            pts = [root, root + Vector((s * 0.040, 0.010, -0.010)) * k, root + Vector((s * 0.070, 0.020, -0.060)) * k,
-                   root + Vector((s * 0.075, 0.018, -0.110)) * k]
-            tail = tube('tail', pts, [(0.030 * k, 0.030 * k), (0.042 * k, 0.040 * k), (0.038 * k, 0.036 * k), 0.0], sides=6)
+            root = head_pt(b, s * 100, -18, 0.016 * k)
+            pts = [root, root + Vector((s * 0.040, 0.012, -0.012)) * k, root + Vector((s * 0.068, 0.022, -0.060)) * k,
+                   root + Vector((s * 0.070, 0.020, -0.105)) * k]
+            tail = tube('tail', pts, [(0.032 * k, 0.032 * k), (0.046 * k, 0.044 * k), (0.040 * k, 0.038 * k), 0.0], sides=6)
             p.add(tail, 'hair', col, 'head', shade=0)
-            tie = tube('tie', [root + Vector((s * 0.022, 0.004, -0.004)) * k, root + Vector((s * 0.040, 0.008, -0.010)) * k],
-                       [0.026 * k, 0.026 * k], sides=6)
+            tie = tube('tie', [root + Vector((s * 0.018, 0.004, -0.004)) * k, root + Vector((s * 0.036, 0.008, -0.010)) * k],
+                       [0.028 * k, 0.028 * k], sides=6)
             p.add(tie, 'hair', h.get('tie', 'leather'), 'head', shade=0)
-            lock_on(p, col, (s * 62, 40), (s * 70, -20, 0.012), 0.030, 0.014, bend=0.010)
+            lock_on(p, col, (s * 60, 28), (s * 68, -30, 0.014), 0.040, 0.016, bend=0.010)
     elif style == 'long':
-        hair_cap(p, col, 58, 10, -35, gap=0.012)
-        for lon, tl in ((-34, -50), (-12, -16), (10, 18), (30, 48)):
-            lock_on(p, col, (lon, 66), (tl, 30, 0.012), 0.050, 0.018, bend=0.014)
+        hair_cap(p, col, 28, -4, -40, gap=0.014, bulk=1.2 * bulk)
+        for lon, lat, tl, tt in ((-36, 52, -54, 2), (-14, 58, -20, 6), (8, 58, 14, 8), (30, 54, 50, 4)):
+            lock_on(p, col, (lon, lat), (tl, tt, 0.020), 0.060, 0.020, bend=0.016)
         # 後ろと横の長い髪：頭の後ろから肩の上まで下がる板
         lev = []
         top = b.head_c.z + 0.1 * b.head_rz_top
-        bot = b.neck - 0.06 * k
+        bot = b.neck - 0.07 * k
         for i in range(5):
             f = i / 4
             z = bot + (top - bot) * f
-            rx = (b.head_rx + 0.020 * k) * (0.95 + 0.25 * (1 - f))
-            ry = (b.head_ry + 0.016 * k) * (0.85 + 0.15 * (1 - f))
-            lev.append((z, 0.0, b.head_c.y + 0.010 * k + 0.02 * k * (1 - f), rx, ry))
-        back = shell('long_back', lev, sides=12, a0=math.radians(62), a1=math.radians(298), closed=False, power=2.2)
-        solidify(back, 0.012 * k)
+            rx = (b.head_rx + 0.026 * k) * (1.0 + 0.18 * (1 - f))
+            ry = (b.head_ry + 0.020 * k) * (0.86 + 0.14 * (1 - f))
+            lev.append((z, 0.0, b.head_c.y + 0.012 * k + 0.02 * k * (1 - f), rx, ry))
+        back = shell('long_back', lev, sides=12, a0=math.radians(64), a1=math.radians(296), closed=False, power=2.2)
+        flip_faces_outward(back, lambda c: Vector((0, b.head_c.y, c.z)))
+        solidify(back, 0.014 * k)
         p.add(back, 'hair', col, ['neck', 'head'], shade=0)
         for s in (1, -1):
-            lock_on(p, col, (s * 60, 38), (s * 70, -60, 0.020), 0.046, 0.020, bend=0.012)
+            lock_on(p, col, (s * 58, 30), (s * 70, -70, 0.026), 0.054, 0.022, bend=0.014)
     elif style == 'grey_bob':
-        # 老女の灰の髪：帽子の下から肩へ（耳の前と後ろの房）
-        hair_cap(p, col, 50, -10, -40, gap=0.014, bulk=1.2)
+        # 老女の灰の髪：帽子の下から肩の上へ（耳の前と後ろの房）
+        hair_cap(p, col, 22, -14, -46, gap=0.016, bulk=1.2 * bulk)
         for s in (1, -1):
-            lock_on(p, col, (s * 62, 35), (s * 70, -62, 0.020), 0.050, 0.022, bend=0.012)
-            lock_on(p, col, (s * 100, 30), (s * 110, -70, 0.024), 0.060, 0.024, bend=0.014)
-            lock_on(p, col, (s * 145, 30), (s * 150, -60, 0.020), 0.060, 0.022, bend=0.012)
-        for lon, tl in ((-24, -36), (10, 24)):
-            lock_on(p, col, (lon, 66), (tl, 36, 0.012), 0.060, 0.018, bend=0.014)
+            lock_on(p, col, (s * 66, 25), (s * 76, -52, 0.024), 0.046, 0.020, bend=0.012)
+            lock_on(p, col, (s * 100, 20), (s * 110, -66, 0.030), 0.064, 0.026, bend=0.014)
+            lock_on(p, col, (s * 140, 20), (s * 148, -62, 0.026), 0.068, 0.024, bend=0.012)
+        for lon, lat, tl, tt in ((-22, 52, -48, 18), (12, 54, 40, 20)):
+            lock_on(p, col, (lon, lat), (tl, tt, 0.020), 0.064, 0.020, bend=0.014)
     elif style == 'grey_short':
         # 帽子の下の短い白髪（横と後ろ）
-        hair_cap(p, col, 60, -18, -42, gap=0.012)
+        hair_cap(p, col, 24, -20, -46, gap=0.014, bulk=1.1 * bulk)
         for s in (1, -1):
-            lock_on(p, col, (s * 78, 20), (s * 86, -22, 0.016), 0.040, 0.018, bend=0.010)
-            lock_on(p, col, (s * 130, 15), (s * 140, -30, 0.016), 0.050, 0.018, bend=0.010)
+            lock_on(p, col, (s * 76, 10), (s * 84, -30, 0.020), 0.048, 0.020, bend=0.010)
+            lock_on(p, col, (s * 125, 5), (s * 135, -38, 0.020), 0.058, 0.020, bend=0.010)
     elif style == 'swept':
-        # 後ろへなでつけた短い髪（白髪の青年）：前の房が立ち上がって後ろへ
-        hair_cap(p, col, 55, 0, -38, gap=0.014, bulk=1.15)
-        for lon, lat, tl, tt, w in ((-10, 66, -30, 92, 0.060), (20, 64, 30, 94, 0.055), (50, 55, 80, 70, 0.050),
-                                    (-50, 55, -80, 70, 0.050), (140, 45, 165, 20, 0.055), (-140, 45, -165, 20, 0.055)):
-            lock_on(p, col, (lon, lat), (tl, tt, 0.040), w, 0.026, bend=0.022)
+        # 立ち上げて後ろへなでつけた短い髪（白髪の男）
+        hair_cap(p, col, 28, -6, -46, gap=0.010, bulk=1.0 * bulk)
+        for lon, lat, tl, tt, w in ((-10, 40, -18, 72, 0.080), (18, 40, 26, 74, 0.075), (45, 38, 66, 62, 0.070),
+                                    (-45, 38, -68, 62, 0.070), (90, 40, 115, 52, 0.065), (-90, 40, -115, 52, 0.065),
+                                    (135, 40, 155, 40, 0.065), (-135, 40, -155, 40, 0.065), (180, 50, 180, 35, 0.07),
+                                    (0, 70, 0, 88, 0.07)):
+            lock_on(p, col, (lon, lat), (tl, tt, 0.085), w, 0.034, bend=0.030)
+        # 間を埋める短い房（冠のように 1 本ずつ立たないように）
+        for lon, lat, tl, tt in ((28, 52, 50, 74), (-28, 52, -50, 74), (68, 50, 92, 62), (-68, 50, -92, 62),
+                                 (112, 48, 135, 52), (-112, 48, -135, 52), (158, 52, 175, 45), (-158, 52, -175, 45)):
+            lock_on(p, col, (lon, lat), (tl, tt, 0.060), 0.070, 0.030, bend=0.024)
         for s in (1, -1):
-            lock_on(p, col, (s * 70, 34), (s * 76, -10, 0.012), 0.034, 0.016, bend=0.008)
-        lock_on(p, col, (-18, 60), (-28, 28, 0.014), 0.040, 0.016, bend=0.012)
+            lock_on(p, col, (s * 70, 20), (s * 76, -18, 0.012), 0.040, 0.016, bend=0.008)
+        lock_on(p, col, (-20, 44), (-30, 12, 0.018), 0.050, 0.018, bend=0.012)
 
 
 def build_beard(p: Person) -> None:
+    """ひげ：short（あごと頬・口ひげ）・full（白い豊かなひげ。口を口ひげが隠す）"""
     bd = p.conf.get('beard')
     if not bd:
         return
@@ -508,24 +532,27 @@ def build_beard(p: Person) -> None:
     k = b.k
     col = bd.get('color', 'beard_brown')
     full = bd.get('size', 'short') == 'full'
-    # あごの殻：頭の楕円体の下の前の部分を外へ 7〜14mm
     g = (0.016 if full else 0.008) * k
     sh = M.head_shape('beard', tuple(b.head_c), rx=b.head_rx + g, ry=b.head_ry + g, rz_top=b.head_rz_top,
-                      rz_bot=b.head_rz_bot + g * (2.6 if full else 1.4), segments=20, rings=14, jaw=0.48,
-                      chin_fwd=0.10 * b.head_h, face_flat=0.88)
+                      rz_bot=b.head_rz_bot + g * (3.2 if full else 1.2), segments=20, rings=14, jaw=0.50,
+                      chin_fwd=0.10 * b.head_h + (0.02 * k if full else 0.0), face_flat=FACE_FLAT)
     bm = bmesh.new()
     bm.from_mesh(sh.data)
     kill = []
-    mouth_z = b.chin + 0.15 * b.head_h
     for f in bm.faces:
-        c = f.calc_center_median()
-        lon = math.degrees(math.atan2((c.x - b.head_c.x) / b.head_rx, -(c.y - b.head_c.y) / b.head_ry))
-        top = b.chin + (0.36 if full else 0.30) * b.head_h - 0.002 * abs(lon) * b.k
-        ok = abs(lon) < 100 and c.z < top
-        # 口のまわりは開ける（口の線が見えるように）。豊かなひげは口の下を残す
-        if ok and abs(lon) < 22 and mouth_z - 0.035 * b.head_h < c.z < mouth_z + 0.03 * b.head_h and not full:
-            ok = False
-        if not ok:
+        c = f.calc_center_median() - b.head_c
+        lon = abs(math.degrees(math.atan2(c.x / b.head_rx, -c.y / b.head_ry)))
+        lat = math.degrees(math.asin(max(-1.0, min(1.0, c.z / (b.head_rz_bot + g)))))
+        if lon > 100:
+            kill.append(f)
+            continue
+        if full:
+            top = -44 + max(0.0, lon - 34) / 56 * 30
+        elif lon < 26:
+            top = -54
+        else:
+            top = -50 + ((lon - 26) / 64) * 42
+        if lat > min(top, -6):
             kill.append(f)
     bmesh.ops.delete(bm, geom=kill, context='FACES')
     bm.to_mesh(sh.data)
@@ -533,10 +560,10 @@ def build_beard(p: Person) -> None:
     p.add(sh, 'beard', col, 'head', shade=0)
     # 口ひげ
     for s in (1, -1):
-        a = head_pt(b, s * 4, -48, 0.010 * k)
-        c2 = head_pt(b, s * 30, -62 if not full else -66, 0.008 * k)
-        mus = M.lock('mustache', tuple(a), tuple(lerp(a, c2, 0.5) + Vector((0, -0.006 * k, 0.004 * k))), tuple(c2),
-                     (0.016 if full else 0.010) * k, 0.008 * k, sides=4, segments=2, ref=(0, -1, 0))
+        a = head_pt(b, s * 3, -40, 0.010 * k)
+        c2 = head_pt(b, s * (34 if full else 28), -52 if full else -48, 0.010 * k)
+        mus = M.lock('mustache', tuple(a), tuple(lerp(a, c2, 0.5) + Vector((0, -0.008 * k, 0.002 * k))), tuple(c2),
+                     (0.024 if full else 0.014) * k, (0.012 if full else 0.008) * k, sides=4, segments=2, ref=(0, -1, 0))
         p.add(mus, 'beard', col, 'head', shade=0)
 
 
@@ -599,7 +626,7 @@ def build_arm(p: Person, s: int, t: dict) -> None:
     col = t.get('color', 'cream')
     trim = t.get('trim', 'sand')
     sh = b.arm_pt(b.sh_z, s)
-    top = sh + Vector((-s * 0.030 * k, 0, 0.030 * k))
+    top = sh + Vector((-s * 0.040 * k, 0, -0.010 * k))
     el = b.arm_pt(b.elbow_z, s)
     wr = b.arm_pt(b.wrist_z, s)
     # 肩から肘・手首までの肌（袖の中にも通す）
@@ -612,9 +639,14 @@ def build_arm(p: Person, s: int, t: dict) -> None:
         e = lerp(sh, el, end)
     else:
         e = lerp(el, wr, end - 1.0)
-    r_end = {'short': 1.55, 'elbow': 1.45, 'wide': 2.1, 'long': 1.25}[sleeve] * (b.r_upper if end <= 1 else b.r_fore)
-    pts = [top, sh + Vector((0, 0, 0.004 * k)), lerp(sh, e, 0.55), e]
-    radii = [(b.r_upper * 1.35, b.r_upper * 1.45), (b.r_upper * 1.55, b.r_upper * 1.6), r_end * 0.98, r_end]
+    r_end = {'short': 1.45, 'elbow': 1.40, 'wide': 2.1, 'long': 1.25}[sleeve] * (b.r_upper if end <= 1 else b.r_fore)
+    # 肩の丸み（胴と袖をつなぐ）
+    cap = M.head_shape('shoulder_cap', tuple(sh + Vector((-s * 0.004 * k, 0, -0.010 * k))), rx=b.r_upper * 1.32,
+                       ry=b.r_upper * 1.42, rz_top=b.r_upper * 1.12, rz_bot=b.r_upper * 1.20, segments=10, rings=6, jaw=0.0,
+                       chin_fwd=0.0, face_flat=1.0)
+    p.add(cap, 'arms', col, bones[:3], shade=0)
+    pts = [sh + Vector((0, 0, -0.010 * k)), lerp(sh, e, 0.55), e]
+    radii = [(b.r_upper * 1.40, b.r_upper * 1.48), r_end * 0.98, r_end]
     slv = tube('sleeve', pts, radii, sides=8)
     p.add(slv, 'arms', col, bones[:4] if end > 1 else bones[:3], shade=0)
     # 袖口の帯
@@ -779,17 +811,6 @@ def build_jacket(p: Person) -> None:
     if sleeve != 'none':
         for s in (1, -1):
             jacket_sleeve(p, s, sleeve, col, j.get('cuff', trim))
-    else:
-        # 袖ぐりの縁（肩の上の太い縁）
-        for s in (1, -1):
-            sh = b.arm_pt(b.sh_z, s)
-            ring = []
-            for i in range(10):
-                a = 2 * math.pi * i / 10
-                ring.append(tuple(sh + Vector((-s * 0.030 * k + math.cos(a) * 0.0 * k, math.sin(a) * b.r_upper * 1.6,
-                                               0.004 * k + math.cos(a) * b.r_upper * 1.5))))
-            p.add(M.loft('armhole', ring, [(0.012 * k, 0.012 * k)] * 10, sides=4, loop=True, ref=(1, 0, 0)), 'jacket', trim,
-                  p.arm_bones(s)[:2], shade=0)
 
 
 def jacket_sleeve(p: Person, s: int, sleeve: str, col: str, cuff: str) -> None:
@@ -799,17 +820,20 @@ def jacket_sleeve(p: Person, s: int, sleeve: str, col: str, cuff: str) -> None:
     sh = b.arm_pt(b.sh_z, s)
     el = b.arm_pt(b.elbow_z, s)
     wr = b.arm_pt(b.wrist_z, s)
-    top = sh + Vector((-s * 0.034 * k, 0, 0.036 * k))
     if sleeve == 'short':
-        e, r_end = lerp(sh, el, 0.66), b.r_upper * 1.85
+        e, r_end = lerp(sh, el, 0.66), b.r_upper * 1.75
     elif sleeve == 'rolled':
-        e, r_end = lerp(sh, el, 0.95), b.r_upper * 1.75
+        e, r_end = lerp(sh, el, 0.95), b.r_upper * 1.70
     elif sleeve == 'wide':
         e, r_end = lerp(el, wr, 0.30), b.r_fore * 2.4
     else:
         e, r_end = lerp(el, wr, 0.88), b.r_fore * 1.55
-    pts = [top, sh + Vector((0, 0, 0.006 * k)), lerp(sh, e, 0.5), e]
-    radii = [(b.r_upper * 1.55, b.r_upper * 1.65), (b.r_upper * 1.80, b.r_upper * 1.85), r_end * 0.97, r_end]
+    cap = M.head_shape('jshoulder', tuple(sh + Vector((0, 0, -0.008 * k))), rx=b.r_upper * 1.50,
+                       ry=b.r_upper * 1.62, rz_top=b.r_upper * 1.30, rz_bot=b.r_upper * 1.30, segments=10, rings=6, jaw=0.0,
+                       chin_fwd=0.0, face_flat=1.0)
+    p.add(cap, 'jacket', col, bones[:3], shade=0)
+    pts = [sh + Vector((0, 0, -0.010 * k)), lerp(sh, e, 0.5), e]
+    radii = [(b.r_upper * 1.62, b.r_upper * 1.70), r_end * 0.97, r_end]
     p.add(tube('jsleeve', pts, radii, sides=8), 'jacket', col, bones[:4] if sleeve in ('wide', 'long') else bones[:3],
           shade=0)
     d = (e - lerp(sh, e, 0.8)).normalized()
@@ -900,6 +924,20 @@ def build_scarf(p: Person) -> None:
                (0.085 * k, 0.004 * k - b.hip[2] - 0.060 * k, b.belt[0] - 0.14 * k)]
         p.add(M.loft('scarf_tail', pts, [(0.045 * k, 0.010 * k)] * 4, sides=4, ref=(0, -1, 0)), 'scarf', col,
               ['hips', 'spine', 'chest'], shade=0)
+    for tl in sc.get('tails', []):
+        # 首から胸の前へ垂れる端（x：本人の左が +、len：首からの長さ m）
+        x = tl.get('x', 0.05) * k
+        ln = tl.get('len', 0.25) * k
+        z0 = b.neck - 0.005 * k
+        pts = []
+        for i in range(4):
+            f = i / 3
+            zz = z0 - ln * f
+            rx2, ry2 = b.torso_at(max(zz, b.hem[0]))
+            pts.append((x * (1 + 0.15 * f), 0.004 * k - max(ry2 * math.sqrt(max(0.1, 1 - (x / rx2) ** 2)), b.r_neck + thick)
+                        - 0.016 * k - (0.02 * k if kind == 'big' else 0.0) * f, zz))
+        p.add(M.loft('scarf_tail', pts, [(tl.get('w', 0.045) * k, 0.010 * k)] * 4, sides=4, ref=(0, -1, 0)), 'scarf',
+              tl.get('color', col), ['spine', 'chest', 'neck'], shade=0)
     if kind == 'bandana':
         p.add(M.rbox('knot', (0.0, 0.004 * k + b.r_neck + thick, b.neck + 0.02 * k), (0.035 * k, 0.025 * k, 0.025 * k),
                      bevel=0.006 * k), 'scarf', col, 'neck', shade=0)
@@ -932,28 +970,29 @@ def build_lower(p: Person) -> None:
         if kind == 'skirt':
             leg_inner(p, s, b.knee[0] + 0.06 * k, lo.get('leg', 'sock'))
             continue
+        bt = b.boot_top
         if kind == 'pants':
-            prof = [(b.crotch + 0.03 * k, 1.00), (b.knee[0] + 0.12 * k, 1.12), (b.knee[0], 1.25), (b.ankle[0] + 0.20 * k, 1.32),
-                    (b.ankle[0] + 0.12 * k, 1.05)]
-            cuff_z = b.ankle[0] + 0.10 * k
+            prof = [(b.crotch + 0.03 * k, 1.00), (b.knee[0] + 0.10 * k, 1.10), (b.knee[0] - 0.02 * k, 1.22),
+                    (bt + 0.12 * k, 1.34), (bt + 0.060 * k, 1.10)]
+            cuff_z = bt + 0.022 * k
         elif kind == 'trousers':
-            prof = [(b.crotch + 0.03 * k, 1.00), (b.knee[0], 0.92), (b.ankle[0] + 0.12 * k, 0.95), (b.ankle[0] + 0.06 * k, 0.98)]
-            cuff_z = b.ankle[0] + 0.06 * k
+            prof = [(b.crotch + 0.03 * k, 1.00), (b.knee[0], 0.96), (bt + 0.05 * k, 1.02), (bt - 0.005 * k, 1.06)]
+            cuff_z = bt + 0.012 * k
         elif kind == 'knickers':
-            prof = [(b.crotch + 0.03 * k, 1.00), (b.knee[0] + 0.10 * k, 1.15), (b.knee[0] - 0.02 * k, 1.28),
-                    (b.knee[0] - 0.10 * k, 1.10)]
-            cuff_z = b.knee[0] - 0.12 * k
+            prof = [(b.crotch + 0.03 * k, 1.00), (b.knee[0] + 0.06 * k, 1.12), (b.knee[0] - 0.05 * k, 1.28),
+                    (b.knee[0] - 0.095 * k, 1.08)]
+            cuff_z = b.knee[0] - 0.110 * k
         else:  # shorts
-            prof = [(b.crotch + 0.03 * k, 1.02), (b.knee[0] + 0.12 * k, 1.12), (b.knee[0] + 0.03 * k, 1.14)]
-            cuff_z = b.knee[0] + 0.02 * k
+            prof = [(b.crotch + 0.03 * k, 1.02), (b.knee[0] + 0.12 * k, 1.14), (b.knee[0] + 0.04 * k, 1.18)]
+            cuff_z = b.knee[0] + 0.03 * k
         rt = b.r_thigh * lo.get('bag', 1.0) * (1.25 if kind in ('pants', 'knickers') else 1.12)
         pts = [leg_axis(b, s, z) + Vector((s * 0.0, 0, 0)) for z, _ in prof]
         pts[0] = pts[0] + Vector((-s * 0.010 * k, 0, 0))
         radii = [(rt * f, rt * f * 0.95) for _, f in prof]
         p.add(tube('leg', pts, radii, sides=10), 'lower', col, bones[:3], shade=0)
         # 裾の帯（ズボンの端）
-        dz = 0.032 * k if kind != 'trousers' else 0.022 * k
-        r_c = (b.r_calf * 1.05 if kind in ('pants', 'knickers') else rt * prof[-1][1] * 1.02)
+        dz = 0.032 * k if kind != 'trousers' else 0.018 * k
+        r_c = (b.r_calf * 1.18 if kind in ('pants', 'knickers') else rt * prof[-1][1] * 1.02)
         if kind == 'shorts':
             r_c = rt * prof[-1][1] * 1.04
         band = tube('cuff_band', [leg_axis(b, s, cuff_z - dz), leg_axis(b, s, cuff_z + dz)], [r_c, r_c * 1.02], sides=10)
@@ -1002,13 +1041,14 @@ def build_skirt(p: Person, lo: dict) -> None:
         radial = Vector((c.x, c.y - 0.004 * k, 0))
         if radial.length > 1e-6 and nrm.dot(radial.normalized()) < -0.3:
             return 'inner'
-        if c.z < hem + 0.025 * k and lo.get('hem_band'):
+        if c.z < hem + lo.get('hem_band_h', 0.025) * k and lo.get('hem_band'):
             return lo['hem_band']
         if wrap:
             # 巻きスカートの上の布（正面から wrap.from〜wrap.to 度は wrap.color）
             a = math.degrees(math.atan2(c.x, -(c.y - 0.004 * k)))
-            if wrap['from'] <= a <= wrap['to']:
-                return wrap['color']
+            for a0, a1 in wrap.get('ranges', [[wrap.get('from', 0), wrap.get('to', 0)]]):
+                if a0 <= a <= a1:
+                    return wrap['color']
         return col
     p.add(sk, 'skirt', color, 'hips', shade=0)
 
@@ -1117,21 +1157,29 @@ def build_shoes(p: Person) -> None:
         fx = a.x
         cy = (-fwd + back) / 2
         L = fwd + back
-        h_up = (0.125 if kind == 'boots' else 0.075) * k * (b.S / 1.55) ** 0.3
-        p.add(M.rbox('sole', (fx, cy, 0.012 * k), (hw * 2.1, L * 1.02, 0.026 * k), bevel=0.006 * k), 'shoes', sole,
+        sole_h = 0.028 * k
+        foot_h = 0.38 * b.boot_top
+        p.add(M.rbox('sole', (fx, cy, sole_h / 2), (hw * 2.1, L * 1.02, sole_h), bevel=0.006 * k), 'shoes', sole,
               'foot' + sx, shade=0)
-        p.add(M.rbox('upper', (fx, cy + L * 0.10, 0.026 * k + h_up * 0.5), (hw * 1.9, L * 0.78, h_up), bevel=0.016 * k,
-                     taper=(0.92, 0.80)), 'shoes', col, 'foot' + sx, shade=30)
-        p.add(M.rbox('toe_cap', (fx, -fwd + L * 0.20, 0.026 * k + 0.030 * k), (hw * 1.95, L * 0.40, 0.062 * k),
-                     bevel=0.020 * k, taper=(0.88, 0.70)), 'shoes', toe, 'foot' + sx, shade=30)
+        p.add(M.rbox('upper', (fx, cy + L * 0.08, sole_h + foot_h * 0.5), (hw * 1.92, L * 0.86, foot_h), bevel=0.016 * k,
+                     taper=(0.94, 0.80)), 'shoes', col, 'foot' + sx, shade=30)
+        p.add(M.rbox('toe_cap', (fx, -fwd + L * 0.21, sole_h + foot_h * 0.42), (hw * 1.98, L * 0.42, foot_h * 0.84),
+                     bevel=0.020 * k, taper=(0.90, 0.72)), 'shoes', toe, 'foot' + sx, shade=30)
         if kind == 'boots':
-            top_z = 0.026 * k + h_up
-            cuffc = tube('boot_cuff', [(fx, 0.004 * k, top_z - 0.034 * k), (fx, 0.004 * k, top_z + 0.010 * k)],
-                         [(hw * 1.02, hw * 1.08), (hw * 1.02, hw * 1.08)], sides=8)
+            top_z = b.boot_top
+            shaft = tube('boot_shaft', [(fx, 0.010 * k, sole_h + foot_h * 0.5), (fx, 0.006 * k, top_z - 0.02 * k)],
+                         [(hw * 0.98, hw * 1.05), (hw * 0.96, hw * 1.02)], sides=8)
+            p.add(shaft, 'shoes', col, ['shin' + sx, 'foot' + sx], shade=0)
+            cuffc = tube('boot_cuff', [(fx, 0.006 * k, top_z - 0.040 * k), (fx, 0.006 * k, top_z + 0.004 * k)],
+                         [(hw * 1.06, hw * 1.12), (hw * 1.06, hw * 1.12)], sides=8)
             p.add(cuffc, 'shoes', sh.get('cuff', col), ['shin' + sx, 'foot' + sx], shade=0)
             if sh.get('strap'):
-                p.add(M.rbox('strap', (fx, -L * 0.05, 0.026 * k + h_up * 0.45), (hw * 2.0, 0.030 * k, 0.026 * k),
+                p.add(M.rbox('strap', (fx, -fwd * 0.30, sole_h + foot_h * 0.80), (hw * 2.02, 0.034 * k, 0.026 * k),
                              bevel=0.004 * k), 'shoes', sh['strap'], 'foot' + sx, shade=0)
+        elif sh.get('sock'):
+            sock = tube('sock', [(fx, 0.010 * k, sole_h + foot_h * 0.6), (fx, 0.006 * k, sole_h + foot_h + 0.035 * k)],
+                        [(hw * 0.80, hw * 0.86), (hw * 0.78, hw * 0.84)], sides=8)
+            p.add(sock, 'shoes', sh['sock'], ['shin' + sx, 'foot' + sx], shade=0)
 
 
 # ---------------------------------------------------------------- 帽子
@@ -1166,9 +1214,12 @@ def build_hat(p: Person) -> None:
                          rot=(0, 0, -30)), 'hat', ht['patch'], 'head', shade=0)
     elif kind in ('cap', 'knit', 'bonnet', 'beret', 'hood'):
         g = {'cap': 0.022, 'knit': 0.020, 'bonnet': 0.024, 'beret': 0.020, 'hood': 0.030}[kind] * k
-        low = {'cap': 30, 'knit': 22, 'bonnet': 25, 'beret': 42, 'hood': -60}[kind]
-        dome = M.head_shape('hat', tuple(c + Vector((0, 0.004 * k, 0.010 * k))), rx=b.head_rx + g, ry=b.head_ry + g,
-                            rz_top=b.head_rz_top + g * (1.6 if kind != 'beret' else 1.2), rz_bot=b.head_rz_bot + g,
+        # 髪の土台より外に（髪が帽子を突き抜けない）
+        g = max(g, getattr(p, 'hair_gap', 0.0) * 1.35 + 0.006 * k)
+        low = {'cap': 30, 'knit': 22, 'bonnet': 30, 'beret': 22, 'hood': -60}[kind]
+        back = {'bonnet': 0.016, 'beret': 0.010}.get(kind, 0.004) * k
+        dome = M.head_shape('hat', tuple(c + Vector((0, back, 0.010 * k))), rx=b.head_rx + g, ry=b.head_ry + g,
+                            rz_top=b.head_rz_top + g * {'beret': 1.2, 'knit': 2.4}.get(kind, 1.6), rz_bot=b.head_rz_bot + g,
                             segments=14, rings=10, jaw=0.0, chin_fwd=0.0, face_flat=1.0)
         bm = bmesh.new()
         bm.from_mesh(dome.data)
@@ -1183,14 +1234,20 @@ def build_hat(p: Person) -> None:
                 lim = 62
             elif kind == 'cap' and abs(lon) < 50:
                 lim = 40
+            elif kind == 'bonnet':
+                lim = 34 - 22 * min(1.0, max(0.0, (abs(lon) - 60) / 90))
             if lat < lim:
                 kill.append(f)
         bmesh.ops.delete(bm, geom=kill, context='FACES')
         if kind == 'beret':
-            # 平たく大きく、少し後ろへ傾ける
+            # 縁は頭に沿い、中ほどで外へふくらむ平たい帽子。少し後ろへ傾ける
+            zb = (b.head_rz_top + g) * math.sin(math.radians(low))
+            zt = b.head_rz_top + g * 1.2
             for v in bm.verts:
                 d = v.co - c
-                v.co = c + Vector((d.x * 1.18, d.y * 1.18 + 0.012 * k, d.z * 0.72 + 0.045 * k))
+                f = max(0.0, min(1.0, (d.z - zb) / max(1e-6, zt - zb)))
+                sxy = 1.0 + 0.36 * math.sin(math.pi * min(1.0, f * 1.25))
+                v.co = c + Vector((d.x * sxy + 0.012 * k * f, d.y * sxy + 0.018 * k * f, zb + (d.z - zb) * 0.96 + 0.010 * k))
         bm.to_mesh(dome.data)
         bm.free()
         flip_faces_outward(dome, lambda cc: c)
@@ -1209,8 +1266,14 @@ def build_hat(p: Person) -> None:
                                  0.004 * k - (b.head_ry + g + 0.006 * k) * math.cos(lat) * math.cos(lon),
                                  0.010 * k + rz * math.sin(lat)))
                 if kind == 'beret':
-                    d = pt - c
-                    pt = c + Vector((d.x * 1.0, d.y * 1.0, d.z * 0.72 + 0.045 * k))
+                    pt = pt + Vector((0, 0, 0.004 * k))
+                elif kind == 'bonnet':
+                    a_ = abs(math.degrees(lon) % 360)
+                    a_ = min(a_, 360 - a_)
+                    la_ = math.radians(36 - 22 * min(1.0, max(0.0, (a_ - 60) / 90)))
+                    pt = c + Vector(((b.head_rx + g + 0.006 * k) * math.cos(la_) * math.sin(lon),
+                                     back - (b.head_ry + g + 0.006 * k) * math.cos(la_) * math.cos(lon),
+                                     0.010 * k + rz * math.sin(la_)))
                 ring.append(tuple(pt))
             w = (0.024 if kind == 'knit' else 0.014) * k
             p.add(M.loft('hat_rim', ring, [(w, 0.010 * k)] * 14, sides=4, loop=True, ref=(0, 0, 1)), 'hat',
@@ -1226,12 +1289,12 @@ def build_hat(p: Person) -> None:
                       ht.get('flap', col), 'head', shade=0)
             if ht.get('goggles'):
                 for s in (1, -1):
-                    gp = head_pt(b, s * 22, 52, 0.032 * k)
+                    gp = head_pt(b, s * 25, 44, g + 0.010 * k)
                     out = (gp - c).normalized()
-                    lens = M.loft('goggle', [tuple(gp - out * 0.012 * k), tuple(gp + out * 0.022 * k)],
-                                  [0.034 * k, 0.032 * k], sides=10, ref=(0, 0, 1))
+                    lens = M.loft('goggle', [tuple(gp - out * 0.012 * k), tuple(gp + out * 0.026 * k)],
+                                  [0.046 * k, 0.044 * k], sides=10, ref=(0, 0, 1))
                     p.add(lens, 'hat', ht.get('goggle_frame', 'leather'), 'head', shade=0)
-                    p.add(M.loft('glass', [tuple(gp + out * 0.020 * k), tuple(gp + out * 0.026 * k)], [0.026 * k, 0.026 * k],
+                    p.add(M.loft('glass', [tuple(gp + out * 0.024 * k), tuple(gp + out * 0.030 * k)], [0.036 * k, 0.036 * k],
                                  sides=10, ref=(0, 0, 1)), 'hat', 'lens', 'head', shade=0)
         if kind == 'beret' and ht.get('buckle'):
             bp = head_pt(b, 40, 48, 0.030 * k) + Vector((0, 0, 0.010 * k))
@@ -1363,10 +1426,41 @@ def load_conf(pid: str) -> dict:
         return json.load(f)
 
 
-def render(prefix: str, p: Person) -> None:
+def render(prefix: str, p: Person, frame: int = 31) -> None:
+    """確認の画像（Cycles・正投影・縦長）。待機の動作の frame こま目の姿勢で、正面・斜め・横・後ろ"""
     S = p.body.S
-    C.render_views(prefix, (0, 0, S / 2 + 0.03), S * 1.05, views={'front': 0, 'side': 90, 'back': 180, 'three_quarter': 35},
-                   size=520)
+    scene = bpy.context.scene
+    act = bpy.data.actions.get('idle')
+    if act:
+        p.arm.animation_data.action = act
+        scene.frame_set(frame)
+    scene.render.engine = 'CYCLES'
+    scene.cycles.samples = 12
+    scene.cycles.device = 'CPU'
+    scene.render.resolution_x, scene.render.resolution_y = 380, 640
+    world = scene.world or bpy.data.worlds.new('w')
+    scene.world = world
+    world.use_nodes = True
+    world.node_tree.nodes['Background'].inputs['Color'].default_value = (0.75, 0.75, 0.77, 1)
+    world.node_tree.nodes['Background'].inputs['Strength'].default_value = 1.0
+    cam_data = bpy.data.cameras.new('cam')
+    cam_data.type = 'ORTHO'
+    cam_data.ortho_scale = S * 1.18
+    cam = bpy.data.objects.new('cam', cam_data)
+    scene.collection.objects.link(cam)
+    scene.camera = cam
+    sun_data = bpy.data.lights.new('sun', 'SUN')
+    sun_data.energy = 3.0
+    sun = bpy.data.objects.new('sun', sun_data)
+    sun.rotation_euler = (math.radians(50), 0, math.radians(30))
+    scene.collection.objects.link(sun)
+    tz = S * 0.53
+    for name, az in (('front', 0), ('three_quarter', 35), ('side', 90), ('back', 180)):
+        a = math.radians(az)
+        cam.location = (math.sin(a) * 10, -math.cos(a) * 10, tz)
+        cam.rotation_euler = (Vector((0, 0, tz)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
+        scene.render.filepath = f'{prefix}_{name}.png'
+        bpy.ops.render.render(write_still=True)
 
 
 def main() -> None:
@@ -1379,7 +1473,7 @@ def main() -> None:
     args = ap.parse_args(argv)
     ids = args.person
     if args.all:
-        ids = sorted(os.path.splitext(f)[0] for f in os.listdir(CONF_DIR) if f.endswith('.json'))
+        ids = sorted(os.path.splitext(f)[0] for f in os.listdir(CONF_DIR) if f.endswith('.json') and not f.startswith('_'))
     os.makedirs(os.path.join(BUILD_DIR, 'stats'), exist_ok=True)
     for pid in ids:
         conf = load_conf(pid)

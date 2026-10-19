@@ -1,0 +1,12 @@
+{
+  "id": "_body_woman",
+  "name": "体の土台：大人の女（townsfolk_bodies.png の 2 段目）",
+  "body": "woman",
+  "scheme": "sand_rust",
+  "face": {},
+  "hair": {"style": "bun", "color": "hair_brown"},
+  "top": {"color": "cream", "trim": "sand", "length": "tunic", "sleeve": "wide"},
+  "belt": {"color": "leather", "buckle": null, "sash": true},
+  "lower": {"kind": "pants", "color": "$a", "cuff": "cream", "leg": "sock"},
+  "shoes": {"kind": "boots", "color": "boot", "toe": "boot_toe", "cuff": "boot"}
+}

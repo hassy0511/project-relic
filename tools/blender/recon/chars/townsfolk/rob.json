@@ -1,0 +1,22 @@
+{
+  "id": "rob",
+  "name": "見張りのロブ",
+  "npc": "npc_lookout",
+  "variation": 3,
+  "body": "man",
+  "height": 1.70,
+  "scheme": "olive_sand",
+  "face": {"iris": "#4A3020", "brow": "hair_dark", "brow_tilt": 0.024},
+  "hair": {"style": "short", "color": "hair_dark"},
+  "beard": {"color": "hair_dark", "size": "short"},
+  "top": {"color": "graphite", "trim": "$b", "length": "tucked", "sleeve": "short"},
+  "jacket": {"kind": "long_vest", "color": "$b", "trim": "$b_dark", "inner": "brown", "open": 22, "hem": 0.72},
+  "belt": {"color": "brown_dark", "buckle": "brass", "pouch": ["R"]},
+  "lower": {"kind": "pants", "color": "$a", "cuff": "$b", "leg": "sock"},
+  "shoes": {"kind": "boots", "color": "brown_dark", "toe": "boot", "cuff": "brown_dark", "strap": "$b"},
+  "gloves": {"color": "glove"},
+  "scarf": {"kind": "cowl", "color": "cream"},
+  "hat": {"kind": "wide", "color": "hat_olive", "band": "brown_dark", "brim": 0.12, "patch": "sand"},
+  "patches": [{"on": "leg_R", "z": 0.42, "a": -10, "w": 0.08, "h": 0.08, "color": "sand"},
+              {"on": "leg_L", "z": 0.55, "a": 20, "w": 0.06, "h": 0.07, "color": "olive_dark"}]
+}

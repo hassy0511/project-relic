@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw, ImageFilter
 # ---------------------------------------------------------------- 色見本
 # (名前, #hex)。町の色（spec.md の色見本）＋ 汎用の 5 案の色 ＋ 髪・肌・細部。並びを変えると全員の GLB が変わる（足すのは末尾へ）
 PALETTE = [
-    ('skin', '#EDB48C'), ('skin_dark', '#D99A72'), ('skin_old', '#E8B28E'), ('lip', '#B9655A'),
+    ('skin', '#E9AA80'), ('skin_dark', '#D4956C'), ('skin_old', '#E6AA86'), ('lip', '#B9655A'),
     ('rust', '#B25A41'), ('rust_dark', '#8E4532'), ('rust_faded', '#B07A62'), ('rust_faded_dark', '#8F6150'),
     ('cream', '#EEDCC0'), ('cream_dark', '#D6C0A0'), ('sand', '#C9A06E'), ('sand_dark', '#A8814F'),
     ('brown', '#5E4334'), ('brown_dark', '#45302A'), ('graphite', '#46433F'), ('graphite_dark', '#33302D'),
@@ -224,7 +224,7 @@ def draw_blush(cv: Canvas, f: dict) -> None:
 def draw_wrinkles(cv: Canvas, f: dict) -> None:
     """年寄りの線：ほうれい線と額の線（薄く）"""
     for side in (-1, 1):
-        cv.stroke(curve((side * 0.055, 0.265), (side * 0.080, 0.215), (side * 0.065, 0.165)), 0.007, 0.004, fill=WRINKLE)
+        cv.stroke(curve((side * 0.095, 0.245), (side * 0.112, 0.205), (side * 0.100, 0.175)), 0.006, 0.003, fill=WRINKLE)
     if f.get('forehead', True):
         for k in range(2):
             v = f['eye_v'] + 0.20 + k * 0.035

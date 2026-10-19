@@ -1,0 +1,22 @@
+{
+  "id": "clerk",
+  "name": "ギルドの事務員",
+  "npc": "npc_clerk",
+  "variation": 7,
+  "body": "woman",
+  "height": 1.60,
+  "scheme": "faded_rust_cream",
+  "face": {"iris": "#4E3222", "brow": "hair_brown_dark"},
+  "hair": {"style": "long", "color": "hair_brown_dark"},
+  "top": {"color": "$b", "trim": "$b_dark", "length": "tunic", "sleeve": "elbow"},
+  "jacket": {"kind": "long", "color": "rust", "trim": "rust_dark", "inner": "rust_dark", "sleeve": "wide", "cuff": "cream",
+             "open": 26, "pockets": [{"side": "L", "z": 0.55, "a": 62, "w": 0.07, "h": 0.06, "color": "rust_dark", "rel": true},
+                                     {"side": "R", "z": 0.55, "a": 62, "w": 0.07, "h": 0.06, "color": "rust_dark", "rel": true}]},
+  "belt": {"color": "brown_dark", "buckle": "brown_dark", "sash": true},
+  "lower": {"kind": "skirt", "color": "$b", "hem_band": "sand", "flare": 0.6, "hem": 0.30, "leg": "brown_dark"},
+  "shoes": {"kind": "boots", "color": "boot", "toe": "boot", "cuff": "cream"},
+  "scarf": {"kind": "snood", "color": "scarf_olive", "buckle": "olive_dark"},
+  "hat": {"kind": "wide", "color": "rust", "band": "cream", "brim": 0.10, "patch": "brown_dark"},
+  "patches": [{"on": "body", "z": 0.52, "a": 12, "w": 0.07, "h": 0.08, "color": "sand"},
+              {"on": "body", "z": 0.47, "a": 32, "w": 0.06, "h": 0.09, "color": "patch"}]
+}

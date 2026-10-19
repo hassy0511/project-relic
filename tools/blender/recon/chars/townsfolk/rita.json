@@ -1,0 +1,23 @@
+{
+  "id": "rita",
+  "name": "受付のリタ",
+  "npc": "npc_rita",
+  "variation": 5,
+  "body": "woman",
+  "height": 1.56,
+  "scheme": "cream_brown",
+  "face": {"iris": "#6A4026", "brow": "hair_ginger_dark", "blush": 1.0, "eye_size": 1.3},
+  "hair": {"style": "pigtails", "color": "hair_ginger", "tie": "brown_dark"},
+  "top": {"color": "$a", "trim": "$a_dark", "length": "tucked", "sleeve": "short"},
+  "jacket": {"kind": "vest", "color": "olive", "trim": "olive_dark", "inner": "olive_dark", "open": 28,
+             "pockets": [{"side": "L", "z": 0.45, "a": 40, "w": 0.06, "h": 0.06, "color": "olive_dark"}]},
+  "belt": {"color": "leather", "buckle": "brass", "strap": "brown_dark"},
+  "lower": {"kind": "skirt", "color": "$b", "wrap": {"ranges": [[40, 140], [-140, -40]], "color": "rust"}, "flare": 0.9, "hem": 0.30,
+            "leg": "skin"},
+  "apron": {"kind": "waist", "color": "cream", "half": 0.45, "hem": 0.42, "pockets": [{"side": "R", "z": 0.40, "x": 0.4,
+             "w": 0.08, "h": 0.08, "color": "sand"}]},
+  "shoes": {"kind": "low", "color": "brown_dark", "toe": "cream_dark", "sock": "cream"},
+  "gloves": {"color": "glove"},
+  "scarf": {"kind": "snood", "color": "scarf_brown", "buckle": "brown_dark"},
+  "hat": {"kind": "beret", "color": "cream", "band": "brown_dark", "buckle": "brass"}
+}
