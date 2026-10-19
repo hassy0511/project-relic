@@ -22,7 +22,7 @@ const NPC_MODELS := {"npc_yana": "res://assets/models/yana.glb", "npc_burton": "
 	"npc_domi": "res://assets/models/tf_domi.glb", "npc_tobi": "res://assets/models/tf_tobi.glb",
 	"npc_woman": "res://assets/models/tf_mina.glb", "npc_lookout": "res://assets/models/tf_rob.glb",
 	"npc_clerk": "res://assets/models/tf_clerk.glb", "npc_rita": "res://assets/models/tf_rita.glb",
-	"npc_nico":"res://assets/models/nico.glb", "npc_trude": "res://assets/models/trude.glb",
+	"npc_nico": "res://assets/models/nico.glb", "npc_trude": "res://assets/models/trude.glb",
 	"npc_shopkeeper": "res://assets/models/shopkeeper.glb"}
 ## 会話の行の顔（dialogue の face）→ 顔のテクスチャの 2×2 の区画（ヤーナ：0 通常、1 豪快に笑う、2 驚き、3 怒る）。
 ## 区画の無い顔は近いものか通常にする
