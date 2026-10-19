@@ -322,14 +322,14 @@ func _trude_steps() -> Array:
 		{"ticks": 2, "setup": func(): skip.call(30)},
 		{"ticks": 60, "input": {}},
 		{"ticks": 2, "setup": func(): skip.call(30)},
-		{"ticks": 2, "setup": func(): go.call("ch1.mayor", "from_upper", Vector3(0.9, 0, 0.7), Vector3(0, 0, 3), day)},
+		{"ticks": 2, "setup": func(): go.call("ch1.mayor", "from_upper", Vector3(0.85, 0, 1.15), Vector3(1.55, 0, 3.6), day)},
 		{"ticks": 50, "input": {}},
 		{"ticks": 1, "shot": "trude_01_house", "input": {}, "check": func():
 			return _check(here.call() and clip.call() == "idle", "町長の家にトルーデのモデルが立つ（%s）" % clip.call())},
 	]
 	steps.append_array(talk.call("ch1.trude_house.day", "trude_02_house_talk", 0))
 	steps.append_array([
-		{"ticks": 2, "setup": func(): go.call("ch1.mid", "start", Vector3(1.4, 0, 5.6), Vector3(0, 0.8, 9), ["ch1.ordo_stopped"])},
+		{"ticks": 2, "setup": func(): go.call("ch1.mid", "start", Vector3(0.9, 0, 6.6), Vector3(1.9, 0.8, 9.6), ["ch1.ordo_stopped"])},
 		{"ticks": 50, "input": {}},
 		{"ticks": 1, "shot": "trude_03_plaza", "input": {}, "check": func():
 			return _check(here.call() and clip.call() == "idle", "中段の広場の壇にトルーデが立つ（%s）" % clip.call())},

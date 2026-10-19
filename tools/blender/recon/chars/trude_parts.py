@@ -50,7 +50,7 @@ J = {
     'foot': (0.125, 0.0, 0.09),
 }
 # 肩掛けは近くの体の重みを写す（胸に剛体だと、杖をつく右腕の上腕が肩掛けの横を突き抜けた）
-FOLLOW_BODY = ('turtleneck', 'belt', 'capelet', 'capelet_line')
+FOLLOW_BODY = ('turtleneck', 'belt', 'capelet', 'capelet_line', 'collar_base')
 FOLLOW_TORSO_ONLY = ('turtleneck', 'belt')
 BOX_RULES: list = []
 
@@ -332,6 +332,13 @@ def collar_sleeves() -> list[dict]:
     P.append(dict(name='turtleneck', bone='neck', color='graphite', frame=fc, ring=True,
                   t0=COLLAR_T0, t1=COLLAR_T1, off=0.003, thick=0.006, bevel=0.002, under='graphite',
                   rmax=0.085, rmin=0.042, n_ring=56, sink=0.010, smooth_iters=10))
+    # 立ち襟の下〜肩掛けの襟の内の、肩の上の面を覆う石墨の殻：首の付け根の中心から斜め上へ撃った体の面の外。体の土台の
+    # 首の付け根は UV のつぶれた三角形が隣の島の色を拾い、生成り・肌・石墨の斑点になった（SKILL 3 章：塗りで追わず部品で覆う）
+    fsb = {'kind': 'sphere', 'a': np.array([X0, 0.0, 1.10]), 'e0': np.array([0.0, -1.0, 0.0]),
+           'e1': np.array([1.0, 0.0, 0.0]), 'e2': np.array([0.0, 0.0, 1.0]), 'RN': 0.1}
+    P.append(dict(name='collar_base', bone='chest', color='graphite', frame=fsb, ring=True,
+                  t0=math.radians(30.0) * 0.1, t1=math.radians(64.0) * 0.1, off=0.001, thick=0.0025, bevel=0.001,
+                  rmax=0.25, rmin=0.04, n_ring=72, sink=0.010, smooth_iters=8))
     # 袖口の金の帯（生成りの広い袖の端）：前腕の軸
     for side, sx in ((1.0, '.L'), (-1.0, '.R')):
         s, e = jp('forearm', side), jp('hand', side)
@@ -399,7 +406,8 @@ def skirt_table(nu: int = 120):
         for j in range(1, len(zs)):
             R[:, j] = np.maximum(R[:, j], R[:, j - 1])
         # ならしても元の半径より内へは入れない（脚のふくらみが裾の近くで殻を突き抜けた）
-        Rd = NDI.grey_dilation(R, size=(3, 3), mode='wrap')
+        # 角度の向きだけ周期で（高さの向きを周期にすると、裾の半径が上の縁へ回り込み、ベルトの高さにつばができた）
+        Rd = NDI.grey_dilation(NDI.grey_dilation(R, size=(3, 1), mode='wrap'), size=(1, 3), mode='nearest')
         R = np.maximum(NDI.gaussian_filter1d(Rd, 1.2, axis=0, mode='wrap'), R) + 0.006
         _SKIRT = (th, zs, R)
     return _SKIRT
