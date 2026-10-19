@@ -115,3 +115,26 @@ def head_clip(fname, u0, ppm, sgn):
 # 較正（calib.json）の値：side_right（顔が右）ppm 1158.7・u0 1017.0、side_left（顔が左）ppm 1149.7・u0 1030.5
 head_clip('shopkeeper_3d_side_left_legs.png', 1017.0, 1158.7, 1.0)
 head_clip('shopkeeper_3d_side_right_legs.png', 1030.5, 1149.7, -1.0)
+
+
+def temple_clip(fname, u0, ppm, x0=0.0105):
+    """正面の絵のこめかみ・ほおの横に垂れる房（z 1.28〜1.44、|x−x0| 0.088 より外）を外形から外す（2 周目）。
+    帽子（外形から作る髪の土台）の幅がこの房で広がり、目と眉の外の端 5mm が帽子の場に入って顔の材質から外れた。耳は部品（hair.EAR）"""
+    path = os.path.join(SRC, fname)
+    im = np.array(Image.open(path).convert('RGBA'))
+    u = np.arange(im.shape[1]) + 0.5
+    xr = np.abs((u - u0) / ppm - x0)
+    n = 0
+    for v in range(im.shape[0]):
+        z = (V0 - (v + 0.5)) / ppm
+        if not (1.28 <= z <= 1.44):
+            continue
+        cut = (xr > 0.088) & (xr < 0.30) & (im[v, :, 3] > 0)
+        n += int(cut.sum())
+        im[v, cut, 3] = 0
+    Image.fromarray(im).save(path)
+    print(fname, 'temple clip px', n)
+
+
+# 較正の値：front ppm 1148.4・u0 1019.5
+temple_clip('shopkeeper_3d_front_legs.png', 1019.5, 1148.4)
