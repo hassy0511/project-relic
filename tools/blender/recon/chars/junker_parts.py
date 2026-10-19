@@ -113,9 +113,10 @@ def _bvh():
     return _BVH
 
 
-def surf_r(th, z, cy: float = AX_Y, cx: float = 0.0, r_max: float = 0.45) -> np.ndarray:
+def surf_r(th, z, cy: float = AX_Y, cx: float = 0.0, r_max: float = 0.45, last: bool = False) -> np.ndarray:
     """縦の軸 (cx, cy) から、正面からの角度 th（ラジアン、+ = 本人の左）・高さ z の水平な向きへ撃って最初に当たる体の面の半径。
-    軸から外へ撃つので、胴の横に下がる腕より先に胴の面に当たる"""
+    軸から外へ撃つので、胴の横に下がる腕より先に胴の面に当たる。last：r_max までで一番外の面（首のまわりは頭の首の殻が
+    体の土台の殻の中に重なっていて、最初に当たるのは首の殻だった）"""
     from mathutils import Vector
     bvh = _bvh()
     th = np.atleast_1d(np.asarray(th, float))
@@ -123,8 +124,17 @@ def surf_r(th, z, cy: float = AX_Y, cx: float = 0.0, r_max: float = 0.45) -> np.
     out = np.zeros(th.shape)
     for i, (t, zz) in enumerate(zip(th.ravel(), z.ravel())):
         d = Vector((math.sin(t), -math.cos(t), 0.0))
-        hit = bvh.ray_cast(Vector((cx, cy, float(zz))), d, r_max)
-        out.ravel()[i] = hit[3] if hit[0] is not None else 0.12
+        o = Vector((cx, cy, float(zz)))
+        best, start = None, 0.0
+        while True:
+            hit = bvh.ray_cast(o + d * start, d, r_max - start)
+            if hit[0] is None:
+                break
+            best = start + hit[3]
+            if not last:
+                break
+            start = best + 1e-4
+        out.ravel()[i] = best if best is not None else 0.12
     return out
 
 
@@ -327,11 +337,17 @@ def wrap_parts() -> list[dict]:
         b = np.where(c >= 0, bf, bb)
         y = WRAP_CY - b * np.sign(c) * np.abs(c) ** e
         P = np.stack([x, y, np.full(n, z)], 1)
-        if z >= 1.20:     # 体の土台（外形のレンズ）より外へ：体の面 + 4mm
-            rb = surf_r(th, np.full(n, z), WRAP_CY, X0, 0.25) + 0.004
+        if z >= 1.172:
+            # 体の土台（外形のレンズ。首巻きの外形を含む）より外へ：体の面 + 6mm。肩（決めた断面より 3.5cm 以上外）では
+            # 決めた断面のまま肩の中へ沈める（1 回目は 1.20 より下を決めた断面のままにし、体の土台が首巻きの下の輪から
+            # ベスト・肌の色の斑点で出た）
+            rb = surf_r(th, np.full(n, z), WRAP_CY, X0, 0.16, last=True) + 0.006
             rr = np.hypot(x - X0, y - WRAP_CY)
-            k = np.maximum(rr, rb) / np.maximum(rr, 1e-6)
-            k = 0.5 * k + 0.25 * (np.roll(k, 1) + np.roll(k, -1))
+            # 1.195 より上は体の土台を必ず覆う（体の土台の首は外形のレンズで、斜め 45 度の角が断面より 3cm 外に出ていた）
+            want = np.maximum(rr, rb) if z >= 1.195 else np.where(rb < rr + 0.035, np.maximum(rr, rb), rr)
+            k = want / np.maximum(rr, 1e-6)
+            for _ in range(3):
+                k = 0.5 * k + 0.25 * (np.roll(k, 1) + np.roll(k, -1))
             P[:, 0] = X0 + (x - X0) * k
             P[:, 1] = WRAP_CY + (y - WRAP_CY) * k
         secs.append(P)
@@ -729,6 +745,10 @@ def hair_locks() -> list[dict]:
         root = (180.0 - a * 0.30 if a < 0 else -180.0 - a * 0.30, crown[1] - 0.004)
         top.append((f'top{i}', [root, (a, 1.545)], 0.001, 0.006, None))
     tier(top, k_w=0.62, thick=0.013, w_max=0.040)
+    # 頭頂の左右で外・上へはねる大きな房 2 本（絵の正面：髪の外形は上の左右が張った炎の形）
+    flare = [('flare_l', [(18.0, 1.548), (46.0, 1.536), (76.0, 1.515)], 0.002, 0.036, [0.0, 0.5, 1.0]),
+             ('flare_r', [(-18.0, 1.548), (-48.0, 1.532), (-80.0, 1.505)], 0.002, 0.036, [0.0, 0.5, 1.0])]
+    tier(flare, k_w=0.66, thick=0.014, w_max=0.034)
     # 横の房（片側 4 段）：こめかみの上の根から後ろへほぼ水平に流れ、先は後ろ・外へはねる（絵の右真横：葉の先は後ろを向く）。
     # 一番下の段は耳の上（1.40）を通る
     for side, sx in ((1.0, 'l'), (-1.0, 'r')):
@@ -849,7 +869,12 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
     # 首巻きのまわり（首巻きの部品の 1.2cm 外まで）：首巻きの色。部品と体の土台が交わる所で、ベスト・肌の斑点に見えた（1 回目）
     wa = np.interp(z, WRAP['z'], WRAP['a']) + 0.012
     wb = np.where(y < WRAP_CY, np.interp(z, WRAP['z'], WRAP['bf']), np.interp(z, WRAP['z'], WRAP['bb'])) + 0.012
-    wz = free & ~head & (z > WRAP['z'][0] + 0.004) & (((x - X0) / wa) ** 2 + ((y - WRAP_CY) / wb) ** 2 < 1.0) & ~arm
+    # 1.20 より上は首の軸から 16cm まで全部（体の土台の首は外形のレンズで、斜めの角・頭の首の殻が首巻きの部品の外へ出て、
+    # 肌・ベストの色の斑点になった。2 回目）。上の端は首巻きの上の縁（前 1.262・横と後ろ 1.29）
+    th_w = np.arctan2(x - X0, -(y - WRAP_CY))
+    ztop_w = 1.290 - 0.028 * np.cos(th_w / 2.0) ** 4 + 0.003
+    wz = free & (z > WRAP['z'][0] + 0.004) & (z < ztop_w) & ~arm & (
+        (((x - X0) / (wa + 0.018)) ** 2 + ((y - WRAP_CY) / (wb + 0.018)) ** 2 < 1.0) | ((z > 1.20) & (np.hypot(x - X0, y - WRAP_CY) < 0.16)))
     under[wz] = NAMES.index('wrap')
     # 首（首巻きの口より上）：肌
     neck = free & ~head & (z > 1.255) & (r_neck < 0.065) & ~arm
