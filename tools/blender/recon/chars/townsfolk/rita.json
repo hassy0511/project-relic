@@ -19,5 +19,5 @@
   "shoes": {"kind": "low", "color": "brown_dark", "toe": "cream_dark", "sock": "cream"},
   "gloves": {"color": "glove"},
   "scarf": {"kind": "snood", "color": "scarf_brown", "buckle": "brown_dark"},
-  "hat": {"kind": "beret", "color": "cream", "band": "brown_dark", "buckle": "brass"}
+  "hat": {"kind": "beret", "color": "cream", "band": "brown_dark", "buckle": "brass", "puff": 0.50}
 }

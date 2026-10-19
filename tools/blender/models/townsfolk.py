@@ -70,8 +70,9 @@ BODIES = {
 }
 
 TORSO = ['hips', 'spine', 'chest', 'neck']
-ARM_K = 1.12   # 腕の太さ（絵の腕は太い。表の値に掛ける）
-DEPTH_K = 1.07  # 胴の前後の厚み（横から見た絵に合わせる。表の値に掛ける）
+ARM_K = 1.20   # 腕の太さ（絵の腕は太い。表の値に掛ける）
+DEPTH_K = 1.10  # 胴の前後の厚み（横から見た絵に合わせる。表の値に掛ける）
+WIDTH_K = 1.06  # 胴の幅・脚の太さ（絵の人物はずんぐりしている。表の値に掛ける）
 
 
 class Body:
@@ -85,9 +86,9 @@ class Body:
         s = lambda v: v * k  # noqa: E731
         self.S = s(d['S'])
         self.chin, self.neck = s(d['chin']), s(d['neck'])
-        self.sh_x, self.sh_z = s(d['sh'][0]), s(d['sh'][1])
-        self.sh_top = s(d['sh_top'])
-        dk = lambda t: (s(t[0]), s(t[1]), s(t[2]) * DEPTH_K)  # noqa: E731
+        self.sh_x, self.sh_z = s(d['sh'][0]) * (1 + (WIDTH_K - 1) * 0.6), s(d['sh'][1])
+        self.sh_top = s(d['sh_top']) * WIDTH_K
+        dk = lambda t: (s(t[0]), s(t[1]) * WIDTH_K, s(t[2]) * DEPTH_K)  # noqa: E731
         self.chest = dk(d['chest'])
         self.belt = dk(d['belt'])
         self.hip = dk(d['hip'])
@@ -99,7 +100,8 @@ class Body:
         self.arm_deg = d['arm_deg']
         self.elbow_z, self.wrist_z, self.hand_end_z = s(d['elbow']), s(d['wrist']), s(d['hand_end'])
         for key in ('r_upper', 'r_fore', 'r_wrist', 'r_thigh', 'r_calf', 'r_ankle', 'r_neck'):
-            setattr(self, key, s(d[key]) * (ARM_K if key in ('r_upper', 'r_fore', 'r_wrist') else 1.0))
+            setattr(self, key, s(d[key]) * (ARM_K if key in ('r_upper', 'r_fore', 'r_wrist') else
+                                            WIDTH_K if key in ('r_thigh', 'r_calf') else 1.0))
         self.head_h = self.S - self.chin
         self.head_rx, self.head_ry = s(d['head'][0]), s(d['head'][1])
         self.head_c = Vector((0.0, 0.004 * k, self.chin + 0.53 * self.head_h))
@@ -1259,7 +1261,7 @@ def build_hat(p: Person) -> None:
             for v in bm.verts:
                 d = v.co - c
                 f = max(0.0, min(1.0, (d.z - zb) / max(1e-6, zt - zb)))
-                sxy = 1.0 + 0.36 * math.sin(math.pi * min(1.0, f * 1.25))
+                sxy = 1.0 + ht.get("puff", 0.36) * math.sin(math.pi * min(1.0, f * 1.25))
                 v.co = c + Vector((d.x * sxy + 0.012 * k * f, d.y * sxy + 0.018 * k * f, zb + (d.z - zb) * 0.96 + 0.010 * k))
         bm.to_mesh(dome.data)
         bm.free()
