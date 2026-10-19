@@ -154,6 +154,15 @@ static func _flat(roll := 0.0) -> Basis:
 	return _facing(Vector3.UP, roll)
 
 
+## カメラの方へ d m 寄せた点（体・物の中の光が隠れないように。カメラが無ければそのまま）
+func _to_cam(at: Vector3, d: float) -> Vector3:
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null:
+		return at
+	var v := cam.global_position - at
+	return at + v.normalized() * minf(d, v.length() * 0.5) if v.length() > 0.01 else at
+
+
 ## 火花（伸びる筋）
 func _spark(layer: int, at: Vector3, vel: Vector3, life: float, w: float, col: Color, stretch := 0.035, grav := 6.0) -> Vfx.P:
 	var q := vfx.emit(layer, at, vel, life, w, w * 0.6, col)
@@ -1479,8 +1488,9 @@ func _sync_world(game: GameSim, dt: float) -> void:
 func _beacon_beam(b) -> void:
 	var base: Vector3 = b.pos + Vector3(0, 0.35, 0)
 	var pl := 0.9 + 0.1 * sin(_time * 2.0 + b.pos.x)
-	vfx.streak(Vfx.PILLAR, base - Vector3(0, 12.0, 0), base + Vector3(0, 12.0, 0), 1.5, _c(AMBER, 0.3 * pl))
-	vfx.streak(Vfx.PILLAR, base - Vector3(0, 8.0, 0), base + Vector3(0, 8.0, 0), 0.7, _c(PALE, 0.2 * pl))
+	# 素材の光柱は四角の幅の 1 割ほどが芯、3 割ほどがにじみ：外の筋 3.6 m（にじみ約 1 m）、内の筋 1.4 m（芯）
+	vfx.streak(Vfx.PILLAR, base - Vector3(0, 12.0, 0), base + Vector3(0, 12.0, 0), 3.6, _c(AMBER, 0.42 * pl))
+	vfx.streak(Vfx.PILLAR, base - Vector3(0, 9.0, 0), base + Vector3(0, 9.0, 0), 1.4, _c(PALE, 0.32 * pl))
 
 
 ## ナゴミの目（核の前）：見た目があればその位置から、無ければハルの右肩の横（NagomiView.OFFSET）から、look の向きへ 0.13 m
@@ -1652,26 +1662,32 @@ func _chest_idle(c) -> void:
 	var pl := 0.8 + 0.2 * sin(_time * 2.4 + c.pos.x * 0.7)
 	var corners := [Vector3(-0.62, 0.56, -0.42), Vector3(0.62, 0.56, -0.42), Vector3(0.62, 0.56, 0.42), Vector3(-0.62, 0.56, 0.42)]
 	for i in 4:
-		vfx.streak(Vfx.GRAIN, c.pos + b * corners[i], c.pos + b * corners[(i + 1) % 4], 0.08, _c(AMBER, 0.2 * pl))
+		var a: Vector3 = c.pos + b * corners[i]
+		var e: Vector3 = c.pos + b * corners[(i + 1) % 4]
+		# 合わせ目の細い琥珀の線（普通の半透明：白磁の上でも琥珀に見える）と、まわりのにじみ（足し合わせ）
+		vfx.streak(Vfx.DOT, a, e, 0.022, Color(AMBER, 0.85 * pl))
+		vfx.streak(Vfx.GRAIN, a, e, 0.12, _c(AMBER, 0.2 * pl))
 	var lock: Vector3 = c.pos + b * Vector3(0, 0.47, 0.44)
-	vfx.sprite(Vfx.SOFT, lock, 0.14, Color(AMBER, 0.6 * pl))
-	vfx.sprite(Vfx.GRAIN, lock, 0.42, _c(AMBER, 0.3 * pl))
+	vfx.sprite(Vfx.DOT, lock, 0.09, Color(AMBER, 0.95))
+	vfx.sprite(Vfx.GRAIN, lock, 0.45, _c(AMBER, 0.32 * pl))
 	if (_frame + int(c.pos.x * 7.0)) % 30 == 0:
 		var g := vfx.emit(Vfx.GLINT, c.pos + b * Vector3(_rng.randf_range(-0.45, 0.45), 0.85, _rng.randf_range(-0.25, 0.25)), Vector3(0, 0.45, 0),
 			1.3, 0.2, 0.08, _c(AMBER, 0.3))
 		g.fin = 0.35
 
 
-## 置いてある遺物（relic_glow の待機：目印 0.3）：足元の淡い輪と、まわりをゆっくり上がる光の点（遺物の光の玉は PropsView）
+## 置いてある遺物（relic_glow の待機：目印 0.3）：遺物の光の玉（PropsView、置いた所の 0.6 m 上）のまわりの琥珀の光の輪郭と、
+## まわりをゆっくり上がる星の光（下からも見える目印。遺物はたいてい台や棚の上）、足元の淡い輪（上から見たとき）
 func _loot_idle(lt) -> void:
 	var g: Vector3 = lt.pos + Vector3(0, 0.04, 0)
+	var orb: Vector3 = lt.pos + Vector3(0, 0.6, 0)
 	var pl := 0.8 + 0.2 * sin(_time * 2.0 + lt.pos.z)
 	vfx.sprite(Vfx.RING, g, 0.45 / Vfx.RING_FRAC, _c(AMBER, 0.3 * pl), Vfx.FLAT, _flat(_time * 0.4))
-	vfx.sprite(Vfx.PILLAR, g + Vector3(0, 0.55, 0), 0.32, _c(AMBER, 0.18 * pl), Vfx.FACE, Basis.IDENTITY, 0.0, 3.4)
-	if (_frame + int(lt.pos.x * 5.0)) % 26 == 0:
+	vfx.sprite(Vfx.SOFT, orb, 0.75 * pl, Color(AMBER, 0.32))
+	if (_frame + int(lt.pos.x * 5.0)) % 16 == 0:
 		var a := _rng.randf() * TAU
-		var q := vfx.emit(Vfx.GLINT, g + Vector3(sin(a) * 0.35, 0.3, cos(a) * 0.35), Vector3(0, 0.5, 0), 1.2, 0.16, 0.06, _c(AMBER, 0.3))
-		q.fin = 0.35
+		var q := vfx.emit(Vfx.GLINT, orb + Vector3(sin(a) * 0.4, _rng.randf_range(-0.45, 0.1), cos(a) * 0.4), Vector3(0, 0.45, 0), 1.3, 0.24, 0.08, _c(AMBER, 0.4))
+		q.fin = 0.3
 
 
 ## 遺物を拾った（relic_glow：開放 0.65 → 目印 0.3、約 0.8 秒、遺物約 0.4 m）：遺物の光が床（箱の底）の輪から上がり、
@@ -1719,9 +1735,11 @@ func _frame_fit(p: Player, part: String) -> void:
 		var q2 := vfx.emit(Vfx.SHARD_GLOW, from2, (at - from2) / 0.75, 0.75, 0.12, 0.06, _c(PALE, 0.5))
 		q2.spin = _rng.randf_range(-6, 6)
 		q2.fin = 0.4
-	var fl := _flash(Vfx.GLINT, at, 1.0, 0.6, 1.1, _c(AMBER, 0.8))
+	# 付く瞬間の光は部位の手前（カメラの側）に置く（体の中に置くと、体に隠れて縁しか見えない）
+	var lit := _to_cam(at, 0.3)
+	var fl := _flash(Vfx.GLINT, lit, 1.0, 0.6, 1.1, _c(AMBER, 0.8))
 	fl.fin = 0.65
-	var gl := _flash(Vfx.GRAIN, at, 0.6, 1.0, 1.6, _c(AMBER, 0.2))
+	var gl := _flash(Vfx.GRAIN, lit, 0.6, 1.0, 1.6, _c(AMBER, 0.2))
 	gl.fin = 0.45
 	if _pv != null and is_instance_valid(_pv):
 		_pv.reveal_later(part, 0.8)

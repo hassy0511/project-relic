@@ -558,8 +558,8 @@ static func leftover_steps(d) -> Array:
 		{"ticks": 55, "input": {"lock_on": true}},
 		_shot("h02_scan_done", {"input": {"lock_on": true}, "cam": side_cam}),
 	])
-	# ---- 盾の亀裂：光刃で守りを削っている間（亀裂 0.25）。盾の表を斜め前から
-	var shield_cam := func(): _cam_at(d, Vector3(-2.3, 1.9, 7.6), Vector3(0.45, 1.05, 3.2))
+	# ---- 盾の亀裂：光刃で守りを削っている間（亀裂 0.25）。盾は前と外へ向けて斜めに構えているので、表を斜め前から
+	var shield_cam := func(): _cam_at(d, Vector3(2.9, 1.8, 6.2), Vector3(0.55, 1.05, 3.15))
 	s.append_array([
 		{"ticks": 2, "setup": func():
 			d._arena_start("shield")
@@ -567,7 +567,7 @@ static func leftover_steps(d) -> Array:
 			var e = g.enemies[1]
 			_targets(g, [e])
 			_place(g, e, Vector3(0, 0, 3), Vector3(0, 0, 9))
-			d._stand(Vector3(-1.0, 0, 6.4), Vector3(0.4, 0, 3))},
+			d._stand(Vector3(0.3, 0, 5.4), Vector3(0.3, 0, 3))},
 		{"ticks": 20, "input": {}},
 		{"ticks": 1, "input": {}, "setup": func(): _chip(m.game, 12.0)},
 		{"ticks": 6, "input": {}},
@@ -670,7 +670,7 @@ static func leftover_steps(d) -> Array:
 		_shot("h25_beacon_steady"),
 		_shot("h26_beacon_steady_far", {"cam": func(): _cam_at(d, Vector3(6.5, 3.4, -9.5), Vector3(-5, 4.2, 3))}),
 	])
-	# ---- フラッシュの強さ（標準・弱め・最小）：弱点の命中と閂の体の被弾の光、被弾（画面の赤）、閂の撃破
+	# ---- フラッシュの強さ（標準・弱め・最小）：閂の鼻先の弱点の命中と体の被弾の光、被弾（画面の赤）、突きが壁に刺さった衝突の光
 	for fl in PadConfig.FLASH_STEPS:
 		var tag: String = {1.0: "std", 0.5: "half", 0.2: "min"}[fl]
 		s.append_array([
@@ -698,8 +698,8 @@ static func leftover_steps(d) -> Array:
 			{"ticks": 1, "input": {}, "setup": func():
 				var g: GameSim = m.game
 				var bs = g.boss
-				var at: Vector3 = bs.axis_center() + (g.player.pos - bs.axis_center()).normalized() * 2.2
-				g.emit_event({"type": "hit", "at": at, "kind": "weak"})
+				var nose: Vector3 = bs.axis_center() + bs.forward() * (float(g.tuning.boss.bodyHalfLen) + 0.4)
+				g.emit_event({"type": "hit", "at": nose, "kind": "weak"})
 				g.damage_enemy(bs, 4.0, g.player.pos, {})},
 			{"ticks": 2, "input": {}},
 			_shot("h27_flash_%s_hit" % tag),
@@ -712,21 +712,18 @@ static func leftover_steps(d) -> Array:
 			{"ticks": 2, "input": {}},
 			_shot("h28_flash_%s_hurt" % tag),
 			{"ticks": 40, "input": {}},
-			{"ticks": 2, "setup": func():
+			{"ticks": 1, "input": {}, "setup": func():
 				var g: GameSim = m.game
 				var bs = g.boss
-				bs.debug_set_phase(3)
-				bs.core_open = true
-				var guard := 0
-				while bs.alive and guard < 100:
-					g.damage_enemy(bs, 60.0, g.player.pos, {"melee": true, "at": bs.axis_center()})
-					guard += 1},
-			{"ticks": 19, "input": {}},
-			_shot("h29_flash_%s_destroy" % tag),
+				g.emit_event({"type": "bossStuck", "at": bs.axis_center() + bs.forward() * (float(g.tuning.boss.bodyHalfLen) + 0.4)})},
+			{"ticks": 2, "input": {}},
+			_shot("h29_flash_%s_crash" % tag),
 		])
 	s.append({"ticks": 1, "setup": func(): PadConfig.flash = 1.0})
-	# ---- 設定の画面：フラッシュの強さの行を選んだところ
+	# ---- 設定の画面：フラッシュの強さの行を選んだところ（スマホの寸法の画面では、画面の操作（タッチ）の見た目で）
 	s.append(_shot("h30_settings_flash", {"setup": func():
+		if m.get_window().size.y < 500:
+			m.touch.activate()
 		m.pause()
 		m.menu.show_controls(func(): m.resume(), PadConfig.ACTIONS.size() + 4),
 		"after": func(): m.resume()}))
