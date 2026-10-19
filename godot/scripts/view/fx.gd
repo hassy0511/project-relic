@@ -1683,10 +1683,10 @@ func _loot_idle(lt) -> void:
 	var orb: Vector3 = lt.pos + Vector3(0, 0.6, 0)
 	var pl := 0.8 + 0.2 * sin(_time * 2.0 + lt.pos.z)
 	vfx.sprite(Vfx.RING, g, 0.45 / Vfx.RING_FRAC, _c(AMBER, 0.3 * pl), Vfx.FLAT, _flat(_time * 0.4))
-	vfx.sprite(Vfx.SOFT, orb, 0.75 * pl, Color(AMBER, 0.32))
-	if (_frame + int(lt.pos.x * 5.0)) % 16 == 0:
+	vfx.sprite(Vfx.SOFT, orb, 0.95 * pl, Color(AMBER, 0.45))
+	if (_frame + int(lt.pos.x * 5.0)) % 12 == 0:
 		var a := _rng.randf() * TAU
-		var q := vfx.emit(Vfx.GLINT, orb + Vector3(sin(a) * 0.4, _rng.randf_range(-0.45, 0.1), cos(a) * 0.4), Vector3(0, 0.45, 0), 1.3, 0.24, 0.08, _c(AMBER, 0.4))
+		var q := vfx.emit(Vfx.GLINT, orb + Vector3(sin(a) * 0.4, _rng.randf_range(-0.45, 0.1), cos(a) * 0.4), Vector3(0, 0.45, 0), 1.3, 0.32, 0.1, _c(AMBER, 0.55))
 		q.fin = 0.3
 
 

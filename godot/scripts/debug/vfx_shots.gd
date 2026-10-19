@@ -656,7 +656,8 @@ static func leftover_steps(d) -> Array:
 			_room_start(d, "ch1.r20", "ch1.got_spark,ch1.fell_to_b2,ch1.frame_fitted,ch1.blade_online,ch1.first_beacon,ch1.drive_powered,ch1.shortcut_open,ch1.diagnosis,ch1.boss_defeated,ch1.night")
 			d._stand(Vector3(0, 0, -8), Vector3(0, 0, 2))},
 		{"ticks": 20, "input": {}},
-		{"ticks": 1, "input": {}, "setup": func(): d._stand(Vector3(0, 0, -6.2), Vector3(0, 0, 2))},
+		# 入口から歩いてくると、トリガーの手前の柱（中央、z −6.5〜−5.5）の脇を通ってトリガーに入る
+		{"ticks": 1, "input": {}, "setup": func(): d._stand(Vector3(0.9, 0, -6.3), Vector3(0.9, 0, 2))},
 		_shots_after(d, "炉心で「ch1.node」の会話が始まる（エフェクトの確認）", func(): return String(m.game.story.dialogue.get("id", "")) == "ch1.node",
 			[10, 40, 72], ["h22_node_02", "h23_node_07", "h24_node_12"]),
 	])
