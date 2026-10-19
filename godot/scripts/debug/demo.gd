@@ -311,8 +311,8 @@ func _shopkeeper_steps() -> Array:
 		{"ticks": 2, "setup": func(): skip.call(30)},
 		{"ticks": 60, "input": {}},
 		{"ticks": 2, "setup": func(): skip.call(30)},
-		# ハルを店主の正面から少し横へ（ハルの体で店主が隠れないように）
-		{"ticks": 2, "setup": func(): go.call(Vector3(25.4, 0, 1.6), Vector3(24.2, 0, 5))},
+		# ハルを店の台の前、店主の正面から少し横へ（ハルの体で店主が隠れないように）
+		{"ticks": 2, "setup": func(): go.call(Vector3(25.3, 0, 2.7), Vector3(24.1, 0, 5))},
 		{"ticks": 50, "input": {}},
 		{"ticks": 1, "shot": "shopkeeper_01_store", "input": {}, "check": func():
 			return _check(not info.call().is_empty() and clip.call() == "idle", "雑貨屋の前に店主のモデルが立つ（%s）" % clip.call())},

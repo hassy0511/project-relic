@@ -20,7 +20,8 @@ import numpy as np
 
 # 色は spec_townsfolk_3d.md の色見本を基に、絵の平らに照らされた所の中央値（build/shopkeeper/tools/colors.py）へ寄せた
 PALETTE = {
-    'rust': '#9E4B34',       # 前掛け・腰の帯・蝶結び（spec #B75B43、絵 #B85838〜#BD5C3A。確認ページで明るい橙に見えたので下げた）
+    'rust': '#96503A',       # 前掛け・腰の帯・蝶結び（spec #B75B43、絵 #B85838〜#BD5C3A。確認ページで明るい橙に見えたので明るさ・彩度を下げた）
+    'rust_dark': '#844432',  # ポケットの袋（前掛けと同じ色では確認ページで輪郭が消えた。絵はポケットの縁に陰）
     'ivory': '#EEDCC0',      # ブラウス・立ち襟（spec #F3E9D2 は描画で白に見える。絵 #F8DFBB〜#FBE3C6）
     'skirt': '#62422F',      # スカート（spec #594333、絵 #68452E）
     'leather': '#6A4530',    # 肘の革の帯（絵 #794A31）
@@ -65,9 +66,12 @@ WRIST_T = (0.112, 0.178)        # 手首の帯（前腕の軸に沿った肘か�
 LEG_SKIN_Z = 0.245              # これより下（スカートの下）の脚は肌
 # 顔のまわりの髪の塗りの下の線（|x − X0| → z）。正面の絵の生え際（額の真ん中 1.412、こめかみで下がる、耳の上 1.355）
 HAIRLINE_PAINT = ([0.0, 0.03, 0.05, 0.065, 0.08, 0.10, 0.15], [1.412, 1.408, 1.398, 1.38, 1.36, 1.355, 1.355])
-BOOT_CUT = 0.150        # この高さより下の脚の体は消して、靴の部品に置き換える
+# 体の足と、スカートの中の脚・腰（見えない）を消す：z 0.85 より下、|x| 0.265 より内（手・前腕は |x| 0.28 より外）。
+# スカートの下に見えるすね（0.197〜0.26）は肌の色の部品（leg_skin）に置き換える。三角形を約 9 千減らし、
+# 歩き・走りで脚がスカートを突き抜けない
+BOOT_CUT = 0.85
 BOOT_RAMP = (0.06, 0.16)
-BOOT_CUT_X = (0.03, 0.33)
+BOOT_CUT_X = (-0.001, 0.265)
 RIGHT_HAND_PART = True
 
 
@@ -113,8 +117,10 @@ def body_r(th: np.ndarray, z: float) -> np.ndarray:
     global _RTAB
     if _RTAB is None:
         v = _mesh()
-        # 腕・手を除く（腰の下は |x| 0.26 まで、肘の高さ（0.85 より上）は 0.20 まで）
-        v = v[(np.abs(v[:, 0]) < np.where(v[:, 2] > 0.85, 0.20, 0.26)) & (v[:, 2] > 0.15) & (v[:, 2] < 1.0)]
+        # 腕・手を除く（腰の下は |x| 0.26 まで、0.80〜0.88 は 0.20 まで、腰の帯の高さ（0.88 より上）は 0.165 まで：
+        # 1 周目は上腕の内の縁（|x| 0.19）を拾い、腰の帯が横へ 0.22 まで張り出した）
+        lim = np.where(v[:, 2] > 0.93, 0.14, np.where(v[:, 2] > 0.88, 0.165, np.where(v[:, 2] > 0.80, 0.20, 0.26)))
+        v = v[(np.abs(v[:, 0]) < lim) & (v[:, 2] > 0.15) & (v[:, 2] < 1.0)]
         _RTAB = (v[:, 2], np.arctan2(v[:, 0], -(v[:, 1] - AX_Y)), np.hypot(v[:, 0], v[:, 1] - AX_Y))
     vz, vth, vr = _RTAB
     sel = np.abs(vz - z) < 0.015
@@ -224,7 +230,7 @@ SK = dict(z=[0.226, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.88, 0.94],
           bf=[0.236, 0.228, 0.212, 0.195, 0.176, 0.156, 0.132, 0.105, 0.088],
           bb=[0.232, 0.224, 0.200, 0.176, 0.155, 0.138, 0.124, 0.112, 0.100])
 SK_N = 2.15
-N_SK = 48       # 周の点の数（絵の面のあるスカート。陰影は骨付けの段の角度で折れ目）
+N_SK = 40       # 周の点の数（絵の面のあるスカート。陰影は骨付けの段の角度で折れ目）
 SK_CLEAR = 0.010
 
 
@@ -273,7 +279,7 @@ def radial_offset(P, d):
 
 def skirt() -> list[dict]:
     th = np.linspace(-math.pi, math.pi, N_SK, endpoint=False) + math.pi / N_SK
-    fr = np.concatenate([np.linspace(0.0, 0.08, 3), np.linspace(0.15, 1.0, 12)])
+    fr = np.concatenate([np.linspace(0.0, 0.08, 3), np.linspace(0.16, 1.0, 9)])
     hz = hem_z(th)
     outer = np.array([ring_at(SKIRT_TOP + (hz - SKIRT_TOP) * f, th) for f in fr])
     outer[-1] = radial_offset(outer[-1], np.full(len(th), 0.002))     # 裾の縁を少し外へ
@@ -299,8 +305,8 @@ def apron_pt(x, z, lift=0.0):
 def apron() -> list[dict]:
     P = []
     # 前の布：上（腰の帯の下）x ±0.108 → 下の縁 0.392 で ±0.215
-    zs = np.linspace(0.915, APRON_BOT, 14)
-    outer = np.array([apron_pt(np.linspace(-1, 1, 17) * (0.108 + 0.107 * (0.915 - z) / (0.915 - APRON_BOT)), z)
+    zs = np.linspace(0.915, APRON_BOT, 11)
+    outer = np.array([apron_pt(np.linspace(-1, 1, 13) * (0.108 + 0.107 * (0.915 - z) / (0.915 - APRON_BOT)), z)
                       for z in zs])
     inner = outer.copy()
     inner[..., 1] += 0.005
@@ -327,7 +333,7 @@ def apron() -> list[dict]:
         U, Vv = np.meshgrid(np.linspace(0, 1, 7), np.linspace(1, 0, 9))
         x0, x1 = sorted((0.035 * side, 0.175 * side))
         V, F = panel(U, Vv, x0, x1, 0.535, 0.785, 0.007)
-        P.append(dict(name='pocket' + sx, bone='hips', color='rust', mesh=(V, F)))
+        P.append(dict(name='pocket' + sx, bone='hips', color='rust_dark', mesh=(V, F)))
         U2, V2 = np.meshgrid(np.linspace(0, 1, 7), np.linspace(1, 0, 4))
         fx0, fx1 = sorted((0.031 * side, 0.179 * side))
         V, F = panel(U2, V2, fx0, fx1, 0.700, 0.792, 0.014, dip=0.012)
@@ -359,17 +365,22 @@ def apron() -> list[dict]:
 def waistband_bow() -> list[dict]:
     """腰の帯（前掛けの幅広の紐、ぐるり）と背中の蝶結び（結び目・輪 ×2・垂れ ×2）。絵 shopkeeper_3d_back・side"""
     P = []
-    th = np.linspace(-math.pi, math.pi, 64, endpoint=False)
-    rb = np.max([body_r(th, z) for z in np.linspace(WAIST[0] - 0.02, WAIST[1], 6)], 0)
-    rs = np.max([np.hypot(*(ring_at(z, th)[:, :2] - np.array([0.0, AX_Y])).T) for z in (SKIRT_TOP, 0.915)], 0)
-    r_out = np.maximum(rb + 0.020, rs + 0.016)
-    r_out = 0.5 * r_out + 0.25 * (np.roll(r_out, 1) + np.roll(r_out, -1))
+    th = np.linspace(-math.pi, math.pi, 48, endpoint=False)
+    # 行ごとの半径：体の 1.2cm 外、スカートの上の端（0.94 より下）の 0.6cm 外（1 周目は帯の高さ全体の最大で、上の縁が体から 3cm 浮いた）
     zs = np.linspace(WAIST[0], WAIST[1], 4)
-    outer = np.array([np.stack([np.sin(th) * r_out, AX_Y - np.cos(th) * r_out, np.full(len(th), z)], 1) for z in zs])
+    rows = []
+    for z in zs:
+        r = body_r(th, z) + 0.012
+        if z < SKIRT_TOP:
+            r = np.maximum(r, np.hypot(*(ring_at(z, th)[:, :2] - np.array([0.0, AX_Y])).T) + 0.006)
+        r = 0.5 * r + 0.25 * (np.roll(r, 1) + np.roll(r, -1))
+        rows.append(r)
+    rows = np.maximum.accumulate(np.array(rows)[::-1], 0)[::-1]      # 下の行ほど太い（上の縁が下の縁より外へ出ない）
+    outer = np.array([np.stack([np.sin(th) * r, AX_Y - np.cos(th) * r, np.full(len(th), z)], 1) for z, r in zip(zs, rows)])
     inner = radial_offset(outer, np.full(outer.shape[:2], -0.009))
     V, F = slab(outer, inner, wrap=True)
     P.append(dict(name='waistband', bone='hips', color='rust', mesh=(V, F)))
-    yb = AX_Y + float(r_out[0])          # 真後ろ（th = −π）の帯の外
+    yb = AX_Y + float(rows[1][0])        # 真後ろ（th = −π）の帯の外
     zc = 0.900
     Vk, Fk = box_mesh((0.0, yb + 0.014, zc), (0.020, 0.014, 0.022))
     P.append(dict(name='bow_knot', bone='hips', color='rust', mesh=(Vk, Fk)))
@@ -434,7 +445,7 @@ def top_parts() -> list[dict]:
     out = [(-sb, COLLAR_Z[0]), (sb, COLLAR_Z[0]), (st_, COLLAR_Z[1]), (0.07, 1.230), (0.0, 1.236), (-0.07, 1.230),
            (-st_, COLLAR_Z[1])]
     P.append(dict(name='collar', bone='neck', color='ivory', frame=fc, outline=out, off=0.004, thick=0.006,
-                  bevel=0.002, under='ivory', rmax=0.07, rmin=0.036, h=0.005, env_rings=3, smooth_iters=30,
+                  bevel=0.002, under='ivory', rmax=0.07, rmin=0.036, h=0.007, env_rings=3, smooth_iters=30,
                   raw_tol=0.004))
     # 上の縁の焦げ茶の線（襟の上 6mm）
     P.append(dict(name='collar_trim', bone='neck', color='trim', frame=fc,
@@ -451,7 +462,7 @@ def top_parts() -> list[dict]:
     fw['RN'] = 0.13
     P.append(dict(name='bib', bone='chest', color='rust', frame=fw,
                   outline=[(-0.104, WAIST[1] - 0.02), (0.104, WAIST[1] - 0.02), (0.104, BIB_TOP), (-0.104, BIB_TOP)],
-                  off=0.004, thick=0.006, bevel=0.002, under='rust', rmax=0.25, h=0.007, env_rings=2,
+                  off=0.004, thick=0.006, bevel=0.002, under='rust', rmax=0.25, h=0.010, env_rings=2,
                   smooth_iters=6))
     # 肩ひも ×2（左右の軸のまわり：胸当ての上の角 → 肩の上 → 背中を下りて腰の帯まで）。t = |x|
     up = np.array([0.0, 0.0, 1.0])
@@ -472,7 +483,7 @@ def top_parts() -> list[dict]:
         if side < 0:
             out = out[::-1]
         P.append(dict(name='strap' + sx, bone='chest', color='rust', frame=fst, outline=out, off=0.006,
-                      thick=0.005, bevel=0.0015, under='rust', rmax=0.25, env_rings=1, h=0.0045, smooth_iters=40,
+                      thick=0.005, bevel=0.0015, under='rust', rmax=0.25, env_rings=1, h=0.008, smooth_iters=40,
                       raw_tol=0.0))
         # 肩ひもの留め金（胸当ての上の角）：真鍮の枠 4 本 ＋ 中の暗い帯
         xc, zc = side * 0.084, BIB_TOP - 0.004
@@ -490,10 +501,10 @@ def top_parts() -> list[dict]:
         fs['RN'] = 0.06
         P.append(dict(name='elbow_band' + sx, bone='upper_arm' + sx, color='leather', frame=fs, ring=True,
                       t0=ELBOW_T[0], t1=ELBOW_T[1], off=0.006, thick=0.009, bevel=0.003, under='leather',
-                      rmax=0.14, rmin=0.03, n_ring=40, sink=0.012))
+                      rmax=0.14, rmin=0.03, n_ring=32, sink=0.012))
         P.append(dict(name='sleeve_fold' + sx, bone='upper_arm' + sx, color='ivory', frame=fs, ring=True,
                       t0=ELBOW_T[1] - 0.004, t1=ELBOW_T[2], off=0.003, thick=0.007, bevel=0.002, under='ivory',
-                      rmax=0.14, rmin=0.03, n_ring=40, sink=0.012))
+                      rmax=0.14, rmin=0.03, n_ring=32, sink=0.012))
         # 帯の外の真鍮の鋲
         L = float(np.linalg.norm(e - s))
         d = (e - s) / L
@@ -510,7 +521,24 @@ def top_parts() -> list[dict]:
         fs2['RN'] = 0.05
         P.append(dict(name='wristband' + sx, bone='forearm' + sx, color='band', frame=fs2, ring=True,
                       t0=WRIST_T[0], t1=WRIST_T[1], off=0.004, thick=0.010, bevel=0.003, under='band',
-                      rmax=0.12, rmin=0.02, n_ring=40, sink=0.012))
+                      rmax=0.12, rmin=0.02, n_ring=32, sink=0.012))
+    return P
+
+
+def legs_lid() -> list[dict]:
+    """スカートの下に見えるすね（肌、靴の折り返しの中 0.15 からスカートの中 0.33 まで）と、体を消した切り口のふた（スカートの中 0.845）"""
+    P = []
+    for side, sx in ((1.0, '.L'), (-1.0, '.R')):
+        secs = []
+        for z, rx, ry in ((0.150, 0.035, 0.043), (0.200, 0.036, 0.045), (0.260, 0.039, 0.048), (0.330, 0.043, 0.052)):
+            ang = np.linspace(0, 2 * math.pi, 12, endpoint=False)
+            secs.append(np.stack([side * 0.148 + rx * np.sin(ang), 0.025 - ry * np.cos(ang), np.full(12, z)], 1))
+        V, F = _loft_x(np.array(secs))
+        P.append(dict(name='leg_skin' + sx, bone='shin' + sx, color='skin', mesh=(V, F)))
+    th = np.linspace(-math.pi, math.pi, 24, endpoint=False)
+    ring = radial_offset(ring_at(0.845, th), np.full(len(th), -0.012))
+    V, F = _loft_x(np.array([ring, ring + np.array([0.0, 0.0, 0.004])]))
+    P.append(dict(name='skirt_lid', bone='hips', color='skirt_in', mesh=(V, F)))
     return P
 
 
@@ -520,6 +548,7 @@ def pieces() -> list[dict]:
     P += waistband_bow()
     P += apron()
     P += skirt()
+    P += legs_lid()
     for side, sx in ((1.0, '.L'), (-1.0, '.R')):
         P += boot_pieces(side, sx)
     P += hair_parts()
@@ -568,7 +597,7 @@ def boot_pieces(side: float, sx: str) -> list[dict]:
 
 # ---------------------------------------------------------------- 髪（お団子・房・前髪・顔の横の房）
 
-BUN_C = np.array([X0, 0.080, 1.488])     # お団子の中心（頭の真横・背面・真上の絵）
+BUN_C = np.array([X0, 0.078, 1.503])     # お団子の中心（頭の真横・背面・真上の絵。2 周目に 1.5cm 上げた：正面から下半分が頭の房に隠れた）
 
 
 def _petal(c, axis, up, L, W, T, n=8, k=6):
@@ -594,13 +623,13 @@ def bun() -> list[dict]:
     for i in range(ring):
         a = 2 * math.pi * i / ring + 0.2
         d = np.array([math.sin(a), -math.cos(a) * 0.95, 0.0])
-        c = BUN_C + d * 0.040 + np.array([0.0, 0.0, 0.004 * math.cos(2 * a)])
+        c = BUN_C + d * 0.047 + np.array([0.0, 0.0, 0.005 * math.cos(2 * a)])
         tang = np.array([math.cos(a), math.sin(a) * 0.95, 0.15])
-        V, F = _petal(c, tang, (0.0, 0.0, 1.0), 0.062, 0.030, 0.026)
+        V, F = _petal(c, tang, (0.0, 0.0, 1.0), 0.072, 0.033, 0.029)
         out.append(dict(name=f'hair_bun{i}', bone='head', color='hair', mesh=(V, F)))
-    V, F = _petal(BUN_C + np.array([0.0, 0.004, 0.032]), (1.0, 0.25, 0.0), (0.0, 0.0, 1.0), 0.056, 0.034, 0.024)
+    V, F = _petal(BUN_C + np.array([0.0, 0.006, 0.036]), (1.0, 0.25, 0.0), (0.0, 0.0, 1.0), 0.066, 0.038, 0.027)
     out.append(dict(name='hair_bun_top', bone='head', color='hair', mesh=(V, F)))
-    V, F = _petal(BUN_C + np.array([0.0, -0.01, 0.026]), (0.2, -1.0, 0.1), (0.0, 0.0, 1.0), 0.050, 0.030, 0.022)
+    V, F = _petal(BUN_C + np.array([0.0, -0.012, 0.030]), (0.2, -1.0, 0.1), (0.0, 0.0, 1.0), 0.058, 0.034, 0.025)
     out.append(dict(name='hair_bun_top2', bone='head', color='hair', mesh=(V, F)))
     return out
 
@@ -685,9 +714,9 @@ def hair_parts() -> list[dict]:
         ('side_l', 62, 1.385, 0.064, 0.005), ('side_r', -62, 1.385, 0.064, 0.005),
         ('side_l2', 86, 1.368, 0.066, 0.005), ('side_r2', -86, 1.368, 0.066, 0.005),
         ('ear_l', 108, 1.345, 0.066, 0.006), ('ear_r', -108, 1.345, 0.066, 0.006),
-        ('back_l', 138, 1.290, 0.066, 0.006), ('back_r', -138, 1.290, 0.066, 0.006),
-        ('back_l2', 152, 1.268, 0.072, 0.006), ('back_r2', -152, 1.268, 0.072, 0.006),
-        ('back_c', 180, 1.252, 0.074, 0.006),
+        ('back_l', 138, 1.290, 0.058, 0.006), ('back_r', -138, 1.290, 0.058, 0.006),
+        ('back_l2', 158, 1.262, 0.060, 0.006), ('back_r2', -158, 1.262, 0.060, 0.006),
+        ('back_c', 180, 1.250, 0.056, 0.006),
     ]
     sgrid = np.linspace(0.0, 1.0, n)
     for name, thd, zt, w, lift in sweep:
