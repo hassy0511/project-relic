@@ -131,6 +131,10 @@ func _ready() -> void:
 			_steps.append_array(VfxShots.steps(self))
 		if main.args.has("vfx_bench"):
 			_steps.append_array(VfxShots.bench_steps(self, Array(String(main.args.vfx_bench).split(",", false))))
+	# --motion_shots：飾りの動き（揺れる布・落砂・蒸気）のコマ（scripts/debug/motion_shots.gd）
+	if main.args.has("motion_shots"):
+		_steps.clear()
+		_steps.append_array(MotionShots.steps(self))
 	if not main.args.has("ch1_full"):
 		_steps.append({"ticks": 1, "done": true})
 	# --bk_kit・--bk_props：BlenderKit の素材の比べ（scripts/debug/bk_test.gd）。引数が無ければ何もしない
