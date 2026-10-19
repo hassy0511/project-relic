@@ -153,6 +153,18 @@ func test_story_fx_cue() -> void:
 	h.expect(fx_events.size() == 2 and fx_events[1].id == "node_memory" and fx_events[1].at.is_equal_approx(Vector3(1, 3, 2)),
 		"ノードの記憶の合図（位置＋高さ）")
 	h.expect(not st.running_event(), "合図の手順は待たない")
+	# カメラの "side"：ハルが真ん中の線（x = 0）の反対側なら、注視点と置き場所を左右に映す
+	var cam := {"camera": {"pos": [0.2, 0, -2.0], "height": 2.0, "eye": [4.5, 2.6, 0.5], "side": true, "wait": false}}
+	var st2 := Story.new({}, {"cam": {"steps": [cam]}}, g)
+	g.player.teleport(Vector3(1.0, 0, -6.0), 0.0)
+	st2.start_event("cam")
+	st2.update(1.0 / 60.0)
+	h.expect(g.cam_eye is Vector3 and g.cam_eye.x > 0.0 and g.cam_focus.x > 0.0, "ハルが右（x > 0）なら置き場所はそのまま")
+	g.player.teleport(Vector3(-1.0, 0, -6.0), 0.0)
+	st2.start_event("cam")
+	st2.update(1.0 / 60.0)
+	h.expect(g.cam_eye is Vector3 and g.cam_eye.is_equal_approx(Vector3(-4.5, 2.6, 0.5)) and is_equal_approx(g.cam_focus.x, -0.2),
+		"ハルが左（x < 0）なら置き場所と注視点を左右に映す（%s）" % str(g.cam_eye))
 	h.free_game(g)
 
 

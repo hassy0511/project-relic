@@ -1604,7 +1604,7 @@ func _node_memory(game: GameSim, dt: float) -> void:
 	# 光の点の列（ノードが遠いほどゆっくり。炉心のノードはハルから約 6 m）
 	var travel := clampf(to.distance_to(_node_from) / 8.0, 0.5, 0.8)
 	if _node_t > travel * 0.6 and _frame % 2 == 0:
-		var q := vfx.emit(Vfx.GRAIN, _node_from + _sphere() * 0.1, (to - _node_from) / travel, travel, 0.13, 0.07, _c(AMBER, 0.55))
+		var q := vfx.emit(Vfx.GRAIN, _node_from + _sphere() * 0.1, (to - _node_from) / travel, travel, 0.17, 0.08, _c(AMBER, 0.6))
 		q.fin = 0.2
 	if k > 0.4:
 		vfx.sprite(Vfx.GRAIN, to, 0.5, _c(AMBER, 0.65 * minf(1.0, (k - 0.4) * 3.0)))
