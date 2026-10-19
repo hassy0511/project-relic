@@ -506,6 +506,10 @@ FACE_NO_HAIR = CH.p('flat.FACE_NO_HAIR', False)
 
 
 FACE_MIRROR = CH.p('flat.FACE_MIRROR', None)
+# 目・眉を決まった範囲で拾う：[(x0, y0, x1, y1), ...]（全身の正面の絵の画素）。範囲の中の肌でない所は、髪の塊につながって
+# いても、表情の範囲（表情の絵で変わる所）の外でも、目・眉（絵の色のまま）にする。None なら何もしない。
+# 店主：表情の絵が口しか違わない（表情の範囲が口だけ）うえ、眉の端が前髪の房に触れ、目と眉が肌に消えた
+FACE_FEATURE_BOXES = CH.p('flat.FACE_FEATURE_BOXES', None)
 
 
 def _calib_front():
@@ -542,6 +546,15 @@ def _face_features(nonskin: np.ndarray, meta: dict, H: int, W: int) -> tuple[np.
         feat = ~big & ~speck & inzone[1:]
         feature[y0:y1, x0:x1] = np.isin(lab_, np.nonzero(feat)[0] + 1)
         region[y0:y1, x0:x1] = np.isin(lab_, np.nonzero(big)[0] + 1)
+        if FACE_FEATURE_BOXES:
+            wf, wa, k = meta['window_front_px'], meta['window_atlas_px'], meta['atlas_px_per_front_px']
+            for fx0, fy0, fx1, fy1 in FACE_FEATURE_BOXES:
+                ax0, ax1 = (x0 + wa[0] + int(round((f - wf[0]) * k)) for f in (fx0, fx1))
+                ay0, ay1 = (y0 + wa[1] + int(round((f - wf[1]) * k)) for f in (fy0, fy1))
+                ax0, ax1 = max(ax0, x0), min(ax1, x1)
+                ay0, ay1 = max(ay0, y0), min(ay1, y1)
+                feature[ay0:ay1, ax0:ax1] |= nonskin[ay0:ay1, ax0:ax1]
+                region[ay0:ay1, ax0:ax1] = False
     return feature, region
 
 

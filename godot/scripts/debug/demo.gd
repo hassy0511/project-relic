@@ -319,7 +319,7 @@ func _shopkeeper_steps() -> Array:
 		{"ticks": 2, "setup": func(): main.game.story.start_dialogue("ch1.shopkeeper.day")},
 		{"ticks": 100, "input": {}},
 		{"ticks": 1, "shot": "shopkeeper_02_talk", "input": {}, "check": func():
-			return _check(expr.call() == 1, "店主の笑顔（smile → 区画 1、%d）" % expr.call())},
+			return _check(expr.call() == 3, "店主の笑顔（smile → 区画 3、%d）" % expr.call())},
 		{"ticks": 2, "setup": func(): skip.call(10)},
 		{"ticks": 30, "input": {}},
 		{"ticks": 1, "shot": "shopkeeper_03_after", "input": {}, "check": func():

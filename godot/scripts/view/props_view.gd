@@ -24,8 +24,8 @@ const NPC_MODELS := {"npc_yana": "res://assets/models/yana.glb", "npc_burton": "
 const NPC_FACES := {"normal": 0, "smile": 0, "smirk": 0, "serious": 0, "sad": 0, "laugh": 1, "surprised": 2, "angry": 3}
 ## ニコの顔の区画（0 通常、1 笑顔、2 驚き、3 怒り。nico_face_expressions_r2.png の順）
 const NICO_FACES := {"normal": 0, "serious": 0, "sad": 0, "smile": 1, "smirk": 1, "laugh": 1, "surprised": 2, "angry": 3}
-## 雑貨屋の店主の顔の区画（0 通常、1 笑顔、2 通常、3 笑顔。shopkeeper_face_expressions.png は 2 表情を 2 回描いた 2×2）
-const SHOPKEEPER_FACES := {"normal": 0, "serious": 0, "sad": 0, "surprised": 0, "angry": 0, "smile": 1, "smirk": 1, "laugh": 1}
+## 雑貨屋の店主の顔の区画（shopkeeper_face_expressions.png は通常・笑顔を 2 回描いた 2×2。笑顔は口の色のよい右下の区画 3）
+const SHOPKEEPER_FACES := {"normal": 0, "serious": 0, "sad": 0, "surprised": 0, "angry": 0, "smile": 3, "smirk": 3, "laugh": 3}
 ## 表情を切り替える住人（顔のテクスチャが 2×2 の区画）。バートンは顔が 1 枚なので通常のまま
 const NPC_FACE_SETS := {"npc_yana": NPC_FACES, "npc_nico": NICO_FACES, "npc_shopkeeper": SHOPKEEPER_FACES}
 ## 名札の高さ（m）。既定は 2.1（大人の背丈）。ニコは 120cm、店主は 160cm（お団子の上 0.4m）

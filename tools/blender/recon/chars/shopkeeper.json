@@ -97,7 +97,10 @@
     "0.2",
     "--no-weapon",
     "--hand-part",
-    "--costume"
+    "--costume",
+    "--clips",
+    "child",
+    "--foot-contacts=-0.17,0.08,-0.085"
   ],
   "costume": true,
   "stages_skip": [
@@ -791,7 +794,14 @@
         1.6
       ],
       "fringe_ztop": 1.62,
-      "cover_z": 1.4
+      "cover_z": 1.4,
+      "undercut": {
+        "z": [
+          1.36,
+          1.43
+        ],
+        "margin": 0.008
+      }
     },
     "hair.NECK": {
       "cx": 0.0105,
@@ -859,6 +869,25 @@
         "good": 20,
         "bad": 8
       }
-    ]
-  }
+    ],
+    "flat.FACE_FEATURE_BOXES": [
+      [
+        946,
+        337,
+        1012,
+        414
+      ],
+      [
+        1046,
+        337,
+        1109,
+        414
+      ]
+    ],
+    "flat.FACE_MIRROR": {
+      "band_z": 1.305,
+      "keep": "right"
+    }
+  },
+  "_rig_note": "動作は住人の 4 動作（--clips child：腕を下ろした待機・歩き・走り・しゃがむ。ニコと同じ）。標準の 14 動作の待機は銃を構える姿勢なので使わない。ゲームで使うのは idle だけ（スカート・前掛けは hips に剛体）"
 }
