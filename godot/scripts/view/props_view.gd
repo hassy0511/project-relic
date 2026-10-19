@@ -14,12 +14,25 @@ var _switches := {}
 var _movers := {}
 var _loot := {}
 var _door_amt := {}
+var _leaving := {}   # 走り去っている住人：id → _npc_models の値（leave：残りの秒数、leave_dir：向き）
 
 ## 住人の 3D モデル（絵から起こした GLB。tools/blender/recon/build_char.py）。無ければ従来の簡単な形で描く
-const NPC_MODELS := {"npc_yana": "res://assets/models/yana.glb", "npc_burton": "res://assets/models/burton.glb"}
+const NPC_MODELS := {"npc_yana": "res://assets/models/yana.glb", "npc_burton": "res://assets/models/burton.glb",
+	"npc_nico": "res://assets/models/nico.glb"}
 ## 会話の行の顔（dialogue の face）→ 顔のテクスチャの 2×2 の区画（ヤーナ：0 通常、1 豪快に笑う、2 驚き、3 怒る）。
 ## 区画の無い顔は近いものか通常にする
 const NPC_FACES := {"normal": 0, "smile": 0, "smirk": 0, "serious": 0, "sad": 0, "laugh": 1, "surprised": 2, "angry": 3}
+## ニコの顔の区画（0 通常、1 笑顔、2 驚き、3 怒り。nico_face_expressions_r2.png の順）
+const NICO_FACES := {"normal": 0, "serious": 0, "sad": 0, "smile": 1, "smirk": 1, "laugh": 1, "surprised": 2, "angry": 3}
+## 表情を切り替える住人（顔のテクスチャが 2×2 の区画）。バートンは顔が 1 枚なので通常のまま
+const NPC_FACE_SETS := {"npc_yana": NPC_FACES, "npc_nico": NICO_FACES}
+## 名札の高さ（m）。既定は 2.1（大人の背丈）。ニコは 120cm
+const NPC_LABEL_Y := {"npc_nico": 1.6}
+## イベントで消える（remove）とき、走り去ってから消える住人と、その秒数（ニコは禁足扉へ走っていく。ch1.nico_run）
+const NPC_RUN_OFF := {"npc_nico": 1.3}
+const NPC_RUN_SPEED := 3.6
+## 繰り返す動作（GLB の動作の名前）
+const NPC_LOOPS := ["idle", "walk", "run", "cower"]
 
 
 func build(game: GameSim) -> void:
@@ -67,7 +80,7 @@ func build(game: GameSim) -> void:
 			MeshKit.add(root, MeshKit.sphere(0.2), MeshKit.mat(Color("#d9a07a")), Vector3(0, 1.55, 0))
 			MeshKit.add(root, MeshKit.box(Vector3(0.45, 0.7, 0.05)), MeshKit.mat(Color("#4d5a4a")), Vector3(0, 0.8, 0.3))
 			MeshKit.add(root, MeshKit.box(Vector3(0.12, 0.6, 0.12)), MeshKit.mat(Color("#8a8a8a"), 0.3, 0.7), Vector3(-0.4, 0.95, 0))
-		root.add_child(MeshKit.label(n.name, 2.1, Color("#ffe7b8"), 48))
+		root.add_child(MeshKit.label(n.name, float(NPC_LABEL_Y.get(n.id, 2.1)), Color("#ffe7b8"), 48))
 		_npcs[n.id] = root
 	for b in game.beacons:
 		MeshKit.add(self, MeshKit.cyl(0.5, 0.7, 0.4), MeshKit.mat(Color("#e9e3d6"), 0.35), b.pos + Vector3(0, 0.2, 0))
@@ -218,10 +231,13 @@ func sync(game: GameSim, dt: float) -> void:
 			# 話している行の顔（この住人のセリフのときだけ。ほかは通常）
 			var d: Dictionary = game.story.dialogue
 			var face := 0
-			# 顔の区画（2×2）があるのはヤーナだけ。バートンは顔が 1 枚なので通常のまま
-			if n.id == "npc_yana" and not d.is_empty() and d.get("who", "") == n.name:
-				face = int(NPC_FACES.get(String(d.get("face", "normal")), 0))
+			# 顔の区画（2×2）があるのはヤーナとニコ。バートンは顔が 1 枚なので通常のまま
+			var faces: Dictionary = NPC_FACE_SETS.get(n.id, {})
+			if not faces.is_empty() and not d.is_empty() and d.get("who", "") == n.name:
+				face = int(faces.get(String(d.get("face", "normal")), 0))
 			_set_npc_face(info, face)
+			_play_npc(info, _npc_anim_for(game, n, info))
+	_sync_leaving(game, dt)
 	for beam in _beams:
 		beam.albedo_color.a = 0.25 + sin(_time * 2.0) * 0.08
 	# 拾える物
@@ -259,19 +275,70 @@ func _add_npc_model(root: Node3D, path: String) -> Dictionary:
 				if m.resource_name.contains("face"):
 					face_mats.append(m)
 	var anim: AnimationPlayer = model.find_child("AnimationPlayer", true, false)
+	if anim:
+		for nm in NPC_LOOPS:
+			if anim.has_animation(nm):
+				anim.get_animation(nm).loop_mode = Animation.LOOP_LINEAR
 	if anim and anim.has_animation("idle"):
-		anim.get_animation("idle").loop_mode = Animation.LOOP_LINEAR
 		anim.play("idle")
 		# 何人いても同じ動きにそろわないように、始めの時刻をずらす
 		anim.seek(fmod(absf(root.position.x * 0.37 + root.position.z * 0.23), 1.0) * anim.current_animation_length, true)
-	return {"anim": anim, "face_mats": face_mats, "expr": 0}
+	return {"anim": anim, "face_mats": face_mats, "expr": 0, "clip": "idle", "saw_enemy": false}
 
 
-## イベントで住人が去ったとき
+## 住人の今の動作。ニコは遺構 B1（ch1.r01）で救われるまで、番機を怖がってしゃがむ（cower）。
+## 子番機が出て、倒されたら立ち上がる（救出の会話 ch1.nico_saved は立って話す）。ほかは待機
+func _npc_anim_for(game: GameSim, n, info: Dictionary) -> String:
+	if n.id != "npc_nico" or game.room_id != "ch1.r01" or game.flag("ch1.nico_rescued"):
+		return "idle"
+	var alive: bool = game.enemies.any(func(e): return e.alive)
+	if alive:
+		info.saw_enemy = true
+	return "cower" if alive or not info.saw_enemy else "idle"
+
+
+func _play_npc(info: Dictionary, clip: String) -> void:
+	var anim: AnimationPlayer = info.get("anim")
+	if anim == null or info.get("clip", "") == clip or not anim.has_animation(clip):
+		return
+	info.clip = clip
+	anim.play(clip, 0.35)
+
+
+## イベントで住人が去ったとき。走り去る住人（NPC_RUN_OFF）は、ハルから離れる向きへ走ってから消える（見た目だけ。
+## 当たり判定・会話は消えた時点でもう無い）
 func hide_npc(id: String) -> void:
 	var r: Node3D = _npcs.get(id)
-	if r != null:
-		r.visible = false
+	if r == null:
+		return
+	var info: Dictionary = _npc_models.get(id, {})
+	if NPC_RUN_OFF.has(id) and not info.is_empty() and info.anim != null and info.anim.has_animation("run"):
+		info.leave = float(NPC_RUN_OFF[id])
+		info.leave_dir = Vector3.ZERO
+		_play_npc(info, "run")
+		_leaving[id] = info
+		return
+	r.visible = false
+
+
+func _sync_leaving(game: GameSim, dt: float) -> void:
+	for id in _leaving.keys():
+		var info: Dictionary = _leaving[id]
+		var r: Node3D = _npcs.get(id)
+		info.leave = float(info.leave) - dt
+		if r == null or float(info.leave) <= 0.0:
+			if r != null:
+				r.visible = false
+			_leaving.erase(id)
+			continue
+		if info.leave_dir == Vector3.ZERO:
+			var away: Vector3 = r.position - game.player.pos
+			away.y = 0.0
+			info.leave_dir = away.normalized() if away.length() > 0.1 else Basis(Vector3.UP, r.rotation.y) * Vector3.BACK
+		var dir: Vector3 = info.leave_dir
+		var yaw := U.dir_to_yaw(dir.x, dir.z)
+		r.rotation.y += U.wrap_angle(yaw - r.rotation.y) * minf(1.0, dt * 10.0)
+		r.position += dir * NPC_RUN_SPEED * dt
 
 
 func _set_npc_face(info: Dictionary, i: int) -> void:

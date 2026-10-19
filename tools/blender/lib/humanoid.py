@@ -161,13 +161,14 @@ def mirror(pose: Pose) -> Pose:
     return out
 
 
-def _foot_contacts_local(arm: bpy.types.Object) -> dict[str, list]:
-    """足の裏の接地点を、足首の骨のローカル座標にしたもの（姿勢を付けたあと pb.matrix @ 点 で世界の位置になる）"""
+def _foot_contacts_local(arm: bpy.types.Object, contacts=None) -> dict[str, list]:
+    """足の裏の接地点を、足首の骨のローカル座標にしたもの（姿勢を付けたあと pb.matrix @ 点 で世界の位置になる）。
+    contacts：足首からのずれ（つま先・かかと）。None はハルの値 FOOT_CONTACTS"""
     out = {}
     for bn in ('foot.L', 'foot.R'):
         b = arm.data.bones[bn]
         inv = b.matrix_local.to_3x3().inverted()
-        out[bn] = [inv @ Vector(c) for c in FOOT_CONTACTS]
+        out[bn] = [inv @ Vector(c) for c in (contacts or FOOT_CONTACTS)]
     return out
 
 
@@ -179,9 +180,10 @@ def ground_offset(arm: bpy.types.Object, contacts: dict[str, list]) -> float:
     return root_z - lowest
 
 
-def bake_clips(arm: bpy.types.Object, clips: list[Clip]) -> None:
+def bake_clips(arm: bpy.types.Object, clips: list[Clip], foot_contacts=None) -> None:
     """各クリップを別々のアクションとして作り、NLA に積む（glTF で個別のアニメーションになる）。
-    標本は SCENE_FPS（60fps）。こまごとのつなぎ（Key の 3 つ目）と、足の接地（Clip.ground）もここで付ける"""
+    標本は SCENE_FPS（60fps）。こまごとのつなぎ（Key の 3 つ目）と、足の接地（Clip.ground）もここで付ける。
+    foot_contacts：足の裏の接地点（足首からのずれ。None はハルの値。ニコのように足の小さい人物は自分の値）"""
     scene = bpy.context.scene
     scene.render.fps = SCENE_FPS
     scene.render.fps_base = 1.0
@@ -189,7 +191,7 @@ def bake_clips(arm: bpy.types.Object, clips: list[Clip]) -> None:
     names = bone_names()
     for pb in arm.pose.bones:
         pb.rotation_mode = 'XYZ'
-    contacts = _foot_contacts_local(arm)
+    contacts = _foot_contacts_local(arm, foot_contacts)
     root = arm.pose.bones['root']
     for clip in clips:
         scale = SCENE_FPS / clip.fps

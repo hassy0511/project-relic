@@ -1,6 +1,7 @@
 extends SceneTree
 ## 絵から起こした住人（ヤーナ yana.glb など、持ち物なし）を Godot の中で描いて、確認の画像を 1 枚にまとめる（レビュー用）。
-##   tools/godot.sh shot --resolution 400x450 --script /abs/tools/blender/recon/godot_npc_showcase.gd -- <出力の PNG> [モデルの res:// パス] [顔の高さ m]
+##   tools/godot.sh shot --resolution 400x450 --script /abs/tools/blender/recon/godot_npc_showcase.gd -- <出力の PNG> [モデルの res:// パス] [顔の高さ m] [動作:秒,...]
+## 4 つ目の引数で、下の段の動作を変えられる（既定 run:0.10。ニコは walk:0.25,run:0.10,cower:0.30）
 ## ゲームの PropsView と同じ読み込み方（材質の複製・表情の uv1_offset）と同じ光（EnvironmentSetup）で描く。
 ## 上の段：全身（正面・右前 39 度・右真横・背面、idle）。中の段：顔の近写を 4 表情。
 ## 下の段：左真横・左前 33 度（idle）、idle の途中、走り。
@@ -12,6 +13,7 @@ const COLS := 4
 var out_path := ""
 var model_path := "res://assets/models/yana.glb"
 var face_y := 1.50
+var extra := [["run", 0.10]]
 var model: Node3D
 var anim: AnimationPlayer
 var face_mats: Array[BaseMaterial3D] = []
@@ -26,6 +28,11 @@ func _initialize() -> void:
 		model_path = args[1]
 	if args.size() > 2:
 		face_y = float(args[2])
+	if args.size() > 3:
+		extra = []
+		for item in args[3].split(",", false):
+			var kv := item.split(":")
+			extra.append([kv[0], float(kv[1]) if kv.size() > 1 else 0.1])
 	_run.call_deferred()
 
 
@@ -75,8 +82,9 @@ func _run() -> void:
 		await _shot(az, Vector3(0, mid, 0), full, 12.0)
 	_pose("idle", 1.0)
 	await _shot(20.0, Vector3(0, mid, 0), full, 12.0)
-	_pose("run", 0.10)
-	await _shot(31.0, Vector3(0, mid, 0), full * 1.05, 12.0)
+	for e in extra:
+		_pose(String(e[0]), float(e[1]))
+		await _shot(31.0, Vector3(0, mid, 0), full * 1.05, 12.0)
 
 	var rows := int(ceil(tiles.size() / float(COLS)))
 	var sheet := Image.create(TILE.x * COLS, TILE.y * rows, false, Image.FORMAT_RGBA8)

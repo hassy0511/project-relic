@@ -1,0 +1,1175 @@
+{
+ "id": "nico",
+ "name": "ニコ",
+ "art": {
+  "ref": "origin/art/w2-townsfolk",
+  "dir": "art/concepts/W2_townsfolk"
+ },
+ "work": "build/nico",
+ "height_m": 1.2,
+ "recon_height_m": 1.55,
+ "out_glb": "godot/assets/models/nico.glb",
+ "views": {
+  "front": {
+   "file": "nico_3d_front_r2.png",
+   "azimuth": 0.0
+  },
+  "back": {
+   "file": "nico_3d_back_r2.png",
+   "azimuth": 180.0
+  },
+  "side_right": {
+   "file": "nico_3d_side_right_r2.png",
+   "azimuth": 90.0
+  },
+  "three_quarter": {
+   "file": "nico_3d_front_right45_r2.png",
+   "azimuth": 45.0
+  },
+  "side_left": {
+   "file": "nico_3d_side_left_r2.png",
+   "azimuth": -90.0
+  },
+  "front_right45": {
+   "file": "nico_3d_front_right45_r2.png",
+   "azimuth": 45.0
+  },
+  "front_left45": {
+   "file": "nico_3d_front_left45_r2.png",
+   "azimuth": -45.0
+  },
+  "side_right_noarms": {
+   "file": "nico_3d_side_right_noarms_r2.png",
+   "azimuth": 90.0
+  }
+ },
+ "shape_views": [
+  "front",
+  "back",
+  "side_right",
+  "three_quarter",
+  "side_left",
+  "front_right45",
+  "front_left45"
+ ],
+ "texture_only_views": [
+  "side_right_noarms"
+ ],
+ "source_files": [
+  "nico_3d_front_r2.png",
+  "nico_3d_back_r2.png",
+  "nico_3d_side_right_r2.png",
+  "nico_3d_side_left_r2.png",
+  "nico_3d_front_right45_r2.png",
+  "nico_3d_front_left45_r2.png",
+  "nico_3d_side_right_noarms_r2.png",
+  "nico_face_front_r2.png",
+  "nico_face_expressions_r2.png",
+  "nico_head_side_right_r2.png",
+  "nico_head_back_r2.png",
+  "nico_head_top_r2.png",
+  "nico_head_front_right45_r2.png",
+  "nico_neck_r2.png",
+  "nico_hands_r2.png",
+  "nico_shoes_r2.png",
+  "nico_vs_haru_r2.png",
+  "spec_nico_r2.md",
+  "spec_townsfolk_3d.md",
+  "spec_townsfolk_3d_add.md"
+ ],
+ "face": {
+  "file": "nico_face_front_r2.png",
+  "expressions_file": "nico_face_expressions_r2.png",
+  "expressions": [
+   "normal",
+   "smile",
+   "surprised",
+   "angry"
+  ]
+ },
+ "rig_args": [
+  "--rest-arm-deg",
+  "12",
+  "--fill-unweighted",
+  "0.2",
+  "--no-weapon",
+  "--hand-part",
+  "--costume",
+  "--clips",
+  "child",
+  "--foot-contacts=-0.14,0.11,-0.085"
+ ],
+ "costume": true,
+ "stages_skip": [
+  "gun"
+ ],
+ "params": {
+  "review.COMPARE_VIEWS": [
+   "front",
+   "back",
+   "side_right",
+   "side_left",
+   "front_right45",
+   "front_left45"
+  ],
+  "texture.VIEW_GAIN": {
+   "front": 1.0,
+   "back": 1.0,
+   "side_right": 0.9,
+   "side_right_noarms": 1.0,
+   "side_left": 0.95,
+   "front_right45": 0.95,
+   "front_left45": 0.95,
+   "three_quarter": 0.9
+  },
+  "texture.VIEW_BIAS_DEG": {
+   "front": 0.0,
+   "back": 0.0,
+   "side_right": 15.0,
+   "side_right_noarms": 5.0,
+   "side_left": 8.0,
+   "front_right45": 8.0,
+   "front_left45": 8.0,
+   "three_quarter": 8.0
+  },
+  "carve.HEAD_Z": 1.15,
+  "carve.HAND_REGION": [
+   0.34,
+   0.76
+  ],
+  "fair.HEAD_Z": [
+   1.15,
+   1.19
+  ],
+  "fair.BODY_TOP": 1.125,
+  "fair.HEAD_CLOSE_Z": 1.16,
+  "fair.THROAT_CUT": {
+   "z": [
+    0.99,
+    1.03,
+    1.07,
+    1.1,
+    1.2
+   ],
+   "y": [
+    -0.1,
+    -0.085,
+    -0.062,
+    -0.045,
+    -0.04
+   ]
+  },
+  "fair.SHOE_Z": [
+   0.09,
+   0.12
+  ],
+  "fair.LEG_Z": [
+   0.56,
+   0.6
+  ],
+  "fair.HAND_ROWS": [
+   0.6,
+   0.75
+  ],
+  "snap.REAL": [
+   "front",
+   "side_right"
+  ],
+  "views.MASK_CUT": [
+   {
+    "views": [
+     "side_right",
+     "side_left",
+     "side_right_noarms"
+    ],
+    "z": [
+     0.99,
+     1.085
+    ],
+    "front_y": -0.097
+   }
+  ],
+  "snap.FREEZE_Z": [
+   1.12,
+   1.15
+  ],
+  "snap.ARM_Z": [
+   0.62,
+   0.86
+  ],
+  "snap.ARM_BLEND_Z": [
+   0.84,
+   0.92
+  ],
+  "snap.LEFT_ARM_GAIN": 0.8,
+  "uvparts.HAND_X": 0.355,
+  "uvparts.CUT_Z": {
+   "legs": 0.6,
+   "torso": 0.78,
+   "arm": 0.86,
+   "leg": 0.38
+  },
+  "uvparts.ARM_GAP": [
+   [
+    0.5,
+    0.6,
+    0.7,
+    0.8,
+    0.9,
+    1.0,
+    1.1
+   ],
+   [
+    0.36,
+    0.3,
+    0.275,
+    0.215,
+    0.158,
+    0.155,
+    0.18
+   ]
+  ],
+  "joints.ART_XZ": {
+   "hips": [
+    [
+     0.0,
+     0.66
+    ],
+    "torso"
+   ],
+   "spine": [
+    [
+     0.0,
+     0.76
+    ],
+    "torso"
+   ],
+   "chest": [
+    [
+     0.0,
+     0.88
+    ],
+    "torso"
+   ],
+   "neck": [
+    [
+     0.0,
+     1.085
+    ],
+    "torso"
+   ],
+   "head": [
+    [
+     0.0,
+     1.145
+    ],
+    "torso"
+   ],
+   "shoulder": [
+    [
+     0.035,
+     1.02
+    ],
+    "torso"
+   ],
+   "upper_arm": [
+    [
+     0.13,
+     1.02
+    ],
+    "mid"
+   ],
+   "forearm": [
+    [
+     0.258,
+     0.86
+    ],
+    "mid"
+   ],
+   "hand": [
+    [
+     0.355,
+     0.738
+    ],
+    "mid"
+   ],
+   "hand_end": [
+    [
+     0.41,
+     0.648
+    ],
+    "mid"
+   ],
+   "thigh": [
+    [
+     0.085,
+     0.64
+    ],
+    "mid"
+   ],
+   "shin": [
+    [
+     0.13,
+     0.38
+    ],
+    "mid"
+   ],
+   "foot": [
+    [
+     0.165,
+     0.085
+    ],
+    "shaft"
+   ]
+  },
+  "joints.SHAFT_Z": 0.14,
+  "joints.BLADE_XZ": null,
+  "hair.HEAD_C": [
+   -0.008,
+   0.03,
+   1.35
+  ],
+  "hair.Z_FIT": 1.17,
+  "hair.HAIRLINE": {
+   "y_face": 0.02,
+   "x": [
+    0.0,
+    0.04,
+    0.07,
+    0.1,
+    0.12,
+    0.135,
+    0.15,
+    0.25
+   ],
+   "z": [
+    1.385,
+    1.38,
+    1.365,
+    1.34,
+    1.31,
+    1.25,
+    1.15,
+    1.15
+   ]
+  },
+  "hair.PARTS": {
+   "goggles": false,
+   "strap": false,
+   "bangs": false,
+   "ears": true
+  },
+  "hair.EAR": {
+   "x0": -0.008,
+   "c": [
+    0.142,
+    0.03,
+    1.262
+   ],
+   "r": [
+    0.01,
+    0.022,
+    0.035
+   ],
+   "yaw_deg": 10.0,
+   "root_c": [
+    0.126,
+    0.026,
+    1.262
+   ],
+   "root_r": [
+    0.014,
+    0.016,
+    0.024
+   ]
+  },
+  "hair.SKIN": {
+   "zs": [
+    1.15,
+    1.51
+   ],
+   "jaw_z": [
+    1.16,
+    1.17,
+    1.18,
+    1.19,
+    1.2,
+    1.21,
+    1.22
+   ],
+   "ka_z": [
+    1.24,
+    1.27,
+    1.3,
+    1.34,
+    1.38,
+    1.42,
+    1.45,
+    1.48,
+    1.5,
+    1.51
+   ],
+   "ka": [
+    0.126,
+    0.13,
+    0.132,
+    0.133,
+    0.131,
+    0.126,
+    0.118,
+    0.1,
+    0.07,
+    0.0
+   ],
+   "front_z": [
+    1.155,
+    1.17,
+    1.19,
+    1.21,
+    1.23,
+    1.25,
+    1.27,
+    1.3,
+    1.33,
+    1.36,
+    1.4,
+    1.44,
+    1.47,
+    1.5
+   ],
+   "front_y": [
+    -0.08,
+    -0.1,
+    -0.122,
+    -0.132,
+    -0.136,
+    -0.138,
+    -0.136,
+    -0.132,
+    -0.13,
+    -0.125,
+    -0.115,
+    -0.095,
+    -0.072,
+    -0.04
+   ],
+   "back_z": [
+    1.155,
+    1.17,
+    1.19,
+    1.22,
+    1.26,
+    1.3,
+    1.36,
+    1.42,
+    1.46,
+    1.49,
+    1.51
+   ],
+   "back_y": [
+    -0.05,
+    -0.03,
+    0.0,
+    0.06,
+    0.12,
+    0.15,
+    0.165,
+    0.16,
+    0.14,
+    0.11,
+    0.06
+   ],
+   "nf_z": [
+    1.16,
+    1.19,
+    1.22,
+    1.26
+   ],
+   "nf": [
+    2.0,
+    2.1,
+    2.3,
+    2.5
+   ],
+   "side_rows": [
+    1.16,
+    1.33
+   ],
+   "cx_z": [
+    1.18,
+    1.22
+   ],
+   "nose": [
+    [
+     -0.14,
+     1.243
+    ],
+    [
+     0.0085,
+     0.013,
+     0.015
+    ]
+   ],
+   "jaw_ka": [
+    0.05,
+    0.075,
+    0.095,
+    0.108,
+    0.117,
+    0.122,
+    0.125
+   ]
+  },
+  "head.HEAD": {
+   "x0": -0.008,
+   "z": [
+    1.166,
+    1.175,
+    1.19,
+    1.21,
+    1.23,
+    1.25,
+    1.27,
+    1.29,
+    1.32,
+    1.35,
+    1.38,
+    1.41,
+    1.44,
+    1.47,
+    1.5
+   ],
+   "a": [
+    0.045,
+    0.062,
+    0.086,
+    0.105,
+    0.117,
+    0.125,
+    0.129,
+    0.131,
+    0.132,
+    0.132,
+    0.13,
+    0.126,
+    0.119,
+    0.108,
+    0.092
+   ],
+   "yf": [
+    -0.082,
+    -0.1,
+    -0.121,
+    -0.131,
+    -0.135,
+    -0.137,
+    -0.136,
+    -0.133,
+    -0.13,
+    -0.125,
+    -0.117,
+    -0.106,
+    -0.092,
+    -0.072,
+    -0.045
+   ],
+   "yb": [
+    -0.05,
+    -0.03,
+    0.0,
+    0.05,
+    0.09,
+    0.12,
+    0.14,
+    0.152,
+    0.162,
+    0.166,
+    0.166,
+    0.16,
+    0.148,
+    0.126,
+    0.09
+   ],
+   "nf": [
+    2.0,
+    2.05,
+    2.1,
+    2.2,
+    2.3,
+    2.35,
+    2.35,
+    2.35,
+    2.3,
+    2.25,
+    2.25,
+    2.2,
+    2.1,
+    2.0,
+    2.0
+   ],
+   "nb": 2.1,
+   "chin": [
+    1.153,
+    1.168
+   ],
+   "top": [
+    1.44,
+    1.515
+   ],
+   "chin_front": 0.3
+  },
+  "hair.CAP": {
+   "zs": [
+    1.2,
+    1.565
+   ],
+   "nape": [
+    1.2,
+    1.235
+   ],
+   "cx_z": [
+    1.3,
+    1.48
+   ],
+   "n_zmin": 1.22,
+   "fringe_ramp": [
+    1.4,
+    1.45
+   ],
+   "fringe_ztop": 1.62,
+   "cover_z": 1.4
+  },
+  "hair.NECK": {
+   "cx": -0.008,
+   "r": [
+    0.044,
+    0.042
+   ],
+   "cy": 0.0,
+   "z": [
+    1.05,
+    1.2
+   ],
+   "flare": [
+    [
+     1.07,
+     1.1,
+     1.13
+    ],
+    [
+     1.3,
+     1.12,
+     1.0
+    ]
+   ]
+  },
+  "hair.LOCKS_AS_PARTS": true,
+  "hair.PARAMS": {
+   "cap_inset_m": 0.004
+  },
+  "hair.LOCK_LIFT_MAX": 0.05,
+  "hair.LOCK_WIDTH_MAX": 0.12,
+  "hair.EAR_CLEAR": 1.3,
+  "hair.LOCK_PART": {
+   "thick": 0.42,
+   "w_min": 0.05,
+   "z_min": 1.16,
+   "h_max": 0.013,
+   "table": [
+    [
+     [
+      0.02,
+      0.1,
+      1.52
+     ],
+     [
+      0.006,
+      0.14,
+      1.205
+     ],
+     0.006,
+     0.075,
+     "back_c_l"
+    ],
+    [
+     [
+      -0.04,
+      0.1,
+      1.52
+     ],
+     [
+      -0.022,
+      0.14,
+      1.205
+     ],
+     0.006,
+     0.075,
+     "back_c_r"
+    ],
+    [
+     [
+      0.07,
+      0.1,
+      1.5
+     ],
+     [
+      0.12,
+      0.17,
+      1.172
+     ],
+     0.01,
+     0.085,
+     "back_m_l"
+    ],
+    [
+     [
+      -0.085,
+      0.1,
+      1.5
+     ],
+     [
+      -0.13,
+      0.17,
+      1.172
+     ],
+     0.01,
+     0.085,
+     "back_m_r"
+    ],
+    [
+     [
+      0.13,
+      0.06,
+      1.46
+     ],
+     [
+      0.21,
+      0.13,
+      1.2
+     ],
+     0.012,
+     0.085,
+     "back_o_l"
+    ],
+    [
+     [
+      -0.145,
+      0.06,
+      1.46
+     ],
+     [
+      -0.225,
+      0.13,
+      1.2
+     ],
+     0.012,
+     0.085,
+     "back_o_r"
+    ],
+    [
+     [
+      0.15,
+      -0.02,
+      1.47
+     ],
+     [
+      0.25,
+      0.03,
+      1.27
+     ],
+     0.014,
+     0.085,
+     "side_l"
+    ],
+    [
+     [
+      -0.165,
+      -0.02,
+      1.47
+     ],
+     [
+      -0.258,
+      0.03,
+      1.27
+     ],
+     0.014,
+     0.085,
+     "side_r"
+    ],
+    [
+     [
+      0.12,
+      -0.08,
+      1.46
+     ],
+     [
+      0.172,
+      -0.06,
+      1.19
+     ],
+     0.008,
+     0.065,
+     "front_side_l"
+    ],
+    [
+     [
+      -0.135,
+      -0.08,
+      1.46
+     ],
+     [
+      -0.185,
+      -0.06,
+      1.19
+     ],
+     0.008,
+     0.065,
+     "front_side_r"
+    ],
+    [
+     [
+      0.0,
+      0.07,
+      1.555
+     ],
+     [
+      0.0,
+      -0.07,
+      1.525
+     ],
+     0.008,
+     0.085,
+     "top_1"
+    ],
+    [
+     [
+      0.02,
+      0.07,
+      1.55
+     ],
+     [
+      0.13,
+      -0.01,
+      1.5
+     ],
+     0.008,
+     0.075,
+     "top_2"
+    ],
+    [
+     [
+      -0.03,
+      0.07,
+      1.55
+     ],
+     [
+      -0.14,
+      -0.01,
+      1.5
+     ],
+     0.008,
+     0.075,
+     "top_3"
+    ],
+    [
+     [
+      0.0,
+      0.08,
+      1.55
+     ],
+     [
+      0.07,
+      0.17,
+      1.42
+     ],
+     0.01,
+     0.08,
+     "crown_l"
+    ],
+    [
+     [
+      -0.02,
+      0.08,
+      1.55
+     ],
+     [
+      -0.09,
+      0.17,
+      1.42
+     ],
+     0.01,
+     0.08,
+     "crown_r"
+    ]
+   ]
+  },
+  "hair.FRINGE": [
+   [
+    [
+     0.05,
+     -0.09,
+     1.52
+    ],
+    [
+     -0.06,
+     -0.142,
+     1.372
+    ],
+    0.004,
+    0.075,
+    "fringe_a"
+   ],
+   [
+    [
+     -0.04,
+     -0.09,
+     1.51
+    ],
+    [
+     -0.112,
+     -0.118,
+     1.335
+    ],
+    0.005,
+    0.055,
+    "fringe_b"
+   ],
+   [
+    [
+     0.075,
+     -0.08,
+     1.5
+    ],
+    [
+     0.09,
+     -0.134,
+     1.375
+    ],
+    0.005,
+    0.055,
+    "fringe_c"
+   ],
+   [
+    [
+     0.105,
+     -0.05,
+     1.49
+    ],
+    [
+     0.132,
+     -0.1,
+     1.31
+    ],
+    0.006,
+    0.045,
+    "fringe_d"
+   ]
+  ],
+  "face.FACE_FEATURES_RECT": [
+   480,
+   420,
+   1580,
+   1540
+  ],
+  "face.FACE_HEAD_RECT": [
+   80,
+   20,
+   1980,
+   1560
+  ],
+  "face.FACE_EXPR_RECT": [
+   560,
+   720,
+   1480,
+   1400
+  ],
+  "face.FACE_NECK_Y": 1545,
+  "face.FACE_WINDOW": [
+   530,
+   640,
+   1510,
+   1548
+  ],
+  "face.FRONT_SCALE": [
+   0.25,
+   0.45
+  ],
+  "face.ATLAS_SCALE": 3.2,
+  "face.EXPR_SCALE": [
+   0.44,
+   0.66
+  ],
+  "face.ZONE_RECT": [
+   600,
+   720,
+   1440,
+   1420
+  ],
+  "face.FRONT_LANDMARKS": {
+   "eye_img_left": [
+    793,
+    1018
+   ],
+   "eye_img_right": [
+    1250,
+    1018
+   ],
+   "nose": [
+    1020,
+    1190
+   ],
+   "mouth": [
+    1020,
+    1300
+   ],
+   "chin": [
+    1020,
+    1512
+   ],
+   "cheek_left": [
+    610,
+    1245
+   ],
+   "cheek_right": [
+    1450,
+    1245
+   ]
+  },
+  "face.EXPR_LANDMARKS": {
+   "hair_top": [
+    1000,
+    260
+   ],
+   "ear_img_left": [
+    340,
+    1080
+   ],
+   "ear_img_right": [
+    1644,
+    1100
+   ],
+   "cheek_left": [
+    610,
+    1245
+   ],
+   "cheek_right": [
+    1450,
+    1245
+   ],
+   "chin": [
+    1020,
+    1512
+   ]
+  },
+  "texture.FACE_CHIN_PX": 592,
+  "texture.HEAD_CLEAN_Z": [
+   1.165,
+   1.5
+  ],
+  "texture.SKIN_CLEAN_ZMIN": 1.15,
+  "texture.SKIN_CLEAN_ZMAX": 1.27,
+  "texture.NECK_ZONE": {
+   "z": [
+    1.09,
+    1.155
+   ],
+   "x": 0.045,
+   "y": 0.0
+  },
+  "texture.NECK_V_HALF": 0.035,
+  "texture.BODY_CLEAN": {
+   "torso_skin_z": 1.09,
+   "hood_z": [
+    1.09,
+    1.125
+   ],
+   "collar_up_z": 1.12,
+   "sleeve_z": 0.93
+  },
+  "texture.BLOCK_Z": 1.09,
+  "texture.EAR_SKIN": true,
+  "texture.ASYMMETRIC": {},
+  "texture.REAL_VIEWS": [
+   "front",
+   "back",
+   "side_right",
+   "side_right_noarms",
+   "side_left",
+   "front_right45",
+   "front_left45"
+  ],
+  "texture.MIRROR_VIEWS": [],
+  "texture.NOARM_VIEWS": [
+   "side_right_noarms"
+  ],
+  "texture.ALIGN_ORDER": [
+   "front_right45",
+   "front_left45",
+   "side_right_noarms",
+   "side_right",
+   "side_left",
+   "back"
+  ],
+  "texture.FACE_SKIN_ONLY": true,
+  "texture.SOLID_ZONES": [
+   {
+    "th_min": 95.0,
+    "z": [
+     1.06,
+     1.17
+    ],
+    "r_max": 0.12,
+    "axis_y": 0.0,
+    "good": 20,
+    "bad": 8
+   }
+  ],
+  "flat.GOGGLE_PAINT": false,
+  "flat.STRAP_PART": false,
+  "flat.NECK_NO_DARK": {
+   "z_min": 9.0,
+   "x": 0.075
+  },
+  "flat.UMBER_Z": {
+   "torso_min": 9.0,
+   "leg_max": 0.1
+  },
+  "flat.FACE_NO_HAIR": true,
+  "flat.FACE_MIRROR": {
+   "band_z": 1.245,
+   "keep": "right"
+  },
+  "flat_views.VIEWS": {
+   "front": "all",
+   "back": "all",
+   "side_left": "all",
+   "side_right": "all"
+  },
+  "flat_views.LEG_UMBER_Z": 0.1,
+  "flat_views.ARM_AXIS": {
+   "shoulder": [
+    0.13,
+    0.0,
+    1.02
+   ],
+   "elbow": [
+    0.258,
+    0.01,
+    0.86
+   ]
+  },
+  "flat_views.SKIN_NECK": {
+   "z_min": 1.08,
+   "x": 0.05
+  },
+  "flat.PALETTE": {
+   "brick": "#54777B",
+   "ivory": "#DCC7A7",
+   "graphite": "#594333",
+   "brass": "#A98749",
+   "umber": "#E8C58D",
+   "amber": "#D89538",
+   "skin": "#E7B58D"
+  }
+ }
+}

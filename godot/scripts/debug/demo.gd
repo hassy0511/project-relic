@@ -80,7 +80,7 @@ func _ready() -> void:
 		{"ticks": 1, "shot": "07_after_drill", "check": func(): return _check(main.game.breakables[0].broken, "ドリルで壁を壊せる")},
 	]
 	# 引数 --arena_only：試しの部屋の場面だけ（画面の確認を早く撮るため）
-	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("cp2d_shots") or main.args.has("pad_shots") or main.args.has("ui_shots") or main.args.has("town_shots") or main.args.has("town_audit"):
+	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("cp2d_shots") or main.args.has("pad_shots") or main.args.has("ui_shots") or main.args.has("town_shots") or main.args.has("town_audit") or main.args.has("nico_shots"):
 		_steps.clear()
 	if main.args.has("ch1_full"):
 		_steps.clear()
@@ -101,6 +101,8 @@ func _ready() -> void:
 		_steps.append_array(_town_steps())
 	elif main.args.has("town_audit"):
 		_steps.append_array(_audit_steps())
+	elif main.args.has("nico_shots"):
+		_steps.append_array(_nico_steps())
 	else:
 		if not main.args.has("world_only"):
 			_steps.append_array(_arena_steps())
@@ -173,6 +175,114 @@ func _world_steps() -> Array:
 		{"ticks": 20, "input": {}},
 		{"ticks": 1, "check": func():
 			return _check(main.game.room_id == "sample.gym" and main.game.flag("switch.s1") and main.game.movers[0].pos.y > 3.9, "セーブから復帰すると部屋・フラグ・足場の状態が戻る")},
+	]
+
+
+## ニコ（nico.glb）の場面の確認（--nico_shots）：訓練場で待つ・話す・走り去る、遺構 B1（ch1.r01）の救出
+## （怖がってしゃがむ → 子番機 → 倒すと立って話す）、下段の家の前、ビー玉を返す会話
+func _nico_steps() -> Array:
+	var go := func(room: String, at: Vector3, look: Vector3, flags: Array):
+		var g: GameSim = main.game
+		g.god_mode = true
+		for f in flags:
+			g.set_flag(f)
+		g.load_room(room, "start")
+		for t in g.triggers:
+			if not String(t.id).ends_with(".nico"):
+				t.fired = true
+		_stand(at, look)
+	var skip := func(n: int):
+		for i in n:
+			if main.game.story.blocking():
+				main.game.story.confirm()
+	# 会話を次の行へ（文字の出きっていない行は、1 回目の決定で出しきる）
+	var next_line := func():
+		var d: Dictionary = main.game.story.dialogue
+		var i0: int = int(d.get("index", -1))
+		for k in 4:
+			if main.game.story.dialogue.is_empty() or int(main.game.story.dialogue.get("index", -1)) != i0:
+				break
+			main.game.story.confirm()
+	var has_nico := func() -> bool: return main.game.npcs.any(func(n): return n.id == "npc_nico")
+	var info := func() -> Dictionary: return main.props_view._npc_models.get("npc_nico", {})
+	var clip := func() -> String: return String(info.call().get("clip", ""))
+	var expr := func() -> int: return int(info.call().get("expr", -1))
+	var day := ["ch1.opening_done", "ch1.chores_started", "ch1.t_move", "trigger.ch1.training.start"]
+	return [
+		# 始まりの場面（夜明けの砂漠）を送る（_ch1_steps と同じ）
+		{"ticks": 230, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(30)},
+		{"ticks": 60, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(30)},
+		{"ticks": 2, "setup": func(): go.call("ch1.training", Vector3(4.7, 0, 35.2), Vector3(4.7, 0, 40), day)},
+		{"ticks": 50, "input": {}},
+		{"ticks": 1, "shot": "nico_01_training", "input": {}, "check": func():
+			return _check(has_nico.call() and not info.call().is_empty() and clip.call() == "idle", "訓練場にニコのモデルが立つ（%s）" % clip.call())},
+		{"ticks": 2, "setup": func(): main.game.story.start_dialogue("ch1.nico.training")},
+		{"ticks": 100, "input": {}},
+		{"ticks": 1, "shot": "nico_02_training_talk", "input": {}, "check": func():
+			return _check(expr.call() == 1, "ニコの笑顔（smile → 区画 1、%d）" % expr.call())},
+		{"ticks": 2, "setup": func(): skip.call(10)},
+		{"ticks": 20, "input": {}},
+		# 走り去る：会話の 2 行目（laugh）→ 会話を閉じると remove → 走ってから消える
+		{"ticks": 2, "setup": func(): main.game.story.start_event("ch1.nico_run")},
+		{"ticks": 100, "input": {}},
+		{"ticks": 2, "setup": func(): next_line.call()},
+		{"ticks": 60, "input": {}},
+		{"ticks": 1, "shot": "nico_03_run_talk", "input": {}, "check": func():
+			return _check(expr.call() == 1, "「べーっ」の前の笑い（laugh → 区画 1、%d）" % expr.call())},
+		{"ticks": 2, "setup": func(): skip.call(40)},
+		{"ticks": 22, "input": {}},
+		{"ticks": 1, "shot": "nico_04_run_off", "input": {}, "check": func():
+			return _check(not has_nico.call() and clip.call() == "run", "ニコは走って去る（%s）" % clip.call())},
+		{"ticks": 90, "input": {}},
+		{"ticks": 1, "check": func():
+			return _check(not main.props_view._npcs["npc_nico"].visible, "走り去ったニコは見えなくなる")},
+		{"ticks": 2, "setup": func(): skip.call(40)},
+		# 遺構 B1：怖がってしゃがむ → 会話（驚き）→ 子番機 → 倒すと立って話す
+		{"ticks": 2, "setup": func(): go.call("ch1.r01", Vector3(4.3, 0, 6.5), Vector3(4.3, 0, 12), ["ch1.nico_ran"])},
+		{"ticks": 50, "input": {}},
+		{"ticks": 1, "shot": "nico_05_r01_cower", "input": {}, "check": func():
+			return _check(clip.call() == "cower", "遺構 B1 のニコは怖がってしゃがむ（%s）" % clip.call())},
+		{"ticks": 2, "setup": func(): _stand(Vector3(0, 0, -6), Vector3(6, 0, 9))},
+		{"ticks": 20, "input": {}},
+		{"ticks": 2, "setup": func(): _stand(Vector3(4.3, 0, 6.5), Vector3(4.3, 0, 12))},
+		{"ticks": 100, "input": {}},
+		{"ticks": 1, "shot": "nico_06_r01_talk", "input": {}, "check": func():
+			return _check(expr.call() == 2 and clip.call() == "cower", "救出の会話：驚いた顔でしゃがむ（%d、%s）" % [expr.call(), clip.call()])},
+		{"ticks": 2, "setup": func(): skip.call(40)},
+		{"ticks": 2, "setup": func(): _stand(Vector3(1.8, 0, 1.6), Vector3(2.4, 0, 9))},
+		{"ticks": 50, "input": {}},
+		{"ticks": 1, "shot": "nico_07_r01_fight", "input": {}, "check": func():
+			return _check(not main.game.enemies.is_empty() and clip.call() == "cower", "子番機のいる間はしゃがむ（%s）" % clip.call())},
+		{"ticks": 2, "setup": func():
+			for e in main.game.enemies:
+				main.game.damage_enemy(e, 9999.0, e.pos, {})
+			_stand(Vector3(4.3, 0, 6.5), Vector3(4.3, 0, 12))},
+		{"ticks": 120, "input": {}},
+		{"ticks": 2, "setup": func(): next_line.call()},
+		{"ticks": 80, "input": {}},
+		{"ticks": 1, "shot": "nico_08_r01_saved", "input": {}, "check": func():
+			return _check(clip.call() == "idle" and main.game.story.dialogue.get("who", "") == "ニコ",
+				"子番機を倒すと立って話す（%s、%s）" % [clip.call(), main.game.story.dialogue.get("who", "")])},
+		{"ticks": 2, "setup": func(): skip.call(40)},
+		{"ticks": 60, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(40)},
+		{"ticks": 30, "input": {}},
+		# 下段の家の前・ビー玉を返す会話（2 行目がニコの笑い）
+		{"ticks": 2, "setup": func(): go.call("ch1.lower", Vector3(12.7, 0, 0.9), Vector3(12.7, 0, 6), ["ch1.nico_rescued"])},
+		{"ticks": 50, "input": {}},
+		{"ticks": 1, "shot": "nico_09_lower", "input": {}, "check": func():
+			return _check(has_nico.call() and clip.call() == "idle", "下段の家の前にニコがいる（%s）" % clip.call())},
+		{"ticks": 2, "setup": func():
+			main.game.give_item("quest.marble")
+			main.game.story.start_dialogue("ch1.nico.found")},
+		{"ticks": 100, "input": {}},
+		{"ticks": 2, "setup": func(): next_line.call()},
+		{"ticks": 80, "input": {}},
+		{"ticks": 1, "shot": "nico_10_marble", "input": {}, "check": func():
+			return _check(expr.call() == 1, "ビー玉を返すとニコが笑う（laugh → 区画 1、%d）" % expr.call())},
+		{"ticks": 2, "setup": func(): skip.call(10)},
 	]
 
 
@@ -971,7 +1081,7 @@ func _process(_dt: float) -> void:
 				await get_tree().physics_frame
 			_run_bot()
 			return
-		if not (main.args.has("ch1_shots") or main.args.has("town_shots") or main.args.has("town_audit") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("pad_shots")):
+		if not (main.args.has("ch1_shots") or main.args.has("town_shots") or main.args.has("town_audit") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("pad_shots") or main.args.has("nico_shots")):
 			main.args["mvp"] = "1"   # 見本の前半は古い試験場（mvp.main）で進める
 		main.start_game(null)
 		main.game.god_mode = true
