@@ -31,6 +31,16 @@ var _veil: ColorRect
 var _eye_w := 0.0                 ## 台本のカメラの置き場所（GameSim.cam_eye）へ寄せた割合
 var _eye := Vector3.ZERO
 var _eye_look := Vector3.ZERO
+## 会話のカメラ（TalkCamera）：住人に話しかけた会話の間、話し相手の頭と上半身が見える構図へ TALK_EASE 秒で寄せ、終わると同じ時間で戻す。
+## 見た目だけ（ゲームの中身の yaw・pitch は変えない）。偽にすると使わない（見本の「前」の画面の撮影）
+var talk_enabled := true
+const TALK_EASE := 0.5
+var _talk_w := 0.0                ## 会話の構図へ寄せた割合（0〜1。なめらかにするのは smoothstep）
+var _talk := {}                   ## 使っている構図 { id, pos, look, fov, side, at: [ハルの足元, 相手の足元, ナゴミがいるか] }（戻っている間も、戻りきるまで持つ）
+var _talk_next := {}              ## 次に使う構図（前の構図から戻りきってから入れ替える）
+var _talk_pending := false
+var _talk_id := ""                ## 構図を選んだ話し相手の住人の id（会話が終わると ""）
+var _talk_last := {}              ## 最後に選んだ構図（同じ相手・同じ立ち位置なら選び直さずに使う：会話の途中の台本の注視のあとなど）
 
 
 func _ready() -> void:
@@ -99,11 +109,19 @@ func sync(game: GameSim, player_pos: Vector3, dt: float, shake: float) -> void:
 	var p := _pivot + back * _dist
 	if _hold_w > 0.0:
 		p = p.lerp(_hold_pos, _hold_w)
+	# 会話のカメラ（TalkCamera）：ふだんのカメラから会話の構図へ、割合 _talk_w だけ寄せる
+	var look := _pivot
+	var view_fov: float = c.fov
+	_update_talk(game, dt)
+	if _talk_w > 0.0 and not _talk.is_empty():
+		var tw := smoothstep(0.0, 1.0, _talk_w)
+		p = _talk_path(game, p, tw)
+		look = _pivot.lerp(_talk.look, tw)
+		view_fov = lerpf(c.fov, float(_talk.fov), tw)
 	if shake > 0.0:
 		p.x += sin(_time * 73.0) * shake * 0.15
 		p.y += sin(_time * 91.0) * shake * 0.15
 	# 台本のカメラの置き場所（"camera" の "eye"）：1 秒かけてその場所へ移り、注視点を見る（終わると 0.6 秒で戻る）
-	var look := _pivot
 	if game.cam_eye != null and game.cam_focus != null:
 		_eye = game.cam_eye
 		_eye_look = game.cam_focus
@@ -113,12 +131,12 @@ func sync(game: GameSim, player_pos: Vector3, dt: float, shake: float) -> void:
 	if _eye_w > 0.0:
 		var w := smoothstep(0.0, 1.0, _eye_w)
 		p = p.lerp(_eye, w)
-		look = _pivot.lerp(_eye_look, w)
+		look = look.lerp(_eye_look, w)
 	global_position = p
 	var to := look - p
 	if to.length_squared() > 1e-6 and absf(to.normalized().y) < 0.999:
 		look_at(look, Vector3.UP)
-	fov = c.fov
+	fov = view_fov
 	if _veil != null:
 		_veil.visible = fall_dark > 0.002
 		_veil.color.a = fall_dark
@@ -157,6 +175,69 @@ static func _nothing_below(game: GameSim, at: Vector3, vel: Vector3) -> bool:
 		if not hit.is_empty():
 			return false
 	return true
+
+
+## 会話のカメラ：話し相手が変わったら（会話が始まった・終わった）構図を選び直し、寄せる割合を進める。
+## 構図を入れ替えるのは、前の構図から戻りきってから（同じ構図ならそのまま続ける）
+func _update_talk(game: GameSim, dt: float) -> void:
+	var npc = TalkCamera.partner(game) if talk_enabled else null
+	var id := "" if npc == null else String(npc.id)
+	# 同じ相手のまま、ハルか相手が動いた（台本の teleport など）：構図を選び直す
+	var moved: bool = npc != null and id == _talk_id and not _talk.is_empty() and _talk.id == id \
+		and (_talk.at[0].distance_to(game.player.pos) > 0.25 or _talk.at[1].distance_to(npc.pos) > 0.25)
+	if id != _talk_id or moved:
+		_talk_id = id
+		_talk_next = {}
+		if npc != null:
+			var at := [game.player.pos, npc.pos, game.nagomi_present()]
+			if not _talk_last.is_empty() and _talk_last.id == id and _talk_last.at[0].distance_to(at[0]) < 0.05 \
+					and _talk_last.at[1].distance_to(at[1]) < 0.05 and _talk_last.at[2] == at[2]:
+				_talk_next = _talk_last
+			else:
+				_talk_next = TalkCamera.find(game, npc, global_position, _aspect())
+				if not _talk_next.is_empty():
+					_talk_next["at"] = at
+					_talk_last = _talk_next
+		_talk_pending = true
+	if _talk_pending and (_talk_w <= 0.0 or _talk.is_empty() or _same_talk(_talk_next, _talk)):
+		_talk = _talk_next
+		_talk_pending = false
+	var on := not _talk_pending and not _talk.is_empty() and _talk_id != ""
+	_talk_w = move_toward(_talk_w, 1.0 if on else 0.0, dt / TALK_EASE)
+
+
+static func _same_talk(a: Dictionary, b: Dictionary) -> bool:
+	return not a.is_empty() and not b.is_empty() and a.pos.distance_to(b.pos) < 0.05 and a.look.distance_to(b.look) < 0.05
+
+
+## 画面の横÷縦（会話の構図の確かめに使う。4:3〜16:9 に収める：これより横長の画面（スマホ）では、ハルが画面のもっと内側に入る）
+func _aspect() -> float:
+	var vs := get_viewport().get_visible_rect().size if is_inside_tree() else Vector2(16, 9)
+	return clampf(vs.x / maxf(1.0, vs.y), 4.0 / 3.0, 16.0 / 9.0)
+
+
+## ふだんのカメラの場所 a から、会話のカメラの場所へ割合 s だけ寄せた場所。注視点（ハルの頭）のまわりを回って寄せる
+## （まっすぐ結ぶと、ハルの前から回り込むときにハルの体を通り抜ける）。途中で壁に当たる所は、壁の手前に止める（_room と同じ）
+func _talk_path(game: GameSim, a: Vector3, s: float) -> Vector3:
+	var va := a - _pivot
+	var vb: Vector3 = _talk.pos - _pivot
+	if va.length() < 0.05 or vb.length() < 0.05:
+		return a.lerp(_talk.pos, s)
+	var v := va.slerp(vb, s)
+	var len := v.length()
+	if len < 0.05:
+		return _pivot + v
+	return _pivot + v / len * minf(len, _room(game, v / len, len))
+
+
+## 会話のカメラで、今どれだけ寄せているか（0〜1。テスト・見本の確かめ用）
+func talk_weight() -> float:
+	return _talk_w
+
+
+## 今使っている会話の構図（{ id, pos, look, fov, side, at }。使っていなければ {}。main が話し相手の名札を薄くするのにも使う）
+func talk_frame() -> Dictionary:
+	return _talk
 
 
 ## yaw・pitch のときの、注視点からカメラへの向き

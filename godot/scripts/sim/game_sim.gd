@@ -83,6 +83,10 @@ var cam_focus = null
 var cam_focus_time := 0.0
 ## 台本のカメラの置き場所（"camera" の "eye"。null ならふだんどおりプレイヤーの後ろ）。注視（cam_focus）と一緒に終わる
 var cam_eye = null
+## 話しかけた住人の id（調べるボタンで話しかけたとき。_interact）。見た目の側の会話のカメラ（TalkCamera）が、話し相手を画面に収めるのに使う。
+## 遊びには関わらない（カメラの向き cam.yaw・pitch も変えない）。会話も、そこから始まったイベントも終わる・部屋を移る・その住人が消えると "" に戻す。
+## 台本がカメラを動かす（camera の手順を含む）イベント・会話で話しかけたときは入れない（台本のカメラのまま。Story.event_uses_camera）
+var talk_npc := ""
 var player_locked := false
 ## 部屋の移動の予約 { room, spawn?, at?, yaw?, autosave }。刻みの最後に実行する
 var _pending_room := {}
@@ -226,6 +230,7 @@ func _unload_room() -> void:
 	terminals = []
 	loot = []
 	focus = null
+	talk_npc = ""
 	tokens = Enemy.AttackTokens.new(func(): return tuning.enemies.maxAttackers)
 	if lock_on != null:
 		lock_on.release()
@@ -426,6 +431,8 @@ func remove_npc(id: String) -> void:
 			npcs.erase(n)
 			if n.body != null:
 				phys.remove(n.body)
+			if talk_npc == id:
+				talk_npc = ""
 			emit_event({"type": "npcRemoved", "id": id})
 
 
@@ -518,6 +525,9 @@ func step(frame: InputFrame) -> void:
 		tick += 1
 		return
 	story.update(DT)
+	# 話しかけた会話も、そこから始まったイベントも終わった
+	if talk_npc != "" and not story.blocking() and not story.running_event():
+		talk_npc = ""
 
 	if cam_focus_time > 0.0:
 		cam_focus_time -= DT
@@ -738,11 +748,14 @@ func _interact(it) -> void:
 		it.yaw = U.dir_to_yaw(player.pos.x - it.pos.x, player.pos.z - it.pos.z)
 		player.yaw = U.dir_to_yaw(it.pos.x - player.pos.x, it.pos.z - player.pos.z)
 		if it.event != "":
+			talk_npc = "" if story.event_uses_camera(it.event) else it.id
 			story.start_event(it.event)
 		else:
 			var key: String = it.talk + ".done"
 			var repeat: String = it.talk + ".again"
-			story.start_dialogue(repeat if flag(key) and story.has_dialogue(repeat) else it.talk)
+			var said: String = repeat if flag(key) and story.has_dialogue(repeat) else it.talk
+			talk_npc = "" if story.dialogue_uses_camera(said) else it.id
+			story.start_dialogue(said)
 			set_flag(key)
 	elif it is Props.Beacon:
 		it.activated = true

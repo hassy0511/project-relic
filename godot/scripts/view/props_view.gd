@@ -350,6 +350,15 @@ func _sync_leaving(game: GameSim, dt: float) -> void:
 		r.position += dir * NPC_RUN_SPEED * dt
 
 
+## 会話のカメラ（CameraRig）で話し相手へ寄せている間は、その住人の頭の上の名札を薄くする（近くから映すと大きく、会話の窓にも名前が出ている）。
+## id：会話のカメラが映している住人（無ければ ""）、w：寄せた割合（0〜1）
+func fade_talk_label(id: String, w: float) -> void:
+	for nid in _npcs:
+		for ch in (_npcs[nid] as Node3D).get_children():
+			if ch is Label3D:
+				(ch as Label3D).transparency = w if nid == id else 0.0
+
+
 func _set_npc_face(info: Dictionary, i: int) -> void:
 	if int(info.expr) == i:
 		return

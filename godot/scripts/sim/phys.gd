@@ -171,6 +171,19 @@ func _try_step(body: CharacterBody3D, rem: Vector3) -> bool:
 	return true
 
 
+## 球（中心 center、半径 radius）が mask の物に重なるか（会話のカメラ TalkCamera が、置き場所のまわりが空いているかを確かめる）。
+## 物の中に丸ごと入った球は面に触れないので重ならないとみなされる（入ったかどうかは、外の点からの raycast で確かめる）
+func sphere_hits(center: Vector3, radius: float, mask: int, exclude: Array[RID] = []) -> bool:
+	var s := SphereShape3D.new()
+	s.radius = radius
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = s
+	q.transform = Transform3D(Basis.IDENTITY, center)
+	q.collision_mask = mask
+	q.exclude = exclude
+	return not get_world_3d().direct_space_state.intersect_shape(q, 1).is_empty()
+
+
 ## レイキャスト。mask に含めたレイヤーだけに当たる。当たらなければ空の辞書
 func raycast(origin: Vector3, dir: Vector3, max_dist: float, mask: int, exclude: Array[RID] = []) -> Dictionary:
 	var q := PhysicsRayQueryParameters3D.create(origin, origin + dir * max_dist, mask, exclude)
