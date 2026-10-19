@@ -8378,9 +8378,9 @@
      "id": "npc_martha",
      "name": "洗濯のマーサ",
      "pos": [
-      30,
+      29.4,
       0,
-      3
+      2.5
      ],
      "yaw": 180,
      "event": "ch1.martha"
