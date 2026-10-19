@@ -80,7 +80,7 @@ func _ready() -> void:
 		{"ticks": 1, "shot": "07_after_drill", "check": func(): return _check(main.game.breakables[0].broken, "ドリルで壁を壊せる")},
 	]
 	# 引数 --arena_only：試しの部屋の場面だけ（画面の確認を早く撮るため）
-	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("cp2d_shots") or main.args.has("pad_shots") or main.args.has("ui_shots") or main.args.has("town_shots") or main.args.has("town_audit") or main.args.has("nico_shots"):
+	if main.args.has("arena_only") or main.args.has("world_only") or main.args.has("ch1_shots") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("cp2d_shots") or main.args.has("pad_shots") or main.args.has("ui_shots") or main.args.has("town_shots") or main.args.has("town_audit") or main.args.has("nico_shots") or main.args.has("shopkeeper_shots"):
 		_steps.clear()
 	if main.args.has("ch1_full"):
 		_steps.clear()
@@ -103,6 +103,8 @@ func _ready() -> void:
 		_steps.append_array(_audit_steps())
 	elif main.args.has("nico_shots"):
 		_steps.append_array(_nico_steps())
+	elif main.args.has("shopkeeper_shots"):
+		_steps.append_array(_shopkeeper_steps())
 	else:
 		if not main.args.has("world_only"):
 			_steps.append_array(_arena_steps())
@@ -283,6 +285,45 @@ func _nico_steps() -> Array:
 		{"ticks": 1, "shot": "nico_10_marble", "input": {}, "check": func():
 			return _check(expr.call() == 1, "ビー玉を返すとニコが笑う（laugh → 区画 1、%d）" % expr.call())},
 		{"ticks": 2, "setup": func(): skip.call(10)},
+	]
+
+
+## 雑貨屋の店主（shopkeeper.glb）の確認（--shopkeeper_shots）：中段の雑貨屋の前に立つ（待機）・話す（笑顔の区画）
+func _shopkeeper_steps() -> Array:
+	var skip := func(n: int):
+		for i in n:
+			if main.game.story.blocking():
+				main.game.story.confirm()
+	var info := func() -> Dictionary: return main.props_view._npc_models.get("npc_shopkeeper", {})
+	var clip := func() -> String: return String(info.call().get("clip", ""))
+	var expr := func() -> int: return int(info.call().get("expr", -1))
+	var go := func(at: Vector3, look: Vector3):
+		var g: GameSim = main.game
+		g.god_mode = true
+		for f in ["ch1.opening_done", "ch1.chores_started", "ch1.t_move"]:
+			g.set_flag(f)
+		g.load_room("ch1.mid", "start")
+		for t in g.triggers:
+			t.fired = true
+		_stand(at, look)
+	return [
+		{"ticks": 230, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(30)},
+		{"ticks": 60, "input": {}},
+		{"ticks": 2, "setup": func(): skip.call(30)},
+		# ハルを店主の正面から少し横へ（ハルの体で店主が隠れないように）
+		{"ticks": 2, "setup": func(): go.call(Vector3(25.4, 0, 1.6), Vector3(24.2, 0, 5))},
+		{"ticks": 50, "input": {}},
+		{"ticks": 1, "shot": "shopkeeper_01_store", "input": {}, "check": func():
+			return _check(not info.call().is_empty() and clip.call() == "idle", "雑貨屋の前に店主のモデルが立つ（%s）" % clip.call())},
+		{"ticks": 2, "setup": func(): main.game.story.start_dialogue("ch1.shopkeeper.day")},
+		{"ticks": 100, "input": {}},
+		{"ticks": 1, "shot": "shopkeeper_02_talk", "input": {}, "check": func():
+			return _check(expr.call() == 1, "店主の笑顔（smile → 区画 1、%d）" % expr.call())},
+		{"ticks": 2, "setup": func(): skip.call(10)},
+		{"ticks": 30, "input": {}},
+		{"ticks": 1, "shot": "shopkeeper_03_after", "input": {}, "check": func():
+			return _check(expr.call() == 0, "会話のあとは通常の顔（区画 0、%d）" % expr.call())},
 	]
 
 
@@ -1081,7 +1122,7 @@ func _process(_dt: float) -> void:
 				await get_tree().physics_frame
 			_run_bot()
 			return
-		if not (main.args.has("ch1_shots") or main.args.has("town_shots") or main.args.has("town_audit") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("pad_shots") or main.args.has("nico_shots")):
+		if not (main.args.has("ch1_shots") or main.args.has("town_shots") or main.args.has("town_audit") or main.args.has("ruins_shots") or main.args.has("ch1b_shots") or main.args.has("pad_shots") or main.args.has("nico_shots") or main.args.has("shopkeeper_shots")):
 			main.args["mvp"] = "1"   # 見本の前半は古い試験場（mvp.main）で進める
 		main.start_game(null)
 		main.game.god_mode = true
