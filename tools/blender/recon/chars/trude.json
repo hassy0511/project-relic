@@ -856,13 +856,14 @@
    "x": 0.05
   },
   "flat.PALETTE": {
-   "brick": "#B75B43",
-   "ivory": "#F3E9D2",
-   "graphite": "#444641",
-   "brass": "#A98749",
-   "umber": "#D6CCC4",
+   "brick": "#B4503A",
+   "ivory": "#EFD8B8",
+   "graphite": "#433D38",
+   "brass": "#C2954F",
+   "umber": "#C9B9B1",
    "amber": "#D89538",
    "skin": "#E7B58D"
-  }
+  },
+  "face.COLOR_FIT": false
  }
 }

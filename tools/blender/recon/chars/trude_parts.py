@@ -20,22 +20,22 @@ import numpy as np
 # 色：spec（W2-01 の spec_townsfolk_3d.md・W2-01b の spec_townsfolk_3d_add.md）の色見本を基に、絵の平らに照らされた所の
 # 中央値へ寄せた（build/trude/tools/colors.py。結果の文書 3 章に spec との違い）
 PALETTE = {
-    'rust': '#B65A40',        # 肩掛け（赤錆の厚布）
-    'rust_line': '#6E4A3C',   # 肩掛けの裾の上の線（暗い茶）
-    'ivory': '#EEDDBF',       # 上着・前掛け（生成りの木綿）
-    'brown': '#6A4935',       # スカート（焦げ茶の厚布）
-    'brown_dark': '#4C3427',  # スカートの裾の内側
-    'leather': '#4D3629',     # ベルト・腰の袋（革）
-    'graphite': '#454441',    # 立ち襟・内袖・靴下（石墨）
-    'brass': '#B48D4C',       # 留め具・ベルトの輪・靴の留め具・杖の金具（くすんだ真鍮）
-    'trim': '#C09858',        # 袖口・前掛けの裾の帯（黄土の布）
+    'rust': '#B4503A',        # 肩掛け（赤錆の厚布。絵 #BA4D32、spec #B75B43）
+    'rust_line': '#6B4A3E',   # 肩掛けの裾の上の線（暗い茶）
+    'ivory': '#EFD8B8',       # 上着・前掛け（生成りの木綿。絵 #FBDFBF、spec #F3E9D2）
+    'brown': '#5E4031',       # スカート（焦げ茶の厚布。絵 #5F4030、spec #594333）
+    'brown_dark': '#43301F',  # スカートの裾の内側
+    'leather': '#5A3D2C',     # ベルト・腰の袋（革。絵 #644532・#5B3D2C）
+    'graphite': '#433D38',    # 立ち襟・内袖・靴下（石墨。絵の立ち襟 #453E39、spec #444641）
+    'brass': '#C2954F',       # 留め具・ベルトの輪・靴の留め具・杖の金具（くすんだ真鍮。絵 #DFA95D の照り、spec #A98749）
+    'trim': '#C39050',        # 袖口・前掛けの裾の帯（黄土の布。絵 #C69152）
     'skin': '#E7B58D',
-    'hair': '#D3C9C1',        # 灰白の髪
-    'hair_dark': '#ADA29A',   # 髪の土台（房のすき間に見える内側の髪）
-    'boot': '#6B4A36',        # 靴の胴（茶の革）
-    'boot_light': '#86603F',  # 靴の爪先
-    'sole': '#3A3330',        # 靴底・かかと
-    'patch': '#9F7853',       # スカートの補修布
+    'hair': '#C9B9B1',        # 灰白の髪（絵 #D5C1B9、spec #D6CCC4。確認ページで白く見えたので少し下げた）
+    'hair_dark': '#AE9F97',   # 髪の土台（房のすき間に見える内側の髪。生え際の近くは房と同じ色）
+    'boot': '#583D2C',        # 靴の胴（茶の革。絵 #50382A）
+    'boot_light': '#76533A',  # 靴の爪先
+    'sole': '#2E2724',        # 靴底・かかと
+    'patch': '#976644',       # スカートの補修布（絵 #996746、spec #C6AB88）
     'wood': '#5A3829',        # 杖の木の軸・握り
 }
 NAMES = list(PALETTE)
@@ -45,11 +45,12 @@ X0 = 0.0        # 顔・首の左右の中心
 
 # A ポーズの関節（chars/trude.json の joints.ART_XZ と同じ x・z。y は真横の絵）
 J = {
-    'upper_arm': (0.15, 0.0, 1.05), 'forearm': (0.285, 0.02, 0.875), 'hand': (0.40, 0.03, 0.735),
-    'hand_end': (0.44, 0.03, 0.63), 'thigh': (0.09, 0.0, 0.66), 'shin': (0.12, 0.0, 0.37),
+    'upper_arm': (0.15, -0.007, 1.05), 'forearm': (0.285, 0.104, 0.875), 'hand': (0.40, 0.09, 0.735),
+    'hand_end': (0.44, 0.103, 0.63), 'thigh': (0.09, 0.0, 0.66), 'shin': (0.12, 0.0, 0.37),
     'foot': (0.125, 0.0, 0.09),
 }
-FOLLOW_BODY = ('turtleneck', 'belt')
+# 肩掛けは近くの体の重みを写す（胸に剛体だと、杖をつく右腕の上腕が肩掛けの横を突き抜けた）
+FOLLOW_BODY = ('turtleneck', 'belt', 'capelet', 'capelet_line')
 FOLLOW_TORSO_ONLY = ('turtleneck', 'belt')
 BOX_RULES: list = []
 
@@ -251,10 +252,10 @@ def _cape_open(z):
     return np.radians(26.0) * f ** 0.85
 
 
-CAPE_VS = np.unique(np.concatenate([np.linspace(0.0, 1.0, 24), [0.875, 0.93]]))   # 裾の上の線の行を含む
+CAPE_VS = np.unique(np.concatenate([np.linspace(0.0, 1.0, 17), [0.875, 0.93]]))   # 裾の上の線の行を含む
 
 
-def cape_surface(nu=96, vs=CAPE_VS):
+def cape_surface(nu=72, vs=CAPE_VS):
     """肩掛けの外の面の格子 (nu, nv, 3)：u は前の開きの本人の左の縁 → 後ろ → 右の縁、v は上の縁 → 裾"""
     us = np.linspace(0.0, 1.0, nu)
     nv = len(vs)
@@ -349,7 +350,7 @@ def belt_items() -> list[dict]:
     fw['RN'] = 0.15
     P.append(dict(name='belt', bone='hips', color='leather', frame=fw, ring=True,
                   t0=BELT_Z[0], t1=BELT_Z[1], off=0.010, thick=0.006, bevel=0.002, under='brown',
-                  rmax=0.3, n_ring=120, sink=0.014))
+                  rmax=0.3, n_ring=72, sink=0.014))
     for xc in (-0.075, 0.075):
         P.append(dict(name=f'belt_loop{"L" if xc > 0 else "R"}', bone='hips', color='brass', frame=fw,
                       outline=octagon(xc - 0.010, xc + 0.010, BELT_Z[0] - 0.008, BELT_Z[1] + 0.006, 0.003),
@@ -361,8 +362,103 @@ def belt_items() -> list[dict]:
     return P
 
 
+SKIRT_TOP = BELT_Z[0] + 0.004
+SKIRT_CY = 0.02                 # スカートの縦の軸の前後の位置（裾は後ろへ広い）
+_SKIRT = None
+
+
+def inner_r(th: np.ndarray, z: np.ndarray, cy: float = SKIRT_CY, R: float = 0.6) -> np.ndarray:
+    """縦の軸 (X0, cy) から外へ、正面からの角度 th・高さ z の水平な向きに撃って、最初に当たる体の面の半径（軸は体の中）"""
+    from mathutils import Vector
+    bvh = _bvh()
+    out = np.full(len(th), np.nan)
+    for i, (t, zz) in enumerate(zip(th, z)):
+        d = np.array([math.sin(t), -math.cos(t), 0.0])
+        hit = bvh.ray_cast(Vector((X0, cy, zz)), Vector(d), R)
+        if hit[0] is not None:
+            out[i] = hit[3]
+    return out
+
+
+def skirt_table(nu: int = 120):
+    """スカートの面の半径の表 (θ, z) → R。高さごとに軸から撃った体の面（レンズの体）＋4mm で、下へ行くほど半径を減らさない
+    （レンズの体は裾の高さで内へ丸まり、風船・ちょうちんのズボンのように見えた）"""
+    global _SKIRT
+    if _SKIRT is None:
+        from scipy import ndimage as NDI
+        th = np.linspace(-math.pi, math.pi, nu, endpoint=False)
+        zs = np.linspace(SKIRT_TOP, 0.19, 44)
+        TH, Z = np.meshgrid(th, zs, indexing='ij')
+        # 上（z ≥ 0.40）は軸から撃って最初に当たる面（外から撃つと手・腕を拾う）。裾の近く（z < 0.40）は外から撃って
+        # 最初に当たる面（軸から撃つと脚の間の面を拾い、裾の近くで体が殻を突き抜けた。この高さに手は無い）
+        R = np.zeros(TH.shape)
+        lo = Z < 0.40
+        R[lo] = outer_r(TH[lo], Z[lo], SKIRT_CY, R=0.60)
+        ri = inner_r(TH[~lo], Z[~lo])
+        R[~lo] = np.where(np.isfinite(ri), ri, 0.0)
+        for j in range(1, len(zs)):
+            R[:, j] = np.maximum(R[:, j], R[:, j - 1])
+        # ならしても元の半径より内へは入れない（脚のふくらみが裾の近くで殻を突き抜けた）
+        Rd = NDI.grey_dilation(R, size=(3, 3), mode='wrap')
+        R = np.maximum(NDI.gaussian_filter1d(Rd, 1.2, axis=0, mode='wrap'), R) + 0.006
+        _SKIRT = (th, zs, R)
+    return _SKIRT
+
+
+def skirt_r(th: np.ndarray, z: np.ndarray) -> np.ndarray:
+    """表から (θ, z) の半径（θ は周期、z は線形）"""
+    T, Zs, R = skirt_table()
+    nu = len(T)
+    u = (np.asarray(th) + math.pi) / (2 * math.pi) * nu
+    i0 = np.floor(u).astype(int) % nu
+    i1 = (i0 + 1) % nu
+    fu = u - np.floor(u)
+    zc = np.clip(np.asarray(z), Zs[-1], Zs[0])
+    j = np.clip(np.searchsorted(-Zs, -zc) - 1, 0, len(Zs) - 2)
+    fz = (Zs[j] - zc) / (Zs[j] - Zs[j + 1])
+    r0 = R[i0, j] * (1 - fz) + R[i0, j + 1] * fz
+    r1 = R[i1, j] * (1 - fz) + R[i1, j + 1] * fz
+    return r0 * (1 - fu) + r1 * fu
+
+
+def skirt_point(th, z, lift=0.0):
+    r = skirt_r(th, z) + lift
+    return np.stack([X0 + r * np.sin(th), SKIRT_CY - r * np.cos(th), np.asarray(z, float) * np.ones_like(r)], -1)
+
+
+def skirt() -> list[dict]:
+    """スカート（ベルトの下〜裾、焦げ茶の厚布）：体の面の外の殻（厚み 6mm）。裾は hem_z の高さでまっすぐ切る。
+    補修布は殻の上の薄い板（絵の正面・真横・背面・左前 45 度。spec は平らな色だが、殻の 1 色に塗れないので板にした）"""
+    nu, nv = 80, 18
+    th = np.linspace(-math.pi, math.pi, nu, endpoint=False)
+    vs = np.linspace(0.0, 1.0, nv)
+    TH = np.repeat(th[:, None], nv, 1)
+    Z = SKIRT_TOP + (hem_z(np.degrees(TH)) - SKIRT_TOP) * vs[None, :]
+    P = skirt_point(TH, Z)
+    rad = np.stack([np.sin(TH), -np.cos(TH), np.zeros_like(TH)], -1)
+    V, F = thick_sheet(P, rad, 0.006, closed_u=True)
+    out = [dict(name='skirt', bone='hips', color='brown', mesh=(V, F))]
+    for k, (a0, a1, z0, z1) in enumerate(PATCHES):
+        ta = np.radians(np.linspace(a0, a1, 7))
+        zz = np.linspace(z0, z1, 6)
+        TT, ZZ = np.meshgrid(ta, zz, indexing='ij')
+        Pp = skirt_point(TT, ZZ, 0.0022)
+        rp = np.stack([np.sin(TT), -np.cos(TT), np.zeros_like(TT)], -1)
+        Vp, Fp = thick_sheet(Pp, rp, 0.0016)
+        out.append(dict(name=f'skirt_patch{k}', bone='hips', color='patch', mesh=(Vp, Fp)))
+    return out
+
+
+def skirt_y(z: float, x0: float, x1: float, front: bool) -> float:
+    """スカートの殻の外の面の、高さ z・左右 x0〜x1 の前の端（front）か後ろの端の y"""
+    th = np.linspace(-math.pi, math.pi, 721)
+    P = skirt_point(th, np.full(len(th), z), 0.006)
+    m = (P[:, 0] > x0) & (P[:, 0] < x1) & ((P[:, 1] < SKIRT_CY) if front else (P[:, 1] > SKIRT_CY))
+    return float(P[m, 1].min() if front else P[m, 1].max())
+
+
 def apron() -> list[dict]:
-    """前掛け（前・後ろ）：ベルトの下から垂れる板（高さの断面を積む。上は体に沿い、下へ行くほど離す）と、裾の金の帯"""
+    """前掛け（前・後ろ）：ベルトの下から垂れる板（高さの断面を積む。上はスカートに沿い、下へ行くほど離す）と、裾の金の帯"""
     P = []
     for nm, sg, A in (('apron', -1.0, APRON), ('apron_back', 1.0, APRON_BACK)):
         z_top, hem = A['top'], A['hem']
@@ -374,9 +470,9 @@ def apron() -> list[dict]:
             x1 = A['x_top'][1] + (A['x_bot'][1] - A['x_top'][1]) * f
             zz = np.linspace(z, z_top, 6)
             if sg < 0:
-                yb = min(body_front_y(q, x0, x1) for q in zz)
+                yb = min(min(body_front_y(q, x0, x1), skirt_y(q, x0, x1, True)) for q in zz)
             else:
-                yb = max(body_back_y(q, x0, x1) for q in zz)
+                yb = max(max(body_back_y(q, x0, x1), skirt_y(q, x0, x1, False)) for q in zz)
             gap = 0.003 + 0.010 * f ** 1.3
             y_in = yb + sg * gap
             y_out = y_in + sg * 0.006
@@ -405,9 +501,14 @@ def rect_sec(c, tan, hw, ht, bev):
 
 
 def legs() -> list[dict]:
+    """靴と、裾と靴の間の靴下（石墨の筒。体の土台の脚は裾の下で細く裂けた形になり、灰の切れ端に見えた）"""
     P = []
     for side, sx in ((1.0, '.L'), (-1.0, '.R')):
         P += boot_pieces(side, sx)
+        cx, cy = side * 0.125, 0.028
+        secs = [(z, ell(cx, cy, r, r * 0.95, 12)) for z, r in ((0.150, 0.039), (0.172, 0.041), (0.215, 0.045),
+                                                                  (0.270, 0.050))]
+        P.append(dict(name='stocking' + sx, bone='shin' + sx, color='graphite', loft=secs))
     return P
 
 
@@ -571,7 +672,7 @@ def hair_locks() -> list[dict]:
              ('s_l', 61, 86, 0.080, 0.006), ('s_r', -61, -86, 0.080, 0.006),
              ('e_l', 79, 108, 0.070, 0.005), ('e_r', -79, -108, 0.070, 0.005)]
     for name, th0, ang, w, lift in sweep:
-        d0 = dir_at(th0, hairline_z(th0) + 0.012)
+        d0 = dir_at(th0, hairline_z(th0) + 0.006)
         a = math.radians(ang)
         tip = BUN_C + np.array([math.sin(a) * BUN_R[0] * 0.80, -BUN_R[1] * 0.55, math.cos(a) * BUN_R[2] * 0.80])
         Vm, Fm = band(d0, unit(tip - C), w, lift, r_tip=float(np.linalg.norm(tip - C)))
@@ -598,6 +699,7 @@ def pieces() -> list[dict]:
     P += capelet()
     P += collar_sleeves()
     P += belt_items()
+    P += skirt()
     P += apron()
     P += legs()
     P += bun()
@@ -624,7 +726,7 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
     x, y, z = pos[:, 0], pos[:, 1], pos[:, 2]
     free = under < 0
     r_neck = np.hypot(x - X0, y)
-    head = (z > NECK_TOP + 0.01) | ((z > 1.17) & (r_neck > 0.075) & (y < 0.0))
+    head = (z > NECK_TOP + 0.01) | ((z > 1.19) & (r_neck > 0.075) & (y < 0.0))
     th = np.degrees(np.arctan2(x - X0, -y))
     # 上着（胴・腕）：ベルトの上の縁より上
     blouse = free & ~head & (z >= BELT_Z[0])
@@ -639,7 +741,9 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
         cuff |= free & (side * x > 0.2) & (rr < 0.13) & (t > (SLEEVE_T[0] + SLEEVE_T[1]) / 2)
     under[cuff] = NAMES.index('graphite')
     # 首（立ち襟の下〜肩掛けの中）：石墨
-    neck = free & ~head & (z > 1.10) & ((r_neck < 0.085) | ((r_neck < 0.115) & (np.abs(th) < 60.0)))
+    # 肩掛けの立った襟の内（襟と立ち襟の間に見える体の上の面）も石墨（生成りと肌の斑点に見えた）
+    neck = free & ~head & (((z > 1.10) & ((r_neck < 0.085) | ((r_neck < 0.115) & (np.abs(th) < 60.0))))
+                          | ((z > 1.13) & (r_neck < 0.16)))
     under[neck] = NAMES.index('graphite')
     # スカート（ベルトより下、裾まで）
     hz = hem_z(th)
@@ -657,7 +761,7 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
     under[low & (rl > 0.075) & (z > 0.15)] = NAMES.index('brown_dark')
     # 頭と首の帯：形の場で（ニコと同じ作り）
     from recon import hair as HR
-    hb = (z > 1.15) & (z < 1.62) & (np.hypot(x - X0, y - 0.01) < np.where(z > 1.21, 0.30, 0.10))
+    hb = (z > 1.15) & (z < 1.62) & (np.hypot(x - X0, y - 0.01) < np.where(z > 1.21, 0.30, 0.16))
     hi = np.nonzero(hb)[0]
     if len(hi):
         f = HR.part_fields_at(pos[hi], x_half=0.30, z0=1.13)
@@ -671,7 +775,11 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
                         np.where(th_f < 112.0, 1.335, 1.25))
         hair &= ~(flush & (zh < line))
         lab_h = np.full(len(hi), NAMES.index('skin'))
-        lab_h[hair] = NAMES.index('hair')
+        # 帽子（髪の土台）は内側の暗い髪（房のすき間が陰に見え、房の形が分かる）。生え際の 2.5cm 上までは房と同じ色
+        # （ニコは帽子の縁が額の帯に見えた）
+        near_line = (th_f < 80.0) & (zh < np.interp(ax, HAIRLINE_PAINT[0], HAIRLINE_PAINT[1]) + 0.025)
+        lab_h[hair] = NAMES.index('hair_dark')
+        lab_h[hair & near_line] = NAMES.index('hair')
         lab_h[ear] = NAMES.index('skin')
         ctop = np.where(yh < 0, COLLAR_T1[0], COLLAR_T1[1])
         lab_h[(zh < ctop) & ~hair] = NAMES.index('graphite')
@@ -684,8 +792,8 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
 
 # 杖（絵 cane_front・side・top・3q）：まっすぐな焦げ茶の木の軸、T 字の横棒の握り（幅 18cm）、握りとの継ぎ目と先の石突きは真鍮。
 # spec の全長は 92cm だが、140cm のトルーデでは握りが肩の高さ（0.92m、肩 0.95m）になり、trude_grip.png のように上から
-# 握って寄りかかれない。手首の少し上（握り 0.70m）に合わせて全長 72cm にした（結果の文書 3 章）
-CANE_LEN = 0.72 / 0.9032       # 再構築の座標（身長 1.55m）。骨付けの段で 1.40m へ 0.903 倍
+# 握って寄りかかれない。杖の普通の長さ（手を下ろした手首の高さ、身長の約 0.49 倍）の全長 68cm にした（結果の文書 3 章）
+CANE_LEN = 0.68 / 0.9032       # 再構築の座標（身長 1.55m）。骨付けの段で 1.40m へ 0.903 倍
 CANE_BAR_HALF = 0.09 / 0.9032  # 横棒の半分の長さ
 CANE_SHAFT_R = 0.0105
 GRIP_CURL = (50.0, 62.0, 46.0)  # 握る指の節ごとの曲げ（度）

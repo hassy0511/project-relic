@@ -16,7 +16,7 @@ from lib.humanoid import Clip, Pose, bone_names
 FPS = 60
 EASE = {'interp': 'SINE', 'ease': 'EASE_IN_OUT'}
 # 杖の先の置き場所（骨の物体の座標＝再構築の座標、身長 1.55m）：本人の右前、スカートの裾の外
-TIP = (-0.300, -0.215, 0.0)
+TIP = (-0.285, -0.235, 0.0)
 
 
 def merge(*poses: Pose) -> Pose:
@@ -26,10 +26,11 @@ def merge(*poses: Pose) -> Pose:
     return out
 
 
-# 立った基準の姿勢：背中を少し丸め、頭は少し上げて相手を見る。左腕は体の横に力を抜いて
+# 立った基準の姿勢：背中を少し丸め、頭は少し上げて相手を見る。左腕は体の横に力を抜いて下ろす。基準の姿勢の腕の開き（12 度）
+# のままだと手が広いスカートの中に入るので、上腕を外へ 12 度開く（手首は体の中心から 0.31m、スカートの裾の半幅は 0.27m）
 STAND: Pose = {
-    'spine': (5, 0, 0), 'chest': (3, 0, 0), 'neck': (-2, 0, 0), 'head': (-6, 0, 0),
-    'upper_arm.L': (4, 0, -2), 'forearm.L': (-14, 0, 0), 'hand.L': (0, 0, 4),
+    'spine': (0, 0, 0), 'chest': (7, 0, 0), 'neck': (-2, 0, 0), 'head': (-6, 0, 0),
+    'upper_arm.L': (-4, 0, -12), 'forearm.L': (-18, 0, 0), 'hand.L': (0, 0, 6),
 }
 ARM_R = ('upper_arm.R', 'forearm.R', 'hand.R')
 
@@ -111,11 +112,11 @@ SOLVED: list = []      # 解いた姿勢の記録（ai_character.py の stats �
 
 def idle(arm, pts: dict) -> Clip:
     a = STAND
-    b = merge(STAND, {'chest': (2, -2, 1), 'neck': (-2, -2, 0), 'head': (-5, -6, 2), 'upper_arm.L': (6, 0, -3),
-                      'forearm.L': (-18, 0, 0)})
-    c = merge(STAND, {'spine': (5, 0, 0), 'chest': (1, 0, 0), 'head': (-8, 0, 0)})
-    d = merge(STAND, {'chest': (2, 2, -1), 'neck': (-2, 2, 0), 'head': (-5, 7, -2), 'upper_arm.L': (2, 0, -1),
-                      'forearm.L': (-12, 0, 0)})
+    b = merge(STAND, {'chest': (6, -2, 1), 'neck': (-2, -2, 0), 'head': (-5, -6, 2), 'upper_arm.L': (-2, 0, -13),
+                      'forearm.L': (-22, 0, 0)})
+    c = merge(STAND, {'chest': (5, 0, 0), 'head': (-8, 0, 0)})
+    d = merge(STAND, {'chest': (6, 2, -1), 'neck': (-2, 2, 0), 'head': (-5, 7, -2), 'upper_arm.L': (-6, 0, -11),
+                      'forearm.L': (-15, 0, 0)})
     keys = []
     guess = None
     for f, p in ((1, a), (46, b), (91, c), (136, d)):
