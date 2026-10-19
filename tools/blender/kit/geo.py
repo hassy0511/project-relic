@@ -58,12 +58,15 @@ def orient(v, faces):
 
 
 class Part:
-    """部品 1 つ：材質ごとの形の集まり。add_* はどれも (頂点, 面) を足す"""
+    """部品 1 つ：材質ごとの形の集まり。add_* はどれも (頂点, 面) を足す。
+    motion：動きの重み fn(材質, 頂点 (N,3)・Blender の座標) → (N,)（0〜1。None なら付けない）。書き出しで頂点の色のアルファ（1 - 重み）になり、
+    キットの材質の "sway"（垂れたケーブルの揺れ）・"flow"（落砂の流れの模様）が重みのある所だけを動かす（42 章 14.2.2）"""
 
     def __init__(self, name: str, note: str = ''):
         self.name = name
         self.note = note
         self.pieces: list[tuple[str, np.ndarray, list, bool]] = []   # (材質, 頂点, 面, なめらか)
+        self.motion = None
 
     def add(self, mat, v, f, smooth=False):
         v = np.asarray(v, float)
@@ -236,10 +239,12 @@ def to_blender(part: Part):
     for m, *_ in part.pieces:
         if m not in names:
             names.append(m)
-    verts, faces, mat_idx, smooth = [], [], [], []
+    verts, faces, mat_idx, smooth, weights = [], [], [], [], []
     off = 0
     for m, v, f, sm in part.pieces:
         verts.extend(v.tolist())
+        if part.motion is not None:
+            weights.append(np.clip(np.asarray(part.motion(m, np.asarray(v, float)), float).reshape(-1), 0.0, 1.0))
         for fc in f:
             faces.append([i + off for i in fc])
             mat_idx.append(names.index(m))
@@ -250,7 +255,16 @@ def to_blender(part: Part):
     me.validate()
     for m in names:
         me.materials.append(material(m))
-    uv = me.uv_layers.new(name='UVMap')
+    # 動きの重み（part.motion）：頂点の色（白）のアルファ = 1 - 重み。重みの無い部品には色を付けない（前と同じ GLB）。
+    # 層を足すと前に取った層の参照が古くなる（書くと別の層に入る）ので、両方を作ってから名前で取り直す
+    col = None
+    if weights:
+        alpha = 1.0 - np.concatenate(weights)
+        me.color_attributes.new(name='Col', type='FLOAT_COLOR', domain='CORNER')
+    me.uv_layers.new(name='UVMap')
+    uv = me.uv_layers['UVMap']
+    if weights:
+        col = me.color_attributes['Col']
     V = np.asarray(verts)
     for pi, pl in enumerate(me.polygons):
         pl.material_index = mat_idx[pi]
@@ -258,8 +272,11 @@ def to_blender(part: Part):
         n = np.abs(np.asarray(pl.normal))
         ax = int(np.argmax(n))
         for li in pl.loop_indices:
-            p = V[me.loops[li].vertex_index]
+            vi = me.loops[li].vertex_index
+            p = V[vi]
             uv.data[li].uv = {0: (p[1], p[2]), 1: (p[0], p[2]), 2: (p[0], p[1])}[ax]
+            if col is not None:
+                col.data[li].color = (1.0, 1.0, 1.0, float(alpha[vi]))
     ob = bpy.data.objects.new(part.name, me)
     bpy.context.scene.collection.objects.link(ob)
     return ob

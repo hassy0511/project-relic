@@ -11,7 +11,12 @@ import math
 
 import numpy as np
 
-from town_geo import Part, beam, box, boxb, cyl, lathe, merge, sag, sheet, tube
+from town_geo import Part, beam, box, boxb, cyl, hang, lathe, merge, sag, sagging, sheet, sway, tube
+
+# 風で揺れる布の重みの上限（town_geo.sway。キットの材質の "sway" の幅に掛かる。1 = 旗・洗濯物の自由な端）
+SWAY_WALL = 0.4        # 壁に沿って垂れる布（垂れ幕・布札）：壁から 4 cm ほどなので、押されても壁に入らない幅に
+SWAY_DROP = 0.5        # 日よけ・露店の前の垂れ（上の端は棒・梁に留まる）
+SWAY_CANVAS = 0.18     # 枠に張った帆布の真ん中のふくらみ（縁は枠に留まる）
 
 # ---------------------------------------------------------------- 共通の小さな形
 
@@ -176,18 +181,24 @@ def awning(kind='hard', w=2.0, depth=1.6, drop=0.5) -> Part:
             p.add('brass', beam((x, 0, 0.05), (x, -drop, depth), 0.06))            # 横の枠
             p.add('graphite', beam((x, -0.8, 0.04), (x, -drop - 0.02, depth * 0.62), 0.05))   # 斜めの支え
             p.add('graphite', boxb(x - 0.06, x + 0.06, -0.92, -0.7, 0, 0.08))
-        p.add('cloth', sheet(lambda u, v: (-hw + 0.1 + (w - 0.2) * u, -drop * v - 0.05 * math.sin(math.pi * u) * math.sin(math.pi * v) + 0.02,
-                                            0.06 + (depth - 0.06) * v), 6, 4, 0.025))
-        # 前の垂れ（短い）
-        p.add('cloth', sheet(lambda u, v: (-hw + 0.06 + (w - 0.12) * u, -drop - 0.22 * v * (0.75 + 0.25 * math.cos(u * math.pi * 6)),
-                                            depth + 0.04), 12, 1))
+        # 帆布：枠に張ってあるので縁は動かず、真ん中だけ少しふくらむ（揺れの重み）
+        p.add('cloth', sway(sheet(lambda u, v: (-hw + 0.1 + (w - 0.2) * u, -drop * v - 0.05 * math.sin(math.pi * u) * math.sin(math.pi * v) + 0.02,
+                                                  0.06 + (depth - 0.06) * v), 6, 4, 0.025),
+                            lambda v: SWAY_CANVAS * np.sin(np.pi * np.clip((v[:, 0] + hw - 0.1) / (w - 0.2), 0, 1))
+                            * np.sin(np.pi * np.clip((v[:, 2] - 0.06) / (depth - 0.06), 0, 1))))
+        # 前の垂れ（短い）：前の棒から下へ揺れる
+        p.add('cloth', sway(sheet(lambda u, v: (-hw + 0.06 + (w - 0.12) * u, -drop - 0.22 * v * (0.75 + 0.25 * math.cos(u * math.pi * 6)),
+                                                  depth + 0.04), 12, 1), hang(-drop, 0.22, SWAY_DROP)))
     else:
         for x in (-hw, hw):
             p.add('graphite', boxb(x - 0.06, x + 0.06, -0.3, 0.12, 0, 0.1))
             p.add('brass', cyl((x, 0, 0.12), (x, 0, 0.2), 0.045, 8))
             p.add('rope', tube([(x, 0.0, 0.16), (x * 0.98, -drop + 0.05, depth)], 0.015, 5))
-        p.add('cloth', sheet(lambda u, v: (-hw + w * u, -drop * v - 0.18 * math.sin(math.pi * u) * (0.4 + 0.6 * v),
-                                            0.16 + (depth - 0.16) * v), 8, 4))
+        # 柔らかい日よけ：両端は綱で留まり、前の真ん中ほど揺れる
+        p.add('cloth', sway(sheet(lambda u, v: (-hw + w * u, -drop * v - 0.18 * math.sin(math.pi * u) * (0.4 + 0.6 * v),
+                                                  0.16 + (depth - 0.16) * v), 8, 4),
+                            lambda v: 2 * SWAY_CANVAS * np.sin(np.pi * np.clip((v[:, 0] + hw) / w, 0, 1))
+                            * np.clip((v[:, 2] - 0.16) / (depth - 0.16), 0, 1)))
         for x in (-hw, hw):
             p.add('brass', lathe((x, -drop - 0.03, depth), (x, -drop + 0.05, depth), [(0, 0.05), (1, 0.05)], 8))
     return p
@@ -346,13 +357,15 @@ def clothesline() -> Part:
         p.add('graphite', boxb(x - 0.06, x + 0.06, 0.25, top + 0.15, -0.06, 0.06))
         p.add('brass', boxb(x - 0.08, x + 0.08, top, top + 0.1, -0.08, 0.08), boxb(x - 0.08, x + 0.08, 0.25, 0.33, -0.08, 0.08))
     pts = sag((-1, top, 0), (1, top, 0), 8, 0.12)
-    p.add('rope', tube(pts, 0.015, 5))
+    # 揺れ：綱は柱で留まり真ん中が少し、布は綱から下へ大きく（柱・台は揺らさない）
+    wfn = sagging(-1.0, 1.0, top, 0.12, 0.55)
+    p.add('rope', sway(tube(pts, 0.015, 5), wfn))
     for x0, x1, mat, ln in ((-0.6, -0.15, 'cloth', 0.55), (-0.08, 0.32, 'linen', 0.48), (0.4, 0.7, 'cloth2', 0.38)):
         def f(u, v, x0=x0, x1=x1, ln=ln):
             x = x0 + (x1 - x0) * u
             t = top - 0.12 * 4 * ((x + 1) / 2) * (1 - (x + 1) / 2)
             return (x, t - ln * v, 0.03 * math.sin(u * 6 + v * 2))
-        p.add(mat, sheet(f, 3, 3))
+        p.add(mat, sway(sheet(f, 3, 3), wfn))
     return p
 
 
@@ -553,7 +566,9 @@ def laundry_line(w=2.0) -> Part:
         p.add('graphite', cyl((x, 0, 0), (x + d * 0.09, 0, 0), 0.02, 5))
     dip = 0.14 * max(1.0, w / 4)
     pts = sag((-hw + 0.08, 0, 0), (hw - 0.08, 0, 0), max(8, int(w * 3)), dip)
-    p.add('rope', tube(pts, 0.014, 5))
+    # 揺れ：綱は壁の留め金で留まり真ん中ほど、布は綱から下へ（留め金・目は揺らさない）
+    wfn = sagging(-hw, hw, 0.0, dip, 0.55)
+    p.add('rope', sway(tube(pts, 0.014, 5), wfn))
     # 布：2 m あたり 4 枚（幅・長さ・色を順に替える）。長い綱は真ん中ほど下がる
     pat = ((0.38, 'linen', 0.5), (0.37, 'cloth', 0.6), (0.3, 'cloth2', 0.42), (0.3, 'linen', 0.55))
     n = max(4, int(round(w * 2)))
@@ -566,7 +581,7 @@ def laundry_line(w=2.0) -> Part:
             x = x0 + (x1 - x0) * u
             t = -dip * 4 * ((x + hw) / w) * (1 - (x + hw) / w) - 0.01
             return (x, t - ln * v, 0.025 * math.sin(u * 5 + v * 2 + x0 * 3))
-        p.add(mat, sheet(f, 3, 3))
+        p.add(mat, sway(sheet(f, 3, 3), wfn))
     return p
 
 
@@ -617,9 +632,9 @@ def sacks() -> Part:
     return p
 
 
-def banner(w=0.9, h=1.6) -> Part:
+def banner(w=0.9, h=1.6, sway_k=SWAY_WALL) -> Part:
     """壁の垂れ幕（帆布の赤、下に濃い赤の帯と白い紋、上に真鍮の竿と留め金）。原点 = 壁の面・竿の高さの中心。壁から 0.08 m まで
-    （壁から 0.15 m 以内の薄い物なので当たり判定は付けない：42 の 14.3）。手前（+Z）を向く"""
+    （壁から 0.15 m 以内の薄い物なので当たり判定は付けない：42 の 14.3）。手前（+Z）を向く。sway_k：揺れの重みの上限（屋内は 0）"""
     p = Part('banner')
     hw = w / 2
     p.add('brass', cyl((-hw - 0.06, 0, 0.05), (hw + 0.06, 0, 0.05), 0.022, 8))
@@ -630,12 +645,14 @@ def banner(w=0.9, h=1.6) -> Part:
     def f(u, v):
         x = -hw + w * u
         return (x, -0.03 - h * v, 0.045 + 0.012 * math.sin(u * math.pi * 3 + v * 2))
-    p.add('cloth', sheet(f, 3, 4, 0.015))
+    # 揺れ：竿から下へ（壁から 4 cm なので幅は SWAY_WALL まで）。帯と紋も同じ重み（布と一緒に動く）
+    wfn = hang(-0.03, h, sway_k)
+    p.add('cloth', sway(sheet(f, 3, 4, 0.015), wfn))
     # 下の帯と丸い紋（布の表から 1.5 cm 前：面が重ならない。十字にすると救護の印に見えるので丸と輪）
-    p.add('cloth2', boxb(-hw + 0.02, hw - 0.02, -h + 0.04, -h + 0.26, 0.055, 0.07))
+    p.add('cloth2', sway(boxb(-hw + 0.02, hw - 0.02, -h + 0.04, -h + 0.26, 0.055, 0.07), wfn))
     cy = -h * 0.45
-    p.add('linen', lathe((0, cy, 0.06), (0, cy, 0.072), [(0, 0.2), (1, 0.2)], 12))
-    p.add('cloth2', lathe((0, cy, 0.072), (0, cy, 0.08), [(0, 0.11), (1, 0.11)], 12))
+    p.add('linen', sway(lathe((0, cy, 0.06), (0, cy, 0.072), [(0, 0.2), (1, 0.2)], 12), wfn))
+    p.add('cloth2', sway(lathe((0, cy, 0.072), (0, cy, 0.08), [(0, 0.11), (1, 0.11)], 12), wfn))
     return p
 
 

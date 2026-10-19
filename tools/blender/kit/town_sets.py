@@ -24,7 +24,12 @@ import math
 import numpy as np
 
 import town_parts as P
-from town_geo import Part, beam, box, boxb, cyl, lathe, prism, sheet
+from town_geo import Part, beam, box, boxb, cyl, hang, lathe, prism, sheet, sway
+
+
+def _belly(x0, x1, z0, z1, k):
+    """枠に張った帆布のふくらみの重み：縁（x0・x1・z0・z1）で 0、真ん中で k（town_geo.sway）"""
+    return lambda v: k * np.sin(np.pi * np.clip((v[:, 0] - x0) / (x1 - x0), 0, 1)) * np.sin(np.pi * np.clip((v[:, 2] - z0) / (z1 - z0), 0, 1))
 
 
 # ---------------------------------------------------------------- 露店
@@ -49,15 +54,18 @@ def stall(w=8.0, d=5.2, h=3.45, ridge=0.55, name='stall') -> Part:
         z = -d / 2 - 0.1 + (d + 0.2) * v
         y = h + ridge * math.sin(math.pi * v) - 0.12 * abs(math.sin(math.pi * 2 * u)) * math.sin(math.pi * v) * 0.8
         return (x, y, z)
-    p.add('cloth', sheet(roof, 12, 8, 0.03))
+    # 揺れ：屋根の帆布は四方の梁と真ん中の棟の柱に張ってあるので、その間だけ少しふくらみ、垂れは梁から下へ揺れる（town_geo.sway）
+    half = _belly(0.0, w / 2, -d / 2 - 0.1, d / 2 + 0.1, P.SWAY_CANVAS)
+    p.add('cloth', sway(sheet(roof, 12, 8, 0.03), lambda v: half(np.abs(v) * [1, 1, 0] + v * [0, 0, 1])))
     # 前と横の垂れ（波形）
     def valance(u, v, z0=d / 2 + 0.1):
         x = -w / 2 + w * u
         return (x, h + 0.02 - 0.42 * v * (0.72 + 0.28 * math.cos(u * math.pi * 2 * w)), z0)
-    p.add('cloth', sheet(valance, int(w * 4), 1, 0.02))
-    p.add('cloth2', sheet(lambda u, v: (-w / 2 + w * u, h + 0.02 - 0.3 * v, -d / 2 - 0.1), 8, 1, 0.02))
+    drop = hang(h + 0.02, 0.42, P.SWAY_DROP)
+    p.add('cloth', sway(sheet(valance, int(w * 4), 1, 0.02), drop))
+    p.add('cloth2', sway(sheet(lambda u, v: (-w / 2 + w * u, h + 0.02 - 0.3 * v, -d / 2 - 0.1), 8, 1, 0.02), drop))
     for x in (-w / 2, w / 2):
-        p.add('cloth', sheet(lambda u, v, x=x: (x, h + ridge * math.sin(math.pi * u) * 0.0 + 0.02 - 0.35 * v, -d / 2 + d * u), 6, 1, 0.02))
+        p.add('cloth', sway(sheet(lambda u, v, x=x: (x, h + ridge * math.sin(math.pi * u) * 0.0 + 0.02 - 0.35 * v, -d / 2 + d * u), 6, 1, 0.02), drop))
     # 前の梁の吊り灯（前は前の柱の上から台の前の床へ張り綱があり、台の前を歩くと体が綱を抜けたので、綱は付けない）
     for x in (-w / 4, w / 4):
         P.lantern(p, x, h - 0.65, hz, 1.2)
@@ -68,7 +76,8 @@ def stall(w=8.0, d=5.2, h=3.45, ridge=0.55, name='stall') -> Part:
     for x in (-3.42, -1.15, 1.15, 3.42):
         p.add('graphite', boxb(x - 0.08, x + 0.08, 0, 2.4, zb - 0.08, zb))
     p.add('graphite', boxb(-3.5, 3.5, 2.3, 2.45, zb - 0.1, zb), boxb(-3.5, 3.5, 0, 0.12, zb - 0.06, zb))
-    p.add('cloth2', sheet(lambda u, v: (-2.2 + 2.6 * u, 2.38 - 1.5 * v - 0.12 * math.sin(math.pi * u) * v, zb - 0.06 - 0.05 * v), 4, 3, 0.02))
+    p.add('cloth2', sway(sheet(lambda u, v: (-2.2 + 2.6 * u, 2.38 - 1.5 * v - 0.12 * math.sin(math.pi * u) * v, zb - 0.06 - 0.05 * v), 4, 3, 0.02),
+                         hang(2.38, 1.5, P.SWAY_DROP)))
     p.place(P.crate(), (-2.6, 0, zb - 0.55), 3)          # 向きは数度だけ（当たり判定の箱は軸にそろえるので、大きく回すと見えない壁になる）
     p.place(P.crate(), (-2.5, 0.74, zb - 0.55), -3, 0.8)
     p.place(P.barrel(), (2.7, 0, zb - 0.5), 0, 0.85)
@@ -461,8 +470,11 @@ def stage(w=8.0, d=3.0, h=0.8) -> Part:
         p.add('graphite', cyl((x, h, d / 2 - 0.35), (x, h + 4.2, d / 2 - 0.35), 0.06, 8))
         p.add('brass', lathe((x, h + 4.2, d / 2 - 0.35), (x, h + 4.4, d / 2 - 0.35), [(0, 0.08), (1, 0.02)], 8))
         p.add('graphite', beam((x, h + 4.0, d / 2 - 0.35), (x - sx * 0.9, h + 4.0, d / 2 - 0.35), 0.05))
-        p.add('cloth', sheet(lambda u, v, x=x, sx=sx: (x - sx * (0.1 + 0.75 * u), h + 3.95 - 1.6 * v, d / 2 - 0.35 + 0.05 * math.sin(v * 3)), 2, 4, 0.02))
-        p.add('brass', sheet(lambda u, v, x=x, sx=sx: (x - sx * (0.32 + 0.3 * u), h + 3.4 - 0.3 * v, d / 2 - 0.35 + 0.05 * math.sin(v * 3) + 0.015), 1, 1, 0.01))
+        # 揺れ：腕から吊った幟。下ほど揺れ、真鍮の印も布と同じ重み（town_geo.sway）
+        wfn = hang(h + 3.95, 1.6, 0.6)
+        p.add('cloth', sway(sheet(lambda u, v, x=x, sx=sx: (x - sx * (0.1 + 0.75 * u), h + 3.95 - 1.6 * v, d / 2 - 0.35 + 0.05 * math.sin(v * 3)), 2, 4, 0.02), wfn))
+        p.add('brass', sway(sheet(lambda u, v, x=x, sx=sx: (x - sx * (0.32 + 0.3 * u), h + 3.4 - 0.3 * v, d / 2 - 0.35 + 0.05 * math.sin(v * 3) + 0.015), 1, 1, 0.01),
+                            wfn))
     return p
 
 
@@ -559,9 +571,12 @@ def tent(w=4.0, d=3.0, h=2.6) -> Part:
         for z in (-hz, hz):
             p.add('brass', cyl((x, 0, z), (x, h + 0.25, z), 0.05, 8))
             p.add('graphite', boxb(x - 0.12, x + 0.12, 0, 0.11, z - 0.12, z + 0.12))     # 広場の床の板（0.08）より高く
-    p.add('cloth', sheet(lambda u, v: (-w / 2 - 0.1 + (w + 0.2) * u, h + 0.35 * math.sin(math.pi * v) - 0.12 * math.sin(math.pi * u) * math.sin(math.pi * v),
-                                       -d / 2 - 0.1 + (d + 0.2) * v), 8, 6, 0.03))
-    p.add('cloth', sheet(lambda u, v: (-w / 2 - 0.1 + (w + 0.2) * u, h + 0.02 - 0.32 * v * (0.72 + 0.28 * math.cos(u * math.pi * 2 * w)), d / 2 + 0.1), int(w * 4), 1, 0.02))
+    # 揺れ：屋根の帆布は柱に張ってあるので真ん中だけ少し、前の垂れは下へ（town_geo.sway）
+    p.add('cloth', sway(sheet(lambda u, v: (-w / 2 - 0.1 + (w + 0.2) * u, h + 0.35 * math.sin(math.pi * v) - 0.12 * math.sin(math.pi * u) * math.sin(math.pi * v),
+                                             -d / 2 - 0.1 + (d + 0.2) * v), 8, 6, 0.03),
+                        _belly(-w / 2 - 0.1, w / 2 + 0.1, -d / 2 - 0.1, d / 2 + 0.1, P.SWAY_CANVAS)))
+    p.add('cloth', sway(sheet(lambda u, v: (-w / 2 - 0.1 + (w + 0.2) * u, h + 0.02 - 0.32 * v * (0.72 + 0.28 * math.cos(u * math.pi * 2 * w)), d / 2 + 0.1),
+                              int(w * 4), 1, 0.02), hang(h + 0.02, 0.32, P.SWAY_DROP)))
     p.place(P.stall_table(2.0), (0, 0, -0.3))
     p.place(goods_general(1.8), (0, 0.955, -0.45), 0, (1, 1, 0.6))
     p.place(P.crate(), (-1.4, 0, 0.6), 3, 0.7)

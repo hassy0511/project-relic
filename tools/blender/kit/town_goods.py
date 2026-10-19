@@ -22,7 +22,7 @@ import math
 import numpy as np
 
 import town_parts as P
-from town_geo import Part, Piece, _orient, beam, boxb, cyl, lathe, sag, sheet, tube
+from town_geo import Part, Piece, _orient, beam, boxb, cyl, hang, lathe, sag, sagging, sheet, sway, tube
 
 V = np.array
 EPS = 0.015          # 柄の板を面から浮かせる距離（ちらつき防止。check_coplanar の 1.5 cm と同じ）
@@ -213,31 +213,35 @@ def goods_jar() -> Part:
 
 # ---------------------------------------------------------------- 04 吊り布
 
-def cloth_panel(p: Part, x0, x1, ytop, L, z, kind='a', fringe=False, t=0.02):
+def cloth_panel(p: Part, x0, x1, ytop, L, z, kind='a', fringe=False, t=0.02, wfn=None):
     """平らな布 1 枚（厚さ 2 cm）と柄（面から 1.5 cm 前の色の板。表だけ）。
-    a：赤地に生成りの山形と下の帯、b：生成り地に灰色の帯と赤い 2 本の印（房つき）"""
+    a：赤地に生成りの山形と下の帯、b：生成り地に灰色の帯と赤い 2 本の印（房つき）。
+    wfn：揺れの重み（town_geo.sway。布・柄・房に同じ重みを付けて一緒に動かす。None なら揺れない）"""
     w = x1 - x0
     yb = ytop - L
     zf = z + t / 2 + EPS / 2
+
+    def add(mat, pc):
+        p.add(mat, sway(pc, wfn) if wfn is not None else pc)
     if kind == 'a':
-        p.add('cloth', boxb(x0, x1, yb, ytop, z - t / 2, z + t / 2))
+        add('cloth', boxb(x0, x1, yb, ytop, z - t / 2, z + t / 2))
         xm = (x0 + x1) / 2
         yp = ytop - L * 0.3
         for xs in (x0 + w * 0.12, x1 - w * 0.12):
-            p.add('linen', beam((xs, ytop - L * 0.62, zf), (xm, yp, zf), w * 0.13, 0.008, up=(0, 0, 1)))
-        p.add('linen', boxb(x0, x1, yb + L * 0.1, yb + L * 0.2, zf - 0.004, zf + 0.004))
-        p.add('slate', boxb(x0, x1, yb + L * 0.03, yb + L * 0.075, zf - 0.004, zf + 0.004))
+            add('linen', beam((xs, ytop - L * 0.62, zf), (xm, yp, zf), w * 0.13, 0.008, up=(0, 0, 1)))
+        add('linen', boxb(x0, x1, yb + L * 0.1, yb + L * 0.2, zf - 0.004, zf + 0.004))
+        add('slate', boxb(x0, x1, yb + L * 0.03, yb + L * 0.075, zf - 0.004, zf + 0.004))
     else:
-        p.add('linen', boxb(x0, x1, yb, ytop, z - t / 2, z + t / 2))
-        p.add('slate', boxb(x0, x1, ytop - L * 0.42, ytop - L * 0.3, zf - 0.004, zf + 0.004))
+        add('linen', boxb(x0, x1, yb, ytop, z - t / 2, z + t / 2))
+        add('slate', boxb(x0, x1, ytop - L * 0.42, ytop - L * 0.3, zf - 0.004, zf + 0.004))
         for k in range(2):
             xa = x0 + w * (0.18 + 0.14 * k)
-            p.add('cloth', beam((xa, ytop - L * 0.78, zf), (xa + w * 0.08, ytop - L * 0.55, zf), w * 0.07, 0.008, up=(0, 0, 1)))
+            add('cloth', beam((xa, ytop - L * 0.78, zf), (xa + w * 0.08, ytop - L * 0.55, zf), w * 0.07, 0.008, up=(0, 0, 1)))
     if fringe:
         n = max(3, int(w / 0.14))
         for k in range(n):
             xx = x0 + w * (k + 0.5) / n
-            p.add('rope', boxb(xx - 0.02, xx + 0.02, yb - 0.1, yb, z - 0.012, z + 0.012))
+            add('rope', boxb(xx - 0.02, xx + 0.02, yb - 0.1, yb, z - 0.012, z + 0.012))
 
 
 def goods_cloth() -> Part:
@@ -247,8 +251,10 @@ def goods_cloth() -> Part:
         p.add('graphite', boxb(x - 0.05, x + 0.05, 0, 2.0, -0.05, 0.05), boxb(x - 0.14, x + 0.14, 0, 0.05, -0.2, 0.2))
         p.add('brass', boxb(x - 0.065, x + 0.065, 1.94, 2.04, -0.065, 0.065))
     p.add('graphite', cyl((-1.0, 1.9, 0), (1.0, 1.9, 0), 0.03, 6, cap=False))
-    cloth_panel(p, -0.9, -0.08, 1.88, 1.25, 0.0, 'a')
-    cloth_panel(p, 0.06, 0.88, 1.88, 1.1, 0.0, 'b', fringe=True)
+    # 揺れ：上の棒から下へ（膝まで垂れた布の下の端がいちばん揺れる）。柱・棒・留めの輪は揺らさない
+    wfn = hang(1.86, 1.2)
+    cloth_panel(p, -0.9, -0.08, 1.88, 1.25, 0.0, 'a', wfn=wfn)
+    cloth_panel(p, 0.06, 0.88, 1.88, 1.1, 0.0, 'b', fringe=True, wfn=wfn)
     for x in (-0.86, -0.12, 0.1, 0.84):
         p.add('rope', cyl((x, 1.86, 0), (x, 1.95, 0), 0.035, 5))
     return p
@@ -261,7 +267,8 @@ def goods_cloth_wall() -> Part:
     p.add('graphite', cyl((-0.52, 0, 0.05), (0.52, 0, 0.05), 0.022, 6))
     for x in (-0.5, 0.5):
         p.add('graphite', boxb(x - 0.03, x + 0.03, -0.05, 0.05, 0.0, 0.05))
-    cloth_panel(p, -0.45, 0.45, -0.03, 1.6, 0.05, 'a', t=0.015)
+    # 揺れ：棒から下へ。壁から 5 cm なので幅は P.SWAY_WALL まで（押されても壁に入らない）
+    cloth_panel(p, -0.45, 0.45, -0.03, 1.6, 0.05, 'a', t=0.015, wfn=hang(-0.06, 1.6, P.SWAY_WALL))
     for x in (-0.38, 0.0, 0.38):
         p.add('rope', cyl((x, -0.06, 0.05), (x, 0.03, 0.05), 0.03, 5))
     return p
@@ -422,7 +429,14 @@ def goods_scale() -> Part:
 # ---------------------------------------------------------------- 08 吊るした乾物
 
 def bundle(p: Part, x, ytop, z, kind, L=0.85):
-    """吊り紐の結び目と乾物の束 1 つ（chili 赤い実・fish 干し魚・grain 穀物）。ytop は梁の中心"""
+    """吊り紐の結び目と乾物の束 1 つ（chili 赤い実・fish 干し魚・grain 穀物）。ytop は梁の中心。
+    揺れ：梁から下へ、束の下の端で 0.45（town_geo.sway）"""
+    mark = p.mark()
+    _bundle(p, x, ytop, z, kind, L)
+    p.sway_since(mark, hang(ytop - 0.03, L + 0.16, 0.45))
+
+
+def _bundle(p: Part, x, ytop, z, kind, L):
     p.add('rope', cyl((x, ytop + 0.06, z), (x, ytop - 0.16, z), 0.03, 5))
     y0 = ytop - 0.16
     if kind == 'chili':
@@ -619,7 +633,13 @@ def board(p: Part, cx, cy, z, w, h, face='linen', frame='wood', t=0.05):
 
 
 def hang_board(p: Part, cx, ytop, z, w=0.9, h=0.45, sym='basket', drop=0.32):
-    """10 吊り札 1×0.1×0.5：上の留め（ytop）から 2 本の鎖で吊る板と記号（両面）"""
+    """10 吊り札 1×0.1×0.5：上の留め（ytop）から 2 本の鎖で吊る板と記号（両面）。揺れ：鎖の上から下へ、板の下の端で 0.3"""
+    mark = p.mark()
+    _hang_board(p, cx, ytop, z, w, h, sym, drop)
+    p.sway_since(mark, hang(ytop - 0.02, drop + h, 0.3))
+
+
+def _hang_board(p: Part, cx, ytop, z, w, h, sym, drop):
     cy = ytop - drop - h / 2
     for sx in (-1, 1):
         x = cx + sx * w * 0.35
@@ -699,11 +719,14 @@ def sign_cloth() -> Part:
     p.add('graphite', cyl((-0.5, 0, 0.05), (0.5, 0, 0.05), 0.02, 6))
     for x in (-0.47, 0.47):
         p.add('graphite', boxb(x - 0.03, x + 0.03, -0.05, 0.05, 0.0, 0.05))
+    mark = p.mark()
     p.add('cloth', boxb(-0.4, 0.4, -1.0, -0.03, 0.045, 0.06))
     p.add('linen', boxb(-0.4, 0.4, -0.86, -0.8, 0.06, 0.06 + EPS * 0.6), boxb(-0.4, 0.4, -0.97, -0.93, 0.06, 0.06 + EPS * 0.6))
     sym_house(p, 0.0, -0.42, 0.06 + EPS * 0.6, 1.6)
     p.add('linen', _flat_poly([(-0.05, 0.0), (0.05, 0.0), (0.0, -0.07)], -0.12, -0.72, 0.06 + EPS * 0.6))
     p.add('linen', _flat_poly([(-0.05, 0.0), (0.05, 0.0), (0.0, -0.07)], 0.12, -0.72, 0.06 + EPS * 0.6))
+    # 揺れ：棒から下へ、布と絵を一緒に（壁から 4.5 cm なので幅は P.SWAY_WALL まで）
+    p.sway_since(mark, hang(-0.03, 1.0, P.SWAY_WALL))
     return p
 
 
@@ -961,7 +984,8 @@ def laundry_basket() -> Part:
 # ---------------------------------------------------------------- 16 風の旗
 
 def wind_flag(name='wind_flag') -> Part:
-    """16 竿 0.5×0.5×2（床の基部に固定）、旗幅 1・吹き流し 2。旗と吹き流しは +X（風下）へ。原点 = 基部の底の中心"""
+    """16 竿 0.5×0.5×2（床の基部に固定）、旗幅 1・吹き流し 2。旗と吹き流しは +X（風下）へ。原点 = 基部の底の中心。
+    町は船首（+Z）からの風なので、部屋には yaw 90（+X が -Z）で置く。揺れ：旗は上の腕から下へ、吹き流しは竿から先へ"""
     p = Part(name)
     p.add('graphite', boxb(-0.22, 0.22, 0, 0.06, -0.22, 0.22))
     for sx in (-1, 1):
@@ -976,22 +1000,25 @@ def wind_flag(name='wind_flag') -> Part:
     p.add('graphite', beam((0, 1.98, 0), (1.06, 1.98, 0), 0.035))
     x0, x1, yt, yb = 0.06, 1.04, 1.95, 1.25
     ym = (yt + yb) / 2 + 0.06
-    p.add('cloth', boxb(x0, x1, ym, yt, -0.01, 0.01))
-    p.add('slate', boxb(x0, x1, yb, ym, -0.01, 0.01))
+    # 揺れの重み：腕から下へ 0.7 m で 0.7（竿の側の縁も腕に吊ってあるので下ほど揺れる）
+    flag_w = hang(yt, yt - yb, 0.7)
+    p.add('cloth', sway(boxb(x0, x1, ym, yt, -0.01, 0.01), flag_w))
+    p.add('slate', sway(boxb(x0, x1, yb, ym, -0.01, 0.01), flag_w))
     for zs in (1, -1):
         zf = zs * (0.01 + EPS / 2)
         half = [(math.cos(a) * 0.2, math.sin(a) * 0.17) for a in np.linspace(0, math.pi, 7)]
         q = _flat_poly(half, (x0 + x1) / 2, ym + 0.02, zf if zs > 0 else zf - 0.008)
-        p.add('linen', q)
-        p.add('linen', _flat_poly([(-0.18, 0.0), (0.18, 0.0), (0.0, -0.24)], (x0 + x1) / 2, ym - 0.02, zf if zs > 0 else zf - 0.008))
-    # 吹き流し：竿の上から +X へ 2 m、先へ細く、ゆるい波（赤と生成りの 2 本）
+        p.add('linen', sway(q, flag_w))
+        p.add('linen', sway(_flat_poly([(-0.18, 0.0), (0.18, 0.0), (0.0, -0.24)], (x0 + x1) / 2, ym - 0.02, zf if zs > 0 else zf - 0.008),
+                            flag_w))
+    # 吹き流し：竿の上から +X へ 2 m、先へ細く、ゆるい波（赤と生成りの 2 本）。揺れは竿の側 0 から先の 1 へ
     for k, mat in enumerate(('cloth', 'linen')):
         def f(u, v, k=k):
             w0 = 0.36 * (1 - 0.8 * u)
             x = 0.06 + 2.0 * u
             y = H - 0.05 - 0.25 * u * u - w0 * (k + v) / 2
             return (x, y, 0.08 * math.sin(u * 5.0))
-        p.add(mat, sheet(f, 8, 1, 0.012))
+        p.add(mat, sway(sheet(f, 8, 1, 0.012), lambda v: np.clip((v[:, 0] - 0.06) / 2.0, 0, 1) ** 1.3))
     p.add('graphite', cyl((0, H - 0.08, 0), (0.1, H - 0.08, 0), 0.03, 6))
     return p
 
@@ -1009,7 +1036,9 @@ def laundry_goods(w=2.0) -> Part:
         p.add('graphite', cyl((x, 0, 0), (x + d * 0.09, 0, 0), 0.02, 5))
     dip = 0.14 * max(1.0, w / 4)
     pts = sag((-hw + 0.08, 0, 0), (hw - 0.08, 0, 0), max(8, int(w * 3)), dip)
-    p.add('rope', tube(pts, 0.014, 5))
+    # 揺れ：綱は壁の留め金で留まり真ん中ほど、布は綱から下へ（留め金・目は揺らさない。布の留め具は布と同じ重み）
+    wfn = sagging(-hw, hw, 0.0, dip, 0.55)
+    p.add('rope', sway(tube(pts, 0.014, 5), wfn))
     pat = ((0.38, 'a', 0.5), (0.37, 'b', 0.6), (0.3, 'slate', 0.42), (0.3, 'b', 0.55))
     n = max(4, int(round(w * 2)))
     step = (w - 0.4) / n
@@ -1020,11 +1049,12 @@ def laundry_goods(w=2.0) -> Part:
         xm = (x0 + x1) / 2
         t = -dip * 4 * ((xm + hw) / w) * (1 - (xm + hw) / w) - 0.01
         if kind == 'slate':
-            p.add('slate', boxb(x0, x1, t - ln, t, -0.01, 0.01))
-            p.add('linen', boxb(x0, x1, t - ln * 0.8, t - ln * 0.7, 0.01, 0.01 + EPS * 0.6))
+            p.add('slate', sway(boxb(x0, x1, t - ln, t, -0.01, 0.01), wfn))
+            p.add('linen', sway(boxb(x0, x1, t - ln * 0.8, t - ln * 0.7, 0.01, 0.01 + EPS * 0.6), wfn))
         else:
-            cloth_panel(p, x0, x1, t, ln, 0.0, kind, t=0.02)
-        p.add('graphite', boxb(x0 + 0.03, x0 + 0.06, t - 0.04, t + 0.03, -0.02, 0.02), boxb(x1 - 0.06, x1 - 0.03, t - 0.04, t + 0.03, -0.02, 0.02))
+            cloth_panel(p, x0, x1, t, ln, 0.0, kind, t=0.02, wfn=wfn)
+        p.add('graphite', sway(boxb(x0 + 0.03, x0 + 0.06, t - 0.04, t + 0.03, -0.02, 0.02), wfn),
+              sway(boxb(x1 - 0.06, x1 - 0.03, t - 0.04, t + 0.03, -0.02, 0.02), wfn))
     return p
 
 
