@@ -305,6 +305,8 @@ def wrap_panel(th0, th1, z0, z1, off, thick, nth=9, nz=7, cy=AX_Y, cx=0.0, zb=No
     Z = np.array([[(zb(t) if zb else z0) * (1 - f) + (zt(t) if zt else z1) * f for t in degs]
                   for f in np.linspace(0.0, 1.0, nz)])
     Rr = np.array([surf_r(ths, Z[k], cy, cx) for k in range(nz)])
+    # 外れ値を抑える：胴の面の割れ目を光線が抜けて腕に当たると、その列だけ外へ飛んだ板の切れ端になった（蓋の端）
+    Rr = np.minimum(Rr, np.median(Rr, axis=1, keepdims=True) + 0.02)
     Rr = smooth_grid(Rr, 2) + off
     S, Cc = np.sin(ths)[None], np.cos(ths)[None]
     inner = np.stack([cx + Rr * S, cy - Rr * Cc, Z], -1)
@@ -848,7 +850,9 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
         t = (pos - S) @ dv
         rr = np.linalg.norm((pos - S) - np.outer(t, dv), axis=1)
         # 上腕：腕の軸の近くで、ベストの横の縁（正面の絵）より外（1 回目は軸からの距離だけで、胴の横が生成りの四角になった）
-        a_ = free & (side * x > vest_half - 0.004) & (rr < 0.085) & (t > -0.02) & (z < 1.22)
+        # 袖の太さ（半径 6cm）まで。体の土台では上腕が胴の横と 1 つの塊になり、軸から 8.5cm までだと横から見て胴の横が
+        # 生成りの大きな四角になった（2 回目）。絵の真横：袖の前と後ろにベストが見える
+        a_ = free & (side * x > vest_half - 0.004) & (rr < 0.060) & (t > -0.02) & (z < 1.22)
         S2, E2 = np.array(jp('forearm', side)), np.array(jp('hand', side))
         d2 = (E2 - S2) / np.linalg.norm(E2 - S2)
         t2 = (pos - S2) @ d2
