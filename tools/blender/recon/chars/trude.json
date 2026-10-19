@@ -98,7 +98,10 @@
   "0.2",
   "--no-weapon",
   "--hand-part",
-  "--costume"
+  "--costume",
+  "--clips",
+  "elder",
+  "--foot-contacts=-0.165,0.13,-0.09"
  ],
  "costume": true,
  "stages_skip": [
