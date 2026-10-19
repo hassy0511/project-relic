@@ -1,0 +1,19 @@
+{
+  "id": "_sample_b",
+  "name": "部品の見本 B（8 人が使っていない部品：フードつきのベスト・胸当ての前掛け・半ズボン・つば広の帽子・石墨と砂の色の案）",
+  "body": "woman",
+  "scheme": "graphite_sand",
+  "face": {},
+  "hair": {"style": "long", "color": "hair_ginger"},
+  "top": {"color": "cream", "trim": "cream_dark", "length": "tucked", "sleeve": "elbow"},
+  "jacket": {"kind": "vest", "color": "rust", "trim": "cream", "inner": "rust_dark", "open": 24, "hood": true,
+             "pockets": [{"side": "L", "z": 0.25, "a": 45, "w": 0.06, "h": 0.05, "color": "$a"},
+                         {"side": "R", "z": 0.25, "a": 45, "w": 0.06, "h": 0.05, "color": "$a"}]},
+  "apron": {"kind": "bib", "color": "$b", "half": 0.6, "hem": 0.45, "strap": "brown_dark",
+            "pockets": [{"side": "L", "z": 0.5, "x": 0.5, "w": 0.07, "h": 0.07, "color": "cream"}]},
+  "belt": {"color": "leather", "buckle": "brass"},
+  "lower": {"kind": "shorts", "color": "$a", "cuff": "cream", "leg": "skin"},
+  "shoes": {"kind": "boots", "color": "boot", "toe": "boot_toe", "cuff": "leather"},
+  "gloves": {"color": "graphite"},
+  "hat": {"kind": "wide", "color": "cream", "band": "brown", "brim": 0.12}
+}

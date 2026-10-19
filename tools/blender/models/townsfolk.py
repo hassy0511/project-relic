@@ -696,6 +696,9 @@ def build_belt(p: Person) -> None:
     k = b.k
     z = bl.get('z', b.belt[0])
     off = bl.get('off', 0.010) * k
+    jk = p.conf.get('jacket') or {}
+    if jk.get('kind') == 'wrap':
+        off += jk.get('off', 0.020) * k + 0.010 * k   # 前を重ねる上着の上に締める
     rx, ry = b.torso_at(z)
     lev = [(z - 0.022 * k, 0.0, 0.004 * k, rx + off, ry + off), (z + 0.022 * k, 0.0, 0.004 * k, rx + off, ry + off)]
     belt = shell('belt', lev, sides=12, power=2.4)
@@ -772,7 +775,12 @@ def build_jacket(p: Person) -> None:
             return inner
         # 前の縁（襟の折り返し）は trim
         a = math.degrees(math.atan2(c.x, -(c.y - 0.004 * k)))
-        if abs(abs(a) - open_deg) < 13 and c.z > b.belt[0] - 0.02 * k and nrm.z < 0.6:
+        if kind == 'wrap':
+            # 前を重ねる上着：本人の右の首から左の腰へ斜めに下りる合わせ目の帯
+            f = max(0.0, min(1.0, (top_z - c.z) / max(1e-6, top_z - b.belt[0])))
+            if abs(a - (-38 + 62 * f)) < 15 and c.z > b.belt[0] - 0.03 * k:
+                return trim
+        elif abs(abs(a) - open_deg) < 13 and c.z > b.belt[0] - 0.02 * k and nrm.z < 0.6:
             return trim
         if c.z < hem_z + 0.012 * k:
             return j.get('hem_color', trim if kind in ('wrap',) else col)
