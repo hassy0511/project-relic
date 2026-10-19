@@ -492,12 +492,12 @@
    "nose": [
     [
      -0.148,
-     1.285
+     1.282
     ],
     [
-     0.008,
-     0.012,
-     0.016
+     0.0075,
+     0.011,
+     0.015
     ]
    ],
    "jaw_ka": [
@@ -508,7 +508,8 @@
     0.088,
     0.093,
     0.097
-   ]
+   ],
+   "nose_x": 0.01
   },
   "head.HEAD": {
    "x0": 0.0,
@@ -625,10 +626,10 @@
    "cover_z": 1.43,
    "undercut": {
     "z": [
-     1.33,
-     1.4
+     1.355,
+     1.41
     ],
-    "margin": 0.01
+    "margin": 0.008
    }
   },
   "hair.NECK": {
@@ -657,7 +658,7 @@
   },
   "hair.LOCKS_AS_PARTS": true,
   "hair.PARAMS": {
-   "cap_inset_m": 0.006
+   "cap_inset_m": 0.014
   },
   "hair.LOCK_LIFT_MAX": 0.05,
   "hair.LOCK_WIDTH_MAX": 0.12,
@@ -675,16 +676,16 @@
    1640
   ],
   "face.FACE_EXPR_RECT": [
-   620,
+   650,
    820,
-   1450,
+   1420,
    1460
   ],
   "face.FACE_NECK_Y": 1560,
   "face.FACE_WINDOW": [
-   600,
+   625,
    620,
-   1490,
+   1440,
    1556
   ],
   "face.FRONT_SCALE": [
@@ -697,9 +698,9 @@
    0.66
   ],
   "face.ZONE_RECT": [
-   620,
+   650,
    830,
-   1450,
+   1420,
    1470
   ],
   "face.FRONT_LANDMARKS": {
@@ -724,11 +725,11 @@
     1546
    ],
    "cheek_left": [
-    690,
+    720,
     1300
    ],
    "cheek_right": [
-    1410,
+    1380,
     1300
    ]
   },
@@ -746,11 +747,11 @@
     1266
    ],
    "cheek_left": [
-    690,
+    720,
     1300
    ],
    "cheek_right": [
-    1410,
+    1380,
     1300
    ],
    "chin": [
@@ -860,7 +861,7 @@
    "ivory": "#EFD8B8",
    "graphite": "#433D38",
    "brass": "#C2954F",
-   "umber": "#C9B9B1",
+   "umber": "#C6B5AD",
    "amber": "#D89538",
    "skin": "#E7B58D"
   },
