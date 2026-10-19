@@ -625,14 +625,14 @@ def bun() -> list[dict]:
         d = np.array([math.sin(a), -math.cos(a) * 0.95, 0.0])
         c = BUN_C + d * 0.047 + np.array([0.0, 0.0, 0.005 * math.cos(2 * a)])
         tang = np.array([math.cos(a), math.sin(a) * 0.95, 0.15])
-        V, F = _petal(c, tang, (0.0, 0.0, 1.0), 0.072, 0.033, 0.029)
+        V, F = _petal(c, tang, (0.0, 0.0, 1.0), 0.074, 0.035, 0.034)
         out.append(dict(name=f'hair_bun{i}', bone='head', color='hair', mesh=(V, F)))
     for i in range(5):
         a = 2 * math.pi * i / 5 + 0.6
         d = np.array([math.sin(a), -math.cos(a) * 0.95, 0.0])
-        c = BUN_C + d * 0.024 + np.array([0.0, 0.0, 0.022])
+        c = BUN_C + d * 0.024 + np.array([0.0, 0.0, 0.030])
         tang = np.array([math.cos(a), math.sin(a) * 0.95, 0.25])
-        V, F = _petal(c, tang, (0.0, 0.0, 1.0), 0.052, 0.025, 0.022)
+        V, F = _petal(c, tang, (0.0, 0.0, 1.0), 0.054, 0.027, 0.026)
         out.append(dict(name=f'hair_bun_in{i}', bone='head', color='hair', mesh=(V, F)))
     V, F = _petal(BUN_C + np.array([0.0, 0.006, 0.036]), (1.0, 0.25, 0.0), (0.0, 0.0, 1.0), 0.066, 0.038, 0.027)
     out.append(dict(name='hair_bun_top', bone='head', color='hair', mesh=(V, F)))
@@ -676,9 +676,9 @@ def hair_parts() -> list[dict]:
     widths = np.array([0.45, 0.82, 0.97, 1.0, 1.0, 0.98, 0.90, 0.62, 0.0])
     n = len(widths)
 
-    def plank(P, w, lift_min, push=True, wscale=None, thick=1.0):
+    def plank(P, w, lift_min, push=True, wscale=None, thick=1.0, wprof=None):
         t = np.linspace(0.0, 1.0, n)
-        wv = widths if wscale is None else widths * wscale
+        wv = (widths if wprof is None else np.asarray(wprof, float)) * (1.0 if wscale is None else wscale)
         dv = P - C
         rr = np.linalg.norm(dv, axis=1)
         dn = dv / rr[:, None]
@@ -724,12 +724,14 @@ def hair_parts() -> list[dict]:
         ('side_l', 56, 58, 1.384, 0.046, 0.003), ('side_r', -56, -58, 1.384, 0.046, 0.003),
         ('side_l2', 78, 80, 1.368, 0.046, 0.003), ('side_r2', -78, -80, 1.368, 0.046, 0.003),
         ('ear_l', 98, 102, 1.352, 0.044, 0.003), ('ear_r', -98, -102, 1.352, 0.044, 0.003),
-        ('back_l', 118, 132, 1.322, 0.042, 0.003), ('back_r', -118, -132, 1.322, 0.042, 0.003),
-        ('back_l2', 136, 150, 1.296, 0.042, 0.003), ('back_r2', -136, -150, 1.296, 0.042, 0.003),
-        ('back_l3', 152, 164, 1.272, 0.042, 0.003), ('back_r3', -152, -164, 1.272, 0.042, 0.003),
-        ('back_l4', 166, 174, 1.258, 0.040, 0.003), ('back_r4', -166, -174, 1.258, 0.040, 0.003),
-        ('back_c', 180, 180, 1.246, 0.048, 0.004),
+        ('back_l', 118, 132, 1.322, 0.040, 0.009), ('back_r', -118, -132, 1.322, 0.040, 0.009),
+        ('back_l2', 136, 150, 1.296, 0.040, 0.003), ('back_r2', -136, -150, 1.296, 0.040, 0.003),
+        ('back_l3', 152, 164, 1.272, 0.040, 0.010), ('back_r3', -152, -164, 1.272, 0.040, 0.010),
+        ('back_l4', 166, 174, 1.258, 0.038, 0.003), ('back_r4', -166, -174, 1.258, 0.038, 0.003),
+        ('back_c', 180, 180, 1.240, 0.058, 0.012),
     ]
+    ROOT_WIDE = np.array([0.92, 1.0, 1.0, 0.95, 0.85, 0.7, 0.52, 0.3, 0.0])   # 根で広く、お団子の下でとがる
+    LEAF = np.array([0.35, 0.65, 0.88, 1.0, 1.0, 0.92, 0.75, 0.45, 0.0])      # 後ろの房：根が細く、中ほどで広く、えり足でとがる
     sgrid = np.linspace(0.0, 1.0, n)
     for name, thd, tht, zt, w, lift in sweep:
         z0 = 1.478
@@ -743,7 +745,13 @@ def hair_parts() -> list[dict]:
         # 根はお団子の付け根（中心から 4cm、その向き）
         a = math.radians(thd)
         P[0] = BUN_C + np.array([0.030 * math.sin(a), -0.030 * math.cos(a), -0.012])
-        Vm, Fm = plank(P, w, lift, push=False)
+        if abs(thd) <= 100:
+            # 前と横の房は、生え際（広い根）からお団子（とがった先）へ（絵：額・こめかみ・耳の上から上へまとめ上げる）。
+            # 2 周目の最初は根をお団子・先を生え際にして、額の生え際にとがった先の歯の列が並んだ
+            Vm, Fm = plank(P[::-1].copy(), w, lift, push=False, wprof=ROOT_WIDE)
+        else:
+            # 後ろの房：峰を高く（厚み 1.6 倍）、葉の形（中ほどで広い）。並べると面が折れて房の縁が見える（2 周目の最初は滑らかな丸屋根）
+            Vm, Fm = plank(P, w, lift, push=False, thick=1.6, wprof=LEAF)
         out.append(dict(name='hair_' + name, bone='head', color='hair', mesh=(Vm, Fm)))
     # 前髪（真ん中の分け目から左右へ流れる）・顔の横の長い房（耳の前、あごまで）・えり足の房。(名前, 根, 先, 幅, 浮き)
     xr = X0
