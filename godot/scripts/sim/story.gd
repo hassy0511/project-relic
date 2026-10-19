@@ -50,6 +50,48 @@ func has_dialogue(id: String) -> bool:
 	return _dialogues.has(id)
 
 
+## そのイベントが、台本のカメラ（camera の手順）を使うか。if の両方の枝・呼ぶイベント・会話（行の動作のイベント・選択肢の先）までたどる。
+## 住人に話しかけて始まるイベントが自分でカメラを動かすなら、会話のカメラは使わない（GameSim.talk_npc）
+func event_uses_camera(id: String) -> bool:
+	return _event_cam(id, {})
+
+
+## その会話が（行の動作・選択肢の先のイベントで）台本のカメラを使うか
+func dialogue_uses_camera(id: String) -> bool:
+	return _dialogue_cam(id, {})
+
+
+func _event_cam(id: String, seen: Dictionary) -> bool:
+	if seen.has("e:" + id) or not _events.has(id):
+		return false
+	seen["e:" + id] = true
+	return _steps_cam(_events[id].steps, seen)
+
+
+func _dialogue_cam(id: String, seen: Dictionary) -> bool:
+	if seen.has("d:" + id) or not _dialogues.has(id):
+		return false
+	seen["d:" + id] = true
+	for ln in _dialogues[id].lines:
+		if ln.get("action", "") == "event" and _event_cam(String(ln.event), seen):
+			return true
+		for o in ln.get("choices", []):
+			if (o.has("event") and _event_cam(String(o.event), seen)) or (o.has("say") and _dialogue_cam(String(o.say), seen)):
+				return true
+	return false
+
+
+func _steps_cam(steps: Array, seen: Dictionary) -> bool:
+	for s in steps:
+		if s.has("camera"):
+			return true
+		if s.has("if") and (_steps_cam(s.get("then", []), seen) or _steps_cam(s.get("else", []), seen)):
+			return true
+		if (s.has("event") and _event_cam(String(s.event), seen)) or (s.has("say") and _dialogue_cam(String(s.say), seen)):
+			return true
+	return false
+
+
 func start_dialogue(id: String) -> void:
 	assert(_dialogues.has(id), "会話が見つからない: %s" % id)
 	_lines = _dialogues[id].lines

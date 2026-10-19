@@ -405,6 +405,7 @@ func _physics_process(dt: float) -> void:
 	props_view.sync(game, dt)
 	fx.sync(game, dt, player_view, enemy_view, nagomi_view)
 	camera.sync(game, game.player.pos, dt, fx.shake)
+	props_view.fade_labels(camera.talk_weight())
 
 
 ## 設定画面の「フラッシュの強さ」（PadConfig.flash）を、大きな光（Fx・Vfx）・番機の被弾の光（EnemyView）・被弾の画面の赤（Hud）へ入れる
