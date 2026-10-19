@@ -9,7 +9,7 @@
   "height_m": 1.6,
   "recon_height_m": 1.55,
   "out_glb": "godot/assets/models/shopkeeper.glb",
-  "_views_note": "全身の真横の絵はファイル名と顔の向きが逆（spec_townsfolk_3d_add.md）。顔が画像の右の shopkeeper_3d_side_left を side_right（+90）に、顔が左の shopkeeper_3d_side_right を side_left（-90）に使う。腕なしは左右反転（_mirror）。左前 45 度は右前 45 度の反転。正面と side_right は、スカートの範囲を脚の外形に置き換えた絵（_legs、不透明度だけ。スカート・前掛けは部品）。作り方は build/shopkeeper/tools/prep_src.py（着手時に作る）",
+  "_views_note": "全身の真横の絵はファイル名と顔の向きが逆（spec_townsfolk_3d_add.md）。顔が画像の右の shopkeeper_3d_side_left を side_right（+90）に、顔が左の shopkeeper_3d_side_right を side_left（-90）に使う。腕なしは左右反転（_mirror）。左前 45 度は右前 45 度の反転。正面と side_right は、スカートの範囲を脚の外形に置き換えた絵（_legs、不透明度だけ。スカート・前掛けは部品）。作り方は tools/blender/recon/chars/shopkeeper_prep.py（views の段の前に 1 回。真横の頭の前の前髪の房の先も外形から外す）",
   "views": {
     "front": {
       "file": "shopkeeper_3d_front_legs.png",
