@@ -597,6 +597,7 @@ def boot_pieces(side: float, sx: str) -> list[dict]:
 
 # ---------------------------------------------------------------- 髪（お団子・房・前髪・顔の横の房）
 
+EAR_Z = 1.309                              # 耳の中心の高さ（hair.EAR、頭の真横の絵）
 BUN_C = np.array([X0, 0.078, 1.503])     # お団子の中心（頭の真横・背面・真上の絵。2 周目に 1.5cm 上げた：正面から下半分が頭の房に隠れた）
 
 
@@ -634,6 +635,14 @@ def bun() -> list[dict]:
         tang = np.array([math.cos(a), math.sin(a) * 0.95, 0.25])
         V, F = _petal(c, tang, (0.0, 0.0, 1.0), 0.054, 0.027, 0.026)
         out.append(dict(name=f'hair_bun_in{i}', bone='head', color='hair', mesh=(V, F)))
+    # 下の輪（後ろ半分と横）：お団子の下に房の根の細い帯が見えた（後ろの水平の図）。絵の背面はお団子の下の房が髪に載る
+    for i in range(7):
+        a = math.radians(75.0 + 210.0 * i / 6)
+        d = np.array([math.sin(a), -math.cos(a) * 0.95, 0.0])
+        c = BUN_C + d * 0.036 + np.array([0.0, 0.0, -0.034])
+        tang = np.array([math.cos(a), math.sin(a) * 0.95, -0.10])
+        V, F = _petal(c, tang, np.array([0.0, 0.0, 1.0]) + 0.5 * d, 0.062, 0.026, 0.023)
+        out.append(dict(name=f'hair_bun_lo{i}', bone='head', color='hair', mesh=(V, F)))
     V, F = _petal(BUN_C + np.array([0.0, 0.006, 0.036]), (1.0, 0.25, 0.0), (0.0, 0.0, 1.0), 0.066, 0.038, 0.027)
     out.append(dict(name='hair_bun_top', bone='head', color='hair', mesh=(V, F)))
     V, F = _petal(BUN_C + np.array([0.0, -0.012, 0.030]), (0.2, -1.0, 0.1), (0.0, 0.0, 1.0), 0.058, 0.034, 0.025)
@@ -752,7 +761,9 @@ def hair_parts() -> list[dict]:
         else:
             # 後ろの房：峰を高く（厚み 1.6 倍）、葉の形（中ほどで広い）。並べると面が折れて房の縁が見える（2 周目の最初は滑らかな丸屋根）
             Vm, Fm = plank(P, w, lift, push=False, thick=1.6, wprof=LEAF)
-        out.append(dict(name='hair_' + name, bone='head', color='hair', mesh=(Vm, Fm)))
+        # 後ろの内の層の房（浮きの小さい 4 本）は濃い茶：外の層の房の間に見える細い帯が、房の境の影になる（絵の背面の葉の房）
+        dark = name in ('back_l2', 'back_r2', 'back_l4', 'back_r4')
+        out.append(dict(name='hair_' + name, bone='head', color='hair_dark' if dark else 'hair', mesh=(Vm, Fm)))
     # 前髪（真ん中の分け目から左右へ流れる）・顔の横の長い房（耳の前、あごまで）・えり足の房。(名前, 根, 先, 幅, 浮き)
     xr = X0
     # (名前, 根, 先, 幅, 浮き, 先のはね（外へ m）, 厚みの倍率)。2 周目：前髪は厚く（1.5 倍）、先の 4 割で外へはねる（絵のとがった房）
@@ -781,6 +792,18 @@ def hair_parts() -> list[dict]:
         P[:, :2] += od * (flick * np.clip((t - 0.6) / 0.4, 0, 1) ** 2)[:, None]
         Vm, Fm = plank(P, w, lift, thick=thk)
         out.append(dict(name='hair_' + name, bone='head', color='hair', mesh=(Vm, Fm)))
+    # 耳（部品）：2 周目に正面の絵のこめかみの房を外形から外したら（目・眉の外の端）、形の段の耳（hair.EAR）が外形の削りで消えた。
+    # 頭の面（できた頭の |x−x0|：耳の高さ 1.309・y 0.006 で 0.0765、1.285 で 0.071、1.335 で 0.079）に内の面を 4mm 埋め、外へ約 1cm 出す。
+    # 縦長の平たい楕円体（上が後ろ・外へ傾く）＋ 後ろの縁と頭の間をふさぐ付け根（頭は耳の後ろで急に細くなり、後ろから耳が浮いて見えた）
+    for sx in (1.0, -1.0):
+        c = np.array([X0 + sx * 0.0800, 0.006, EAR_Z])
+        yaw = math.radians(6.0)   # 外の向きを後ろへ 6 度：頭の面（耳の後ろで内へ曲がる、約 14 度）より 8 度前＝後ろの縁が少し開く
+        e_out = np.array([sx * math.cos(yaw), math.sin(yaw), 0.0])
+        V, F = _petal(c, (sx * 0.20, 0.20, 1.0), e_out, 0.056, 0.016, 0.0075)
+        out.append(dict(name='ear' + ('_l' if sx > 0 else '_r'), bone='head', color='skin', mesh=(V, F)))
+        V, F = _petal(np.array([X0 + sx * 0.0715, 0.016, EAR_Z - 0.004]), (sx * 0.15, 0.15, 1.0),
+                      np.array([sx, 0.25, 0.0]), 0.040, 0.012, 0.0085)
+        out.append(dict(name='ear_root' + ('_l' if sx > 0 else '_r'), bone='head', color='skin', mesh=(V, F)))
     return out
 
 
