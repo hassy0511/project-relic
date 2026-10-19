@@ -510,6 +510,9 @@ FACE_MIRROR = CH.p('flat.FACE_MIRROR', None)
 # いても、表情の範囲（表情の絵で変わる所）の外でも、目・眉（絵の色のまま）にする。None なら何もしない。
 # 店主：表情の絵が口しか違わない（表情の範囲が口だけ）うえ、眉の端が前髪の房に触れ、目と眉が肌に消えた
 FACE_FEATURE_BOXES = CH.p('flat.FACE_FEATURE_BOXES', None)
+# 顔の絵の肌の色（hex）。None なら今までどおり「表の肌の色の近くの画素の中央値」。ジャンク屋：顔の絵の肌（橙）より
+# 砂色の髪・ひげのほうが表の肌の色に近く、中央値が髪の色になって顔の肌が全部「肌でない」になった（目・眉の範囲が四角に残り、口が消えた）
+FACE_SKIN_REF = CH.p('flat.FACE_SKIN_REF', None)
 
 
 def _calib_front():
@@ -578,8 +581,11 @@ def paint_face_atlas(atlas_p: str, meta: dict, out_p: str) -> str:
     lb = lab(rgb)
     skin_hex = hex_rgb(PALETTE['skin'])
     # 絵の肌の色（表の色の近くの画素の中央値）
-    d0 = np.linalg.norm((lb - lab(skin_hex)) * [L_WEIGHT_FACE, 1, 1], axis=-1)
-    ref = np.median(lb[d0 < 20], 0)
+    if FACE_SKIN_REF:
+        ref = lab(hex_rgb(FACE_SKIN_REF))
+    else:
+        d0 = np.linalg.norm((lb - lab(skin_hex)) * [L_WEIGHT_FACE, 1, 1], axis=-1)
+        ref = np.median(lb[d0 < 20], 0)
     d = np.linalg.norm((lb - ref) * [L_WEIGHT_FACE, 1, 1], axis=-1)
     s = 1.0 - np.clip((d - FACE_SKIN_D[0]) / (FACE_SKIN_D[1] - FACE_SKIN_D[0]), 0, 1)
     feature, region = _face_features(s < 0.5, meta, H, W)

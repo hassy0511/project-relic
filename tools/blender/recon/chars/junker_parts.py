@@ -41,9 +41,10 @@ PALETTE = {
     'tool_dark': '#4A4844',   # 道具の穴・端
     'tool_brass': '#A8743A',  # 真鍮の筒（絵 #A36932）
     'skin': '#E7B58D',
-    'hair': '#BCA48E',        # 砂灰の髪：房の上の面（絵の照った面 #D4B195・#CCAC8F、spec #C6B9A4）
-    'hair_shadow': '#9A8371',  # 房の横・下の面（絵の陰の面 #A07B63〜#AE8D71）
-    'hair_dark': '#8A7464',   # 髪の土台（房のすき間に見える内側の髪）
+    'hair': '#A8917C',        # 砂灰の髪：房の上の面（絵の照った面 #D4B195・#CCAC8F、spec #C6B9A4。確認ページの描画は絵より明るく、
+                              # 1 回目の #BCA48E は白に見えた）
+    'hair_shadow': '#8A7462',  # 房の横・下の面（絵の陰の面 #A07B63〜#AE8D71）
+    'hair_dark': '#7D6858',   # 髪の土台（房のすき間に見える内側の髪。房の陰の色に近く：1 回目は房との差でまだらに見えた）
     'boot': '#4E3C30',        # 靴の胴（絵 #513E30）
     'boot_strap': '#5F4535',  # 足首の帯（絵 #664936）
     'toe': '#8E664C',         # 爪先（絵 #9C7052）
@@ -66,6 +67,8 @@ FOLLOW_TORSO_ONLY = FOLLOW_BODY
 BOX_RULES: list = []
 
 VEST_HEM = (0.742, 0.772)       # ベストの裾の帯の下・上
+VEST_SIDE = ([0.75, 0.80, 0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.20],      # ベストの横の縁（正面の絵）：高さ → |x|
+             [0.240, 0.240, 0.235, 0.230, 0.228, 0.220, 0.205, 0.190, 0.180, 0.170])
 BELT_Z = (0.857, 0.905)         # ベルト（前の開きに見える所）
 SHIRT_TOP = 1.215               # 前の開きのシャツの上（首巻きの下）
 NECK_TOP = 1.272                # あごの下
@@ -540,17 +543,21 @@ def knee_patch(side, sx) -> list[dict]:
           (U * Vv)[..., None] * q[2] + ((1 - U) * Vv)[..., None] * q[3]
     xs, zs = pts[..., 0], pts[..., 1]
     yb = smooth_grid(front_hit(xs.ravel(), zs.ravel()).reshape(xs.shape), 2)
-    inner = np.stack([xs, yb - 0.0025, zs], -1)
-    outer = np.stack([xs, yb - 0.0050, zs], -1)
+    inner = np.stack([xs, yb - 0.0040, zs], -1)
+    outer = np.stack([xs, yb - 0.0070, zs], -1)
     V, F = slab(outer, inner)
     P = [dict(name='knee_patch' + sx, bone='shin' + sx, color='patch', mesh=(V, F))]
-    # 縫い目：左右の縁をまたぐ短い横の線（1 辺 3 本）
-    for edge in (0, 1):
-        a, b = (q[0], q[3]) if edge == 0 else (q[1], q[2])
+    # 縫い目：左右の縁をまたぐ短い横の線（1 辺 3 本）。当て布の外の面の縁の点に置く（1 回目は前から撃った点で、横の縁では脚から浮いた）
+    for edge in (0, -1):
         for k, f in enumerate((0.2, 0.5, 0.8)):
-            p = a + (b - a) * f
-            y = float(front_hit([p[0]], [p[1]])[0]) - 0.0055
-            V, F = box_mesh((p[0], y, p[1]), (0.008, 0.0012, 0.0016))
+            r_ = f * (outer.shape[0] - 1)
+            i0_ = int(r_)
+            i1_ = min(i0_ + 1, outer.shape[0] - 1)
+            w_ = r_ - i0_
+            c = outer[i0_, edge] * (1 - w_) + outer[i1_, edge] * w_
+            tan = outer[i0_, 1 if edge == 0 else -2] - outer[i0_, edge]
+            tan /= np.linalg.norm(tan)
+            V, F = box_mesh(c + np.array([0.0, -0.0008, 0.0]), (0.008, 0.0013, 0.0016), ex=tan, ey=(0.0, 1.0, 0.0))
             P.append(dict(name=f'stitch{edge}{k}' + sx, bone='shin' + sx, color='stitch', mesh=(V, F)))
     return P
 
@@ -726,7 +733,7 @@ def hair_locks() -> list[dict]:
     # 一番下の段は耳の上（1.40）を通る
     for side, sx in ((1.0, 'l'), (-1.0, 'r')):
         rows = []
-        for k, (a0, z0, am, zm, a1, z1, lt) in enumerate(((38, 1.522, 88, 1.522, 136, 1.508, 0.032),
+        for k, (a0, z0, am, zm, a1, z1, lt) in enumerate(((38, 1.522, 88, 1.522, 136, 1.508, 0.022),
                                                            (50, 1.495, 92, 1.490, 130, 1.472, 0.040),
                                                            (60, 1.462, 96, 1.454, 125, 1.436, 0.040),
                                                            (70, 1.428, 100, 1.420, 120, 1.402, 0.030))):
@@ -757,6 +764,11 @@ def hair_locks() -> list[dict]:
         ('temple_l', [(56.0, 1.47), (73.0, 1.41), (79.0, 1.37)], 0.004, 0.008, [0.0, 0.5, 1.0]),
     ]
     tier(front, k_w=0.70, thick=0.013, w_max=0.030)
+    # 額の生え際を覆う短い房（1 回目は帽子の縁が額の上に暗い帯で見えた）
+    edge = [('fh_c', [(4.0, 1.536), (10.0, 1.466)], 0.003, 0.007, None),
+            ('fh_l', [(26.0, 1.532), (40.0, 1.452)], 0.003, 0.008, None),
+            ('fh_r', [(-24.0, 1.532), (-36.0, 1.452)], 0.003, 0.008, None)]
+    tier(edge, k_w=0.66, thick=0.011, w_max=0.026)
     return out
 
 
@@ -809,12 +821,14 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
     # 腕：上腕の軸の近く（肩の外、ベストの袖ぐりより外）
     arm = np.zeros(len(pos), bool)
     skin_arm = np.zeros(len(pos), bool)
+    vest_half = np.interp(z, VEST_SIDE[0], VEST_SIDE[1])
     for side in (1.0, -1.0):
         S, E = np.array(jp('upper_arm', side)), np.array(jp('forearm', side))
         dv = (E - S) / np.linalg.norm(E - S)
         t = (pos - S) @ dv
         rr = np.linalg.norm((pos - S) - np.outer(t, dv), axis=1)
-        a_ = free & (side * x > 0.168) & (rr < 0.10) & (t > -0.02) & (z < 1.22)
+        # 上腕：腕の軸の近くで、ベストの横の縁（正面の絵）より外（1 回目は軸からの距離だけで、胴の横が生成りの四角になった）
+        a_ = free & (side * x > vest_half - 0.004) & (rr < 0.085) & (t > -0.02) & (z < 1.22)
         S2, E2 = np.array(jp('forearm', side)), np.array(jp('hand', side))
         d2 = (E2 - S2) / np.linalg.norm(E2 - S2)
         t2 = (pos - S2) @ d2
@@ -832,8 +846,13 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
     under[opening & (z < BELT_Z[0])] = NAMES.index('rust')
     under[arm & ~skin_arm] = NAMES.index('ivory')
     under[skin_arm] = NAMES.index('skin')
-    # 首（首巻きの中・上）：肌
-    neck = free & ~head & (z > 1.20) & (r_neck < 0.075) & ~arm
+    # 首巻きのまわり（首巻きの部品の 1.2cm 外まで）：首巻きの色。部品と体の土台が交わる所で、ベスト・肌の斑点に見えた（1 回目）
+    wa = np.interp(z, WRAP['z'], WRAP['a']) + 0.012
+    wb = np.where(y < WRAP_CY, np.interp(z, WRAP['z'], WRAP['bf']), np.interp(z, WRAP['z'], WRAP['bb'])) + 0.012
+    wz = free & ~head & (z > WRAP['z'][0] + 0.004) & (((x - X0) / wa) ** 2 + ((y - WRAP_CY) / wb) ** 2 < 1.0) & ~arm
+    under[wz] = NAMES.index('wrap')
+    # 首（首巻きの口より上）：肌
+    neck = free & ~head & (z > 1.255) & (r_neck < 0.065) & ~arm
     under[neck] = NAMES.index('skin')
     # 脚（ベストの裾より下）：ズボン
     legs = free & (z < VEST_HEM[0]) & ~skin_arm
