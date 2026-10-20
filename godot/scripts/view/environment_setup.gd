@@ -29,7 +29,10 @@ static func set_sun_energy(sun: DirectionalLight3D, energy: float) -> void:
 
 ## gl_compatibility の空の太陽（空の円盤だけを描く光。build で作る）を、太陽と同じ色・前の強さにそろえる。向きは子なので同じ
 static func _sync_sky_sun(sun: DirectionalLight3D) -> void:
-	var sky_sun: DirectionalLight3D = sun.get_meta("sky_sun", null)
+	# 空の太陽は gl_compatibility だけで作る。get_meta の既定に null を渡すと「既定なし」になり、無いたびにエラーが出るので has_meta で見る
+	if not sun.has_meta("sky_sun"):
+		return
+	var sky_sun: DirectionalLight3D = sun.get_meta("sky_sun")
 	if sky_sun != null:
 		sky_sun.light_color = sun.light_color
 		sky_sun.light_energy = float(sun.get_meta("energy", sun.light_energy))
