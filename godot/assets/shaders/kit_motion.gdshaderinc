@@ -79,6 +79,8 @@ vec3 kit_flow(vec3 c, float fw, vec3 wp, vec3 origin, vec3 n, vec3 view, float t
 	float ang = (atan(rel.y, rel.x) + 3.14159) * 0.159155;
 	float v = (wp.y + time * flow.x) / max(flow.y, 0.01);
 	float nz = kit_noise(vec2(ang * 6.0, v), 6.0) * 0.65 + kit_noise(vec2(ang * 12.0 + 3.7, v * 2.6 + 1.3), 12.0) * 0.35;
+	// 雑音の値は真ん中に寄るので、明暗の筋がはっきり分かれるように広げる（細い流れでも下へ流れる筋に見える）
+	nz = smoothstep(0.32, 0.68, nz);
 	float lum = 1.0 + flow.z * (nz * 2.0 - 1.0);
 	float edge = 1.0 - abs(dot(normalize(n), normalize(view)));
 	float fl = kit_noise(vec2(ang * 9.0 + 7.1, v * 4.0 + time * 2.0), 9.0);

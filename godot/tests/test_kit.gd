@@ -237,6 +237,131 @@ func test_kit_inherit_and_decal() -> void:
 	h.expect(patch != null and (patch.surface_get_material(0) as ShaderMaterial).shader == RoomKit.DECAL, "汚れの斑の板（town/grime_patch）はキットの grime_decal で描く")
 
 
+## 飾りの動き（材質の "sway"・"flow"。42 章 14.2.2）：汚れの層の有る・無い材質のどちらにも付き、層の値は前のまま。
+## 付けない材質は動かない（値が 0）。蒸気（"blend": "add"）の "flow"。キットの材質に付いていて、受け継ぎ（town_tidy）にも残る
+func test_kit_motion_materials() -> void:
+	var base := {"albedo": "res://assets/kit/tex/ruins_aged_ivory.jpg", "uv_m": 3.0, "color": "#f1e7d2", "roughness": 0.72}
+	var sway := {"push": 0.04, "flutter": 0.03, "wave": 0.5, "gust": 0.7, "speed": 1.2, "wind": [0, 0, -1]}
+	var compat := RenderingServer.get_current_rendering_method() == "gl_compatibility"
+	var still := RoomKit.make_material(base) as ShaderMaterial
+	h.expect(still.shader == RoomKit.SHADER and _v4(still, "sway_amp") == Vector4.ZERO and _v4(still, "flow") == Vector4.ZERO,
+		"動きを書かない材質は動かない（揺れ・流れの値が 0）")
+	var plain := base.duplicate()
+	plain["sway"] = sway
+	var pm := RoomKit.make_material(plain) as ShaderMaterial
+	h.expect(pm.shader == RoomKit.SHADER, "層の無い材質に揺れ：シェーダーは前と同じ版（kit_surface.gdshader）")
+	h.expect(_v4(pm, "sway_amp").is_equal_approx(Vector4(0.04, 0.03, 0.5, 0.7)) and _v4(pm, "sway_wind").is_equal_approx(Vector4(0, 0, -1, 1.2)),
+		"揺れの値が入る（%s・%s）" % [_v4(pm, "sway_amp"), _v4(pm, "sway_wind")])
+	# 層あり・近くを網目に消す版にも、同じ揺れが付く。層の値は揺れを足しても変わらない
+	var layered := base.duplicate()
+	layered["detail"] = [{"mask": "grime", "uv_m": 3.0, "cover": 0.4, "color": "#a47c60", "mode": "multiply", "amount": 0.6},
+		{"mask": "streaks", "uv_m": [1.6, 2.6], "cover": 0.5, "top": [0.0, 1.8], "color": "#9b5a3c"}]
+	var lm := RoomKit.make_material(layered) as ShaderMaterial
+	var both := layered.duplicate()
+	both["sway"] = sway
+	both["near_fade"] = [0.8, 1.5]
+	var bm := RoomKit.make_material(both) as ShaderMaterial
+	h.expect(bm.shader == (RoomKit.SHADER_DETAIL if compat else RoomKit.SHADER_DETAIL_FADE), "層と揺れと網目の材質は層つき（網目つき）の版")
+	h.expect(int(bm.get_shader_parameter("detail_count")) == 2 and _v4(bm, "sway_amp").is_equal_approx(Vector4(0.04, 0.03, 0.5, 0.7)),
+		"層の数と揺れの値が両方入る")
+	for k in ["d_color", "d_pick", "d_uv", "d_shape", "d_feet", "d_gate", "detail_tex", "detail_tex2", "color", "albedo_tex"]:
+		h.expect(bm.get_shader_parameter(k) == lm.get_shader_parameter(k), "揺れを足しても層の値（%s）は同じ" % k)
+	# 落砂の流れ（不透明の面）と蒸気の流れ（足し合わせ）
+	var sand := base.duplicate()
+	sand["flow"] = {"speed": 2.6, "size": 0.35, "contrast": 0.4, "edge": 0.6}
+	h.expect(_v4(RoomKit.make_material(sand) as ShaderMaterial, "flow").is_equal_approx(Vector4(2.6, 0.35, 0.4, 0.6)), "落砂の流れの値が入る")
+	var steam := RoomKit.make_material({"blend": "add", "color": "#cfc8bd", "strength": 0.16, "fade_m": 2.2,
+		"flow": {"speed": 0.9, "size": 0.45, "contrast": 0.7, "breath": 0.25}}) as ShaderMaterial
+	h.expect(steam.shader == RoomKit.GLOW and _v4(steam, "flow").is_equal_approx(Vector4(0.9, 0.45, 0.7, 0.25)), "蒸気は光の筋のシェーダーに流れの値")
+	var shaft := RoomKit.make_material({"blend": "add", "color": "#ffd9a0", "strength": 0.22, "fade_m": 6.0}) as ShaderMaterial
+	h.expect(_v4(shaft, "flow") == Vector4.ZERO, "光の筋（流れなし）は前のまま")
+	# キット：町の flat・metal に揺れ（受け継いだ町長の家・上段のキットにも）、遺構に落砂の流れ・ケーブルの揺れ・蒸気の流れ
+	for id in ["town", "town_tidy", "town_worn"]:
+		var kit := RoomKit.load_kit(id)
+		for m in ["flat", "metal"]:
+			var mat := kit.mats[m] as ShaderMaterial
+			h.expect(_v4(mat, "sway_amp").y > 0.0 and _v4(mat, "sway_wind").z < 0.0, "%s の %s は船首からの風で揺れる（風下 -Z）" % [id, m])
+		h.expect((kit.mats.flat as ShaderMaterial).shader == (RoomKit.SHADER_DETAIL if compat else RoomKit.SHADER_DETAIL_FADE),
+			"%s の flat は層つきのまま" % id)
+	for id in ["ruins_b1", "ruins_b2", "ruins_b3", "ruins_b4"]:
+		var kit := RoomKit.load_kit(id)
+		h.expect(_v4(kit.mats.sand, "flow").x > 0.0 and _v4(kit.mats.dark, "sway_amp").y > 0.0 and _v4(kit.mats.ivory, "sway_amp") == Vector4.ZERO,
+			"%s：砂に流れ、ケーブルの黒に揺れ、白磁は動かない" % id)
+		h.expect(kit.data.get("emitters", {}).has("ruins/b2_steam") and kit.data.emitters.has("ruins/sand_fall"), "%s：蒸気と落砂の粒の出所" % id)
+	h.expect(_v4(RoomKit.load_kit("ruins_b2").mats.steam, "flow").x > 0.0, "B2 の蒸気に流れ")
+
+
+static func _v4(m: ShaderMaterial, k: String) -> Vector4:
+	var v = m.get_shader_parameter(k)
+	return v if v is Vector4 else Vector4.ZERO
+
+
+## 部品の面の頂点の色のアルファ（1 - 動きの重み）：[動く頂点の数, 頂点の数, いちばん大きい重み]
+static func _weights(mesh: Mesh, surface: int) -> Array:
+	var arr := mesh.surface_get_arrays(surface)
+	var col = arr[Mesh.ARRAY_COLOR]
+	var n: int = (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	if not (col is PackedColorArray) or (col as PackedColorArray).is_empty():
+		return [0, n, 0.0]
+	var moving := 0
+	var most := 0.0
+	for c in (col as PackedColorArray):
+		if c.a < 0.99:
+			moving += 1
+		most = maxf(most, 1.0 - c.a)
+	return [moving, n, most]
+
+
+static func _surface(mesh: Mesh, kit: Dictionary, mat: String) -> int:
+	for s in mesh.get_surface_count():
+		if mesh.surface_get_material(s) == kit.mats.get(mat):
+			return s
+	return -1
+
+
+## 動きの重みは部品の GLB の頂点の色に入っている（Blender の書き出し）：布の自由な端だけが動き、竿・柱・留め金・ほかの部品は動かない
+func test_kit_motion_weights() -> void:
+	var town := RoomKit.load_kit("town")
+	var flag := RoomKit.part_mesh("town/wind_flag", town)
+	var fw: Array = _weights(flag, _surface(flag, town, "flat"))
+	var fm: Array = _weights(flag, _surface(flag, town, "metal"))
+	h.expect(fw[0] > 50 and fw[2] > 0.95, "旗の布は動く（%d / %d 頂点、重み %.2f まで）" % [fw[0], fw[1], fw[2]])
+	h.expect(fm[0] == 0, "旗竿・台（metal）は動かない")
+	var crate := RoomKit.part_mesh("town/crate", town)
+	h.expect(_weights(crate, 0)[0] == 0 and _weights(crate, 1)[0] == 0, "木箱は動かない（重み 0）")
+	var banner := RoomKit.part_mesh("town/banner", town)
+	var bw: Array = _weights(banner, _surface(banner, town, "flat"))
+	h.expect(bw[0] > 0 and bw[2] <= 0.41, "壁の垂れ幕は小さく揺れる（重み %.2f まで：壁に入らない）" % bw[2])
+	var lower := RoomKit.part_mesh("town/lower_set", town)
+	h.expect(_weights(lower, _surface(lower, town, "flat"))[0] > 500, "組の部品（下段）の中の布にも重み")
+	var guild := RoomKit.part_mesh("town/guild_set", town)
+	h.expect(_weights(guild, _surface(guild, town, "flat"))[0] == 0, "屋内（ギルド）の垂れ幕は動かない")
+	var ruins := RoomKit.load_kit("ruins_b2")
+	var cable := RoomKit.part_mesh("ruins/cable_hang", ruins)
+	var cd: Array = _weights(cable, _surface(cable, ruins, "dark"))
+	h.expect(cd[0] > 100 and cd[2] > 0.6, "垂れたケーブルは下ほど揺れる（重み %.2f まで）" % cd[2])
+	h.expect(_weights(cable, _surface(cable, ruins, "graphite"))[0] == 0, "ケーブルの留め金は動かない")
+	var fall := RoomKit.part_mesh("ruins/sand_stream", ruins)
+	var sw: Array = _weights(fall, _surface(fall, ruins, "sand"))
+	h.expect(sw[0] > 0 and sw[0] < sw[1], "落砂は流れだけに重み（床の山は動かない。%d / %d）" % [sw[0], sw[1]])
+
+
+## 動きのシェーダー（kit_motion・kit_surface・kit_glow）は掛け算の混ぜ方（blend_mul）を使わない（gl_compatibility で黒くなる）
+func test_kit_motion_no_multiply_blend() -> void:
+	for path in ["res://assets/shaders/kit_motion.gdshaderinc", "res://assets/shaders/kit_surface.gdshaderinc", "res://assets/shaders/kit_glow.gdshader",
+			"res://assets/shaders/kit_surface.gdshader", "res://assets/shaders/kit_surface_detail.gdshader",
+			"res://assets/shaders/kit_surface_fade.gdshader", "res://assets/shaders/kit_surface_detail_fade.gdshader"]:
+		var text := FileAccess.get_file_as_string(path)
+		# 説明の行（// のあと）は除いて、コードだけを見る
+		var code := ""
+		for line in text.split("\n"):
+			code += line.split("//")[0] + "\n"
+		h.expect(text != "" and not code.contains("blend_mul"), "%s は blend_mul を使わない" % path.get_file())
+		# 時刻は描画の時計（TIME）だけ：ゲームの中身から値を受けない
+		if path.ends_with("kit_motion.gdshaderinc") or path.ends_with("kit_glow.gdshader"):
+			h.expect(not code.contains("uniform float time") and not code.contains("global uniform"), "%s の時刻は TIME だけ" % path.get_file())
+
+
 ## 足場の箱（中心・大きさ）だけの地形（下は奈落）
 func _ledges(boxes: Array) -> Dictionary:
 	var faces := []

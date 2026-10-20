@@ -6,11 +6,11 @@
  {"name": "pm_lo_flag", "room": "ch1.lower", "spawn": "start", "at": [24.5, 0, -7.5], "look": [30, 0, 2], "wait": 30, "eye": [25.0, 3.2, -5.0], "target": [30.2, 6.0, 2.4]},
  {"name": "pm_up_bunting", "room": "ch1.upper", "spawn": "start", "at": [2.0, 0, -7.0], "look": [-1.5, 0, 8], "wait": 30, "eye": [2.0, 2.6, -4.0], "target": [-1.5, 6.2, 8.0]},
  {"name": "pm_r02_back", "room": "ch1.r02", "spawn": "from_r03", "at": [0, 0, 10], "look": [0, 0, -6], "pitch": 12, "wait": 30},
- {"name": "pm_r02_fall", "room": "ch1.r02", "spawn": "from_r01", "at": [1.5, 0, -1.0], "look": [6.6, 0, 9.4], "wait": 30, "eye": [2.4, 1.9, 2.8], "target": [6.6, 2.6, 9.4]},
+ {"name": "pm_r02_fall", "room": "ch1.r02", "spawn": "from_r01", "at": [1.5, 0, -1.0], "look": [6.6, 0, 9.4], "wait": 120, "eye": [2.4, 1.9, 2.8], "target": [6.6, 2.6, 9.4]},
  {"name": "pm_r02_cables", "room": "ch1.r02", "spawn": "from_r01", "at": [-5.0, 0, 1.0], "look": [-5.3, 0, 12], "wait": 30, "eye": [-5.0, 3.0, 4.0], "target": [-5.3, 6.4, 12.8]},
  {"name": "pm_r06_entry", "room": "ch1.r06", "spawn": "fall", "at": [0, 0, -12], "look": [0, 0, 8], "pitch": 10, "wait": 30},
- {"name": "pm_r06_south", "room": "ch1.r06", "spawn": "fall", "at": [0, 0, -1.5], "look": [0, 0, -15], "wait": 30, "eye": [0, 2.3, -4.0], "target": [0, 2.6, -15]},
- {"name": "pm_r06_vent", "room": "ch1.r06", "spawn": "fall", "at": [-2.0, 0, -8.5], "look": [-6, 0, -15], "wait": 30, "eye": [-3.2, 2.0, -10.8], "target": [-6.0, 1.9, -14.3]},
- {"name": "pm_r06_stream", "room": "ch1.r06", "spawn": "fall", "at": [-1.5, 0, -4.5], "look": [1.4, 0, -10.6], "wait": 30, "eye": [-1.4, 1.7, -6.8], "target": [1.4, 1.6, -10.6]},
- {"name": "pm_r08_side", "room": "ch1.r08", "spawn": "from_r07", "at": [-2.5, 0, -8.0], "look": [-9.6, 0, -3.0], "wait": 30, "eye": [-3.0, 3.0, -6.5], "target": [-9.6, 5.0, -3.0]}
+ {"name": "pm_r06_south", "room": "ch1.r06", "spawn": "fall", "at": [0, 0, -1.5], "look": [0, 0, -15], "wait": 120, "eye": [0, 2.3, -4.0], "target": [0, 2.6, -15]},
+ {"name": "pm_r06_vent", "room": "ch1.r06", "spawn": "fall", "at": [-2.0, 0, -8.5], "look": [-6, 0, -15], "wait": 120, "eye": [-3.2, 2.0, -10.8], "target": [-6.0, 1.9, -14.3]},
+ {"name": "pm_r06_stream", "room": "ch1.r06", "spawn": "fall", "at": [-1.5, 0, -4.5], "look": [1.4, 0, -10.6], "wait": 120, "eye": [-1.4, 1.7, -6.8], "target": [1.4, 1.6, -10.6]},
+ {"name": "pm_r08_side", "room": "ch1.r08", "spawn": "from_r07", "at": [-2.5, 0, -8.0], "look": [-9.6, 0, -3.0], "wait": 120, "eye": [-3.0, 3.0, -6.5], "target": [-9.6, 5.0, -3.0]}
 ]

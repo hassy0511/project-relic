@@ -7,7 +7,7 @@ extends RefCounted
 ## （部屋ごとに決まった種。Fx の乱数の並びを変えないので、ほかのエフェクトは前と同じ）。Fx.sync が毎刻み step を呼ぶ。
 
 ## 砂ぼこり・蒸気の色（砂は遺構の材質 sand の明るい面の色、蒸気は白っぽい灰色）
-const DUST_COLOR := Color("#c99a6e")
+const DUST_COLOR := Color("#d9b892")
 const STEAM_COLOR := Color("#ece6dc")
 ## 1 部屋の出所の上限（多すぎる部屋でも粒が増えすぎないように）
 const MAX_SOURCES := 16
@@ -31,8 +31,8 @@ func build(id: String, room: Dictionary) -> void:
 		if sources.size() >= MAX_SOURCES:
 			break
 		var ev: Vector2 = e.every
-		# 最初の吹き出しは出所ごとにずらす（同じ部屋の蒸気がそろって吹かない）
-		e["next"] = _rng.randf_range(0.2, maxf(ev.y, 0.3))
+		# 最初の吹き出しは出所ごとにずらす（同じ部屋の蒸気がそろって吹かない）。部屋に入ってすぐ見えるよう、最初だけ早め
+		e["next"] = _rng.randf_range(0.2, clampf(ev.x * 0.6, 0.3, 2.2))
 		e["burst"] = 0
 		sources.append(e)
 
@@ -73,7 +73,7 @@ func _dust(vfx: Vfx, s: Dictionary) -> void:
 		var out := Vector3(sin(a), 0.0, cos(a))
 		var q := vfx.emit(Vfx.DUST, s.at + out * 0.08 * sc + Vector3(0, 0.02, 0),
 			out * _rng.randf_range(0.18, 0.4) * sc + Vector3(0, _rng.randf_range(0.12, 0.28), 0),
-			_rng.randf_range(1.0, 1.6), 0.1 * sc, _rng.randf_range(0.32, 0.48) * sc, Color(DUST_COLOR, _rng.randf_range(0.3, 0.42)))
+			_rng.randf_range(1.0, 1.6), 0.12 * sc, _rng.randf_range(0.38, 0.55) * sc, Color(DUST_COLOR, _rng.randf_range(0.36, 0.5)))
 		q.rot = _rng.randf() * TAU
 		q.spin = _rng.randf_range(-0.5, 0.5)
 		q.drag = 1.6
