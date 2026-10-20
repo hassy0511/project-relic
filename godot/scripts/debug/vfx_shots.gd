@@ -46,6 +46,9 @@ static func steps(d) -> Array:
 	# --vfx_shots=h：残りの仕上げ（H 群）だけを撮る
 	if String(m.args.get("vfx_shots", "")) == "h":
 		return leftover_steps(d)
+	# --vfx_shots=machines：番機 5 種と閂の見た目だけ（W2_番機3D化の結果.md の 3e。前後の比べ）
+	if String(m.args.get("vfx_shots", "")) == "machines":
+		return machine_steps(d)
 	var s := []
 	# ---- A：主武器（連射・溜め・弱点・装甲）
 	s.append_array([
@@ -797,4 +800,175 @@ static func bench_steps(d, names: Array) -> Array:
 			print("描画の計測 %s（%s、%d こま）：最大 %d・95%% %d・平均 %.1f・中央 %d／物 最大 %d／物理の刻み 平均 %.2f ms" % [nm, RenderingServer.get_current_rendering_method(), arr.size(),
 				sorted[-1], sorted[int(sorted.size() * 0.95)], float(sum) / arr.size(), sorted[sorted.size() / 2], objs[-1], ph_sum / maxf(1.0, ph.size())])})
 		s.append({"ticks": 1, "shot": "bench_" + nm, "input": {}})
+	return s
+
+
+## 番機 5 種と閂の見た目の確認（--vfx_shots=machines。machine_<名前>.png）：ゲームのカメラで、型ごとに 3 体の警戒・予備動作、
+## 突撃型の激突のあと（核の蓋）、盾型の盾が崩れた所、閂の待機・突きの予備動作・核が開いた所・回転・過熱・腕の破壊・撃破のあとの核。
+## モデル（banki_parts.py・kannuki.py）を直したときに、同じ場面を前と後で撮って並べる
+static func machine_steps(d) -> Array:
+	var m = d.main
+	# cam：撮る直前にカメラを置く（ゲームのカメラより近くから、機械が画面の大きな部分を占めるように）
+	var shot := func(name: String, cam = null) -> Dictionary:
+		var r := {"ticks": 1, "shot": "machine_" + name, "input": {}, "after": func(): print("描画 machine_%s：%s" % [name, _draws()])}
+		if cam != null:
+			r["cam"] = cam
+		return r
+	var near := func(kind: String, dist: float) -> Callable:
+		var hv: float = float(m.game.tuning.enemies.floater.hover) if m.game != null else 1.2
+		var f: Array = {"sentry": [2.0, 1.7, 3.8, 0.7], "mini": [0.35, 0.85, 2.7, 0.16], "shield": [3.0, 2.6, 6.0, 1.05],
+				"floater": [1.4, hv + 1.6, 3.4, hv + 0.2], "charger": [3.4, 2.4, 5.6, 0.6]}[kind]
+		return func(): _cam_at(d, Vector3(f[0], f[1], dist + f[2]), Vector3(0, f[3], dist + 0.4))
+	var boss_cam := func(off: Vector3, look_y := 2.6) -> Callable:
+		return func():
+			var b = m.game.boss
+			_cam_at(d, b.pos + off, b.pos + Vector3(0, look_y, 0))
+	var trio := func(kind: String, dist := 4.0, gap := 2.5, off := 0.45):
+		d._arena_start(kind)
+		var g: GameSim = m.game
+		# 浮遊型は動かない的（passive）にすると浮かないので、浮く高さに置く
+		var y: float = float(g.tuning.enemies.floater.hover) if kind == "floater" else 0.0
+		for i in 3:
+			var e = g.enemies[i]
+			_place(g, e, Vector3(-gap + gap * i, y, dist + absf(i - 1) * 0.8), Vector3(0, y, dist + 7.0))
+			e.passive = true
+		d._stand(Vector3(0, 0, dist + 6.0), Vector3(0, 0, dist))
+		_view(d, off)
+	var alert := func():
+		for e in m.game.enemies:
+			e.passive = false
+			e.become_alert()
+	var windup := func():
+		for e in m.game.enemies:
+			e.set_state("windup")
+	var s := []
+	for kind in ["sentry", "mini", "shield", "floater", "charger"]:
+		var dist: float = {"sentry": 4.0, "mini": 3.0, "shield": 4.5, "floater": 3.5, "charger": 4.5}[kind]
+		var gap: float = {"sentry": 2.5, "mini": 0.9, "shield": 3.2, "floater": 2.0, "charger": 3.4}[kind]
+		s.append_array([
+			{"ticks": 2, "setup": func(): trio.call(kind, dist, gap)},
+			{"ticks": 30, "input": {}},
+			shot.call("%s_1_idle" % kind, near.call(kind, dist)),
+			{"ticks": 1, "input": {}, "setup": alert},
+			{"ticks": 8, "input": {}},
+			{"ticks": 1, "input": {}, "setup": windup},
+			{"ticks": 20, "input": {}},
+			shot.call("%s_2_windup" % kind, near.call(kind, dist)),
+		])
+	# 突撃型：壁に激突して動けない（本人の右の核の蓋が開く）
+	s.append_array([
+		{"ticks": 2, "setup": func():
+			d._arena_start("charger")
+			var g: GameSim = m.game
+			var e = g.enemies[0]
+			_targets(g, [e])
+			e.passive = false
+			_place(g, e, Vector3(-9, 0, 0), Vector3(-16, 0, 0))
+			e._charge_dir = Vector3(-1, 0, 0)
+			e.set_state("attack")
+			d._stand(Vector3(-10.5, 0, 3.5), Vector3(-15.5, 0, -0.5))},
+		{"ticks": 60, "input_fn": func(_i): return {}},
+		{"ticks": 1, "input": {}, "check": func(): return d._check(m.game.enemies[0].state == "stunned", "突撃型が壁に激突して動けない（機械の確認）")},
+		{"ticks": 20, "input": {}},
+		shot.call("charger_3_stunned_core", func():
+			var e = m.game.enemies[0]
+			_cam_at(d, e.pos + Vector3(1.6, 2.2, -4.6), e.pos + Vector3(0, 0.6, 0))),
+	])
+	# 盾型：盾が崩れる（盾を横へ振り出す）
+	s.append_array([
+		{"ticks": 2, "setup": func():
+			d._arena_start("shield")
+			var g: GameSim = m.game
+			var e = g.enemies[1]
+			_targets(g, [e])
+			_place(g, e, Vector3(0, 0, 3), Vector3(0, 0, 9))
+			d._stand(Vector3(0, 0, 6.5), Vector3(0, 0, 3))
+			_view(d, 0.9)},
+		{"ticks": 20, "input": {}},
+		{"ticks": 1, "input": {}, "setup": func():
+			var g: GameSim = m.game
+			var e = g.enemies[1]
+			g.damage_enemy(e, 41.0, g.player.pos, {"melee": true, "at": e.center() + e.forward() * 0.6})},
+		{"ticks": 12, "input": {}},
+		shot.call("shield_3_guard_broken", func(): _cam_at(d, Vector3(2.6, 2.4, 8.0), Vector3(0, 1.0, 3.0))),
+	])
+	# 閂
+	var boss_start := func(phase: int, st: String, at := Vector3(0, 0, -3), stand := Vector3(0, 0, 12), off := 0.3):
+		var g: GameSim = m.game
+		var b = g.boss
+		b.debug_set_phase(phase)
+		b.pos = at
+		b.yaw = U.dir_to_yaw(stand.x - at.x, stand.z - at.z)
+		g.phys.set_feet(b.body, at)
+		b.spin_r = 0.0
+		b.lane = false
+		b.wave_r = -1.0
+		b.core_open = false
+		b.set_state(st)
+		d._stand(stand, at)
+		_view(d, off)
+	s.append_array([
+		{"ticks": 2, "setup": func():
+			d._arena_start("kannuki")
+			var g: GameSim = m.game
+			for b in g.breakables:
+				b.broken = true
+				g.phys.remove(b.body)
+				b.body = null},
+		{"ticks": 150, "input": {}},
+		{"ticks": 2, "setup": func(): boss_start.call(1, "recover", Vector3(0, 0, -3), Vector3(4, 0, 11), 0.5)},
+		{"ticks": 40, "input": {}},
+		shot.call("kannuki_1_idle", boss_cam.call(Vector3(8.5, 5.5, 9.5))),
+		{"ticks": 2, "setup": func(): boss_start.call(1, "thrust_windup", Vector3(0, 0, -8), Vector3(0, 0, 10))},
+		{"ticks": 34, "input": {}},
+		shot.call("kannuki_2_thrust_windup", boss_cam.call(Vector3(7.5, 5.0, 9.0))),
+		# 突進が壁で止まった所（核が開く）：時間で待たず、壁の手前に置いて止まった状態にする
+		{"ticks": 2, "setup": func():
+			boss_start.call(1, "recover", Vector3(0, 0, 9.0), Vector3(-6, 0, 2), 0.0)
+			m.game.boss._thrust_end(true)},
+		{"ticks": 40, "input": {}},
+		{"ticks": 1, "input": {}, "check": func(): return d._check(m.game.boss.core_open, "閂が突進のあと壁で止まり、核が開く（機械の確認）")},
+		shot.call("kannuki_3_core_open", func():
+			# 突進のあと壁ぎわで止まる：部屋の中心の側の上から、開いた核を見下ろす
+			var b = m.game.boss
+			var to_c: Vector3 = b.arena - b.pos
+			to_c.y = 0.0
+			var dir := to_c.normalized() if to_c.length() > 0.1 else Vector3(0, 0, 1)
+			var side := dir.cross(Vector3.UP)
+			_cam_at(d, b.pos + dir * 6.5 + side * 2.5 + Vector3(0, 8.0, 0), b.pos + Vector3(0, 3.4, 0))),
+		{"ticks": 2, "setup": func(): boss_start.call(1, "spin_windup", Vector3(0, 0, -3), Vector3(0, 0, 9))},
+		{"ticks": 64, "input": {}},
+		shot.call("kannuki_4_spin", boss_cam.call(Vector3(8.0, 5.5, 9.0))),
+		{"ticks": 2, "setup": func():
+			boss_start.call(3, "recover", Vector3(0, 0, -2), Vector3(3, 0, 10), 0.5)
+			for e in m.game.enemies:
+				if e != m.game.boss:
+					e.alive = false
+			m.game.boss.heat_state = 2
+			m.game.boss.heat_time = 0.0},
+		{"ticks": 80, "input": {}},
+		shot.call("kannuki_5_overheat", boss_cam.call(Vector3(8.0, 5.5, 8.5))),
+		{"ticks": 2, "setup": func():
+			boss_start.call(2, "recover", Vector3(0, 0, -2), Vector3(-2, 0, 9))
+			m.game.boss.heat_state = 0
+			m.game.boss.overheat = false},
+		{"ticks": 10, "input": {}},
+		{"ticks": 1, "input": {}, "setup": func():
+			var g: GameSim = m.game
+			var b = g.boss
+			g.damage_enemy(b, 200.0, g.player.pos, {"melee": true, "at": b.arm_center("fr")})},
+		{"ticks": 70, "input": {}},
+		shot.call("kannuki_6_arm_broken", boss_cam.call(Vector3(-8.5, 5.5, 8.5))),
+		{"ticks": 2, "setup": func():
+			var g: GameSim = m.game
+			var b = g.boss
+			b.debug_set_phase(3)
+			b.core_open = true
+			var guard := 0
+			while b.alive and guard < 100:
+				g.damage_enemy(b, 60.0, g.player.pos, {"melee": true, "at": b.axis_center()})
+				guard += 1},
+		{"ticks": 135, "input": {}},
+		shot.call("kannuki_7_destroyed_core", boss_cam.call(Vector3(7.5, 6.0, 8.0), 2.0)),
+	])
 	return s

@@ -42,8 +42,10 @@ def ell_point(c, ax, th, ph, grow=0.0):
     return V3([c[0] + (ax[0] + grow) * st * math.sin(ph), c[1] - (ax[1] + grow) * st * math.cos(ph), c[2] + (az + grow) * ct])
 
 
-def ell_plate(c, ax, th0, th1, ph0, ph1, thick=1.2, grow=0.0, dth=10.0, dph=12.0):
-    """楕円体の上の板（厚み thick）。ph0・ph1 は数（度）か、th（度）の関数。角は度"""
+def ell_plate(c, ax, th0, th1, ph0, ph1, thick=1.2, grow=0.0, dth=10.0, dph=12.0, pfn=None):
+    """楕円体の上の板（厚み thick）。ph0・ph1 は数（度）か、th（度）の関数。角は度。
+    pfn(th, ph, grow)（ラジアン）を渡すと、楕円体の代わりにその面の上の板（浮遊型の葉の花びら形など）"""
+    P = pfn or (lambda t_, p_, g_: ell_point(c, ax, t_, p_, g_))
     f0 = ph0 if callable(ph0) else (lambda t, v=ph0: v)
     f1 = ph1 if callable(ph1) else (lambda t, v=ph1: v)
     nv = max(2, int(math.ceil((th1 - th0) / dth)))
@@ -56,7 +58,7 @@ def ell_plate(c, ax, th0, th1, ph0, ph1, thick=1.2, grow=0.0, dth=10.0, dph=12.0
             a, b = f0(t), f1(t)
             for j in range(nu + 1):
                 p = a + (b - a) * j / nu
-                verts.append(ell_point(c, ax, math.radians(t), math.radians(p), g))
+                verts.append(P(math.radians(t), math.radians(p), g))
     W = nu + 1
     n1 = (nv + 1) * W
     idx = lambda s, i, j: s * n1 + i * W + j
@@ -152,23 +154,26 @@ def sentry(rig: Rig):
     for sg in (1, -1):
         f0 = (lambda t: v_in(t)) if sg > 0 else (lambda t: -58.0)
         f1 = (lambda t: 58.0) if sg > 0 else (lambda t: -v_in(t))
-        ivory.append(ell_plate(C, AX, 24.0, min(vbot, 132.0), f0, f1, dth=9, dph=10))
-    # 横の真鍮の板（縦の帯）と、その後ろの白磁の板
+        ivory.append(ell_plate(C, AX, 24.0, min(vbot, 132.0), f0, f1, dth=15, dph=19))
+    # 横の真鍮の板（3e：縦に 4 つの塊に分ける。絵の段の真鍮）と、その後ろの白磁の板
     for sg in (1, -1):
         a, b = (61.0, 79.0) if sg > 0 else (-79.0, -61.0)
-        brass.append(ell_plate(C, AX, 40.0, 128.0, a, b, thick=1.6, grow=0.5, dth=8, dph=6))
+        for t0, t1 in ((38.0, 58.0), (60.0, 82.0), (84.0, 106.0), (108.0, 128.0)):
+            brass.append(ell_plate(C, AX, t0, t1, a, b, thick=1.8, grow=0.6, dth=11, dph=9))
         a, b = (82.0, 158.0) if sg > 0 else (-158.0, -82.0)
-        ivory.append(ell_plate(C, AX, 24.0, 138.0, a, b, dth=9, dph=12))
+        ivory.append(ell_plate(C, AX, 24.0, 138.0, a, b, dth=16, dph=19))
         # 後ろの核の窓の縁（真鍮）
         a, b = (158.5, 163.0) if sg > 0 else (-163.0, -158.5)
         brass.append(ell_plate(C, AX, 40.0, 122.0, a, b, thick=1.4, grow=0.4, dth=8, dph=4))
     # 上のかぶと（1 枚）と下の腹（黒鉛の芯が見える）
-    ivory.append(ell_plate(C, AX, 0.0, 21.5, -180.0, 180.0, dth=7, dph=30))
+    ivory.append(ell_plate(C, AX, 0.0, 21.5, -180.0, 180.0, dth=11, dph=45))
     # 砲口（V の奥、前へ突き出す）
     dark.append(cyl((0, -12.0, 67.0), (0, -17.5, 67.0), 2.6, 12))
     dark.append(cyl((0, -17.5, 67.0), (0, -18.2, 67.0), 1.5, 12))
     # 腰の黒鉛の塊（股の関節の間）
-    dark.append(ell_solid((0, 0.5, 51.0), (11.0, 8.0, 5.0, 5.0), 14, 6))
+    dark.append(ell_solid((0, 0.5, 52.5), (6.0, 6.0, 4.0, 4.0), 12, 6))
+    # 核の窓の縦の仕切り（黒鉛。絵の背面の窓は中央で 2 つに分かれる）
+    dark.append(ell_plate(C, AX, 46.0, 116.0, 178.6, 181.4, thick=1.2, grow=0.2, dth=12, dph=3))
     rig.add('body', None, (0, 0, 47.0), (1, 0, 0), [('ivory', merge(*ivory)), ('brass', merge(*brass)), ('dark', merge(*dark))])
     # 棘（真鍮）と付け根の輪
     spike = lathe((0, 0, 94.0), (0, 0, 110.0), [(0, 5.0), (0.12, 5.0), (0.2, 3.6), (1, 0.0)], 8)
@@ -188,11 +193,12 @@ def sentry(rig: Rig):
         hip, knee, ankle = V3([sg * 9.0, -1.0, 49.0]), V3([sg * 11.0, 9.5, 31.0]), V3([sg * 13.0, 2.0, 9.0])
         ax = (1, 0, 0)
         d = (knee - hip) / np.linalg.norm(knee - hip)
-        thigh = limb(hip + d * 4.0, knee - d * 4.0, 5.6, 4.6, 8)
-        rig.add(f'thigh_{side}', 'body', hip, ax, [('ivory', thigh), ('dark', disc(hip, 4.6, 6.0))])
+        # 3e：腿・脛は角ばった板（前に稜。腿は中ほどがふくらみ、脛は下へ細る）。股・膝の黒鉛の円盤は大きめ
+        thigh = prism(hip + d * 4.2, knee - d * 3.6, [(0, 4.6, 4.4, 4.0), (0.35, 5.8, 6.0, 5.0), (1, 4.6, 4.8, 4.0)], fwd=(0, -1, 0))
+        rig.add(f'thigh_{side}', 'body', hip, ax, [('ivory', thigh), ('dark', disc(hip + V3([sg * 1.0, 0, 0]), 4.9, 4.6))])   # 股の円盤は細く外へ（腰と分かれて丸い関節に見える）
         d2 = (ankle - knee) / np.linalg.norm(ankle - knee)
-        shin = limb(knee + d2 * 3.8, ankle - d2 * 3.0, 4.4, 3.4, 8)
-        knee_d = disc(knee, 4.4, 6.5)
+        shin = prism(knee + d2 * 3.8, ankle - d2 * 3.0, [(0, 4.4, 4.6, 3.6), (0.3, 4.6, 4.8, 3.6), (1, 3.2, 3.4, 2.8)], fwd=(0, -1, 0))
+        knee_d = disc(knee, 4.8, 6.8)
         hub = disc(knee + V3([sg * 3.6, 0, 0]), 2.0, 1.2, 10)
         rig.add(f'shin_{side}', f'thigh_{side}', knee, ax, [('ivory', shin), ('dark', knee_d), ('brass', hub)])
         # 足：足首の黒鉛の塊と 3 本の爪（前 2・後ろ 1）。爪は白磁で先が真鍮
@@ -249,9 +255,10 @@ def loft_rings(rings):
 
 
 # 突撃型の車体の外形（y, 半幅 w, 下の z0, 上の z1, 上の半幅 wt）。鼻・胴・後ろを 1 つの式でつなぐ（板はこの面に沿わせる）
-CH_SECS = [(-88, 15, 10, 31, 11), (-60, 24, 11, 47, 20), (-30, 29, 13, 65, 24), (-6, 31, 17, 81, 25),
-           (6, 32, 18, 83, 25), (40, 34, 22, 95, 26), (75, 33, 28, 95, 24), (98, 28, 38, 90, 19)]
-CH_CHAM = 0.4
+# 3e：断面を丸い兜形に（上の半幅を狭く・面取りを大きく）、後ろは斜めに落とす（絵の真横の後ろの端は下ほど前へ入る）
+CH_SECS = [(-88, 15, 10, 31, 9), (-60, 23, 11, 47, 14), (-30, 27, 13, 65, 16), (-6, 29, 17, 81, 17),
+           (6, 30, 18, 84, 17), (40, 31, 22, 93, 17), (72, 29, 28, 95, 15), (92, 22, 36, 90, 11), (101, 13, 46, 82, 7)]
+CH_CHAM = 0.55
 POCKET_Y = (-7.0, 19.0)      # 核の窓（本人の右 = -X）の前後の幅
 POCKET_Z = (44.0, 69.0)
 POCKET_D = 8.0
@@ -348,7 +355,7 @@ def charger_half(sg=1):
     ivl = lambda pts: (lambda y: float(np.interp(y, [p[0] for p in pts], [p[1] for p in pts])))
     # 上の重ね板（背の中央の両側）
     tl = ivl([(-4, 1.0), (2, 2.6), (56, 3.4), (62, 1.0)])
-    iv.append(top_plate(np.linspace(-4, 62, 12), 3.2, 20.0, tl))
+    iv.append(top_plate(np.linspace(-4, 62, 12), 3.2, 12.5, tl))
     # 横の板：鼻の側（核の窓の前）と後ろの側（窓の後ろ）。窓の所は空ける
     fore = (np.linspace(-32, -11, 6), ivl([(-32, 36), (-11, 40)]), ivl([(-32, 54), (-11, 60)]))
     aft = (np.linspace(23, 84, 12), ivl([(23, 42), (60, 46), (84, 60)]), ivl([(23, 72), (62, 72), (84, 60)]))
@@ -361,11 +368,20 @@ def charger_half(sg=1):
     lo = lambda y: ch_sec(y)[1] + fr(y) * (ch_sec(y)[2] - ch_sec(y)[1])
     br.append(surf_plate(np.linspace(-86, -10, 14), lo, lambda y: lo(y) + 2.8, 0.7, 2.4, 2))
     # 肩の大きな曲面の板（車輪の上へ張り出す）と、その下の厚み（体との隙間をふさぐ）
-    WC, WA = (0.0, 25.0, 50.0), (50.0, 75.0, 48.0, 48.0)
-    a0, a1 = 58.0, 122.0
-    iv.append(ell_plate(WC, WA, 36.0, 64.0, a0, a1, thick=2.0, dth=5, dph=8))
-    iv.append(ell_plate(WC, WA, 36.0, 64.0, a0, a1, thick=24.0, grow=-2.0, dth=5, dph=8))
-    br.append(ell_plate(WC, WA, 64.5, 68.0, a0 + 2, a1 - 2, thick=1.6, grow=-0.2, dth=4, dph=8))
+    # 3e：肩の大きな曲面の板を、背から車輪の上まで覆う甲虫の羽のような 2 枚（核の窓の前と後ろ。間は核と蓋のために空ける）。
+    # 下の縁は真鍮。板と胴の間は黒鉛の層（絵の正面で板と胴の間が暗い）
+    # 後ろの羽（背の高い所から後ろの車輪の上まで）と、前の泥よけ（前の車輪の上）
+    for WC, WA, th0, th1, a0, a1 in (((0.0, 56.0, 38.0), (46.0, 58.0, 63.0, 63.0), 20.0, 78.0, 48.0, 145.0),
+                                     ((0.0, -30.0, 30.0), (50.0, 40.0, 42.0, 42.0), 36.0, 82.0, 20.0, 95.0)):
+        if WC[1] > 0:
+            # 後ろの羽は重ね板に（絵の真横の後ろへ流れる板）：上の板が下の板に少し重なり、下の板は前後 2 枚に分かれる
+            iv.append(ell_plate(WC, WA, th0, 51.0, a0, a1, thick=2.4, grow=1.8, dth=9.5, dph=12))
+            for b0, b1 in ((a0 + 3.0, 95.0), (98.0, a1 - 4.0)):
+                iv.append(ell_plate(WC, WA, 47.0, th1, b0, b1, thick=2.4, dth=9.5, dph=12))
+        else:
+            iv.append(ell_plate(WC, WA, th0, th1, a0, a1, thick=2.4, dth=9.5, dph=12))
+        br.append(ell_plate(WC, WA, th1, th1 + 3.0, a0 + 1.5, a1 - 1.5, thick=1.6, grow=-0.3, dth=3, dph=12))
+        dk.append(ell_plate(WC, WA, th0 + 4.0, th1 + 2.0, a0 + 3.0, a1 - 3.0, thick=9.0, grow=-2.6, dth=15, dph=18))
     return iv, br, dk
 
 
@@ -392,15 +408,15 @@ def charger(rig: Rig):
     rig.add('body', None, cfg['body_pivot'], (1, 0, 0),
             [('ivory', merge(nose, mid, rear, *iv, *ivm)), ('dark', merge(core_body, *dk, *dkm)), ('brass', merge(spine, *br, *brm))])
     # センサー（鼻の上の横長の窓）
-    rig.add('sensor', 'body', (0, -47, 56), (1, 0, 0), [('sensor', box((0, -46.5, 55.5), (30, 5, 2.4)))])
+    rig.add('sensor', 'body', (0, -47, 56), (1, 0, 0), [('sensor', box((0, -46.5, 55.5), (22, 5, 2.4)))])   # 3e：細くした背の上の面に収まる幅
     # 核（本人の右 = -X の横の窓の奥の円柱）と、その蓋（窓をふさぐ面に沿う板。上の縁が蝶番）
     zc = 0.5 * (POCKET_Z[0] + POCKET_Z[1])
-    core = cyl((-25.0, 6, zc), (-18.6, 6, zc), 11.8, 16)
+    core = cyl((-18.2, 6, zc), (-12.0, 6, zc), 11.8, 16)   # 3e：胴を兜形にした分だけ内へ（斜めの蓋の下に収まる）
     rig.add('core', 'body', (-26, 6, 64), (1, 0, 0), [('core', core)])
     cy = np.linspace(POCKET_Y[0] - 2.0, POCKET_Y[1] + 2.0, 8)
     cover = mirror_x(surf_plate(cy, lambda y: POCKET_Z[0] - 2.0, lambda y: 78.0, 0.9, 2.6, 8))
     trim = mirror_x(surf_plate(cy, lambda y: 75.6, lambda y: 78.4, 1.6, 2.6, 2))
-    rig.add('core_cover', 'body', (-22, 6, 86.0), (0, -1, 0), [('ivory', cover), ('brass', trim)])
+    rig.add('core_cover', 'body', (-14.5, 6, 78.5), (0, -1, 0), [('ivory', cover), ('brass', trim)])   # 3e：蝶番を兜形の胴の面（蓋の上の縁）へ
     # 衝角（真鍮の角ばった箱）とレール
     ram = merge(extrude_taper([(-11, -11), (11, -11), (11, 11), (-11, 11)], V3([0, -86, 21]), V3([0, -102, 21]), 0.8, (0, 0, 1)))
     rail = box((0, -61, 24), (12, 42, 8))
@@ -413,7 +429,8 @@ def charger(rig: Rig):
     for n, par, c, rad, w in cfg['wheels']:
         c = V3(c, float)
         sgx = np.sign(c[0])
-        susp = merge(box((sgx * 32, c[1], 30), (8, 16, 10)), cyl((sgx * 30, c[1], 30), (c[0], c[1], c[2]), 3.2, 8))
+        # 3e：細い腕をやめ、車輪と胴の間を埋める黒鉛の塊と短い軸（絵の正面の車輪の内側の暗い機構。細い腕は台車のように見えた）
+        susp = merge(box((sgx * 34.5, c[1], 27.5), (11, 20, 15)), cyl((sgx * 39.5, c[1], c[2]), (c[0], c[1], c[2]), 4.2, 8))
         rig.add(par, None, (sgx * 30, c[1], 30.0), (1, 0, 0), [('dark', susp)])
         tyre = B.cylinder(c, rad, w, 20)
         cov = B.c_disc(c, rad * 0.8, w, 20)
@@ -430,11 +447,16 @@ def mini(rig: Rig):
     ivory, brass, dark = [], [], []
     dark.append(ell_solid(C, (AX[0] - 0.5, AX[1] - 0.5, AX[2] - 0.5, AX[3] - 0.5), 16, 10))
     ivory.append(ell_plate(C, AX, 16.0, 122.0, -74.0, 74.0, thick=0.5, dth=8, dph=10))
+    # 3e：肩の板は平らな楔をやめ、外へ斜めに張り出す 2 段の角ばった板（中央に折れ目の稜。上の段は角の付け根）。付け根は黒鉛の玉
     for sg in (1, -1):
         a, b = (78.0, 160.0) if sg > 0 else (-160.0, -78.0)
         ivory.append(ell_plate(C, AX, 16.0, 116.0, a, b, thick=0.5, dth=8, dph=10))
-        # 肩の板（横へ張り出す楔）
-        ivory.append(extrude_taper([(-1.9, -5.4), (1.9, -5.4), (1.9, 5.4), (-1.9, 5.4)], V3([sg * 8.6, 0.5, 19.6]), V3([sg * 14.6, 0.5, 10.6]), 0.62, (0, 1, 0)))
+        lo_p = prism((sg * 9.6, 1.6, 21.0), (sg * 14.8, 1.6, 12.0), [(0, 3.8, 1.3, 0.8), (0.45, 5.0, 1.7, 0.9), (1, 3.0, 1.0, 0.6)],
+                     fwd=(sg * 0.87, 0, 0.5), keel=0.7)
+        up_p = prism((sg * 5.8, 1.8, 24.6), (sg * 11.4, 1.8, 19.4), [(0, 3.2, 1.2, 0.7), (0.5, 4.2, 1.5, 0.8), (1, 3.4, 1.1, 0.6)],
+                     fwd=(sg * 0.68, 0, 0.74), keel=0.7)
+        ivory += [lo_p, up_p]
+        dark.append(ell_solid((sg * 9.4, 1.6, 17.4), (2.6, 3.6, 3.6, 3.6), 10, 5))
     ivory.append(ell_plate(C, AX, 0.0, 13.0, -180.0, 180.0, thick=0.5, dth=6, dph=30))
     # 後ろの排気の輪（真鍮）と黒鉛の筒
     brass.append(lathe((0, 10.0, 16.0), (0, 11.6, 16.0), [(0, 3.9), (1, 3.9)], 16))
@@ -450,8 +472,8 @@ def mini(rig: Rig):
     for sg, side in ((1, 'l'), (-1, 'r')):
         # 角：白磁の楔、内側の縁が真鍮
         base, tip = V3([sg * 6.2, 1.0, 21.5]), V3([sg * 5.0, 4.2, 30.0])
-        horn = extrude_taper([(-1.5, -2.6), (1.5, -2.6), (1.5, 2.6), (-1.5, 2.6)], base, tip, 0.15, (0, -1, 0))
-        edge = extrude_taper([(-0.35, -2.4), (0.35, -2.4), (0.35, 2.4), (-0.35, 2.4)], base - V3([sg * 1.7, 0, 0]), tip - V3([sg * 0.4, 0, 0]), 0.15, (0, -1, 0))
+        horn = extrude_taper([(-1.8, -3.4), (1.8, -3.4), (1.8, 3.4), (-1.8, 3.4)], base, tip, 0.12, (0, -1, 0))
+        edge = extrude_taper([(-0.4, -3.1), (0.4, -3.1), (0.4, 3.1), (-0.4, 3.1)], base - V3([sg * 2.0, 0, 0]), tip - V3([sg * 0.45, 0, 0]), 0.12, (0, -1, 0))
         rig.add(f'horn_{side}', 'body', (sg * 6.2, 1.0, 21.5), (1, 0, 0), [('ivory', horn), ('brass', edge)])
         hip, knee, ankle = V3([sg * 6.5, 0.0, 10.0]), V3([sg * 10.0, -3.5, 5.4]), V3([sg * 11.2, -3.2, 2.6])
         d = (knee - hip) / np.linalg.norm(knee - hip)
@@ -472,36 +494,78 @@ def rot_z(piece, ang):
     return v, f
 
 
+def ridge(pts, ups, widths, h=1.6, sink=0.5):
+    """面に沿う細い稜（真鍮の筋）：点の列 pts・外向き ups・半幅 widths の台形の断面をつなぐ"""
+    pts, ups = [V3(p, float) for p in pts], [V3(u, float) / np.linalg.norm(u) for u in ups]
+    rings = []
+    for i, (p, u, w) in enumerate(zip(pts, ups, widths)):
+        t = pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]
+        sd = np.cross(t, u)
+        sd = sd / np.linalg.norm(sd)
+        q = p - u * sink
+        rings.append([q - sd * w, q + sd * w, q + sd * w * 0.45 + u * (h + sink), q - sd * w * 0.45 + u * (h + sink)])
+    return loft_rings(rings)
+
+
 def floater(rig: Rig):
-    """浮遊型（全高 51 cm）。レンズ形のハブ（前にセンサー）・3 枚の葉（上下の白磁の板の間に真鍮の帯）・上の冠（琥珀の核）・下の黒鉛の砲口"""
-    C = (0.0, 0.0, 24.0)
-    AX = (19.0, 19.0, 8.5, 8.5)
-    th_z = lambda z: math.degrees(math.acos(np.clip((z - C[2]) / 8.5, -1, 1)))
-    ivory = [ell_plate(C, AX, 6.0, 83.0, -180.0, 180.0, thick=0.8, dth=11, dph=15),
-             ell_plate(C, AX, 97.0, 140.0, -180.0, 180.0, thick=0.8, dth=11, dph=15)]
-    brass = [ell_plate(C, AX, 85.0, 95.0, -180.0, 180.0, thick=1.0, grow=0.3, dth=10, dph=12)]
-    dark = [ell_solid(C, (18.2, 18.2, 7.8, 7.8), 20, 8), ell_solid((0, 0, 17.0), (15.0, 15.0, 4.0, 4.0), 16, 6)]
-    dark.append(ell_plate(C, AX, th_z(22.6), th_z(19.4), -38.0, 38.0, thick=0.4, grow=0.1, dth=5, dph=12))   # センサーの窓の縁
+    """浮遊型（直径 80 cm・全高 51 cm）。3e：黒鉛の丸い三角のハブ（前に白磁の前板とセンサー）・3 枚の花びら形の葉
+    （上の板は中央の真鍮の稜で左右 2 枚、赤道に真鍮の帯、下の板）・頭の冠（尖った塔の前が真鍮、後ろを覆うかぶとの下に琥珀の丸い核）・黒鉛の砲口。
+    寸法は正面の絵（21.8 px/cm）、葉の平面形と真鍮の稜は真上の絵（縮尺が 0.8 倍なので 1.25 倍して読む）。部品の名前・原点・軸は前と同じ"""
+    ivory, brass, dark = [], [], []
+    # ハブ（黒鉛のこま形。下は砲口へすぼまる）
+    dark.append(lathe((0, 0, 11.5), (0, 0, 31.0), [(0, 8.0), (0.25, 13.0), (0.5, 17.0), (0.78, 17.0), (1, 12.0)], 24))   # 葉の間に見える黒鉛を減らす
+    dark.append(lathe((0, 0, 30.0), (0, 0, 32.2), [(0, 12.0), (1, 10.2)], 16))      # 核のまわりの輪
+    # 前板（白磁の枕）とセンサーの窓の縁
+    FC, FA = (0.0, -15.0, 23.5), (14.0, 13.5, 8.5, 8.0)
+    front_plate = ell_plate(FC, FA, 6.0, 174.0, -78.0, 78.0, thick=3.0, dth=14, dph=13)
+    ivory.append(front_plate)
+    # 後ろの左右の角（30・150 度）にも同じ枕の板（センサーなし、赤道に真鍮の帯。絵の真横の中央の枕）。葉の間の黒鉛を覆う
+    side_band = ell_plate(FC, FA, 86.0, 94.0, -74.0, 74.0, thick=1.2, grow=0.25, dth=8, dph=13)
+    for ang in (120.0, -120.0):
+        ivory.append(rot_z(front_plate, math.radians(ang)))
+        brass.append(rot_z(side_band, math.radians(ang)))
+    th_f = lambda z: math.degrees(math.acos(np.clip((z - FC[2]) / (FA[2] if z >= FC[2] else FA[3]), -1, 1)))
+    dark.append(ell_plate(FC, FA, th_f(23.2), th_f(19.2), -35.0, 35.0, thick=0.5, grow=0.12, dth=6, dph=10))
+    rig.add('sensor', 'body', (0, -28, 21.0), (1, 0, 0), [('sensor', ell_plate(FC, FA, th_f(22.5), th_f(19.9), -30.0, 30.0, thick=0.5, grow=0.3,
+                                                                                  dth=6, dph=10))])
+    # 葉の付け根の真鍮の軸
+    for ang in (90.0, 210.0, 330.0):
+        a = math.radians(ang)
+        brass.append(cyl((13.5 * math.cos(a), 13.5 * math.sin(a), 24.5), (18.0 * math.cos(a), 18.0 * math.sin(a), 24.5), 3.4, 10))
     rig.add('body', None, (0, 0, 25.0), (1, 0, 0), [('ivory', merge(*ivory)), ('brass', merge(*brass)), ('dark', merge(*dark))])
-    rig.add('sensor', 'body', (0, -18, 21.0), (1, 0, 0), [('sensor', ell_plate(C, AX, th_z(22.0), th_z(20.0), -32.0, 32.0, thick=0.4, grow=0.3, dth=5, dph=12))])
-    # 葉：+X へ伸ばして作り、角度へ回す
-    LC, LA = (37.0, 0.0, 24.5), (19.0, 12.5, 7.0, 7.0)
+    rig.parts.insert(0, rig.parts.pop())
+    # 葉：+X へ伸ばして作り、角度へ回す。花びら形（外ほど幅が広い）のレンズ
+    CX, CZ, AL, AW, AT, AB, KW = 29.0, 24.0, 12.5, 16.0, 9.0, 8.0, 0.36
+    def lobe_pt(th, ph, g):
+        st, ct = math.sin(th), math.cos(th)
+        sp, cp = math.sin(ph), math.cos(ph)
+        az = (AT if ct >= 0 else AB) * (1.0 - 0.5 * max(0.0, st * sp))     # 先ほど薄いレンズ
+        return V3([CX + (AL + g) * st * sp, -(AW + g) * st * cp * (1 + KW * st * sp), CZ + (az + g) * ct])
+    up_a = ell_plate(None, None, 0.0, 83.0, -87.0, 87.0, thick=1.0, dth=12, dph=15, pfn=lobe_pt)
+    up_b = ell_plate(None, None, 0.0, 83.0, 93.0, 267.0, thick=1.0, dth=12, dph=15, pfn=lobe_pt)
+    lo = ell_plate(None, None, 97.0, 180.0, -180.0, 180.0, thick=1.0, dth=14, dph=20, pfn=lobe_pt)
+    band = ell_plate(None, None, 84.0, 96.0, -180.0, 180.0, thick=1.4, grow=0.3, dth=12, dph=15, pfn=lobe_pt)
+    psi = np.linspace(-78.0, 80.0, 12)
+    rp = [lobe_pt(math.radians(abs(q)), math.radians(90.0 if q >= 0 else 270.0), 0.0) for q in psi]
+    ru = [p - V3([CX, 0.0, CZ - 4.0]) for p in rp]
+    rw = [float(np.interp(q, [-78, 0, 80], [4.2, 3.4, 1.4])) for q in psi]
+    rid = ridge(rp, ru, rw, h=1.0, sink=0.6)
+    core_l = ell_solid((CX - 2.0, 0.0, CZ), (AL - 3.0, AW - 2.5, AT - 2.0, AB - 2.0), 14, 6)
+    root = box((18.5, 0, 24.5), (6.0, 10.0, 8.0))
     for k, ang in enumerate((90.0, 210.0, 330.0)):
         a = math.radians(ang)
-        up = ell_plate(LC, LA, 0.0, 82.0, -180.0, 180.0, thick=0.8, dth=13, dph=20)
-        lo = ell_plate(LC, LA, 98.0, 180.0, -180.0, 180.0, thick=0.8, dth=13, dph=20)
-        band = ell_plate(LC, LA, 84.0, 96.0, -180.0, 180.0, thick=1.2, grow=0.2, dth=12, dph=15)
-        root = box((20.5, 0, 24.5), (5.0, 9.0, 8.0))
         piv = (17.0 * math.cos(a), 17.0 * math.sin(a), 25.0)
-        rig.add(f'lobe_{k}', 'body', piv, (1, 0, 0), [('ivory', rot_z(merge(up, lo), a)), ('brass', rot_z(band, a)), ('dark', rot_z(root, a))])
-    # 冠（上の尖り、白磁。前に真鍮の筋）と琥珀の核
-    crown = lathe((0, 2.0, 31.0), (0, 2.0, 50.5), [(0, 9.5), (0.35, 7.0), (1, 1.2)], 6)
-    stripe = extrude_taper([(-1.0, -0.6), (1.0, -0.6), (1.0, 0.6), (-1.0, 0.6)], V3([0, -5.2, 33.0]), V3([0, 0.9, 50.0]), 0.5, (0, 1, 0))
-    rig.add('crown', 'body', (0, 8, 37.5), (1, 0, 0), [('ivory', crown), ('brass', stripe)])
-    core = ell_plate((0, -4.5, 33.5), (4.6, 4.6, 4.6, 4.6), 0.0, 90.0, -110.0, 110.0, thick=0.6, dth=15, dph=20)
+        rig.add(f'lobe_{k}', 'body', piv, (1, 0, 0), [('ivory', rot_z(merge(up_a, up_b, lo), a)), ('brass', rot_z(merge(band, rid), a)),
+                                                     ('dark', rot_z(merge(root, core_l), a))])
+    # 冠：後ろと横を覆うかぶと（前が尖った弧に開く）＋ 尖った塔（前の稜が真鍮）
+    hood = ell_plate((0, 1.0, 30.5), (10.0, 9.5, 11.0, 2.0), 0.0, 90.0, 48.0, 312.0, thick=1.8, dth=15, dph=22)
+    tower = prism((0, 3.0, 38.0), (0, 3.0, 51.5), [(0, 5.5, 5.5, 5.0), (0.55, 4.0, 4.5, 3.5), (1, 0.4, 0.5, 0.4)])
+    stripe = prism((0, -2.0, 38.5), (0, 2.6, 51.0), [(0, 2.4, 1.1, 0.5), (1, 0.6, 0.5, 0.3)])
+    rig.add('crown', 'body', (0, 8, 37.5), (1, 0, 0), [('ivory', merge(hood, tower)), ('brass', stripe)])
+    core = ell_plate((0, 0.0, 30.0), (7.0, 7.0, 8.0, 1.0), 0.0, 90.0, -180.0, 180.0, thick=2.0, dth=18, dph=24)
     rig.add('core', 'crown', (0, -5, 35.0), (1, 0, 0), [('core', core)])
     # 砲口（下、黒鉛）
-    muzzle = lathe((0, 0, 14.0), (0, 0, 1.5), [(0, 7.5), (0.55, 6.0), (0.6, 4.2), (1, 3.4)], 10)
+    muzzle = lathe((0, 0, 14.0), (0, 0, 1.5), [(0, 9.0), (0.45, 6.6), (0.55, 5.2), (0.62, 5.6), (0.8, 5.0), (1, 3.8)], 10)
     rig.add('muzzle', 'body', (0, 0, 12.5), (1, 0, 0), [('dark', muzzle)])
 
 
@@ -520,44 +584,120 @@ def facet(c, ax, th0=0.0, th1=180.0, ph0=-180.0, ph1=180.0, n=8, m=6, thick=None
     return ell_plate(c, ax, th0, th1, ph0, ph1, thick=t, dth=(th1 - th0) / m + 1e-6, dph=(ph1 - ph0) / n + 1e-6)
 
 
+# ---------------------------------------------------------------- 角ばった鎧の板（3e：盾型・子番機・突撃型の直し）
+
+def armor_ring(w, f, b, keel=0.78, side=0.2):
+    """鎧の断面（9 角形。(横, 前) の座標）：前は稜（f）、横は w、後ろは平ら（b）。keel：前の稜の肩の位置"""
+    return [(0.0, f), (w * 0.62, f * keel), (w, f * side), (w, -b * 0.35), (w * 0.62, -b),
+            (-w * 0.62, -b), (-w, -b * 0.35), (-w, f * side), (-w * 0.62, f * keel)]
+
+
+def prism(p0, p1, secs, fwd=(0, -1, 0), keel=0.78, side=0.2, tilt=None):
+    """角ばった鎧の塊：p0 → p1 の軸に沿って、断面 secs = [(t 0..1, 半幅 w, 前 f, 後ろ b)] をつなぐ（閉じた形）。
+    断面は armor_ring（前に稜、後ろが平ら）。fwd は「前」の向き（軸に直角に直す）。s（横）= fwd × 軸。
+    tilt = [(ts, tv), ...]（断面ごと）：断面の点を軸の向きへ ts × 横 + tv × 前 だけずらす = 板の縁を斜めに切る（絵の斜めの継ぎ目）"""
+    p0, p1 = V3(p0, float), V3(p1, float)
+    a = p1 - p0
+    L = np.linalg.norm(a)
+    a = a / L
+    v = V3(fwd, float) - a * (V3(fwd, float) @ a)
+    v = v / np.linalg.norm(v)
+    s = np.cross(v, a)
+    rings = []
+    for i, (t, w, f, b) in enumerate(secs):
+        c = p0 + a * (t * L)
+        ts, tv = tilt[i] if tilt else (0.0, 0.0)
+        rings.append([c + q[0] * s + q[1] * v + a * (ts * q[0] + tv * q[1]) for q in armor_ring(w, f, b, keel, side)])
+    return loft_rings(rings)
+
+
+def zloft(secs, poly):
+    """高さ z ごとの断面の列 secs = [(z, *引数)] を、poly(*引数) → [(x, y)] の多角形（点の数は同じ）でつなぐ（閉じた形）"""
+    return loft_rings([[(x, y, z) for x, y in poly(*arg)] for z, *arg in secs])
+
+
 def shield(rig: Rig):
-    """盾型（全高 180 cm）。菱形の兜・胸の大きな板（中央で 2 枚）・丸い肩の板・本人の右の太い籠手・本人の左に真鍮の縁の大盾・太い脚。
-    板は低い多角形の楕円体（facet）で、絵の角ばった鎧に合わせる"""
+    """盾型（全高 180 cm）。3e：角ばった鎧の板を重ねる（黒鉛の芯の上に、隙間を空けた白磁の板。隙間が絵の黒い継ぎ目）。
+    凧形の兜・中央に稜のある胸の 2 枚・前垂れ・背中の 2 枚（間が核の窓）・2 段の肩当て・本人の右の 3 段の籠手（真鍮の帯・黒鉛の拳）・
+    脚は腿 2 段・膝当て・脛 2 段・長い靴（真鍮の底）。部品の名前・原点と、大盾の板の形（fx.gd の盾の面の点が使う）は前と同じ。
+    寸法は絵（9.78 px/cm）に 5 cm の格子を重ねて測った（絵は体の中心が x = -7 cm にずれているので +7 して読む）"""
     ivory, brass, dark = [], [], []
-    dark.append(facet((0, 2, 120), (23, 16, 30, 28), n=10, m=8))            # 胴の芯（板の隙間から見える）
-    dark.append(facet((0, 1, 96), (17, 12, 7, 7), n=10, m=4))               # 腰
-    C, AX = (0, 0, 122), (28, 19, 32, 27)
-    for a0, a1 in ((3.0, 64.0), (-64.0, -3.0)):
-        ivory.append(facet(C, AX, 28.0, 150.0, a0, a1, n=4, m=6, thick=2.0))   # 胸の板（中央に黒鉛の継ぎ目）
-        ivory.append(facet(C, AX, 30.0, 140.0, a0 + np.sign(a0) * 72, a1 + np.sign(a0) * 72, n=3, m=5, thick=2.0))  # 背中の板
+    # 胴の芯（黒鉛）：胸は前へ張り出す（絵の真横で前の端 y = -35、背中 +18）。腰
+    dark.append(prism((0, -3, 95), (0, -3, 147), [(0, 17, 18, 15), (0.4, 22, 22, 17), (1, 19, 20, 17)]))
+    dark.append(prism((0, -2, 76), (0, -2, 100), [(0, 13, 12, 11), (1, 16, 15, 13)]))
+    # 胸の板（左右 2 枚を中央で合わせる。中央に前の稜、下は V の先）
+    def chest_poly(w, f, g=0.0, y0=-3.0):
+        return [(g, y0 - f), (w * 0.55, y0 - f * 0.86), (w, y0 - f * 0.4), (w, y0 + 2.0), (g, y0 + 2.0)]
+    chest = zloft([(96.5, 3.0, 22.0), (104, 12.0, 26.0), (113, 21.0, 28.5), (127, 24.5, 29.0), (137, 22.0, 25.0), (141, 16.0, 19.0)], chest_poly)
+    # 背中の板（左右 2 枚。間 x ±8 が核の窓 = 黒鉛の芯が見える）
+    def back_poly(w, b, g=8.0, y0=-1.0):
+        return [(g, y0), (w, y0), (w, y0 + b * 0.55), (w * 0.8, y0 + b), (g, y0 + b)]
+    backp = zloft([(105, 15.0, 15.0), (117, 22.0, 20.0), (140, 23.0, 20.0), (153, 17.0, 16.0)], back_poly)
+    for p in (chest, backp):
+        ivory += [p, mirror_x(p)]
+    # 前垂れ・後ろの垂れ（中央、下が尖る）
+    def flap(w, f, y0):
+        return [(-w, y0), (w, y0), (w * 0.95, y0 + f * 0.75), (0.0, y0 + f), (-w * 0.95, y0 + f * 0.75)]
+    ivory.append(zloft([(101, 9.5, -21.0, -2.0), (89, 7.5, -23.0, -2.0), (76, 1.2, -16.0, -2.0)], flap))
+    ivory.append(zloft([(101, 9.0, 17.0, 0.0), (89, 7.0, 18.0, 0.0), (79, 1.2, 12.0, 0.0)], flap))
+    # 肩当て（2 段：上の丸い板と、少し外へ開いた下の垂れ）と黒鉛の肩の関節
     for sg in (1, -1):
-        ivory.append(facet((sg * 35, 0, 139), (18.0, 17.0, 14.0, 9.0), 0.0, 115.0, n=8, m=4, thick=2.0))   # 肩の板
-        brass.append(facet((sg * 35, 0, 139), (18.0, 17.0, 14.0, 9.0), 115.0, 124.0, n=8, m=1, thick=1.2))
-        dark.append(cyl((sg * 16, 0, 139), (sg * 30, 0, 139), 7.5, 10))   # 肩の関節
-    dark.append(merge(cyl((34, 0, 128), (38, 0, 110), 5.5, 8), cyl((38, 0, 110), (46, -4, 123), 5.0, 8)))   # 本人の左の腕
-    brass.append(bbox((0, 18.2, 122), (20, 1.4, 44)))   # 後ろの核の窓の縁
-    rig.add('body', None, (0, 0, 95.0), (1, 0, 0), [('ivory', merge(*ivory)), ('dark', merge(*dark)), ('brass', merge(*brass))])
-    rig.add('core', 'body', (0, 18, 122), (1, 0, 0), [('core', bbox((0, 18.6, 122), (13, 1.2, 36)))])
-    # 兜（菱形、6 面）とセンサー
-    helm = lathe((0, -3, 134), (0, -3, 180), [(0, 9.0), (0.3, 14.0), (1, 0.0)], 6)
-    rig.add('head', 'body', (0, 0, 133.0), (1, 0, 0), [('ivory', helm), ('dark', cyl((0, -2, 128), (0, -2, 137), 7.5, 10))])
-    rig.add('sensor', 'head', (0, -14, 148), (1, 0, 0), [('sensor', box((0, -15.6, 148.5), (13, 2.0, 2.2)))])
-    # 本人の右の腕：上腕（黒鉛）・籠手（白磁の角ばった塊、真鍮の帯）・拳（黒鉛）
-    rig.add('upperarm_r', 'body', (-42, 0, 130.0), (1, 0, 0), [('dark', cyl((-40, 0, 130), (-52, 0, 110), 6.0, 8))])
-    fc, fa = (-64, 0, 100), (17.0, 17.0, 25.0, 22.0)
-    fore = merge(facet(fc, fa, 0.0, 176.0, -84.0, 84.0, n=4, m=5, thick=2.5), facet(fc, fa, 0.0, 176.0, 96.0, 264.0, n=4, m=5, thick=2.5))
-    fist = merge(facet((-61, -2, 70), (13.0, 13.0, 11.0, 11.0), n=8, m=4), facet(fc, (15.0, 15.0, 23.0, 20.0), n=8, m=5))
-    ring = lathe((-64, 0, 82.0), (-64, 0, 86.0), [(0, 15.5), (1, 15.5)], 8)
-    rig.add('forearm_r', 'upperarm_r', (-52, 0, 104.0), (1, 0, 0), [('ivory', fore), ('dark', fist), ('brass', ring)])
-    # 大盾：六角の板（白磁）、真鍮の縁、黒鉛の握りと中心の円盤
+        c = (sg * 36.0, -2.0, 141.0)
+        ivory.append(facet(c, (18.5, 19.0, 19.0, 12.0), 0.0, 92.0, n=8, m=3, thick=3.0))
+        ivory.append(facet((c[0], c[1], c[2] - 1.5), (20.0, 20.5, 15.0, 21.0), 101.0, 134.0, n=8, m=2, thick=2.5))
+        dark.append(cyl((sg * 15, -2, 140), (sg * 31, -2, 140), 8.0, 10))
+    # 本人の左の腕（盾を持つ。黒鉛）
+    dark.append(merge(cyl((34, 0, 128), (38, 0, 110), 6.0, 8), cyl((38, 0, 110), (46, -4, 123), 5.5, 8)))
+    rig.add('body', None, (0, 0, 95.0), (1, 0, 0), [('ivory', merge(*ivory)), ('dark', merge(*dark))])
+    # 核（背中の窓の奥の縦長の琥珀）
+    rig.add('core', 'body', (0, 18, 122), (1, 0, 0), [('core', bbox((0, 15.0, 132), (9.5, 2.6, 30)))])
+    # 兜：凧形（前に稜、上と下が尖る）。首は黒鉛
+    def helm_poly(w, f, b, y0):
+        return [(0.0, y0 - f), (w * 0.72, y0 - f * 0.55), (w, y0), (w * 0.6, y0 + b), (-w * 0.6, y0 + b), (-w, y0), (-w * 0.72, y0 - f * 0.55)]
+    helm = zloft([(126.5, 2.0, 5.0, 2.0, -18.0), (136, 13.5, 15.0, 8.0, -15.0), (149, 18.0, 18.5, 11.0, -12.0),
+                  (162, 13.0, 14.0, 9.0, -11.0), (178.5, 0.6, 1.0, 0.6, -13.0)], helm_poly)
+    rig.add('head', 'body', (0, 0, 133.0), (1, 0, 0), [('ivory', helm), ('dark', cyl((0, -4, 125), (0, -4, 137), 8.0, 10))])
+    # センサー：兜の前の稜をまたいで曲がる細い窓
+    def surf_y(x, z=146.5):
+        w, f, y0 = 17.4, 18.2, -12.4
+        return y0 - f + (f * 0.45) * abs(x) / (w * 0.72)
+    seg = lambda xa, xb: extrude([(-0.45, -1.3), (0.45, -1.3), (0.45, 1.3), (-0.45, 1.3)],
+                                 (xa, surf_y(xa) - 0.55, 146.5), (xb, surf_y(xb) - 0.55, 146.5), up=(0, 0, 1))
+    rig.add('sensor', 'head', (0, -30.5, 146.5), (1, 0, 0), [('sensor', merge(seg(-10.0, 0.0), seg(0.0, 10.0)))])
+    # 本人の右の腕：上腕（黒鉛）・籠手（3 段の白磁の板と真鍮の帯）・拳（黒鉛、指の段）
+    rig.add('upperarm_r', 'body', (-42, 0, 130.0), (1, 0, 0), [('dark', merge(cyl((-40, 0, 131), (-54, -3, 110), 7.0, 8),
+                                                                                   disc((-53, -3, 111), 8.0, 9.0, 10)))])
+    gx, gy = -58.0, -6.0
+    tl = lambda n, k=-0.22: [(k, 0.0)] * n          # 板の縁を斜めに（体の側が高い）
+    g_core = prism((gx, gy, 118), (gx, gy, 72), [(0, 14, 14, 13.5), (1, 13, 13, 12.5)])
+    g_top = prism((gx, gy, 123.5), (gx, gy, 105), [(0, 8, 8, 8), (0.3, 15.5, 15.5, 15), (0.8, 17.2, 17.6, 16.2), (1, 16.4, 16.8, 15.4)], tilt=tl(4))
+    g_mid = prism((gx, gy, 102), (gx, gy, 90), [(0, 16.8, 17.2, 15.8), (0.25, 18.0, 18.4, 17.0), (1, 18.4, 18.8, 17.4)], tilt=tl(3))
+    g_low = prism((gx + 0.5, gy, 85.0), (gx + 1.0, gy - 1, 72.5), [(0, 17.6, 18.0, 16.6), (0.6, 17.0, 17.4, 16.0), (1, 14.6, 15.0, 13.6)], tilt=tl(3))
+    g_band = prism((gx, gy, 89.6), (gx + 0.5, gy, 85.6), [(0, 19.0, 19.4, 18.0), (1, 18.8, 19.2, 17.8)], tilt=tl(2))
+    fist = prism((-55, -9, 77), (-55, -9, 57), [(0, 10.5, 10, 9), (0.55, 12, 11.5, 10), (1, 9.5, 9, 8)])
+    fingers = [prism((-61, -20.0, 73.5 - k * 4.3), (-49, -20.0, 73.5 - k * 4.3), [(0, 1.8, 2.2, 1.6), (1, 1.8, 2.2, 1.6)], fwd=(0, -1, 0))
+               for k in range(4)]
+    rig.add('forearm_r', 'upperarm_r', (-52, 0, 104.0), (1, 0, 0), [('ivory', merge(g_top, g_mid, g_low)), ('dark', merge(g_core, fist, *fingers)),
+                                                                     ('brass', g_band)])
+    # 大盾：六角の板（白磁）、真鍮の縁と稲妻の筋、黒鉛の握りと中心の円盤（真鍮の輪）。板と縁は前と同じ（fx.gd が使う）
     def xz_slab(poly, y0, y1):
         v, f = slab(poly, y0, y1)
         v = v[:, [1, 0, 2]]
         return v, orient(v, f)
     face = xz_slab([(56, 184), (80, 150), (78, 40), (58, 14), (38, 40), (36, 150)], -13.0, -9.0)
     rim = xz_slab([(56, 189), (83, 151), (81, 38), (58, 9), (35, 38), (33, 151)], -10.0, -6.5)
-    stripe = xz_slab([(66, 150), (70, 150), (68, 60), (64, 60)], -13.8, -12.6)
-    boss = cyl((58, -12.0, 125), (58, -15.0, 125), 6.5, 12)
+    back = xz_slab([(56, 184), (80, 150), (78, 40), (58, 14), (38, 40), (36, 150)], -6.6, -5.6)   # 3e：盾の裏も白磁（真鍮は縁だけ）
+    bolt = [(57, 172), (49, 146), (47, 104), (63, 92), (56, 70), (54, 36)]
+    stripes = []
+    for (x0, z0), (x1, z1) in zip(bolt[:-1], bolt[1:]):
+        d = np.array([x1 - x0, z1 - z0], float)
+        n = np.array([-d[1], d[0]]) / np.linalg.norm(d) * 1.6
+        e = d / np.linalg.norm(d) * 1.2
+        quad = [(x0 - e[0] + n[0], z0 - e[1] + n[1]), (x1 + e[0] + n[0], z1 + e[1] + n[1]),
+                (x1 + e[0] - n[0], z1 + e[1] - n[1]), (x0 - e[0] - n[0], z0 - e[1] - n[1])]
+        stripes.append(xz_slab(quad, -13.8, -12.6))
+    boss = cyl((58, -12.0, 125), (58, -15.5, 125), 6.5, 12)
+    boss_ring = lathe((58, -12.2, 125), (58, -14.4, 125), [(0, 9.0), (1, 9.0)], 12)
     grip = cyl((44, -2, 123), (54, -7, 124), 3.5, 8)
     def turn(piece, deg=40.0, c=(58.0, -10.0)):
         v, f = piece
@@ -565,24 +705,35 @@ def shield(rig: Rig):
         x, y = v[:, 0] - c[0], v[:, 1] - c[1]
         v = np.stack([c[0] + x * math.cos(a) - y * math.sin(a), c[1] + x * math.sin(a) + y * math.cos(a), v[:, 2]], 1)
         return v, f
-    rig.add('shield', 'body', (30, 5, 127.0), (0, 0, 1), [('ivory', turn(face)), ('brass', turn(merge(rim, stripe))), ('dark', merge(turn(boss), grip))])
-    # 脚：腿・脛は角ばった楕円体、膝・足首は黒鉛の円盤、足は面取りの箱に真鍮の底
+    rig.add('shield', 'body', (30, 5, 127.0), (0, 0, 1), [('ivory', turn(merge(face, back))), ('brass', turn(merge(rim, boss_ring, *stripes))),
+                                                         ('dark', merge(turn(boss), grip))])
+    # 脚（本人の左 = +X で作り、右は鏡写し）：腿 2 段・膝当て・脛 2 段の板を黒鉛の芯の上に。靴は長い楔、底は真鍮
+    tk = lambda n, k=-0.3: [(k, 0.0)] * n           # 板の縁を斜めに（内側が低い。絵の膝・足首の斜めの継ぎ目）
+    th_iv = merge(prism((27, -2, 104), (27, -2, 80), [(0, 12.5, 12.5, 11.5), (0.2, 15.5, 16.5, 13.5), (0.85, 16, 17, 13.5), (1, 14.5, 15.5, 12.5)], tilt=tk(4)),
+                  prism((27.5, -3, 74.0), (27.5, -3.5, 63.5), [(0, 14.5, 15.5, 12), (0.3, 15.5, 17.5, 12.5), (1, 14, 16, 11)], tilt=tk(3)))
+    th_dk = merge(prism((26, -1, 100), (26.5, -1, 60), [(0, 12, 12, 11), (1, 11, 11, 10)]), cyl((12, 0, 91), (30, 0, 91), 7.5, 10))
+    sh_iv = merge(prism((26, -9.5, 64), (26, -12, 44), [(0, 7.5, 5, 3), (0.5, 10, 8, 3), (1, 7, 5, 3)]),   # 膝当て
+                  prism((27, -1.5, 48.5), (27.5, -1.5, 38.5), [(0, 12.5, 12.5, 12.5), (0.3, 14.5, 14.5, 13.5), (1, 15, 15, 14)], tilt=tk(3, -0.25)),
+                  prism((27.5, -2, 33.5), (28, -3, 21), [(0, 15, 15, 14), (0.6, 17, 18, 15.5), (1, 17.5, 19, 16)], tilt=tk(3, -0.25)))
+    sh_dk = merge(prism((26, 0, 52), (27, 0, 18), [(0, 10.5, 10.5, 10.5), (1, 10, 10, 10)]), cyl((13, 0, 52), (35, 0, 52), 8, 10))
+    def boot(secs, x0):
+        v, f = loft(secs, 0.35)
+        return v + V3([x0, 0, 0]), f
+    ft_iv = merge(boot([(-38, 12.5, 1.5, 6.0, 9.5), (-27, 15.5, 1.5, 14.0, 11.5), (-9, 17.0, 1.5, 21.0, 12.5),
+                        (11, 16.5, 1.5, 21.0, 12.5), (23, 14.0, 1.5, 12.0, 10.0)], 29.0),
+                  boot([(-24, 12.5, 12.0, 19.0, 9.0), (2, 13.5, 17.0, 26.0, 10.0)], 29.0))
+    ft_br = boot([(-40.5, 13.5, 0.0, 3.2, 13.5), (-27, 16.5, 0.0, 3.2, 16.5), (11, 17.5, 0.0, 3.2, 17.5), (25.5, 15.0, 0.0, 3.2, 15.0)], 29.0)
+    ft_dk = cyl((17, 0, 16), (33, 0, 16), 6.5, 10)
     for sg, side in ((1, 'l'), (-1, 'r')):
+        m = (lambda p: p) if sg > 0 else mirror_x
         hip, knee, ankle = V3([sg * 20, 0, 92.0]), V3([sg * 23, 0, 52.0]), V3([sg * 25, 0, 16.0])
-        # 腿・脛：黒鉛の芯の上に、前と後ろの白磁の板（横に黒鉛の継ぎ目が見える）
-        tc, ta = (sg * 22, -2, 73), (15.0, 15.0, 21.0, 18.0)
-        thigh = merge(facet(tc, ta, 8.0, 172.0, -84.0, 84.0, n=4, m=5, thick=2.5), facet(tc, ta, 12.0, 168.0, 96.0, 264.0, n=4, m=5, thick=2.5))
-        rig.add(f'thigh_{side}', 'body', hip, (1, 0, 0), [('ivory', thigh), ('dark', merge(facet(tc, (13.0, 13.0, 19.5, 16.5), n=8, m=5),
-                                                                                           cyl((sg * 12, 0, 91), (sg * 28, 0, 91), 7.5, 10)))])
-        sc_, sa = (sg * 25, -2, 34), (14.5, 15.5, 18.0, 16.0)
-        shin = merge(facet(sc_, sa, 10.0, 170.0, -84.0, 84.0, n=4, m=5, thick=2.5), facet(sc_, sa, 14.0, 166.0, 96.0, 264.0, n=4, m=5, thick=2.5))
-        cap = facet((sg * 24, -9, 52), (8.0, 5.0, 8.0, 8.0), 0.0, 180.0, -90.0, 90.0, n=4, m=4, thick=2.0)   # 膝の板
-        rig.add(f'shin_{side}', f'thigh_{side}', knee, (1, 0, 0), [('ivory', merge(shin, cap)), ('dark', merge(facet(sc_, (12.5, 13.5, 16.5, 14.5), n=8, m=5),
-                                                                                                        cyl((sg * 13, 0, 52), (sg * 35, 0, 52), 8, 10)))])
-        foot = bbox((sg * 27, -6, 7.5), (32, 44, 11), 0.4, 0.75)
-        sole = bbox((sg * 27, -6, 1.2), (34, 46, 2.4), 0.3)
-        rig.add(f'foot_{side}', f'shin_{side}', ankle, (1, 0, 0), [('ivory', foot), ('brass', sole), ('dark', cyl((sg * 17, 0, 16), (sg * 33, 0, 16), 6, 10))])
+        rig.add(f'thigh_{side}', 'body', hip, (1, 0, 0), [('ivory', m(th_iv)), ('dark', m(th_dk))])
+        rig.add(f'shin_{side}', f'thigh_{side}', knee, (1, 0, 0), [('ivory', m(sh_iv)), ('dark', m(sh_dk))])
+        rig.add(f'foot_{side}', f'shin_{side}', ankle, (1, 0, 0), [('ivory', m(ft_iv)), ('brass', m(ft_br)), ('dark', m(ft_dk))])
 
+
+# 陰をなめらかにつなぐ面の角（度）。歩哨型は絵のように面の折れを見せる（3e）
+SMOOTH_DEG = {'sentry': 17.0}
 
 BUILDERS = {'sentry': sentry, 'charger': charger, 'mini': mini, 'floater': floater, 'shield': shield}
 
@@ -620,7 +771,7 @@ def build(t: str, out_glb: str) -> dict:
         mw = ob.matrix_world.copy()
         ob.parent = objs[p['parent']] if p['parent'] else root
         ob.matrix_world = mw
-    B.smooth_by_angle(meshes, 38.0)
+    B.smooth_by_angle(meshes, SMOOTH_DEG.get(t, 38.0))
     tri = sum(sum(len(pl.vertices) - 2 for pl in ob.data.polygons) for ob in meshes)
     os.makedirs(os.path.dirname(out_glb), exist_ok=True)
     bpy.ops.object.select_all(action='SELECT')
