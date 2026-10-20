@@ -598,7 +598,7 @@ def boot_pieces(side: float, sx: str) -> list[dict]:
 # ---------------------------------------------------------------- 髪（お団子・房・前髪・顔の横の房）
 
 EAR_Z = 1.309                              # 耳の中心の高さ（hair.EAR、頭の真横の絵）
-BUN_C = np.array([X0, 0.078, 1.503])     # お団子の中心（頭の真横・背面・真上の絵。2 周目に 1.5cm 上げた：正面から下半分が頭の房に隠れた）
+BUN_C = np.array([X0, 0.090, 1.492])     # お団子の中心（頭の真横・背面・真上の絵。3 周目：1.1cm 下げ 1.2cm 後ろへ（絵は頭の後ろの上半分を覆う））
 
 
 def _petal(c, axis, up, L, W, T, n=8, k=6):
@@ -617,35 +617,125 @@ def _petal(c, axis, up, L, W, T, n=8, k=6):
     return _loft_x(np.array(secs))
 
 
+BUN_AXIS = np.array([0.0, math.sin(math.radians(35.0)), math.cos(math.radians(35.0))])   # お団子の軸（上から 35 度後ろへ）
+BUN_RR = (0.056, 0.052)          # 軸に直角の半径・軸の向きの半径
+
+
+def _rose_petal(phi0, dphi, th_in, th_out, s0, s1, twist, thick=0.007, n_th=5, n_ph=9):
+    """お団子の花びら 1 枚（3 周目。トルーデのお団子と同じ作り）：軸 BUN_AXIS のまわりの楕円体の、方位 phi0〜phi0+dphi・
+    軸からの角度 th_in〜th_out の曲がった厚い板。方位の両端は下の重へもぐり、内の縁は少し外へめくれる。(頂点, 外の面, 縁と内の面)"""
+    ax = BUN_AXIS / np.linalg.norm(BUN_AXIS)
+    e1 = np.cross(ax, np.array([0.0, 0.0, 1.0]))
+    e1 /= np.linalg.norm(e1)
+    e2 = np.cross(ax, e1)
+
+    def pt(u, v, off):
+        ph = phi0 + dphi * u
+        th = (th_in + twist * u) + (th_out - (th_in + twist * u)) * v
+        s = s0 - 0.035 + (s1 - s0 + 0.035) * math.sin(math.pi * u) ** 0.5
+        lip = 0.006 * (1 - v) ** 3
+        d = math.sin(th) * (math.cos(ph) * e1 + math.sin(ph) * e2) * BUN_RR[0] + math.cos(th) * ax * BUN_RR[1]
+        dn = d / np.linalg.norm(d)
+        return BUN_C + d * s + dn * (lip - off)
+
+    us, vs = np.linspace(0, 1, n_ph), np.linspace(0, 1, n_th)
+    outer = np.array([[pt(u, v, 0.0) for u in us] for v in vs])
+    inner = np.array([[pt(u, v, thick) for u in us] for v in vs])
+    V = np.concatenate([outer.reshape(-1, 3), inner.reshape(-1, 3)])
+    no = n_th * n_ph
+
+    def idx(i, j, layer):
+        return layer * no + i * n_ph + j
+
+    Ft, Fu = [], []
+    for i in range(n_th - 1):
+        for j in range(n_ph - 1):
+            a, b, c, d = idx(i, j, 0), idx(i, j + 1, 0), idx(i + 1, j + 1, 0), idx(i + 1, j, 0)
+            Ft += [(a, b, c), (a, c, d)]
+            a, b, c, d = idx(i, j, 1), idx(i, j + 1, 1), idx(i + 1, j + 1, 1), idx(i + 1, j, 1)
+            Fu += [(a, c, b), (a, d, c)]
+    m, k = n_th - 1, n_ph - 1
+    for j in range(n_ph - 1):
+        o0, o1, i0, i1 = idx(0, j, 0), idx(0, j + 1, 0), idx(0, j, 1), idx(0, j + 1, 1)
+        Fu += [(o1, o0, i0), (o1, i0, i1)]
+        o0, o1, i0, i1 = idx(m, j, 0), idx(m, j + 1, 0), idx(m, j, 1), idx(m, j + 1, 1)
+        Fu += [(o0, o1, i1), (o0, i1, i0)]
+    for i in range(n_th - 1):
+        o0, o1, i0, i1 = idx(i, 0, 0), idx(i + 1, 0, 0), idx(i, 0, 1), idx(i + 1, 0, 1)
+        Fu += [(o0, o1, i1), (o0, i1, i0)]
+        o0, o1, i0, i1 = idx(i, k, 0), idx(i + 1, k, 0), idx(i, k, 1), idx(i + 1, k, 1)
+        Fu += [(o1, o0, i0), (o1, i0, i1)]
+    V, F = _orient(V, Ft + Fu)
+    return V, F[:len(Ft)], F[len(Ft):]
+
+
 def bun() -> list[dict]:
+    """お団子（3 周目）：頭頂の後ろの、花びらを巻いたハスのような大きな塊（絵 shopkeeper_head_*：外の大きな花びらが
+    中の芽を包み、横・後ろから重なった縁が見える）。2 周目は丸い房 22 個の輪で、近写ではブドウの房に見えた。
+    軸（上から 35 度後ろ）のまわりの楕円体に、芽 2 枚・中の重 4 枚・外の重 5 枚の曲がった厚い板。外の面は髪の色、縁と内は濃い茶"""
+    out = []
+    # 一番外の重（3）は付け根を包むすそ：お団子の下の口と、お団子の下へ集まる房の先の歯の列を覆う
+    layers = [(0, 2, 210.0, 0.0, 56.0, 0.84, 0.90, 0.0, 30.0),
+              (1, 4, 125.0, 26.0, 96.0, 0.92, 0.99, 12.0, 80.0),
+              (2, 5, 100.0, 48.0, 128.0, 1.00, 1.06, 10.0, 15.0),
+              (3, 6, 82.0, 96.0, 158.0, 0.98, 1.03, 8.0, 45.0)]
+    for L, cnt, wdeg, tin, tout, s0, s1, tw, ph0 in layers:
+        for k in range(cnt):
+            V, Ft, Fu = _rose_petal(math.radians(ph0 + 360.0 * k / cnt), math.radians(wdeg), math.radians(tin),
+                                    math.radians(tout), s0, s1, math.radians(tw))
+            out.append(dict(name=f'hair_bun{L}_{k}', bone='head', color='hair', mesh=(V, Ft)))
+            out.append(dict(name=f'hair_bun{L}_{k}_u', bone='head', color='hair_dark', mesh=(V, Fu)))
+    # 前の付け根の詰め物（まとめた髪のふくらみ）：額から上がる房の先がお団子の前で歯の列に見えた
+    nb_l, nb_m = 6, 14
+    c0, rx, ry, rz = BUN_C + np.array([0.0, -0.030, -0.034]), 0.054, 0.042, 0.022
+    Vb = [c0 + np.array([math.cos(ph) * math.cos(lm) * rx, math.cos(ph) * math.sin(lm) * ry, math.sin(ph) * rz])
+          for ph in (math.pi * i / nb_l - math.pi / 2 for i in range(1, nb_l))
+          for lm in (2 * math.pi * k / nb_m for k in range(nb_m))]
+    Vb += [c0 - np.array([0, 0, rz]), c0 + np.array([0, 0, rz])]
+    Fb = []
+    for i in range(nb_l - 2):
+        for k in range(nb_m):
+            a_, b_ = i * nb_m + k, i * nb_m + (k + 1) % nb_m
+            Fb += [(a_, b_, b_ + nb_m), (a_, b_ + nb_m, a_ + nb_m)]
+    s0, s1, last = len(Vb) - 2, len(Vb) - 1, (nb_l - 2) * nb_m
+    for k in range(nb_m):
+        Fb += [(s0, (k + 1) % nb_m, k), (s1, last + k, last + (k + 1) % nb_m)]
+    Vb, Fb = _orient(np.array(Vb), Fb)
+    out.append(dict(name='hair_bun_gather', bone='head', color='hair', mesh=(Vb, Fb)))
+    return out
+
+
+def _bun_r2() -> list[dict]:
+    """2 周目のお団子（丸い房の輪。使っていない。比べるために残す）"""
     """お団子：頭頂の後ろの、丸い房 8 個の輪 ＋ 上の房 1 個（絵の真上の図：花のように重なる）"""
     out = []
     ring = 8
     for i in range(ring):
         a = 2 * math.pi * i / ring + 0.2
         d = np.array([math.sin(a), -math.cos(a) * 0.95, 0.0])
-        c = BUN_C + d * 0.047 + np.array([0.0, 0.0, 0.005 * math.cos(2 * a)])
+        c = BUN_C + d * 0.054 + np.array([0.0, 0.0, 0.005 * math.cos(2 * a)])
         tang = np.array([math.cos(a), math.sin(a) * 0.95, 0.15])
-        V, F = _petal(c, tang, (0.0, 0.0, 1.0), 0.074, 0.035, 0.034)
+        # 3 周目：大きく平たい花びら（2 周目は丸い玉が並んでブドウの房に見えた）。外へ少し開く
+        V, F = _petal(c, tang, (0.0, 0.0, 1.0) + 0.35 * d, 0.090, 0.044, 0.026)
         out.append(dict(name=f'hair_bun{i}', bone='head', color='hair', mesh=(V, F)))
     for i in range(5):
         a = 2 * math.pi * i / 5 + 0.6
         d = np.array([math.sin(a), -math.cos(a) * 0.95, 0.0])
-        c = BUN_C + d * 0.024 + np.array([0.0, 0.0, 0.030])
+        c = BUN_C + d * 0.028 + np.array([0.0, 0.0, 0.032])
         tang = np.array([math.cos(a), math.sin(a) * 0.95, 0.25])
-        V, F = _petal(c, tang, (0.0, 0.0, 1.0), 0.054, 0.027, 0.026)
+        V, F = _petal(c, tang, (0.0, 0.0, 1.0) + 0.35 * d, 0.066, 0.034, 0.022)
         out.append(dict(name=f'hair_bun_in{i}', bone='head', color='hair', mesh=(V, F)))
     # 下の輪（後ろ半分と横）：お団子の下に房の根の細い帯が見えた（後ろの水平の図）。絵の背面はお団子の下の房が髪に載る
     for i in range(7):
         a = math.radians(75.0 + 210.0 * i / 6)
         d = np.array([math.sin(a), -math.cos(a) * 0.95, 0.0])
-        c = BUN_C + d * 0.036 + np.array([0.0, 0.0, -0.034])
+        c = BUN_C + d * 0.042 + np.array([0.0, 0.0, -0.034])
         tang = np.array([math.cos(a), math.sin(a) * 0.95, -0.10])
-        V, F = _petal(c, tang, np.array([0.0, 0.0, 1.0]) + 0.5 * d, 0.062, 0.026, 0.023)
+        V, F = _petal(c, tang, np.array([0.0, 0.0, 1.0]) + 0.5 * d, 0.072, 0.030, 0.022)
         out.append(dict(name=f'hair_bun_lo{i}', bone='head', color='hair', mesh=(V, F)))
-    V, F = _petal(BUN_C + np.array([0.0, 0.006, 0.036]), (1.0, 0.25, 0.0), (0.0, 0.0, 1.0), 0.066, 0.038, 0.027)
+    V, F = _petal(BUN_C + np.array([0.0, 0.006, 0.040]), (1.0, 0.25, 0.0), (0.0, 0.0, 1.0), 0.078, 0.044, 0.026)
     out.append(dict(name='hair_bun_top', bone='head', color='hair', mesh=(V, F)))
-    V, F = _petal(BUN_C + np.array([0.0, -0.012, 0.030]), (0.2, -1.0, 0.1), (0.0, 0.0, 1.0), 0.058, 0.034, 0.025)
+    V, F = _petal(BUN_C + np.array([0.0, -0.014, 0.034]), (0.2, -1.0, 0.1), (0.0, 0.0, 1.0), 0.068, 0.040, 0.024)
     out.append(dict(name='hair_bun_top2', bone='head', color='hair', mesh=(V, F)))
     return out
 
@@ -732,14 +822,14 @@ def hair_parts() -> list[dict]:
         ('front_l2', 34, 34, 1.398, 0.050, 0.003), ('front_r2', -34, -34, 1.398, 0.050, 0.003),
         ('side_l', 56, 58, 1.384, 0.046, 0.003), ('side_r', -56, -58, 1.384, 0.046, 0.003),
         ('side_l2', 78, 80, 1.368, 0.046, 0.003), ('side_r2', -78, -80, 1.368, 0.046, 0.003),
-        ('ear_l', 98, 102, 1.352, 0.044, 0.003), ('ear_r', -98, -102, 1.352, 0.044, 0.003),
-        ('back_l', 118, 132, 1.322, 0.040, 0.009), ('back_r', -118, -132, 1.322, 0.040, 0.009),
-        ('back_l2', 136, 150, 1.296, 0.040, 0.003), ('back_r2', -136, -150, 1.296, 0.040, 0.003),
-        ('back_l3', 152, 164, 1.272, 0.040, 0.010), ('back_r3', -152, -164, 1.272, 0.040, 0.010),
-        ('back_l4', 166, 174, 1.258, 0.038, 0.003), ('back_r4', -166, -174, 1.258, 0.038, 0.003),
-        ('back_c', 180, 180, 1.240, 0.058, 0.012),
+        ('ear_l', 98, 102, 1.374, 0.044, 0.003), ('ear_r', -98, -102, 1.374, 0.044, 0.003),
+        ('back_l', 118, 132, 1.334, 0.040, 0.009), ('back_r', -118, -132, 1.334, 0.040, 0.009),
+        ('back_l2', 136, 150, 1.314, 0.040, 0.003), ('back_r2', -136, -150, 1.314, 0.040, 0.003),
+        ('back_l3', 152, 164, 1.298, 0.040, 0.010), ('back_r3', -152, -164, 1.298, 0.040, 0.010),
+        ('back_l4', 166, 174, 1.288, 0.038, 0.003), ('back_r4', -166, -174, 1.288, 0.038, 0.003),
+        ('back_c', 180, 180, 1.278, 0.058, 0.012),
     ]
-    ROOT_WIDE = np.array([0.92, 1.0, 1.0, 0.95, 0.85, 0.7, 0.52, 0.3, 0.0])   # 根で広く、お団子の下でとがる
+    ROOT_WIDE = np.array([0.72, 1.0, 1.0, 0.97, 0.92, 0.84, 0.72, 0.55, 0.3])   # 根で広く、お団子の中で細る（3 周目：先をとがらせない）
     LEAF = np.array([0.35, 0.65, 0.88, 1.0, 1.0, 0.92, 0.75, 0.45, 0.0])      # 後ろの房：根が細く、中ほどで広く、えり足でとがる
     sgrid = np.linspace(0.0, 1.0, n)
     for name, thd, tht, zt, w, lift in sweep:
@@ -753,11 +843,19 @@ def hair_parts() -> list[dict]:
         P = np.stack([C[0] + rho * np.sin(np.radians(th)), C[1] - rho * np.cos(np.radians(th)), zz], 1)
         # 根はお団子の付け根（中心から 4cm、その向き）
         a = math.radians(thd)
-        P[0] = BUN_C + np.array([0.030 * math.sin(a), -0.030 * math.cos(a), -0.012])
+        # 3 周目：根をお団子の中へ（中心から 2cm、高さは中心）。お団子を下げ後ろへ移したら、お団子の前で房の先が
+        # 歯の列に並び、その間に帽子の上の面が見えた
+        P[0] = BUN_C + np.array([0.020 * math.sin(a), -0.020 * math.cos(a), 0.0])
         if abs(thd) <= 100:
             # 前と横の房は、生え際（広い根）からお団子（とがった先）へ（絵：額・こめかみ・耳の上から上へまとめ上げる）。
             # 2 周目の最初は根をお団子・先を生え際にして、額の生え際にとがった先の歯の列が並んだ
-            Vm, Fm = plank(P[::-1].copy(), w, lift, push=False, wprof=ROOT_WIDE)
+            # 3 周目：生え際の端（板の切り口）が額・こめかみの上に歯の列のような段で見えた（会話のカメラの近写）→
+            # 端の 2 輪を頭の中心の向きへ沈めて帽子・肌の下へ隠す（髪は生え際の塗りから出て見える）
+            Q = P[::-1].copy()
+            dq = Q[:3] - C
+            dq /= np.linalg.norm(dq, axis=1, keepdims=True)
+            Q[:3] -= dq * np.array([0.011, 0.006, 0.002])[:, None]
+            Vm, Fm = plank(Q, w, lift, push=False, wprof=ROOT_WIDE)
         else:
             # 後ろの房：峰を高く（厚み 1.6 倍）、葉の形（中ほどで広い）。並べると面が折れて房の縁が見える（2 周目の最初は滑らかな丸屋根）
             Vm, Fm = plank(P, w, lift, push=False, thick=1.6, wprof=LEAF)
@@ -776,8 +874,8 @@ def hair_parts() -> list[dict]:
         ('fringe_r3', [xr - 0.004, -0.108, 1.446], [xr - 0.052, -0.121, 1.392], 0.026, 0.004, 0.007, 1.4),
         ('cheek_l', [xr + 0.074, -0.066, 1.415], [xr + 0.098, -0.046, 1.245], 0.026, 0.005, 0.006, 1.2),
         ('cheek_r', [xr - 0.074, -0.066, 1.415], [xr - 0.098, -0.046, 1.245], 0.026, 0.005, 0.006, 1.2),
-        ('nape_l', [xr + 0.046, 0.072, 1.300], [xr + 0.060, 0.050, 1.232], 0.024, 0.003, 0.004, 1.0),
-        ('nape_r', [xr - 0.046, 0.072, 1.300], [xr - 0.060, 0.050, 1.232], 0.024, 0.003, 0.004, 1.0),
+        ('nape_l', [xr + 0.046, 0.072, 1.306], [xr + 0.058, 0.052, 1.256], 0.022, 0.003, 0.004, 1.0),
+        ('nape_r', [xr - 0.046, 0.072, 1.306], [xr - 0.058, 0.052, 1.256], 0.022, 0.003, 0.004, 1.0),
     ]
     for name, r0, r1, w, lift, flick, thk in top:
         R0, T2 = np.asarray(r0, float), np.asarray(r1, float)
@@ -799,11 +897,35 @@ def hair_parts() -> list[dict]:
         c = np.array([X0 + sx * 0.0800, 0.006, EAR_Z])
         yaw = math.radians(6.0)   # 外の向きを後ろへ 6 度：頭の面（耳の後ろで内へ曲がる、約 14 度）より 8 度前＝後ろの縁が少し開く
         e_out = np.array([sx * math.cos(yaw), math.sin(yaw), 0.0])
-        V, F = _petal(c, (sx * 0.20, 0.20, 1.0), e_out, 0.056, 0.016, 0.0075)
+        V, F = _petal(c, (sx * 0.20, 0.20, 1.0), e_out, 0.056, 0.016, 0.0055)   # 3 周目：薄く（縁の内がくぼむ）
         out.append(dict(name='ear' + ('_l' if sx > 0 else '_r'), bone='head', color='skin', mesh=(V, F)))
         V, F = _petal(np.array([X0 + sx * 0.0715, 0.016, EAR_Z - 0.004]), (sx * 0.15, 0.15, 1.0),
                       np.array([sx, 0.25, 0.0]), 0.040, 0.012, 0.0085)
         out.append(dict(name='ear_root' + ('_l' if sx > 0 else '_r'), bone='head', color='skin', mesh=(V, F)))
+        # 3 周目：耳の縁（C の形の盛り上がり。絵の耳の内のくぼみが見える）。耳の外の面の 8 割の輪郭に沿って、前の上 → 上 →
+        # 後ろ → 耳たぶへ回る細い筒（半径 2.4mm）を外の面より 2〜3mm 外に。前の下（耳の穴の前）は開ける
+        ax = np.array([sx * 0.20, 0.20, 1.0])
+        ax /= np.linalg.norm(ax)
+        eo = e_out - ax * np.dot(e_out, ax)
+        eo /= np.linalg.norm(eo)
+        bk = np.array([0.0, 1.0, 0.0]) - ax * ax[1] - eo * eo[1]
+        bk /= np.linalg.norm(bk)
+        psi = np.radians(np.linspace(-45.0, 195.0, 15))
+        lift = 0.0045 + 0.0012 * np.sin(np.clip((psi + np.radians(45)) / np.radians(240), 0, 1) * math.pi)
+        path = (c[None] + np.outer(0.0235 * np.cos(psi), ax) + np.outer(0.0128 * np.sin(psi), bk)
+                + np.outer(lift, eo))
+        rr = 0.0024 * np.interp(psi, np.radians([-45, -20, 165, 195]), [0.4, 1.0, 1.0, 0.5])
+        secs = []
+        for i in range(len(path)):
+            tg = path[min(i + 1, len(path) - 1)] - path[max(i - 1, 0)]
+            tg /= np.linalg.norm(tg)
+            u = eo - tg * np.dot(eo, tg)
+            u /= np.linalg.norm(u)
+            v = np.cross(tg, u)
+            ang = np.linspace(0, 2 * math.pi, 6, endpoint=False)
+            secs.append(path[i] + rr[i] * (np.cos(ang)[:, None] * u + np.sin(ang)[:, None] * v))
+        V, F = _loft_x(np.array(secs))
+        out.append(dict(name='ear_rim' + ('_l' if sx > 0 else '_r'), bone='head', color='skin', mesh=(V, F)))
     return out
 
 
@@ -850,8 +972,10 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
         ax = np.abs(xh - X0)
         th_f = np.degrees(np.arctan2(ax, -(yh - 0.0)))
         flush = (f['hair'] - f['skin']) < 0.009
+        # 3 周目：横の生え際は耳の上で弧を描いて上がる（絵の真横。2 周目は 1.355 で水平）。えり足は房の先（1.28〜）に合わせて上げる
+        ear_arc = 0.019 * np.clip(1.0 - np.abs(yh - 0.006) / 0.034, 0.0, 1.0) ** 0.6
         line = np.where(th_f < 70.0, np.interp(ax, HAIRLINE_PAINT[0], HAIRLINE_PAINT[1]),
-                        np.where(yh < 0.045, 1.355, 1.255))
+                        np.where(yh < 0.045, 1.355 + ear_arc, 1.272))
         hair &= ~(flush & (zh < line))
         lab_h = np.full(len(hi), NAMES.index('skin'))
         lab_h[hair] = NAMES.index('hair')
