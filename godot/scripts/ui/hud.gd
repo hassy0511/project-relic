@@ -2,6 +2,7 @@ class_name Hud
 extends CanvasLayer
 ## HUD（プレイ中の表示）と会話ウィンドウ。見た目は Codex の UI デザイン（W2-08、ui_hud.png・ui_dialogue.png・ui_node_memory.png）の部品
 ## （godot/assets/ui/。読み方は UiArt）。配置は 1920×1080 の画面の見本に合わせ、画面の大きさが変わっても端からの位置で決める。
+## イベントの黒帯の場面（GameSim.cinematic()）では上下に黒帯を出して遊びの表示を隠し、右上に「長押しでスキップ」を出す（_sync_cinema）。
 
 const FACE_COLORS := {
 	"ヤーナ": Color("#b5452f"), "ナゴミ": Color("#ffb23e"), "ハル": Color("#c9a46a"), "バートン": Color("#4d6a8a"),
@@ -124,7 +125,7 @@ var _time := 0.0
 var _play: Control
 var _bars: Array[ColorRect] = []
 var _skip_box: PanelContainer
-var _skip_ring: ChargeRing
+var _skip_ring: SkipRing
 var _skip_key: Label
 var _skip_label: Label
 ## 黒帯を出した割合（0〜1。CINE_EASE 秒で出し入れする）
@@ -546,7 +547,7 @@ func _ready() -> void:
 	var sk := HBoxContainer.new()
 	sk.add_theme_constant_override("separation", 12)
 	_skip_box.add_child(sk)
-	_skip_ring = ChargeRing.new()
+	_skip_ring = SkipRing.new()
 	_skip_ring.custom_minimum_size = Vector2(40, 40)
 	_skip_ring.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_skip_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -678,8 +679,7 @@ func _sync_cinema(game: GameSim, vs: Vector2, dt: float) -> void:
 	if show_skip:
 		_skip_key.text = skip_key_text(device)
 		var hold := clampf(game.skip_hold / GameSim.SKIP_HOLD, 0.0, 1.0)
-		_skip_ring.stage = 2 if game.story.skipping else 0
-		_skip_ring.progress = hold
+		_skip_ring.progress = 1.0 if game.story.skipping else hold
 		_skip_ring.queue_redraw()
 		_skip_box.modulate.a = k * (1.0 if hold > 0.0 or game.story.skipping else 0.85)
 		# 上の帯の中に、上下の真ん中をそろえて置く
@@ -856,9 +856,9 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 	_toast_box.offset_top = EDGE
 	_toast_box.offset_bottom = EDGE
 	_fit(_toast_box)
-	# 左上・右上の表示と重なる（狭い画面）ときは、左上の表示の下へ
+	# 左上・右上の表示と重なる（狭い画面）ときは、左上の表示の下へ（黒帯の間は左上・右上の表示が隠れているので、上のまま）
 	var tr := _toast_box.get_rect()
-	if tr.position.x < _vitals.get_rect().end.x + 12.0 or tr.end.x > _cells_box.get_rect().position.x - 12.0:
+	if _cine < 0.5 and (tr.position.x < _vitals.get_rect().end.x + 12.0 or tr.end.x > _cells_box.get_rect().position.x - 12.0):
 		_toast_box.offset_top = _vitals.get_rect().end.y + 10.0
 		_toast_box.offset_bottom = _toast_box.offset_top
 		_fit(_toast_box)
@@ -1101,6 +1101,19 @@ class Reticle:
 			# 射程外で照準が薄いときも、進みは薄くしない（解析は距離に関係なく進む）
 			UiArt.draw_radial(self, UiArt.tex("ui_parts_lockon_analyzing_fill"), Rect2(-s * 0.5, -s * 0.5, s, s), scan)
 			_note(font, "解析中 %d%%" % int(scan * 100.0), scan_size, 14.0, s, amber)
+
+
+## 長押しでスキップの進み：薄い輪に、琥珀の弧を上から時計回りに（押し切ると輪がそろう。スマホの「スキップ」のボタンの輪と同じ）
+class SkipRing:
+	extends Control
+	var progress := 0.0
+
+	func _draw() -> void:
+		var c := size * 0.5
+		var r := minf(size.x, size.y) * 0.5 - 3.0
+		draw_arc(c, r, 0.0, TAU, 40, Color(1, 1, 1, 0.25), 4.0, true)
+		if progress > 0.0:
+			draw_arc(c, r, -PI * 0.5, -PI * 0.5 + TAU * clampf(progress, 0.0, 1.0), 40, UiArt.AMBER, 5.0, true)
 
 
 ## チャージの溜まり具合（r2）：空の輪（ui_parts_gauge_charge_track）に、一周した中身の輪を上から時計回りに見せる。

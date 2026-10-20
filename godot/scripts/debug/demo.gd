@@ -87,6 +87,9 @@ func _ready() -> void:
 	elif main.args.has("talk_cam_shots"):
 		_steps.clear()
 		_steps.append_array(_talk_cam_steps())
+	elif main.args.has("letterbox_shots"):
+		_steps.clear()
+		_steps.append_array(_letterbox_steps())
 	elif main.args.has("junker_shots"):
 		_steps.clear()
 		_steps.append_array(_junker_steps())
@@ -1260,8 +1263,8 @@ func _process(_dt: float) -> void:
 			main.args["mvp"] = "1"   # 見本の前半は古い試験場（mvp.main）で進める
 		if main.args.has("junker_shots"):
 			main.args.erase("mvp")
-		if main.args.has("townsfolk_shots") or main.args.has("talk_cam_shots"):
-			main.args.erase("mvp")   # 町の住人・会話のカメラの確認は第 1 章の町で
+		if main.args.has("townsfolk_shots") or main.args.has("talk_cam_shots") or main.args.has("letterbox_shots"):
+			main.args.erase("mvp")   # 町の住人・会話のカメラ・イベントの黒帯の確認は第 1 章で
 		main.start_game(null)
 		main.game.god_mode = true
 		for i in 30:
@@ -1311,6 +1314,98 @@ func _finish() -> void:
 	RenderingServer.render_loop_enabled = true
 	print("見本の完了（失敗 %d 件）" % failures.size())
 	get_tree().quit(1 if failures.size() > 0 else 0)
+
+
+## イベントの黒帯とスキップの確認（--letterbox_shots。--letterbox=ordo,node,plaza,ending で一部だけ。--touch でスマホの画面の操作つき）：
+## 場面ごとに、黒帯の会話が出たところで、スキップを半分（0.5 秒）押した画面（後）と、黒帯を切った今までの画面（前）を撮る。
+## 章末（ending）は、スキップしたあと（遊びの表示が戻った画面）を撮る
+func _letterbox_steps() -> Array:
+	var line := ["ch1.opening_done", "ch1.chores_started", "ch1.t_move", "ch1.t_jump", "ch1.t_shoot", "ch1.t_dash", "ch1.nico_ran",
+		"ch1.nico_rescued", "ch1.scolded", "ch1.debt_scene", "ch1.night", "ch1.ordo_stopped", "ch1.plaza_done", "ch1.got_spark",
+		"ch1.fell_to_b2", "ch1.chase_seen", "ch1.r07.seal_open", "ch1.frame_fitted", "ch1.r08.trained", "ch1.blade_online",
+		"ch1.first_beacon", "ch1.drive_powered", "ch1.shortcut_open", "ch1.diagnosis", "ch1.boss_intro", "ch1.boss_defeated",
+		"ch1.ordo_restarted", "ch1.morning", "ch1.descent_permit", "ch1.drill_developed"]
+	# [名前, 部屋, この本筋のフラグまで, 立つ所, 見る所, 始めるイベント, 撮る会話, そのときの目的]（フラグは足していくので、物語の順に並べる）
+	var cases := [["ordo", "ch1.lower", "ch1.scolded", Vector3(68.8, 0, -10.5), Vector3(70.2, 0, -10.5), "ch1.ordo_legs", "ch1.ordo_legs.day",
+			"ギルドのバートンのところへ報告に行く（町の上段）"],
+		["plaza", "ch1.mid", "ch1.plaza_done", Vector3(0, 0, 1.0), Vector3(0, 0, 9), "ch1.plaza", "ch1.plaza", "広場へ（町の中段）。外が騒がしい"],
+		["node", "ch1.r20", "ch1.ordo_restarted", Vector3(0.9, 0, -6.3), Vector3(0, 0, 0), "ch1.restart", "ch1.node", "奥の炉心の扉へ（オルドを再始動する）"],
+		["ending", "ch1.upper", "ch1.descent_permit", Vector3(0, 0, 22.6), Vector3(0, 0, 24), "ch1.scope", "ch1.ending.a",
+			"町の展望台（上段）へ。ひび割れた壁（駆動層）や、依頼板の依頼も片づけられる"]]
+	if main.args.has("letterbox"):
+		var want: PackedStringArray = String(main.args.letterbox).split(",")
+		cases = cases.filter(func(c): return c[0] in want)
+	var hold_touch := func(on: bool):
+		var tc: TouchControls = main.touch
+		if on:
+			tc._touch_down(9, tc.skip_center())
+		else:
+			tc._touch_up(9, tc.skip_center())
+	var steps := [
+		{"ticks": 230, "input": {}},
+		{"ticks": 2, "setup": func(): _talk_skip()},
+		{"ticks": 60, "input": {}},
+		{"ticks": 2, "setup": func(): _talk_skip()},
+	]
+	for cs in cases:
+		var target: String = cs[6]
+		steps.append_array([
+			{"ticks": 2, "setup": func():
+				var g: GameSim = main.game
+				g.god_mode = true
+				# 前の場面の台本の残りは走らせない
+				g.story.stop_all()
+				g.player_locked = false
+				g.cam_focus = null
+				g.cam_eye = null
+				g.cam_focus_time = 0.0
+				for f in line.slice(0, line.find(cs[2]) + (1 if cs[2] == "ch1.descent_permit" else 0)):
+					g.set_flag(f)
+				if g.flag("ch1.morning"):
+					g.set_flag("ch1.night", false)
+				if cs[0] == "ending":
+					g.set_flag("ch1.drill_developed")
+				g.load_room(cs[1], "")
+				for t in g.triggers:
+					t.fired = true
+				g.objective = cs[7]
+				main.hud.cinema_enabled = true
+				_stand(cs[3], cs[4])},
+			{"ticks": 30, "input": {}},
+			{"ticks": 2, "input": {}, "setup": func(): main.game.story.start_event(cs[5])},
+			# 撮る会話まで送り、出しきるまで待つ（会話の間は台本が止まるので、待つ刻みは多めでよい）
+			{"ticks": 700, "input_fn": func(i):
+				var d: Dictionary = main.game.story.dialogue
+				return {} if d.is_empty() or String(d.id) == target else {"confirm": i % 6 < 3}},
+			{"ticks": 1, "check": func():
+				var d: Dictionary = main.game.story.dialogue
+				return _check(String(d.get("id", "")) == target and int(d.shown) >= String(d.text).length() and main.game.cinematic(),
+					"%s：黒帯の会話（%s）が出ている" % [cs[0], d.get("id", "")])},
+		])
+		if cs[0] == "ending":
+			# 章末を最後までスキップ：遊びの表示が戻り、「第 1 章 クリア！」の知らせ
+			steps.append_array([
+				{"ticks": 61, "input": {"skip": true}},
+				{"ticks": 20, "input": {}},
+				{"ticks": 1, "shot": "lb_ending_skipped", "input": {}, "check": func():
+					var g: GameSim = main.game
+					return _check(g.flag("ch1.complete") and g.room_id == "ch1.upper" and not g.cinematic() and main.hud._play.visible,
+						"章末をスキップ：クリアのフラグ、遊びの表示が戻る")},
+			])
+			continue
+		steps.append_array([
+			{"ticks": 30, "input": {"skip": true}, "setup": func():
+				if main.touch.active:
+					hold_touch.call(true)},
+			{"ticks": 1, "shot": "lb_%s_after" % cs[0], "input": {"skip": true}, "check": func():
+				return _check(absf(main.game.skip_hold - 0.5) < 0.05 and main.hud.cinema_amount() >= 1.0, "%s：黒帯が出て、スキップを半分押している（%.2f 秒）" % [cs[0], main.game.skip_hold])},
+			{"ticks": 1, "shot": "lb_%s_before" % cs[0], "input": {"skip": true}, "setup": func():
+				main.hud.cinema_enabled = false
+				if main.touch.active:
+					hold_touch.call(false)},
+			{"ticks": 2, "input": {}, "setup": func(): main.hud.cinema_enabled = true},
+		])
+	return steps
 
 
 ## 会話のカメラ（view/talk_camera.gd）の確認（--talk_cam_shots。--talk_cam=shopkeeper,yana で一部だけ）：住人の正面に立って調べるボタンで話しかけ、

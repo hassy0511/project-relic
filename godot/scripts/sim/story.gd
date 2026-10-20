@@ -141,6 +141,21 @@ func _steps_of(id: String) -> Array:
 	return steps
 
 
+## 走っている台本と会話を、残りを実行せずに止める（見本・確認用。ゲームの中では使わない）
+func stop_all() -> void:
+	_event_queue.clear()
+	dialogue = {}
+	_lines = []
+	_wait_time = 0.0
+	_waiting_dialogue = false
+	_has_wait_cond = false
+	cutscene = false
+	skipping = false
+	skip_at_choice = false
+	_choice_made = false
+	_skip_room = 0
+
+
 ## 長押しでスキップできるか：黒帯の場面で、まだスキップしていない。操作できる間の遊びの待ち（wait_until）の間は除く
 func skippable() -> bool:
 	if not cutscene or skipping:
