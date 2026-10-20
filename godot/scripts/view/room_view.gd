@@ -36,6 +36,8 @@ static func build(world: World, room_id: String) -> Node3D:
 		o.ground = bool(r.ordo.get("ground", true))
 		o.back_part = String(r.ordo.get("back", ""))
 		o.landing = bool(r.ordo.get("landing", true))
+		# "phase"：部屋を作ったときの歩きの周期の位置（0〜1）。オープニングは足が着く時刻を場面のカメラに合わせる
+		o.phase = fposmod(float(r.ordo.get("phase", 0.0)), 1.0)
 		o.position = RoomGeo.v3(r.ordo.get("pos", [0, 0, 0]))
 		root.add_child(o)
 	root.name = "Room"

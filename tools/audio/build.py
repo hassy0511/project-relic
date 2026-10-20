@@ -154,14 +154,28 @@ def bgm_trial() -> np.ndarray:
 
 
 def main() -> None:
-    """引数なし：第 1 章用の新しい音（music.py）だけ書き出す。--all：古い音（試験場）も書き直す"""
+    """引数なし：第 1 章用の新しい音（music.py・cinema.py）だけ書き出す。--all：古い音（試験場）も書き直す。
+    --only=a,b：その ID の効果音だけ書き出す（ほかのファイルを書き直さない。例：--only=ordo_step,ordo_powerdown,amb_wind）"""
+    import cinema
     import music
+    only = [a.split('=', 1)[1].split(',') for a in sys.argv if a.startswith('--only=')]
+    if only:
+        want = set(only[0])
+        made = {**music.extra_sfx(), **cinema.cinema_sfx()}
+        for name in sorted(want):
+            if name not in made:
+                raise SystemExit(f'知らない効果音の ID: {name}')
+            save(name, made[name], 0.9 if name == 'amb_wind' else 0.8)
+        print('wrote', ', '.join(sorted(want)), 'to', OUT)
+        return
     if '--all' in sys.argv:
         for name, x in sfx().items():
             save(name, x)
         save('bgm_trial', bgm_trial(), 0.7)
     for name, x in music.extra_sfx().items():
         save(name, x)
+    for name, x in cinema.cinema_sfx().items():
+        save(name, x, 0.9 if name == 'amb_wind' else 0.8)
     for name, fn in [('bgm_town_day', music.town_day), ('bgm_town_night', music.town_night), ('bgm_ruins', music.ruins),
                      ('bgm_boss', music.boss), ('bgm_end', music.fanfare)]:
         save(name, fn(), 0.7)

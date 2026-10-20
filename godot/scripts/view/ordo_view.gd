@@ -26,6 +26,10 @@ extends Node3D
 ##   GLB の部品のノード（model）は骨の姿勢を決める見えない骨組みとして残す（テスト・撮影が部品の位置を読む）。遠景では影を落とさない。
 ## 町の部屋に置く（部屋の "ordo"：docs/design/42_コンテンツの書き方.md 14.5）：body_fixed = true、ground = true（120 m 下の砂の床が
 ##   体の進みだけ後ろへ流れ、遠くは空の絵の下の帯へ溶ける）。歩く・止まるは main.gd がフラグ（ch1.ordo_stopped・ch1.ordo_restarted）から決める。
+## 映画のような場面（CineDirector。オープニング・停止の場面）のための見た目だけの機能（docs/art_orders/W2_オルド3D化の結果.md 11 章）：
+##   足が着いた・浮いた知らせ（foot_planted・foot_lifted。足音と砂ぼこり）、砂の床をあとから出す・消える距離を変える（set_ground・set_ground_fade）、
+##   背の上の町の灯（add_town_lights）、琥珀の灯の明るさ（set_amber）、動力が切れて止まる演出（cine_stop：振り出し中の足が落ちて着き、
+##   体が沈んで揺れて収まる。ゲームの停止の姿勢 set_walking(false) とは別で、町の部屋のオルドには使わない）。
 
 const MODEL_PATH := "res://assets/models/ordo.glb"
 const LEGS := ["l1", "l2", "l3", "l4", "r1", "r2", "r3", "r4"]
@@ -68,6 +72,30 @@ var ground_node: MeshInstance3D  ## ground のときの砂の床
 var _bones: Array = []           ## 骨の番号 → 部品のノード
 var _root_pose := Transform3D.IDENTITY
 static var _merged_cache := {}   ## MODEL_PATH → { "mesh", "skin" }（部屋を移るたびに作り直さない）
+
+## 足が地面に着いた（振り出しが終わった）：脚の名前と、足の裏の真ん中の地面の上の位置（グローバル）。見た目（CineDirector）が足音・砂ぼこりを出す
+signal foot_planted(tag: String, at: Vector3)
+## 足が地面を離れた（振り出しを始めた）
+signal foot_lifted(tag: String, at: Vector3)
+var _planted_now: Array = []
+var _lifted_now: Array = []
+## 町の灯（add_town_lights。無ければ null）
+var town_lights: TownLights = null
+## 動力が切れて止まる演出（cine_stop）：経過の秒（負なら演出の停止の外）、体が沈む量（m）とその速さ、始めの歩幅の割合
+var _stop_t := -1.0
+var _sink := 0.0
+var _sink_v := 0.0
+var _stop_speed0 := 1.0
+## 演出の停止：体が止まるまでの秒・振り出し中の足が落ちて着くまでの秒・着いたあと体が沈む量（m）
+const STOP_DECEL_S := 3.2
+const STOP_DROP_S := 2.3
+const STOP_SINK_M := 1.6
+## 琥珀の灯の材質（set_amber で明るさを変えるときに作る複製）と元の明るさ
+var _amber_mat: Material = null
+var _amber_energy := 1.0
+var _amber_albedo := Color.WHITE
+## 今の雰囲気（set_mood。あとから砂の床を出すときの色）
+var _mood := "day"
 
 const JOINTS := ["body", "door", "lift_guide", "lift_cage", "lift_landing"]
 const GROUND_SIZE := 6000.0
@@ -185,6 +213,10 @@ func _process(delta: float) -> void:
 func advance(dt: float) -> void:
 	if legs.is_empty():
 		return
+	if _stop_t >= 0.0:
+		_advance_stop(dt)
+		_emit_feet()
+		return
 	var target := 1.0 if walking else 0.0
 	speed = move_toward(speed, target, dt / cycle_s)
 	var t_stance := cycle_s * (1.0 - swing_frac)
@@ -204,6 +236,7 @@ func advance(dt: float) -> void:
 	_crouch = move_toward(_crouch, 1.0 if (any_active or walking) else 0.0, dt / 8.0)
 	body_h = -crouch_m * _crouch + bob_m * _crouch * sin(TAU * 4.0 * phase)
 	_apply()
+	_emit_feet()
 
 
 func _step_leg(leg: Dictionary) -> void:
@@ -218,6 +251,7 @@ func _step_leg(leg: Dictionary) -> void:
 			leg.parked = false
 			leg["from"] = cur_off
 			leg.to = 0.5 * step_m * speed
+			_lifted_now.append(leg.tag)
 		else:
 			leg.parked = true
 	if leg.swinging and p < swing_frac:
@@ -231,9 +265,99 @@ func _step_leg(leg: Dictionary) -> void:
 			# 着いた：地面の上の位置を覚える
 			leg.swinging = false
 			leg.planted = travel + float(leg.to)
+			_planted_now.append(leg.tag)
 		leg.sigma = 0.0
 		leg.lift = 0.0
 		leg.off = float(leg.planted) - travel
+
+
+## この刻みに着いた・浮いた足を知らせる（関節を置いたあと。位置は足の裏の真ん中の地面の上）
+func _emit_feet() -> void:
+	for tag in _lifted_now:
+		foot_lifted.emit(tag, foot_ground(tag))
+	for tag in _planted_now:
+		foot_planted.emit(tag, foot_ground(tag))
+	_lifted_now.clear()
+	_planted_now.clear()
+
+
+## 足の裏の真ん中の、地面の高さの位置（グローバル）。足首の円板の中心の真下（足の裏の真ん中は足首の 14 m 下）
+func foot_ground(tag: String) -> Vector3:
+	for leg in legs:
+		if leg.tag == tag:
+			var a: Vector3 = (leg.nodes.ankle as Node3D).global_transform.origin
+			return Vector3(a.x, ground_y(), a.z)
+	return global_position
+
+
+## 地面（足が着く面）の高さ（グローバル）。body_fixed のときは体の上下の逆に動く
+func ground_y() -> float:
+	return global_position.y + GROUND_Y + (ground_offset().y if body_fixed else 0.0)
+
+
+# ---------------------------------------------------------------- 演出の停止（動力が切れる）
+
+## 動力が切れて止まる演出（停止の場面の外の舞台のオルド）：体は STOP_DECEL_S 秒でなめらかに止まり、振り出し中の足は前へ少し進みながら
+## STOP_DROP_S 秒で落ちて着き（だんだん速く。着いた所で止まり、滑らない）、着いた足は動かない。足が落ちると体は STOP_SINK_M 沈み、
+## ばねのように一度行き過ぎてから収まる。歩きの上下は速さとともに消える。新しい振り出しは始めない。終わりの姿は足が着いた所のまま
+## （ゲームの停止の姿勢 = 肩の真下に 8 本とも着いた元の姿勢 とは別。町の部屋のオルドはこれを使わない）
+func cine_stop() -> void:
+	if _stop_t >= 0.0:
+		return
+	_stop_t = 0.0
+	_stop_speed0 = maxf(speed, 0.001)
+	walking = false
+	_sink = 0.0
+	_sink_v = 0.0
+	for leg in legs:
+		if leg.swinging:
+			leg["drop_off"] = float(leg.off)
+			leg["drop_lift"] = float(leg.lift)
+			leg["drop_sigma"] = float(leg.sigma)
+			# 着く所：振り出しの先の 3 割ほど（勢いで少し前へ出て、目当てより手前に着く）
+			leg["drop_to"] = lerpf(float(leg.off), float(leg.to), 0.3)
+			leg["drop_t"] = 0.0
+
+
+## 演出の停止の途中か・終わったか（cine_stop を呼んでから）
+func cine_stopping() -> bool:
+	return _stop_t >= 0.0
+
+
+func _advance_stop(dt: float) -> void:
+	_stop_t += dt
+	var k := clampf(_stop_t / STOP_DECEL_S, 0.0, 1.0)
+	speed = _stop_speed0 * (1.0 - k * k * (3.0 - 2.0 * k))
+	travel += speed * step_m / (cycle_s * (1.0 - swing_frac)) * dt
+	# 歩きの上下は止まりながら小さくなる（周期は進めたまま）
+	phase = fposmod(phase + dt / cycle_s * speed, 1.0)
+	var landed := false
+	for leg in legs:
+		if leg.swinging:
+			var t := float(leg.drop_t) + dt
+			leg.drop_t = t
+			var u := clampf(t / STOP_DROP_S, 0.0, 1.0)
+			leg.off = lerpf(float(leg.drop_off), float(leg.drop_to), 1.0 - (1.0 - u) * (1.0 - u))
+			leg.lift = float(leg.drop_lift) * (1.0 - u * u)
+			leg.sigma = lerpf(float(leg.drop_sigma), 1.0, u)
+			if u >= 1.0:
+				leg.swinging = false
+				leg.planted = travel + float(leg.off)
+				leg.lift = 0.0
+				leg.sigma = 0.0
+				leg.parked = true
+				landed = true
+				_planted_now.append(leg.tag)
+		else:
+			leg.parked = true
+			leg.off = float(leg.planted) - travel
+	# 足が落ちて着いたら体が沈み、ばねのように揺れて収まる（足が無いとき＝振り出し中の足が無いときは、止まりながら沈む）
+	var swinging_left := legs.any(func(l): return l.swinging)
+	var sink_to := STOP_SINK_M if (not swinging_left and (landed or _stop_t > STOP_DROP_S * 0.6)) else 0.0
+	_sink_v += ((sink_to - _sink) * 16.0 - _sink_v * 4.2) * dt
+	_sink += _sink_v * dt
+	body_h = -crouch_m + bob_m * (speed / _stop_speed0) * sin(TAU * 4.0 * phase) - _sink
+	_apply()
 
 
 ## 関節の角度を解いて置く
@@ -642,7 +766,62 @@ func _make_ground() -> void:
 	ground_node.material_override = mat
 	ground_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(ground_node)
-	set_mood("day")
+	set_mood(_mood)
+
+
+## 砂の床を出す・隠す（部屋の "ground": false のオルドでも、映画のような場面の間だけ出す。CineDirector）。
+## 出すとき、まだ無ければ作る（今の雰囲気の色で）
+func set_ground(on: bool) -> void:
+	if on and ground_node == null:
+		_make_ground()
+		_sync_ground()
+	if ground_node != null:
+		ground_node.visible = on
+	ground = on
+
+
+## 砂の床が透明になる距離（カメラから m。既定 320〜850 m で空の絵の砂漠へつなぐ）。遠くから全体を見る場面では遠くまで描く
+func set_ground_fade(start: float, end: float) -> void:
+	if ground_node == null:
+		return
+	var m := ground_node.material_override as ShaderMaterial
+	m.set_shader_parameter("fade_start", start)
+	m.set_shader_parameter("fade_end", end)
+
+
+## 砂の床の岩・小石の斑の濃さ（既定 0.9。低いカメラの場面では薄くする）
+func set_ground_rocks(k: float) -> void:
+	if ground_node != null:
+		(ground_node.material_override as ShaderMaterial).set_shader_parameter("rock_amount", k)
+
+
+## 背の上の町の灯（TownLights。家の壁の窓・大通りの街灯・段の縁・塔の灯）を出す。体と一緒に動く骨の子に置く。描画 +1
+func add_town_lights() -> TownLights:
+	if town_lights == null:
+		town_lights = TownLights.new()
+		(skeleton if skeleton != null else model).add_child(town_lights)
+	return town_lights
+
+
+## 琥珀の灯（体の帯・梁の灯・船首のスリット）の明るさの倍率（1 = そのまま、0 = 消える）。この OrdoView の描くメッシュにだけ効く
+## （まとめたメッシュはほかの部屋のオルドと共有なので、材質を複製して上書きする）
+func set_amber(k: float) -> void:
+	if skin_mesh == null:
+		return
+	for s in skin_mesh.mesh.get_surface_count():
+		var mat := skin_mesh.mesh.surface_get_material(s)
+		if mat == null or mat.resource_name != "amber":
+			continue
+		if _amber_mat == null:
+			_amber_mat = mat.duplicate()
+			if _amber_mat is BaseMaterial3D:
+				_amber_energy = (_amber_mat as BaseMaterial3D).emission_energy_multiplier
+				_amber_albedo = (_amber_mat as BaseMaterial3D).albedo_color
+			skin_mesh.set_surface_override_material(s, _amber_mat)
+		if _amber_mat is BaseMaterial3D:
+			var bm := _amber_mat as BaseMaterial3D
+			bm.emission_energy_multiplier = _amber_energy * maxf(k, 0.0)
+			bm.albedo_color = _amber_albedo.lerp(Color(0.12, 0.09, 0.06), clampf(1.0 - k, 0.0, 1.0) * 0.8)
 
 
 ## 砂の床の位置と流れ（body_fixed のときは体の上下の逆に動き、模様が体の進みだけ後ろへ流れる）
@@ -656,6 +835,7 @@ func _sync_ground() -> void:
 
 ## 雰囲気（day・night・dawn。main.gd の _apply_mood と同じ名前）に合わせて砂の床の色を替える
 func set_mood(mood: String) -> void:
+	_mood = mood
 	if ground_node == null:
 		return
 	var c: Array = GROUND_MOODS.get(mood, GROUND_MOODS.day)

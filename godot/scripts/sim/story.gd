@@ -13,6 +13,7 @@ extends RefCounted
 ##   shake（画面の揺れの強さ。0.4 くらい）/ despawn（グループの敵を倒さずに消す）
 ##   fx（見た目の合図。出来事 {type: "fx", id, part?, at?} を出すだけで遊びは変えない。Fx が描く：frame_fit・node_memory）
 ##   cutscene（true / false：黒帯の場面を始める・終える。イベントに "cutscene": true と書くと、始めに {"cutscene": true} を置いたのと同じ）
+##   shot（映画のような場面のカメラの道筋。見た目の CineDirector が描く。time 秒待つ。{} でふだんのカメラへ）/ caption（語りの字幕。待たない）
 ##
 ## 黒帯の場面（cutscene）：台本がカメラを取った（camera の手順で注視点を決めた）か、"cutscene": true のイベントが始まってから、
 ## プレイヤーに操作が戻るまで（{"freeze": false}・{"cutscene": false}・操作できる間の wait_until で待ち始める・台本がすべて終わる）。
@@ -110,7 +111,7 @@ func _dialogue_cam(id: String, seen: Dictionary) -> bool:
 
 func _steps_cam(steps: Array, seen: Dictionary) -> bool:
 	for s in steps:
-		if s.has("camera") or (s.has("cutscene") and bool(s.cutscene)):
+		if s.has("camera") or (s.has("shot") and not (s.shot as Dictionary).is_empty()) or (s.has("cutscene") and bool(s.cutscene)):
 			return true
 		if s.has("if") and (_steps_cam(s.get("then", []), seen) or _steps_cam(s.get("else", []), seen)):
 			return true
@@ -379,6 +380,20 @@ func _run_step(step: Dictionary) -> void:
 		h.player.teleport(m.pos, m.yaw)
 		h.cam.yaw = m.yaw
 		h.emit_event({"type": "snap"})
+	elif step.has("shot"):
+		# 映画のような場面のカメラの道筋（見た目の CineDirector が描く。書き方は docs/design/42_コンテンツの書き方.md 6.1）。
+		# 道筋を決めたら台本がカメラを取ったので黒帯の場面（camera と同じ）。{"shot": {}} でふだんのカメラへ戻す（黒帯は操作が戻るまで続く）。
+		# スキップ中は出さない（待たない。見た目はスキップの知らせでふだんのカメラへ戻る）
+		var sh: Dictionary = step.shot
+		if not sh.is_empty():
+			cutscene = true
+		if not skipping:
+			h.emit_event({"type": "shot", "shot": sh})
+			if not sh.is_empty() and bool(sh.get("wait", true)):
+				_wait_time = float(sh.get("time", 0.0))
+	elif step.has("caption"):
+		# 語りの字幕（黒帯の場面の画面の下に time 秒。待たない。スキップ中は出さない：GameSim.emit_event）
+		h.emit_event({"type": "caption", "text": String(step.caption), "time": float(step.get("time", 6.0))})
 	elif step.has("camera"):
 		var c: Dictionary = step.camera
 		if (c.has("at") or c.has("pos")) and skipping:

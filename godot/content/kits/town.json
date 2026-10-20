@@ -11,7 +11,8 @@
  },
  "light": {
   "day": {"ambient_color": "#b9c2d0", "ambient_energy": 0.36, "sun_energy": 1.75, "saturation": 1.2},
-  "night": {"sky_energy": 0.4, "sun_energy": 0.18, "ambient_color": "#2e3a62", "ambient_energy": 0.42, "fog_color": "#121830", "saturation": 1.1}
+  "night": {"sky_energy": 0.4, "sun_energy": 0.18, "ambient_color": "#2e3a62", "ambient_energy": 0.42, "fog_color": "#121830", "saturation": 1.1},
+  "dawn": {"ambient_color": "#9c90bc", "ambient_energy": 0.42, "sun_energy": 1.8, "fog_color": "#e6ae90", "saturation": 1.12}
  },
  "surfaces": {
   "floor": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 6.0, "color": "#ebe3d6", "roughness": 0.82, "macro": 0.3,

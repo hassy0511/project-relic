@@ -117,13 +117,15 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 			env.fog_light_color = Color("#e5a782")
 			env.fog_sky_affect = 0.15
 		"dawn":
+			# 夜明け（オープニングの夜明けの甲羅だけ）。低い太陽は船首の左舷寄り（真北から左舷へ 34 度、高さ 14 度）：
+			# オープニングのカメラ（左舷の前・横・台のハルの後ろ）から見る面に光が当たる。台のハルは朝日の方を向いて立つ
 			sky.ground_bottom_color = Color("#5a4636")
 			sky.sky_top_color = Color("#4f5f86")
 			sky.sky_horizon_color = Color("#f0a679")
 			sky.ground_horizon_color = Color("#b98a6a")
 			sun.light_color = Color("#ffc08a")
 			set_sun_energy(sun, 1.1)
-			sun.rotation_degrees = Vector3(-14, -150, 0)
+			sun.rotation_degrees = Vector3(-14, 34, 0)
 			env.ambient_light_energy = 0.7
 			env.fog_light_color = Color("#e5a782")
 		"night":

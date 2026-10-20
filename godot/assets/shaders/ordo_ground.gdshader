@@ -12,6 +12,7 @@ uniform vec3 far_color : source_color = vec3(0.83, 0.58, 0.55);
 uniform float ripple = 0.12;
 uniform float fade_start = 320.0;   // ここから透明へ（120 m 下の地面を、地平線の 20 度下より遠くは空の絵の砂丘に任せる）
 uniform float fade_end = 850.0;
+uniform float rock_amount = 0.9;    // 岩・小石の斑の濃さ（低いカメラの場面では斑が横に伸びた黒い穴に見えるので、場面の間だけ薄くする：CineDirector）
 
 varying vec2 gpos;
 
@@ -51,7 +52,7 @@ void fragment() {
 	vec3 c = mix(dark_color, near_color, 0.25 + 0.75 * dunes);
 	c = mix(c, dark_color * 0.85, gravel * 0.55);
 	c *= 1.0 - ripple * rip * rw;
-	c = mix(c, dark_color * 0.45, rocks * 0.9 * clamp(1.0 - dist / 900.0, 0.0, 1.0));
+	c = mix(c, dark_color * 0.45, rocks * rock_amount * clamp(1.0 - dist / 900.0, 0.0, 1.0));
 	c = mix(c, far_color, smoothstep(fade_start * 0.35, fade_end, dist));
 	ALBEDO = c;
 	ALPHA = 1.0 - smoothstep(fade_start, fade_end, dist);

@@ -146,8 +146,8 @@ func charge_type() -> bool:
 
 
 func emit_event(e: Dictionary) -> void:
-	# スキップの間は効果音・画面の揺れを出さない（見ていれば鳴った音は、終わりの姿には残らない。曲は music_id() が終わりの状態から決める）
-	if story != null and story.skipping and (e.type == "sfx" or e.type == "shake"):
+	# スキップの間は効果音・画面の揺れ・語りの字幕を出さない（見ていれば鳴った音は、終わりの姿には残らない。曲は music_id() が終わりの状態から決める）
+	if story != null and story.skipping and (e.type == "sfx" or e.type == "shake" or e.type == "caption"):
 		return
 	_events.append(e)
 
@@ -532,7 +532,8 @@ func music_id() -> String:
 		return "bgm_boss"
 	var r: Dictionary = room
 	if r.has("music"):
-		return String(r.music)
+		# 部屋の既定の曲。"none" は無音（夜明けの甲羅：オープニングの場面の始めは風と足音だけ。曲は台本の music が入れる）
+		return "" if String(r.music) == "none" else String(r.music)
 	var night := flag("ch1.night")
 	match String(r.get("mood", "")):
 		"ruin_b1", "ruin_b2", "ruin_b3", "ruin_b4":

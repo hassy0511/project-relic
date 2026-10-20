@@ -319,3 +319,110 @@ func test_ordo_landing_dress() -> void:
 			h.expect(term.get("hide", false), "下段：「見下ろす」の端末の箱は描かない（踊り場の望遠鏡）")
 		root.free()
 
+
+## 足が着いた・浮いた知らせ（映画のような場面の足音・砂ぼこり。CineDirector）：1 周で 8 本とも 1 回ずつ浮いて着く。
+## 知らせの位置は足の裏の真ん中の地面（足首の真下、地面の高さ）で、そのとき足は着いている
+func test_ordo_foot_events() -> void:
+	# 周期の 0.245（どの足も振り出していない所）から 1 周
+	var o := OrdoView.new()
+	o.body_fixed = true
+	o.phase = 0.245
+	h.tree.root.add_child(o)
+	var lifts := {}
+	var plants := {}
+	var bad := []
+	o.foot_lifted.connect(func(tag: String, _at: Vector3): lifts[tag] = int(lifts.get(tag, 0)) + 1)
+	o.foot_planted.connect(func(tag: String, at: Vector3):
+		plants[tag] = int(plants.get(tag, 0)) + 1
+		var ank: Vector3 = (o.legs.filter(func(l): return l.tag == tag)[0].nodes.ankle as Node3D).global_transform.origin
+		if absf(at.y - o.ground_y()) > 0.01 or Vector2(at.x - ank.x, at.z - ank.z).length() > 0.01 or not o.is_planted(tag):
+			bad.append("%s %s / %s" % [tag, at, ank]))
+	var dt := 1.0 / 30.0
+	for i in int(o.cycle_s / dt):
+		o.advance(dt)
+	h.expect(lifts.size() == 8 and lifts.values().all(func(n): return n == 1), "1 周で 8 本とも 1 回ずつ浮く（%s）" % lifts)
+	h.expect(plants.size() == 8 and plants.values().all(func(n): return n == 1), "1 周で 8 本とも 1 回ずつ着く（%s）" % plants)
+	h.expect(bad.is_empty(), "着いた知らせの位置は足首の真下の地面（%s）" % [bad])
+	# 地面の高さ：体が止まる見方では、地面が体の上下の逆に動く（歩きの低さの分だけ上）
+	h.near(o.ground_y(), OrdoView.GROUND_Y - o.body_h, 0.001, "地面の高さ = -120 − 体の上下")
+	o.free()
+
+
+## 動力が切れて止まる演出（cine_stop。停止の場面の外の舞台のオルド）：振り出していた足が STOP_DROP_S 秒で落ちて着き、着いている足は滑らない。
+## 体はなめらかに止まり（もう進まない）、沈んで一度行き過ぎてから収まる。関節は可動域の中。ゲームの停止の姿勢（set_walking(false)）は前と同じ
+func test_ordo_cine_stop() -> void:
+	var o := _make(true, true)
+	o.phase = 0.088
+	o._init_gait()
+	o.advance(4.5)
+	var swinging := o.legs.filter(func(l): return l.swinging).map(func(l): return l.tag)
+	h.expect(swinging.has("l2") and swinging.has("r1"), "止める前：左舷 l2・右舷 r1 が振り出しの途中（%s）" % [swinging])
+	var landed := {}
+	o.foot_planted.connect(func(tag: String, _at: Vector3): landed[tag] = o._stop_t)
+	o.cine_stop()
+	# 地面に固定した座標（体が止まる見方：地面は体に対して後ろへ travel、上下へ -body_h ずれる）で、着いた足が動かないか
+	var anchor := {}
+	var worst := 0.0
+	var lim := {"roll": 0.0, "shoulder": 0.0, "ankle": 0.0, "flex_lo": INF, "flex_hi": -INF}
+	var dt := 1.0 / 60.0
+	var travel_mid := -1.0
+	var sink_max := 0.0
+	for i in int(8.0 / dt):
+		o.advance(dt)
+		for leg in o.legs:
+			var g: Vector3 = (leg.nodes.ankle as Node3D).global_transform.origin + Vector3(0, o.body_h, o.travel)
+			if not leg.swinging:
+				if not anchor.has(leg.tag):
+					anchor[leg.tag] = g
+				worst = maxf(worst, (g - anchor[leg.tag] as Vector3).length())
+			for k in ["roll", "shoulder", "ankle"]:
+				lim[k] = maxf(lim[k], absf(float(leg.angles[k])))
+			lim.flex_lo = minf(lim.flex_lo, float(leg.angles.flex))
+			lim.flex_hi = maxf(lim.flex_hi, float(leg.angles.flex))
+		if travel_mid < 0.0 and o._stop_t >= OrdoView.STOP_DECEL_S + 0.2:
+			travel_mid = o.travel
+		sink_max = maxf(sink_max, o._sink)
+	h.expect(landed.has("l2") and landed.has("r1") and absf(float(landed.get("l2", 0.0)) - OrdoView.STOP_DROP_S) < 0.05,
+		"振り出していた足は %.1f 秒で落ちて着く（%s）" % [OrdoView.STOP_DROP_S, landed])
+	h.expect(o.legs.all(func(l): return not l.swinging and l.parked) and o.cine_stopping(), "8 本とも着いて止まる")
+	h.expect(worst <= TOL, "着いた足は滑らない（最大 %.3f m）" % worst)
+	h.expect(lim.shoulder <= 22.0 and lim.roll <= 5.0 and lim.ankle <= 16.0 and lim.flex_lo >= -0.5 and lim.flex_hi <= 35.0,
+		"関節は可動域の中（肩 %.1f・横振り %.1f・足首 %.1f・膝の曲げ %.1f〜%.1f 度）" % [lim.shoulder, lim.roll, lim.ankle, lim.flex_lo, lim.flex_hi])
+	h.expect(travel_mid >= 0.0 and absf(o.travel - travel_mid) < 0.001 and o.speed == 0.0, "体は %.1f 秒で止まり、もう進まない" % OrdoView.STOP_DECEL_S)
+	h.expect(sink_max > OrdoView.STOP_SINK_M + 0.05 and absf(o._sink - OrdoView.STOP_SINK_M) < 0.03 and absf(o._sink_v) < 0.05,
+		"体が沈み、一度行き過ぎてから収まる（最も深く %.2f m → %.2f m）" % [sink_max, o._sink])
+	o.free()
+	# ゲームの停止の姿勢は前のまま（肩の真下に 8 本・関節 0 度・元の高さ）
+	var o2 := _make(false, true)
+	var worst2 := 0.0
+	for leg in o2.legs:
+		for k in ["roll", "shoulder", "knee", "ankle"]:
+			worst2 = maxf(worst2, absf(float(leg.angles[k])))
+	h.expect(o2.is_stopped() and o2.body_h == 0.0 and worst2 < 0.3, "ゲームの停止の姿勢は前と同じ（関節 最大 %.2f 度）" % worst2)
+	o2.free()
+
+
+## 背の上の町の灯（TownLights）：町の影絵の壁から選んだ窓の灯と街灯・段の縁・塔の灯。町の上に収まり、描画は 1 回（MultiMesh）、
+## 明るさ・消えた割合・ちらつきをシェーダーへ渡せる
+func test_town_lights() -> void:
+	var o := _make(true, true)
+	var tl := o.add_town_lights()
+	await h.tree.process_frame
+	var pts := TownLights.points()
+	h.expect(tl.count() == pts.size() and pts.size() >= 150, "町の灯は %d" % pts.size())
+	var outside := pts.filter(func(p):
+		var v: Vector3 = p[0]
+		return absf(v.x) > 56.0 or v.z < -118.0 or v.z > 100.0 or v.y < 0.5 or v.y > 50.0)
+	h.expect(outside.is_empty(), "灯は背の上の町の中（舷の外の縁 ±55 m の内。外：%d）" % outside.size())
+	h.expect(tl.get_parent() == o.skeleton and tl.multimesh.instance_count == pts.size() and tl.material_override != null,
+		"体の骨の子の 1 つの MultiMesh（描画 1 回）")
+	tl.power = 0.7
+	tl.out = 0.4
+	tl.flicker = 0.3
+	tl.apply()
+	var m := tl.material_override as ShaderMaterial
+	h.expect(is_equal_approx(float(m.get_shader_parameter("power")), 0.7) and is_equal_approx(float(m.get_shader_parameter("out_amount")), 0.4)
+		and is_equal_approx(float(m.get_shader_parameter("flicker")), 0.3), "明るさ・消えた割合・ちらつきをシェーダーへ渡す")
+	h.expect(o.add_town_lights() == tl, "2 回呼んでも 1 つ")
+	o.free()
+

@@ -120,6 +120,7 @@ var _sub_time := 0.0
 static var _face_cache := {}
 var _fade: ColorRect
 var _fade_time := 0.0
+var _fade_len := 0.5
 var _time := 0.0
 ## 黒帯の場面（GameSim.cinematic()）：遊びの表示の入れ物、上下の黒帯、長押しでスキップの案内（キーボード・パッド）
 var _play: Control
@@ -141,6 +142,11 @@ const CINE_EASE := 0.3
 ## 黒帯の太さ（画面の高さに対する割合）。スマホの配置では細く、会話の窓の下のすき間（窓は下から 40）に収める
 const CINE_BAR := 0.085
 const CINE_BAR_TOUCH := 0.05
+## 語りの字幕（台本の caption。映画のような場面の画面の下の真ん中、下の黒帯のすぐ上）：文字・残りの秒・出している秒数・出し入れの秒
+var _caption: Label
+var _caption_time := 0.0
+var _caption_len := 0.0
+const CAPTION_FADE := 0.7
 ## スマホの配置で、下の帯と会話の窓の間に空ける幅（UI の単位）
 const CINE_BAR_GAP := 6.0
 
@@ -568,6 +574,21 @@ func _ready() -> void:
 	_skip_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	sk.add_child(_skip_label)
 
+	# --- 語りの字幕（下の黒帯のすぐ上、真ん中。台本の caption）---
+	_caption = make_label("", 36, PAPER)
+	_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_caption.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_caption.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.72))
+	_caption.add_theme_constant_override("outline_size", 8)
+	_caption.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.45))
+	_caption.add_theme_constant_override("shadow_offset_x", 0)
+	_caption.add_theme_constant_override("shadow_offset_y", 3)
+	_caption.add_theme_constant_override("line_spacing", 6)
+	_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_caption.visible = false
+	root.add_child(_caption)
+
 	_fade = ColorRect.new()
 	_fade.color = Color(0, 0, 0, 0)
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -583,9 +604,52 @@ func _tile(t: Texture2D, px := 40.0) -> PanelContainer:
 	return p
 
 
-## 画面を暗くしてから明るくする（部屋の移動）
-func fade_in(seconds := 0.5) -> void:
+## 画面を暗くしてから明るくする（部屋の移動）。seconds 秒のうち、最後の fade 秒で明るくする（それまでは真っ黒）
+func fade_in(seconds := 0.5, fade := 0.5) -> void:
 	_fade_time = seconds
+	_fade_len = maxf(fade, 0.01)
+
+
+## 語りの字幕を seconds 秒出す（出し入れは CAPTION_FADE 秒。同じ文なら出したまま時間だけ延ばす）
+func show_caption(text: String, seconds := 6.0) -> void:
+	if not (_caption.visible and _caption.text == text):
+		_caption.text = text
+		_caption_len = 0.0
+	_caption_time = maxf(seconds, CAPTION_FADE * 2.0)
+	_caption.visible = true
+
+
+## 語りの字幕を消す（スキップ・部屋の移動）
+func clear_caption() -> void:
+	_caption_time = 0.0
+	_caption.visible = false
+	_caption.text = ""
+
+
+## 今出している語りの字幕（確認用。出していなければ ""）
+func caption_text() -> String:
+	return _caption.text if _caption.visible else ""
+
+
+func _sync_caption(vs: Vector2, dt: float) -> void:
+	if _caption_time <= 0.0:
+		_caption.visible = false
+		return
+	_caption_time -= dt
+	_caption_len += dt
+	var a := clampf(minf(_caption_len, _caption_time) / CAPTION_FADE, 0.0, 1.0)
+	_caption.visible = _caption_time > 0.0
+	_caption.modulate.a = a * a * (3.0 - 2.0 * a)
+	var fs := 40 if compact else 36
+	_caption.add_theme_font_size_override("font_size", fs)
+	var w := minf(1500.0, vs.x - 2.0 * (EDGE + 40.0))
+	_caption.custom_minimum_size = Vector2(w, 0)
+	_caption.size = Vector2(w, 0)
+	_caption.reset_size()
+	var bar := cinema_bar(vs) * smoothstep(0.0, 1.0, _cine)
+	# スマホでは右下・左下の操作の弧を避けて少し上に（黒帯の間は操作は隠れるが、指の置き場の上に文字を置かない）
+	var lift := 26.0 if compact else 34.0
+	_caption.position = Vector2((vs.x - w) * 0.5, vs.y - bar - lift - _caption.size.y)
 
 
 ## 操作の案内（消すまで出し続ける）。hint：文字列、または { kb, pad, touch }。"" で消す
@@ -841,7 +905,8 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 		_mem_box.visible = false
 
 	_fade_time = maxf(0.0, _fade_time - dt)
-	_fade.color.a = clampf(_fade_time / 0.5, 0.0, 1.0)
+	_fade.color.a = clampf(_fade_time / _fade_len, 0.0, 1.0)
+	_sync_caption(vs, dt)
 	_sub_time -= dt
 	_sub.visible = _sub_time > 0.0
 	if _sub.visible:
