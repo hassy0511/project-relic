@@ -728,14 +728,13 @@ func test_secondary_motion() -> void:
 	await tick.call(10, {})
 	h.expect(v.sway.last_max > 0.15, "走って止まると房が振れる（%.1f 度）" % rad_to_deg(v.sway.last_max))
 	h.expect(v.sway.last_max < 0.7, "振れは角度の上限まで（%.1f 度）" % rad_to_deg(v.sway.last_max))
-	var before := []
-	for e in v.sway._e:
-		before.append([e.d, e.w])
+	var before_d := v.sway._d.duplicate()
+	var before_w := v.sway._w.duplicate()
 	for i in 3:
 		v.sway._process_modification_with_delta(0.0)
 	var same := true
-	for k in before.size():
-		same = same and (v.sway._e[k].d as Vector3).is_equal_approx(before[k][0]) and (v.sway._e[k].w as Vector3).is_equal_approx(before[k][1])
+	for k in before_d.size():
+		same = same and v.sway._d[k].is_equal_approx(before_d[k]) and v.sway._w[k].is_equal_approx(before_w[k])
 	h.expect(same, "描画のこまの更新（delta = 0）では揺れが進まない")
 	sk.skeleton_updated.disconnect(on_update)
 	h.free_game(g)

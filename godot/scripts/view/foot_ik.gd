@@ -34,8 +34,8 @@ var base_point := Vector3.ZERO
 var plane_point: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]
 var plane_normal: Array[Vector3] = [Vector3.UP, Vector3.UP]
 var plane_valid: Array[bool] = [false, false]
-## 動作のままの足の裏の点（骨格の座標。各足 SOLE_POINTS の順）。PlayerView が次の刻みの光線をここから撃つ
-var sole_anim: Array = [[], []]
+## 動作のままの足の裏の点（骨格の座標。各足 SOLE_POINTS の順。物理の刻みの更新で取る）。PlayerView が次の刻みの光線をここから撃つ
+var sole_anim: Array[PackedVector3Array] = [PackedVector3Array(), PackedVector3Array()]
 ## 最後に使った腰の下げ・足の上げ（確かめ用、世界の m）
 var last_drop := 0.0
 var last_lift: Array[float] = [0.0, 0.0]
@@ -46,7 +46,7 @@ static var prof_calls := 0
 
 var _ids := []          # [[thigh, shin, foot], ...]
 var _hips := -1
-var _sole_local := []   # 足首の骨の座標での、足の裏の点（各足 SOLE_POINTS の順）
+var _sole_local: Array[PackedVector3Array] = []   # 足首の骨の座標での、足の裏の点（各足 SOLE_POINTS の順）
 var _sole_mid_local := [Vector3.ZERO, Vector3.ZERO]
 
 
@@ -70,7 +70,7 @@ func _bind(sk: Skeleton3D) -> bool:
 		var rest := sk.get_bone_global_rest(_ids[i][2])
 		# 足の前：足首の骨の向き（つま先へ）を水平にしたもの
 		var fwd := Vector3(rest.basis.y.x, 0.0, rest.basis.y.z).normalized()
-		var pts := []
+		var pts := PackedVector3Array()
 		for d in SOLE_POINTS:
 			var p: Vector3 = rest.origin + fwd * float(d) + Vector3.DOWN * SOLE_DOWN
 			pts.append(rest.affine_inverse() * p)
@@ -79,27 +79,30 @@ func _bind(sk: Skeleton3D) -> bool:
 	return true
 
 
-func _process_modification() -> void:
+func _process_modification_with_delta(delta: float) -> void:
 	var sk := get_skeleton()
 	if sk == null or not _bind(sk):
 		return
 	if profile:
 		var t0 := Time.get_ticks_usec()
-		_modify(sk)
+		_modify(sk, delta)
 		prof_usec += Time.get_ticks_usec() - t0
 		prof_calls += 1
 	else:
-		_modify(sk)
+		_modify(sk, delta)
 
 
-func _modify(sk: Skeleton3D) -> void:
-	# 動作のままの足の裏の点（次の刻みの光線の元）
-	for i in 2:
-		var g := sk.get_bone_global_pose(_ids[i][2])
-		var pts := []
-		for lp in _sole_local[i]:
-			pts.append(g * lp)
-		sole_anim[i] = pts
+func _modify(sk: Skeleton3D, delta: float) -> void:
+	# 動作のままの足の裏の点（次の刻みの光線の元。物理の刻みの更新でだけ取る）
+	if delta > 0.0 or sole_anim[0].is_empty():
+		for i in 2:
+			var g := sk.get_bone_global_pose(_ids[i][2])
+			var lp := _sole_local[i]
+			var pts := PackedVector3Array()
+			pts.resize(lp.size())
+			for j in lp.size():
+				pts[j] = g * lp[j]
+			sole_anim[i] = pts
 	if weight <= 0.001 or not (plane_valid[0] or plane_valid[1]):
 		last_drop = 0.0
 		last_lift[0] = 0.0
