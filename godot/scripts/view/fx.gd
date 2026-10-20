@@ -62,6 +62,9 @@ var _frame_state := Vector3i(-1, -1, -1)
 ## フレームの装着：台本の途中で力が付き、合図（fx: frame_fit）を待っている部位（部位 → true）と、届いた合図の部位
 var _fit_wait := {}
 var _fit_cues: Array = []
+## スキップで飛ばした合図の部位（光の粒・かけらを出さずに、部品をすぐ付ける）と、スキップが終わった知らせ（次の _frame_fits で片付ける）
+var _fit_quiet: Array = []
+var _skip_done := false
 ## ノードの記憶の取り込み（台本の合図 fx: node_memory から）：残りの秒数と、光の出る所（ノード）
 var _node_t := 0.0
 var _node_from := Vector3.ZERO
@@ -304,14 +307,21 @@ func handle(e: Dictionary) -> void:
 					if lt.id == e.id:
 						_relic_at = lt.pos + Vector3(0, 0.6, 0)
 		"fx":
-			# 台本の見た目の合図（Story の fx の手順）
+			# 台本の見た目の合図（Story の fx の手順）。スキップの間に出た合図（skipped）は光らせずに終わりの姿にする
 			match String(e.id):
 				"frame_fit":
-					_fit_cues.append(String(e.get("part", "core")))
+					if e.get("skipped", false):
+						_fit_quiet.append(String(e.get("part", "core")))
+					else:
+						_fit_cues.append(String(e.get("part", "core")))
 				"node_memory":
-					if e.get("at") is Vector3:
+					if e.get("at") is Vector3 and not e.get("skipped", false):
 						_node_t = 1.4
 						_node_from = e.at
+		"skipped":
+			# イベントをスキップした：流れている記憶の光を止め、合図を待っているフレームの部品はすぐ付ける（光らせない。_frame_fits）
+			_node_t = 0.0
+			_skip_done = true
 		"doorOpened":
 			if _game != null and String(e.id).contains("seal"):
 				for dr in _game.doors:
@@ -1572,6 +1582,9 @@ func _frame_fits(game: GameSim) -> void:
 		if fs.z > _frame_state.z:
 			on.append("legs")
 		for part in on:
+			# スキップで付いた部品は光らせない（すぐ見せる。下の _fit_quiet）
+			if _fit_quiet.has(part) or _skip_done:
+				continue
 			if game.story.running_event():
 				_fit_wait[part] = true
 				_pv.reveal_later(part, 600.0)
@@ -1582,6 +1595,15 @@ func _frame_fits(game: GameSim) -> void:
 		_fit_wait.erase(part)
 		_frame_fit(game.player, part)
 	_fit_cues.clear()
+	# スキップした：合図を待っていた部品も、光らせずにすぐ付ける
+	if _skip_done:
+		_fit_quiet.append_array(_fit_wait.keys())
+		_skip_done = false
+	for part in _fit_quiet:
+		_fit_wait.erase(part)
+		if pv_ok:
+			_pv.reveal_later(part, 0.0)
+	_fit_quiet.clear()
 	if not _fit_wait.is_empty() and not game.story.running_event():
 		for part in _fit_wait.keys():
 			_frame_fit(game.player, part)

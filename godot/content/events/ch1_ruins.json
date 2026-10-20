@@ -44,6 +44,7 @@
   ]
  },
  "ch1.collapse": {
+  "cutscene": true,
   "steps": [
    {
     "freeze": true
@@ -159,6 +160,7 @@
   ]
  },
  "ch1.r07.dead": {
+  "cutscene": true,
   "steps": [
    {
     "freeze": true
@@ -637,6 +639,7 @@
   ]
  },
  "ch1.diagnosis": {
+  "cutscene": true,
   "steps": [
    {
     "freeze": true
@@ -656,6 +659,7 @@
   ]
  },
  "ch1.r19.enter": {
+  "cutscene": true,
   "steps": [
    {
     "if": "ch1.boss_intro",
@@ -685,6 +689,7 @@
   ]
  },
  "ch1.boss_down": {
+  "cutscene": true,
   "steps": [
    {
     "freeze": true
@@ -817,6 +822,7 @@
   ]
  },
  "ch1.cheer": {
+  "cutscene": true,
   "steps": [
    {
     "say": "ch1.cheer"
@@ -833,6 +839,7 @@
   ]
  },
  "ch1.dawn": {
+  "cutscene": true,
   "steps": [
    {
     "clear": "ch1.night"

@@ -22,6 +22,7 @@ static func help_rows() -> Array:
 		["カメラを背後へ", pk.call("camera_reset")],
 		["地図", pk.call("map")],
 		["ポーズ", pk.call("pause")],
+		["場面のスキップ", "黒帯の場面で %s を長押し（すぐ離すとポーズ）" % pk.call("skip")],
 		["メニューの決定・会話を送る", "%s ／ %s" % [PadConfig.keys_text("confirm"), PadConfig.pad_short("confirm")]],
 		["メニューの戻る", "%s ／ %s" % [PadConfig.keys_text("back"), PadConfig.pad_short("back")]],
 		["性能の表示", "F1"],
@@ -37,6 +38,7 @@ const HELP_TOUCH := [
 	["撃つ", "ハルの向いている方へ撃つ（ロック中は対象へ）"],
 	["ロックオン", "「ロック」で入り切り。ロック中に右半分を左右に払うと対象の切り替え"],
 	["ポーズ・カメラを背後へ", "右上の「ポーズ」「背後」"],
+	["場面のスキップ", "黒帯の場面で、右上の「スキップ」を長押し"],
 ]
 ## タイトル画面のスマホ用の短い説明（低い画面でも 360px の高さで 14px 以上の文字で、右上の空に収まるように。全文はポーズの「操作の説明」）
 const HELP_TOUCH_TITLE := [
@@ -540,7 +542,8 @@ func show_controls(back: Callable, focus := 0, note := "") -> void:
 		rows.append({
 			"label": a[1],
 			"right": "%s ／ %s" % [PadConfig.code_text(String(PadConfig.pad.get(id, ""))), PadConfig.keys_text(id, 2)],
-			"detail": "%s\n\nパッド：%s\nキー：%s\n\n決定してから、割り当てたいボタン（またはキー）を押す。\nトリガーが「ボタン」でも「軸」でも、押したものがそのまま割り当たる。\n同じボタンを使っている操作があれば入れ替える。\nやめるときは Esc。" % [a[1] + {"confirm": "（メニューの決定と、会話を送るのに使う）", "back": "（メニューで 1 つ前の画面に戻るのに使う）"}.get(id, ""), PadConfig.code_text(String(PadConfig.pad.get(id, ""))), PadConfig.keys_text(id)],
+			"detail": "%s\n\nパッド：%s\nキー：%s\n\n決定してから、割り当てたいボタン（またはキー）を押す。\nトリガーが「ボタン」でも「軸」でも、押したものがそのまま割り当たる。\n同じボタンを使っている操作があれば入れ替える。\nやめるときは Esc。" % [a[1] + {"confirm": "（メニューの決定と、会話を送るのに使う）", "back": "（メニューで 1 つ前の画面に戻るのに使う）",
+				"skip": "（黒帯の場面で 1 秒押し続けると、場面の残りを飛ばす。ほかの操作と同じボタンにできる。初期はポーズと同じボタンで、すぐ離すとポーズ）"}.get(id, ""), PadConfig.code_text(String(PadConfig.pad.get(id, ""))), PadConfig.keys_text(id)],
 			"cb": func(): _begin_listen(id, idx),
 		})
 	rows.append({"label": "ボタンの表記", "right": "%s%s" % [PadConfig.STYLE_TEXT[PadConfig.style], "：" + PadConfig.style_resolved() if PadConfig.style == "auto" else ""],

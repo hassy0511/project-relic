@@ -4,6 +4,7 @@ extends CanvasLayer
 ## 画面の左半分：触れた所にスティックが出て、動かす方へ移動。右半分：なぞってカメラを回す。
 ## 右下のボタン：ジャンプ・ダッシュ・撃つ・斬る・特殊・回復。ロックオンは押すたびに入り切り
 ## （ロックオン中に右半分を左右に払うと対象の切り替え）。上のボタン：ポーズ・カメラを背後へ。
+## イベントの黒帯の場面（cinema）では、それらとスティックを隠し、右上の「スキップ」（長押し）だけを出す。会話の窓のタップは今までどおり。
 ## 状態は InputSource が毎刻み読み取って InputFrame に混ぜる。
 
 const STICK_RADIUS := 120.0
@@ -29,6 +30,9 @@ const TOP_BUTTONS := [
 	["pause", "ポーズ", Vector2(-0.09, 0.28), 0.07],
 	["camera_reset", "背後", Vector2(-0.255, 0.28), 0.07],
 ]
+## 黒帯の場面（cinema）の間だけ出る、右上の「スキップ」（長押し）。ほかのボタン・スティックはその間隠す。
+## 大きさはほかのボタンと同じ決まり（半径 0.07 以上：見える輪・押せる範囲が実寸 48px 以上）。上の黒帯（Hud.cinema_bar）の下に置く
+const SKIP_BUTTON := ["skip", "スキップ", Vector2(-0.10, 0.19), 0.07]
 ## ボタンの絵（256px）を描く大きさ（半径の何倍か）と、その中で見える輪（金の縁の外まで。ui_parts_touch_button_* の 222/256）
 const TEX_SCALE := 2.25
 const DISC := 222.0 / 256.0
@@ -53,6 +57,24 @@ var stick_hint := true
 var unavailable: Array = []
 ## 会話の窓のタップの行き先を調べる（main が Hud.dialogue_tap_at を渡す）：位置 → 選択肢の番号、-1 送る（窓）、-2 なし
 var tap_probe := Callable()
+## 黒帯の場面（main が毎フレーム GameSim.cinematic() を入れる）：右下・右上のボタンとスティックを隠して押せなくし、
+## 右上の「スキップ」だけを出す。会話の窓のタップ（送る・選ぶ）は今までどおり
+var cinema := false:
+	set(v):
+		if v == cinema:
+			return
+		cinema = v
+		_release_play()
+		_held.erase("skip")
+		if _draw != null:
+			_draw.queue_redraw()
+## 「スキップ」を出すか（長押しでスキップできる間・スキップ中。main が入れる）と、長押しの進み（0〜1。輪で見せる）
+var skip_shown := false
+var skip_progress := 0.0:
+	set(v):
+		if not is_equal_approx(v, skip_progress) and _draw != null:
+			_draw.queue_redraw()
+		skip_progress = v
 
 var _draw: Control
 var _held := {}          # ボタン名 → 押している指の番号
@@ -114,6 +136,17 @@ func _release_all() -> void:
 	move = Vector2.ZERO
 
 
+## 黒帯の場面の出入り：遊びのボタン・スティック・カメラの指を離したことにする（会話のタップはそのまま）
+func _release_play() -> void:
+	for b in _held.keys():
+		if b != "skip":
+			_held.erase(b)
+	_stick_finger = -1
+	_look_finger = -1
+	_look = Vector2.ZERO
+	move = Vector2.ZERO
+
+
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch and not active:
 		activate()
@@ -149,6 +182,21 @@ func _input(event: InputEvent) -> void:
 
 
 func _touch_down(index: int, pos: Vector2) -> void:
+	if cinema:
+		# 黒帯の場面：右上の「スキップ」（押している間）と、会話の窓のタップだけ
+		var vs := _draw.get_viewport_rect().size
+		var sb: Array = skip_layout(vs)
+		if skip_shown and pos.distance_to(sb[2]) <= hit_radius(sb[3], vs.y):
+			_held["skip"] = index
+			_pressed_once["skip"] = true
+			return
+		if tap_probe.is_valid() and _tap_finger < 0:
+			var target: int = tap_probe.call(pos)
+			if target != -2:
+				_tap_finger = index
+				_tap_from = pos
+				_tap_target = target
+		return
 	var b := _button_at(pos)
 	if b != "":
 		if b == "lock_on":
@@ -208,6 +256,15 @@ static func layout_for(list: Array, vs: Vector2, skip: Array = []) -> Array:
 		var anchor := Vector2(vs.x, vs.y if off.y < 0.0 else 0.0)
 		out.append([b[0], b[1], anchor + off * h, b[3] * h])
 	return out
+
+
+## 「スキップ」のボタンの [名前, 表示, 中心, 半径]（画面の大きさ vs：UI の単位）
+static func skip_layout(vs: Vector2) -> Array:
+	return layout_for([SKIP_BUTTON], vs)[0]
+
+
+func skip_center() -> Vector2:
+	return skip_layout(_draw.get_viewport_rect().size)[2]
 
 
 func _button_at(pos: Vector2) -> String:
@@ -329,6 +386,9 @@ func _on_draw() -> void:
 		_tex_at("ui_parts_touch_symbol_behind", Vector2(vs.x * 0.5, vs.y * 0.42), vs.x * 0.22)
 		_draw.draw_string(font, Vector2(0, vs.y * 0.55), "スマホを横向きにしてください", HORIZONTAL_ALIGNMENT_CENTER, vs.x, int(vs.x * 0.06), UiArt.PAPER)
 		return
+	if cinema:
+		_draw_skip(vs)
+		return
 	# 台座の絵の輪の内側をつまみが動く（台座は STICK_RADIUS の約 1.25 倍）
 	var base_d := STICK_RADIUS * 2.5
 	var knob_d := STICK_RADIUS * 1.05
@@ -367,3 +427,37 @@ func _on_draw() -> void:
 		# ロック中の台座には照準の記号が入っているので、記号は重ねない
 		if not (b[0] == "lock_on" and lock_toggled):
 			_tex_at("ui_parts_touch_symbol_" + SYMBOLS.get(b[0], "jump"), b[2], b[3] * 1.05)
+
+
+## 黒帯の場面の「スキップ」：ほかのボタンと同じ丸い台座に、早送りの記号（▶▶）。押している間は長押しの進みを琥珀の輪で見せる。
+## 左に「長押しでスキップ」（360px の高さで 14px 以上の文字）
+func _draw_skip(vs: Vector2) -> void:
+	if not skip_shown:
+		return
+	var b: Array = skip_layout(vs)
+	var c: Vector2 = b[2]
+	var r: float = b[3]
+	var on := button("skip")
+	var d := r * TEX_SCALE
+	if not _tex_at("ui_parts_touch_button_pressed" if on else "ui_parts_touch_button_normal", c, d, Color(1, 1, 1, 0.92)):
+		_draw.draw_circle(c, r, Color(AMBER, 0.55) if on else Color(0.08, 0.06, 0.05, 0.6))
+	# 早送りの記号（三角 2 つ）
+	var s := r * 0.36
+	var ink := UiArt.PAPER if not on else Color(1, 0.95, 0.85)
+	for k in [-1.0, 1.0]:
+		var o := c + Vector2(k * s * 0.55, 0)
+		_draw.draw_colored_polygon(PackedVector2Array([o + Vector2(-s * 0.55, -s * 0.7), o + Vector2(s * 0.55, 0), o + Vector2(-s * 0.55, s * 0.7)]), ink)
+	# 長押しの進み：見える輪の外側に、上から時計回り
+	var ring := disc_diameter(r) * 0.5 + r * 0.06
+	_draw.draw_arc(c, ring, 0, TAU, 48, Color(0, 0, 0, 0.35), r * 0.1, true)
+	if skip_progress > 0.0:
+		_draw.draw_arc(c, ring, -PI * 0.5, -PI * 0.5 + TAU * clampf(skip_progress, 0.0, 1.0), 48, AMBER, r * 0.1, true)
+	# 左の文字（暗い下地の上）
+	var font := ThemeDB.fallback_font
+	var fs := int(ceilf(vs.y * 0.04))
+	var label := "長押しでスキップ"
+	var w := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var right := c.x - hit_radius(r, vs.y) - fs * 0.4
+	var base := c.y + fs * 0.35
+	_draw.draw_rect(Rect2(Vector2(right - w - fs * 0.5, c.y - fs * 0.8), Vector2(w + fs, fs * 1.6)), Color(0.05, 0.045, 0.04, 0.6))
+	_draw.draw_string(font, Vector2(right - w, base), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UiArt.PAPER)

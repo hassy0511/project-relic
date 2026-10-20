@@ -85,9 +85,18 @@ var cam_focus_time := 0.0
 var cam_eye = null
 ## 話しかけた住人の id（調べるボタンで話しかけたとき。_interact）。見た目の側の会話のカメラ（TalkCamera）が、話し相手を画面に収めるのに使う。
 ## 遊びには関わらない（カメラの向き cam.yaw・pitch も変えない）。会話も、そこから始まったイベントも終わる・部屋を移る・その住人が消えると "" に戻す。
-## 台本がカメラを動かす（camera の手順を含む）イベント・会話で話しかけたときは入れない（台本のカメラのまま。Story.event_uses_camera）
+## 台本がカメラを動かす（camera の手順を含む）・黒帯の場面になる（"cutscene"）イベント・会話で話しかけたときは入れない
+## （台本のカメラのまま。Story.event_uses_camera）
 var talk_npc := ""
 var player_locked := false
+## 長押しのスキップ：黒帯の場面（Story.cutscene）でスキップのボタン（InputFrame.skip）を押し続けている秒数。SKIP_HOLD に届くとスキップする。
+## 見た目（Hud・TouchControls）はこれで進みの輪を描く
+var skip_hold := 0.0
+const SKIP_HOLD := 1.0
+## スキップしたあと、ボタンを一度離すまで次の長押しを数えない（押したまま次の場面まで飛ばさない）
+var _skip_release := false
+## この刻みは敵と敵の弾を止める（刻みの始めの cutscene_hold()）
+var _hold_tick := false
 ## 部屋の移動の予約 { room, spawn?, at?, yaw?, autosave }。刻みの最後に実行する
 var _pending_room := {}
 var _load_wait := 0
@@ -137,7 +146,48 @@ func charge_type() -> bool:
 
 
 func emit_event(e: Dictionary) -> void:
+	# スキップの間は効果音・画面の揺れを出さない（見ていれば鳴った音は、終わりの姿には残らない。曲は music_id() が終わりの状態から決める）
+	if story != null and story.skipping and (e.type == "sfx" or e.type == "shake"):
+		return
 	_events.append(e)
+
+
+## 黒帯の場面か（台本がカメラを取った・"cutscene" のイベントの間。Story.cutscene）。見た目は上下の黒帯を出し、遊びの表示を隠す
+func cinematic() -> bool:
+	return story.cutscene
+
+
+## 今、長押しでスキップできるか（Story.skippable）
+func skippable() -> bool:
+	return story.skippable()
+
+
+## 部屋の移動が終わっているか（移る予約も、読み込み待ちも無い）。スキップは部屋を移る手順のあと、これを待って続ける
+func room_settled() -> bool:
+	return _pending_room.is_empty() and _load_wait == 0
+
+
+## 黒帯の場面で操作が止まっている（freeze）間は、敵と敵の弾も止める（動けないハルを撃たない。見ても飛ばしても同じ結果になる）
+func cutscene_hold() -> bool:
+	return player_locked and story.cutscene
+
+
+## 長押しのスキップを数える（刻みの始めに。会話中・読み込み待ちの間も数える）
+func _update_skip(frame: InputFrame) -> void:
+	if not frame.skip:
+		_skip_release = false
+	if story.skipping:
+		# スキップ中（選択肢で止まっている間も）：押していれば輪はいっぱいのまま
+		skip_hold = SKIP_HOLD if frame.skip else 0.0
+		return
+	if frame.skip and not _skip_release and story.skippable():
+		skip_hold += DT
+		if skip_hold >= SKIP_HOLD - 0.0001:
+			skip_hold = 0.0
+			_skip_release = true
+			story.begin_skip()
+	else:
+		skip_hold = 0.0
 
 
 ## 積まれた出来事を取り出して空にする
@@ -510,6 +560,10 @@ func step(frame: InputFrame) -> void:
 	input = frame
 	edges.update(frame)
 	consumed_jump = false
+	# 敵を止めるかは刻みの始めに決める（操作が戻った刻みも止めたまま）。見ていても、会話の途中でスキップしても、
+	# 敵が動き出すのは操作が戻った次の刻みからになる（スキップは会話中の刻みに終わり、その刻みは世界が動かないので）
+	_hold_tick = cutscene_hold()
+	_update_skip(frame)
 
 	# 部屋の読み込み直後は、物理の世界に反映されるまで 2 刻み待つ
 	if _load_wait > 0:
@@ -521,6 +575,8 @@ func step(frame: InputFrame) -> void:
 	if story.blocking():
 		_lock_pressed = false
 		_update_dialogue_input(frame)
+		# スキップが選択肢で止まっていたら、選んだあと（まだ押していれば）続ける
+		story.after_choice(frame.skip)
 		story.update(DT)
 		tick += 1
 		return
@@ -556,8 +612,9 @@ func step(frame: InputFrame) -> void:
 	_update_movers(DT)
 	_update_switches(DT)
 	player.update(DT)
-	for e in enemies:
-		e.update(DT)
+	if not _hold_tick:
+		for e in enemies:
+			e.update(DT)
 	_update_shots(DT)
 	_update_pickups(DT)
 	_update_world_objects()
@@ -1214,6 +1271,9 @@ func _update_shots(dt: float) -> void:
 	var homing_rate: float = tuning.lockOn.homingDegPerSec * U.DEG
 	for s in shots:
 		if not s.alive:
+			continue
+		# 黒帯の場面で操作が止まっている間は、敵の弾も宙で止める（場面が終わると続きを飛ぶ）
+		if _hold_tick and not s.from_player:
 			continue
 		# 追尾：ロックオン対象の狙った点（撃ったときに見えていた中心か頭）へ緩やかに曲げる
 		if s.homing != null and s.homing.alive:

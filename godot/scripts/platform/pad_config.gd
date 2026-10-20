@@ -5,6 +5,8 @@ extends RefCounted
 ## パッドの割り当ては文字列：ボタンは "b0"（番号）、トリガーなどの軸は "a4+"（軸の番号と向き）。
 ## 「決定」「戻る」はメニュー用（Godot の ui_accept / ui_cancel に反映する）。ゲーム中の操作とは別の組として扱い、
 ## 同じボタンを重ねて割り当てられる（A がジャンプと決定、など）。
+## 「スキップ（長押し）」は黒帯の場面（イベント）用の組。初期はポーズと同じボタン（Esc・Start）で、ほかの操作と重ねられる
+## （黒帯の場面では、押してすぐ離すとポーズ、押し続けるとスキップ。InputSource.take_pause）。
 
 const PATH := "user://input.cfg"
 
@@ -13,6 +15,7 @@ const ACTIONS := [
 	["jump", "ジャンプ", "game"], ["dash", "ダッシュ", "game"], ["fire", "撃つ", "game"], ["sword", "斬る", "game"],
 	["special", "特殊武器", "game"], ["lock_on", "ロックオン", "game"], ["heal", "回復", "game"],
 	["camera_reset", "カメラを戻す", "game"], ["pause", "ポーズ", "game"], ["map", "地図", "game"],
+	["skip", "スキップ（長押し）", "event"],
 	["confirm", "決定", "menu"], ["back", "戻る", "menu"],
 ]
 ## 名前 → Godot の InputMap の名前（メニューの決定・戻る）
@@ -71,12 +74,12 @@ static func defaults() -> Dictionary:
 	return {
 		"pad": {
 			"jump": "b0", "dash": "b1", "sword": "b2", "special": "b3", "heal": "b11", "camera_reset": "b8",
-			"pause": "b6", "map": "b4", "fire": "a5+", "lock_on": "a4+", "confirm": "b0", "back": "b1",
+			"pause": "b6", "map": "b4", "fire": "a5+", "lock_on": "a4+", "skip": "b6", "confirm": "b0", "back": "b1",
 		},
 		"keys": {
 			"jump": [KEY_SPACE], "dash": [KEY_SHIFT], "sword": [KEY_E, KEY_K], "special": [KEY_Q], "heal": [KEY_R],
 			"camera_reset": [KEY_C], "lock_on": [KEY_F, KEY_L], "fire": [KEY_J], "pause": [KEY_ESCAPE], "map": [KEY_TAB],
-			"confirm": [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE], "back": [KEY_ESCAPE],
+			"skip": [KEY_ESCAPE], "confirm": [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE], "back": [KEY_ESCAPE],
 		},
 	}
 
@@ -349,7 +352,7 @@ static func preset_ps_raw() -> void:
 	ensure_loaded()
 	pad = {
 		"jump": "b1", "dash": "b2", "sword": "b0", "special": "b3", "heal": "b4", "camera_reset": "b11",
-		"pause": "b9", "map": "b8", "fire": "b7", "lock_on": "b6", "confirm": "b1", "back": "b2",
+		"pause": "b9", "map": "b8", "fire": "b7", "lock_on": "b6", "skip": "b9", "confirm": "b1", "back": "b2",
 	}
 	style = "ps_raw"
 	apply()
