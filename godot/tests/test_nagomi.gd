@@ -35,8 +35,9 @@ func _views(g: GameSim) -> Dictionary:
 
 
 func _free(r: Dictionary) -> void:
-	for k in ["pv", "nv", "fx"]:
-		(r[k] as Node).queue_free()
+	for k in ["pv", "nv", "fx", "rig"]:
+		if r.has(k):
+			(r[k] as Node).queue_free()
 	h.free_game(r.g)
 
 
@@ -55,8 +56,12 @@ func _tick(r: Dictionary, input := {}) -> void:
 		r.nv.handle(e)
 	r.pv.set_frame_parts(g.has_ability("lock_on"), g.has_ability("sword"), g.has_ability("dash"))
 	r.pv.sync(g.player, g, DT, U.yaw_to_dir(g.player.yaw))
-	r.nv.sync(g, _cam(g), DT, r.pv, r.talking)
+	# 会話のカメラ（CameraRig）を使うときは main と同じく、前の刻みのカメラが寄っているかを渡してから、カメラを進める
+	var rig: CameraRig = r.get("rig")
+	r.nv.sync(g, rig.global_position if rig != null else _cam(g), DT, r.pv, rig.talk_weight() > 0.0 if rig != null else r.talking)
 	r.fx.sync(g, DT, r.pv, null, r.nv)
+	if rig != null:
+		rig.sync(g, g.player.pos, DT, 0.0)
 
 
 func _ticks(r: Dictionary, n: int, input = {}) -> void:
@@ -327,7 +332,8 @@ func test_nagomi_out_while_speaking() -> void:
 
 
 func test_nagomi_keeps_dock_through_npc_talk() -> void:
-	# 住人に話しかけた会話（TalkCamera.partner）：背中に付いたまま話しかけると、会話の間（ナゴミの行も）背中のまま
+	# 住人に話しかけた会話（TalkCamera.partner・会話のカメラ）：背中に付いたまま話しかけると、会話の間（ナゴミの行も）背中のまま。
+	# 付いたナゴミは、会話のカメラから話し相手の顔までの線に掛からない
 	var line := func(who: String, text: String) -> Dictionary: return {"who": who, "face": "normal", "text": text}
 	var room := {"name": "t", "playerStart": "start", "geometry": [{"t": "box", "pos": [0, -1, 0], "size": [60, 1, 60]}],
 		"markers": {"start": {"pos": [0, 0, 0], "yaw": 0}},
@@ -339,6 +345,9 @@ func test_nagomi_keeps_dock_through_npc_talk() -> void:
 	await h.settle()
 	g.god_mode = true
 	var r := _views(g)
+	var rig := CameraRig.new()
+	h.tree.root.add_child(rig)
+	r["rig"] = rig
 	await _ticks(r, 10)
 	g.player.teleport(Vector3(0, 0, -6), 0.0)
 	await _dock_by_running(r)
@@ -351,13 +360,23 @@ func test_nagomi_keeps_dock_through_npc_talk() -> void:
 	h.expect(g.talk_npc == "npc_a" and TalkCamera.partner(g) != null, "話しかけた会話（会話のカメラを使う）")
 	var kept := true
 	var heard := false
+	var clear := INF
+	var npc = g.npcs[0]
+	var face: Vector3 = npc.pos + Vector3(0, TalkCamera.face_height(npc.id), 0)
 	for i in 400:
 		if g.story.dialogue.is_empty():
 			break
 		heard = heard or g.story.dialogue.get("who", "") == "ナゴミ"
 		kept = kept and _state(r) == NagomiView.Dock.DOCKED
+		if rig.talk_weight() >= 1.0:
+			var nvp: Vector3 = r.nv.global_position
+			clear = minf(clear, Geometry3D.get_closest_point_to_segment(nvp, rig.global_position, face).distance_to(nvp))
 		await _tick(r, {"jump": i % 30 == 29})
 	h.expect(heard and kept, "会話の間はナゴミの行でも背中のまま")
+	h.expect(clear < INF and clear > NagomiView.RADIUS + 0.05, "会話のカメラから顔までの線は、付いたナゴミに掛からない（いちばん近い %.2f m）" % clear)
+	# 会話が終わってカメラが戻りきるまでは背中のまま、そのあと立っていれば肩の横へ
+	var back_at := await _until(r, 120, {}, func(): return _state(r) == NagomiView.Dock.UNDOCKING)
+	h.expect(back_at > 0 and rig.talk_weight() == 0.0, "会話のカメラが戻ってから肩の横へ出る（%d 刻み）" % back_at)
 	_free(r)
 
 
