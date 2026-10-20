@@ -52,6 +52,7 @@ ART_REF = 'origin/art/w2-kannuki:art/concepts/W2_kannuki'
 OUT = os.path.join(B.MODELS, 'kannuki.glb')
 AXIS_Z = 2.6
 R_SHELL = 1.5
+CORE_AMBER = '#F59A2A'
 V3 = np.array
 
 
@@ -145,8 +146,8 @@ def cyl(p0, p1, r, segs=12):
     return lathe(p0, p1, [(0, r), (1, r)], segs)
 
 
-def helix(p0, p1, r0, r1, turns, width, height, n=14):
-    """円錐（p0 の半径 r0 → p1 の半径 r1）の上を巻く帯（削岩錐の真鍮の螺旋）"""
+def helix(p0, p1, r0, r1, turns, width, height, n=14, phase=0.0):
+    """円錐（p0 の半径 r0 → p1 の半径 r1）の上を巻く帯（削岩錐の真鍮の螺旋）。phase：巻き始めの角（ラジアン）"""
     p0, p1 = V3(p0, float), V3(p1, float)
     L = np.linalg.norm(p1 - p0)
     a, s, u = frame(p1 - p0)
@@ -155,7 +156,7 @@ def helix(p0, p1, r0, r1, turns, width, height, n=14):
     slope = (r1 - r0) / L
     for i in range(m + 1):
         t = i / m
-        ph = 2 * math.pi * turns * t
+        ph = 2 * math.pi * turns * t + phase
         rad = math.cos(ph) * s + math.sin(ph) * u
         c = p0 + a * (t * L)
         r = r0 + (r1 - r0) * t
@@ -206,42 +207,131 @@ def mirrored(part, name, parent, sx, sy, y0):
     return dict(name=name, parent=parent, pivot=T(part['pivot']), axis=unit(ax), pieces=pcs)
 
 
+R_PLATE = 1.42     # 3e：胴の板の外の半径（前は殻 1.5）。結束環 1.75 は同じ = 外形の大きさは同じで、環の間の胴を細く見せる
+R_CORE = 1.30      # 黒鉛の芯
+
+
+def sector_prism(y0, y1, a0, a1, r_out, thick, n, bev=0.05, zc=None):
+    """胴の軸（Y、高さ zc）のまわりの板：角 a0 → a1（度。0 = +X、90 = 上）を n 面の平らな殻にし、y0 → y1 へ押し出す。
+    両端は bev だけ面取り（外の半径を縮める）"""
+    zc = AXIS_Z if zc is None else zc
+    angs = np.radians(np.linspace(a0, a1, n + 1))
+    def ring(y, ro):
+        ri = ro - thick
+        out = [(ro * math.cos(a), y, zc + ro * math.sin(a)) for a in angs]
+        inn = [(ri * math.cos(a), y, zc + ri * math.sin(a)) for a in angs[::-1]]
+        return out + inn
+    rings = [ring(y0, r_out - bev), ring(y0 + bev, r_out), ring(y1 - bev, r_out), ring(y1, r_out - bev)]
+    m = len(rings[0])
+    v = V3([p for r in rings for p in r], float)
+    f = []
+    for i in range(len(rings) - 1):
+        for k in range(m):
+            f.append([i * m + k, i * m + (k + 1) % m, (i + 1) * m + (k + 1) % m, (i + 1) * m + k])
+    f.append(list(range(m))[::-1])
+    f.append([(len(rings) - 1) * m + k for k in range(m)])
+    return v, orient(v, f)
+
+
+def strip(pts, normal_fn, w=0.018, lift=0.006):
+    """面の上の細い線（ひび）：点の列 pts に沿った幅 w の帯を、面の外向き normal_fn(p) へ lift だけ浮かせた片面の板"""
+    pts = [V3(p, float) for p in pts]
+    verts, faces = [], []
+    for i, p in enumerate(pts):
+        t = pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]
+        n = unit(normal_fn(p))
+        sd = unit(np.cross(n, t))
+        q = p + n * lift
+        verts += [q - sd * w * 0.5, q + sd * w * 0.5]
+    for i in range(len(pts) - 1):
+        a, b, c, d = 2 * i, 2 * i + 1, 2 * i + 3, 2 * i + 2
+        f = [a, b, c, d]
+        nrm = np.cross(V3(verts[b]) - V3(verts[a]), V3(verts[d]) - V3(verts[a]))
+        if nrm @ unit(normal_fn(pts[i])) < 0:
+            f = f[::-1]
+        faces.append(f)
+    return V3(verts), faces
+
+
 def build_body():
+    """3e：胴は滑らかな筒をやめ、黒鉛の芯の上に長い白磁の板（上の横・下の横・背の前後）を継ぎ目を空けて貼る（絵の真横の長い板と暗い継ぎ目）。
+    結束環（真鍮）には暗い切り欠き、板の角に真鍮の留め具、横に配管（黒鉛）、板にひび（黒鉛の細い線）"""
     zc = AXIS_Z
     y_rf, y_rr = -2.6, 3.0                     # 結束環の中心
-    # 胴の殻（白磁）
-    # 殻は錠前核の所（y = -0.55 ～ 0.85）で 2 つに分かれ、間は黒鉛の芯が見える（蓋・板を開くと核が見える）
-    ang = [math.radians(a) for a in range(0, 360, 18)]
-    low = [(R_SHELL * math.cos(a), zc + R_SHELL * math.sin(a)) for a in ang]
-    low = [(x, z - zc) for x, z in low]
-    sill = [(x, min(z, 0.9)) for x, z in low]
-    sill = [q for i, q in enumerate(sill) if i == 0 or q != sill[i - 1]]
-    sill = [(x, z + zc) for x, z in sill]
-    sill = [(x, z - 0.0) for x, z in sill]
-    shell = merge(extrude(sill, (0, -0.56, 0), (0, 0.86, 0), up=(0, 0, 1)), lathe((0, -2.35, zc), (0, -0.55, zc), [(0, 1.3), (0.03, 1.47), (0.07, R_SHELL), (0.97, R_SHELL), (1, 1.3)], 20),
-                  lathe((0, 0.85, zc), (0, 2.75, zc), [(0, 1.3), (0.03, R_SHELL), (0.93, R_SHELL), (0.97, 1.47), (1, 1.3)], 20))
-    # 真鍮：結束環 2 本・側帯・レールの走り
+    ya, yb = y_rf + 0.27, y_rr - 0.27          # 環の間
+    ivory, brass, dark = [], [], []
+    for sx in (1, -1):
+        mx = (lambda p: p) if sx > 0 else (lambda p, sx=sx: (p[0] * V3([-1, 1, 1]), orient(p[0] * V3([-1, 1, 1]), p[1])))
+        ivory.append(mx(sector_prism(ya, yb, 9.0, 61.0, R_PLATE, 0.14, 3)))              # 上の横の長い板
+        ivory.append(mx(sector_prism(ya + 0.1, yb - 0.1, -56.0, 4.0, R_PLATE - 0.03, 0.14, 3)))   # 下の横の長い板
+        for y0, y1 in ((ya, -1.45), (1.80, yb)):
+            ivory.append(mx(sector_prism(y0, y1, 65.0, 90.0, R_PLATE, 0.14, 1)))        # 背の板（蓋の前後）
+    # 真鍮：結束環 2 本・側帯（上下の板の継ぎ目）・蓋の走り・留め具
     ring = lambda y: lathe((0, y - 0.25, zc), (0, y + 0.25, zc), [(0, 1.5), (0.06, 1.75), (0.94, 1.75), (1, 1.5)], 24)
-    brass = [ring(y_rf), ring(y_rr)]
+    brass += [ring(y_rf), ring(y_rr)]
     for sx in (-1, 1):
-        brass.append(box((sx * 1.5, 0.2, zc), (0.16, 5.1, 0.28)))
+        brass.append(box((sx * 1.44, 0.2, zc + 0.04), (0.1, yb - ya - 0.2, 0.12)))
         brass.append(box((sx * 0.98, 0.15, zc + 1.14), (0.22, 4.3, 0.1)))          # 蓋の走り
-    # 黒鉛：芯（環・腕の付け根の隙間から見える）・腹板・肩の軸受け
-    dark = [cyl((0, -3.75, zc), (0, 3.95, zc), 1.34, 20),
-            box((0, 0.1, zc - 1.46), (2.2, 4.9, 0.32)),
-            cyl((0, -3.8, zc), (0, -3.6, zc), 1.42, 20), cyl((0, 3.3, zc), (0, 3.5, zc), 1.42, 20)]
+        for y in (ya + 0.25, -1.0, 1.3, yb - 0.25):
+            for a in (16.0, 54.0):
+                ar = math.radians(a)
+                c = V3([sx * R_PLATE * math.cos(ar), y, zc + R_PLATE * math.sin(ar)])
+                nrm = V3([sx * math.cos(ar), 0, math.sin(ar)])
+                brass.append(cyl(c - nrm * 0.02, c + nrm * 0.045, 0.06, 6))
+    # 黒鉛：芯・腹板・肩の軸受け・環の切り欠き・配管・ひび
+    dark += [cyl((0, -3.75, zc), (0, 3.95, zc), R_CORE, 16),
+             box((0, 0.1, zc - 1.42), (2.0, 4.9, 0.3)),
+             cyl((0, -3.8, zc), (0, -3.6, zc), 1.42, 20), cyl((0, 3.3, zc), (0, 3.5, zc), 1.42, 20)]
+    for yr in (y_rf, y_rr):
+        for a in (25.0, 155.0, -25.0, -155.0):
+            ar = math.radians(a)
+            c = V3([1.76 * math.cos(ar), yr, zc + 1.76 * math.sin(ar)])
+            dark.append(extrude([(-0.025, -0.09), (0.025, -0.09), (0.025, 0.09), (-0.025, 0.09)], c - (0, 0.03, 0), c + (0, 0.03, 0),
+                                up=(-math.sin(ar), 0, math.cos(ar))))
     sh = shoulder_points()
-    for s in sh.values():
-        dark.append(cyl((s[0] - 0.6 * np.sign(s[0]), s[1], s[2]), (s[0], s[1], s[2]), 0.5, 12))
-    add('body', None, (0, 0.2, zc), (1, 0, 0), [('ivory', shell), ('brass', merge(*brass)), ('dark', merge(*dark))])
+    for s_ in sh.values():
+        sx = np.sign(s_[0])
+        dark.append(cyl((s_[0] - 0.6 * sx, s_[1], s_[2]), (s_[0], s_[1], s_[2]), 0.5, 12))
+        # 肩から胴へ入る配管 2 本
+        toward = y_rf if s_[1] < 0 else y_rr
+        for dz, dy in ((-0.25, 0.0), (-0.55, 0.15)):
+            p0 = V3([s_[0] - 0.1 * sx, s_[1], s_[2] + dz])
+            p1 = V3([sx * 1.25, toward + (0.3 if s_[1] < 0 else -0.3), zc + 0.35 + dz])
+            dark.append(cyl(p0, p1, 0.065, 6))
+    for sx in (-1, 1):
+        a = math.radians(-60.0)
+        dark.append(cyl((sx * 1.43 * math.cos(a), ya, zc + 1.43 * math.sin(a)), (sx * 1.43 * math.cos(a), yb, zc + 1.43 * math.sin(a)), 0.07, 6))
+        # ひび（板の上の細い線）
+        nrm = lambda p: V3([p[0], 0, p[2] - zc])
+        on = lambda a, y, r=R_PLATE + 0.003: (sx * r * math.cos(math.radians(a)), y, zc + r * math.sin(math.radians(a)))
+        for pts in ([on(52, -1.9), on(44, -1.6), on(47, -1.25), on(38, -0.95)],
+                    [on(20, 1.1), on(28, 1.45), on(24, 1.7), on(33, 2.05)],
+                    [on(-14, -1.4), on(-22, -1.05), on(-17, -0.7)],
+                    [on(-30, 2.1), on(-38, 2.3), on(-33, 2.55)]):
+            dark.append(strip(pts, nrm))
+    add('body', None, (0, 0.2, zc), (1, 0, 0), [('ivory', merge(*ivory)), ('brass', merge(*brass)), ('dark', merge(*dark))])
 
 
 def build_ends():
     zc = AXIS_Z
-    cone = lathe((0, -5.0, zc), (0, -3.7, zc), [(0, 0.3), (0.3, 0.75), (1, 1.42)], 20)
-    tip = lathe((0, -5.08, zc), (0, -4.7, zc), [(0, 0.0), (0.4, 0.22), (1, 0.32)], 12)
-    band = lathe((0, -3.8, zc), (0, -3.68, zc), [(0, 1.44), (1, 1.44)], 20)
-    add('nose', 'body', (0, -4.4, zc), (1, 0, 0), [('ivory', cone), ('brass', merge(tip, band))])
+    # 3e：前の錐は 8 面の角ばった錐（絵の正面の多面の丸屋根）。上下の稜に真鍮の筋
+    cone = lathe((0, -5.0, zc), (0, -3.7, zc), [(0, 0.3), (0.3, 0.78), (0.7, 1.22), (1, 1.42)], 8)
+    tip = lathe((0, -5.08, zc), (0, -4.7, zc), [(0, 0.0), (0.4, 0.22), (1, 0.32)], 8)
+    band = lathe((0, -3.8, zc), (0, -3.68, zc), [(0, 1.44), (1, 1.44)], 16)
+    ridges = []
+    for sz in (1, -1):
+        prof = [(-4.98, 0.33), (-4.61, 0.79), (-4.09, 1.23), (-3.72, 1.43)]
+        pts = [V3([0.0, y, zc + sz * (r * math.cos(math.pi / 8) + 0.012)]) for y, r in prof]
+        rings = []
+        for i, q in enumerate(pts):
+            t = pts[min(i + 1, 3)] - pts[max(i - 1, 0)]
+            up = unit(np.cross(t, (1, 0, 0))) * (-sz)
+            rings.append([q - (0.11, 0, 0), q + (0.11, 0, 0), q + (0.07, 0, 0) + up * 0.05, q - (0.07, 0, 0) + up * 0.05])
+        v = V3([x for r in rings for x in r])
+        f = [[4 * i + k, 4 * i + (k + 1) % 4, 4 * (i + 1) + (k + 1) % 4, 4 * (i + 1) + k] for i in range(3) for k in range(4)]
+        f += [[3, 2, 1, 0], [12, 13, 14, 15]]
+        ridges.append((v, orient(v, f)))
+    add('nose', 'body', (0, -4.4, zc), (1, 0, 0), [('ivory', cone), ('brass', merge(tip, band, *ridges))])
     o, i = 0.9, 0.52
     slabs = [box((0, 4.47, zc + (o + i) / 2), (2 * o, 1.05, o - i)), box((0, 4.47, zc - (o + i) / 2), (2 * o, 1.05, o - i)),
              box(((o + i) / 2, 4.47, zc), (o - i, 1.05, 2 * i)), box((-(o + i) / 2, 4.47, zc), (o - i, 1.05, 2 * i))]
@@ -254,8 +344,9 @@ def build_core():
     zc = AXIS_Z
     yc = 0.15
     # 錠前核：六角の回転子（琥珀）と両脇のローラー
-    hexr = lathe((0, yc, zc + 1.25), (0, yc, zc + 1.62), [(0, 0.5), (1, 0.5)], 6, up=(1, 0, 0))
-    rollers = [cyl((-0.45, yc + d, zc + 1.5), (0.45, yc + d, zc + 1.5), 0.15, 10) for d in (-0.39, 0.39)]
+    # 3e：六角の宝石（上の面が面取りで尖る）と、両脇の歯のついたローラー（歯は胴の黒鉛の輪）
+    hexr = lathe((0, yc, zc + 1.22), (0, yc, zc + 1.70), [(0, 0.42), (0.45, 0.52), (0.72, 0.5), (1, 0.3)], 6, up=(1, 0, 0))
+    rollers = [cyl((-0.45, yc + d, zc + 1.5), (0.45, yc + d, zc + 1.5), 0.15, 12) for d in (-0.39, 0.39)]
     add('core', 'body', (0, yc, zc + 1.3), (1, 0, 0), [('core', merge(hexr, *rollers))])
     # 蓋（滑る）
     def lid(y0, y1):
@@ -341,23 +432,34 @@ def build_arm_fl():
     turret = cyl(S - (0, 0, 0.55), S + (0, 0, 0.55), 0.36, 12)
     ringz = cyl(S + (0, 0, 0.5), S + (0, 0, 0.62), 0.5, 14)
     add('arm_fl_yaw', 'body', S, (0, 0, 1), [('dark', turret), ('brass', ringz)])
-    # 上腕（肩の横軸）
-    upper = extrude(cham_rect(0.36, 0.26, 0.11), S + u * 0.3, E - u * 0.25, up=np.cross(ea, u))
-    hub = cyl(S - pa * 0.42, S + pa * 0.42, 0.42, 14)
-    ehub = cyl(E - ea * 0.45, E + ea * 0.45, 0.3, 12)
-    rod = cyl(S + u * 0.35 - np.cross(ea, u) * 0.24 + ea * 0.28, E - u * 0.3 - np.cross(ea, u) * 0.24 + ea * 0.28, 0.06, 8)
-    add('arm_fl_pitch', 'arm_fl_yaw', S, pa, [('ivory', upper), ('brass', merge(hub, ehub)), ('dark', rod)])
-    # 前腕（肘）
-    fore = extrude(cham_rect(0.33, 0.24, 0.1), E + f * 0.25, D0 - f * 0.3, up=np.cross(ea, f))
-    collar = lathe(D0 - f * 0.42, D0 + f * 0.02, [(0, 0.44), (1, 0.5)], 16)
-    ebolt = cyl(E - ea * 0.5, E + ea * 0.5, 0.2, 10)
-    band = lathe(D0 - f * 0.03, D0 + f * 0.08, [(0, 0.52), (1, 0.52)], 16)
+    # 上腕（肩の横軸）。3e：角ばった板 2 枚（上腕の板に肩当てを重ねる）、油圧の棒、真鍮の軸の蓋
+    import banki_parts as BP
+    up_u = np.cross(ea, u)
+    upper = BP.prism(S + u * 0.3, E - u * 0.25, [(0, 0.30, 0.27, 0.22), (0.3, 0.37, 0.33, 0.25), (1, 0.33, 0.29, 0.23)], fwd=up_u)
+    guard = BP.prism(S + u * 0.12, S + u * 0.62, [(0, 0.36, 0.33, 0.2), (0.6, 0.43, 0.40, 0.27), (1, 0.40, 0.37, 0.25)], fwd=up_u)
+    hub = cyl(S - pa * 0.42, S + pa * 0.42, 0.42, 12)
+    ehub = cyl(E - ea * 0.45, E + ea * 0.45, 0.3, 10)
+    caps = merge(cyl(S + pa * 0.42, S + pa * 0.47, 0.22, 6), cyl(S - pa * 0.47, S - pa * 0.42, 0.22, 6))
+    rod = cyl(S + u * 0.35 - up_u * 0.24 + ea * 0.28, E - u * 0.3 - up_u * 0.24 + ea * 0.28, 0.06, 6)
+    sleeve = cyl(S + u * 0.35 - up_u * 0.24 + ea * 0.28, S + u * 0.75 - up_u * 0.24 + ea * 0.28, 0.1, 6)
+    add('arm_fl_pitch', 'arm_fl_yaw', S, pa, [('ivory', merge(upper, guard)), ('brass', merge(hub, ehub, caps)), ('dark', merge(rod, sleeve))])
+    # 前腕（肘）。角ばった板と白磁の襟、真鍮の帯
+    up_f = np.cross(ea, f)
+    fore = BP.prism(E + f * 0.22, D0 - f * 0.34, [(0, 0.29, 0.26, 0.22), (0.35, 0.35, 0.31, 0.25), (1, 0.32, 0.29, 0.23)], fwd=up_f)
+    collar = lathe(D0 - f * 0.42, D0 + f * 0.02, [(0, 0.44), (1, 0.5)], 12)
+    ebolt = cyl(E - ea * 0.5, E + ea * 0.5, 0.2, 8)
+    band = lathe(D0 - f * 0.03, D0 + f * 0.08, [(0, 0.52), (1, 0.52)], 12)
     add('arm_fl_elbow', 'arm_fl_pitch', E, ea, [('ivory', merge(fore, collar)), ('dark', ebolt), ('brass', band)])
-    # 削岩錐（自転）
-    cone = lathe(D0 + f * 0.08, T, [(0, 0.47), (1, 0.0)], 16)
-    hx = helix(D0 + f * 0.1, T - f * 0.12, 0.47 * 0.96, 0.02, 2.5, 0.16, 0.06)
-    tipc = lathe(T - f * 0.26, T + f * 0.02, [(0, 0.09), (1, 0.0)], 10)
-    add('arm_fl_drill', 'arm_fl_elbow', D0, f, [('dark', cone), ('brass', merge(hx, tipc))])
+    # 削岩錐（自転）。3e：鋼の円すいに螺旋の溝（黒鉛の稜）と真鍮の螺旋・真鍮の帯 3 本・真鍮の先
+    L = np.linalg.norm(T - D0)
+    cone = lathe(D0 + f * 0.08, T, [(0, 0.47), (1, 0.0)], 12)
+    r_at = lambda d: 0.47 * (1 - (d - 0.08) / (L - 0.08))
+    flute = helix(D0 + f * 0.1, T - f * 0.2, r_at(0.1) * 0.97, r_at(L - 0.2), 2.25, 0.12, 0.05, n=12, phase=math.pi)
+    hx = helix(D0 + f * 0.1, T - f * 0.12, 0.47 * 0.96, 0.02, 2.25, 0.15, 0.06, n=12)
+    bands = [lathe(D0 + f * (d - 0.03), D0 + f * (d + 0.035), [(0, r_at(d) + 0.035), (1, r_at(d + 0.035) + 0.035)], 12)
+             for d in (0.24, 0.62, 1.0)]
+    tipc = lathe(T - f * 0.26, T + f * 0.02, [(0, 0.09), (1, 0.0)], 8)
+    add('arm_fl_drill', 'arm_fl_elbow', D0, f, [('dark', merge(cone, flute)), ('brass', merge(hx, tipc, *bands))])
 
 
 def build_arms():
@@ -386,6 +488,11 @@ def build() -> dict:
     ivory = mats['shell_flat'].copy()      # 白磁（spec #F3E9D2 × 0.95）。番機の清書の色より少しだけ明るい
     ivory.name = 'banki_ivory'
     ivory.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (*B.srgb_to_linear('#E9DFC9'), 1)
+    # 3e：琥珀を濃く（絵の核は深い橙。前の #FFBC52・発光 1.5 は淡く見えた）。ゲームでは enemy_view.gd が色を決める
+    cb = mats['core'].node_tree.nodes['Principled BSDF']
+    cb.inputs['Base Color'].default_value = (*B.srgb_to_linear(CORE_AMBER), 1)
+    cb.inputs['Emission Color'].default_value = (*B.srgb_to_linear(CORE_AMBER), 1)
+    cb.inputs['Emission Strength'].default_value = 1.0
     matmap = {'ivory': ivory, 'dark': mats['dark'], 'brass': mats['brass'], 'core': mats['core']}
     objs = {}
     meshes = []
