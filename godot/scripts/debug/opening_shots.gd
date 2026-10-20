@@ -66,8 +66,8 @@ static func _timeline(d, prefix: String, times: Array, start: Callable) -> Array
 				RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME),
 				g.room_id, g.cinematic(), m.hud.caption_text(), g.story.dialogue.get("id", "")])})
 		at += 1
-	# 場面の終わりまで送る
-	s.append({"ticks": 900, "input_fn": func(_i): return _auto_confirm(m)})
+	# 少し送ってから次へ（次の場面は始めに台本を止めて作り直す。撮影は描くたびに遅いので長く待たない）
+	s.append({"ticks": 60, "input_fn": func(_i): return _auto_confirm(m)})
 	return s
 
 

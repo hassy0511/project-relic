@@ -15,7 +15,7 @@ extends Node
 ## スキップ（skipped）・部屋の移動（roomChanged）・{"shot": {}} で、道筋・舞台・霞などを元へ戻す。
 
 ## 砂ぼこりの色（雰囲気ごと。照らされない粒なので、光の当たった砂の色をそのまま。画面の色＝sRGB で書き、粒には線形にして渡す）
-const DUST := {"dawn": Color("#b8846c"), "night": Color("#5a668c"), "day": Color("#cba27e")}
+const DUST := {"dawn": Color("#cf9f86"), "night": Color("#56628a"), "day": Color("#cba27e")}
 ## 町の灯の明るさと、遠くの灯の最小の大きさ（画素）（雰囲気ごと。夜明けは空が明るいので強く、夜は大きめ）
 const LIGHT_POWER := {"dawn": 1.0, "night": 0.9, "day": 0.5}
 const LIGHT_PX := {"dawn": 5.5, "night": 7.0, "day": 4.0}
@@ -327,12 +327,12 @@ func _ready_ordo(o: OrdoView) -> void:
 		return
 	_drive(o)
 	o.set_ground(true)
-	var tl := o.add_town_lights()
-	tl.power = LIGHT_POWER.get(_mood(), 1.0)
-	tl.px = LIGHT_PX.get(_mood(), 5.5)
-	tl.flicker = 0.0
-	tl.out = 0.0
-	tl.apply()
+	if o.town_lights == null:
+		# 初めて出すときだけ明るさを決める（次の道筋で、消えかけた灯を点け直さない）
+		var tl := o.add_town_lights()
+		tl.power = LIGHT_POWER.get(_mood(), 1.0)
+		tl.px = LIGHT_PX.get(_mood(), 5.5)
+		tl.apply()
 	if not o.foot_planted.is_connected(_on_planted):
 		o.foot_planted.connect(_on_planted)
 
@@ -430,9 +430,14 @@ func _dust(at: Vector3, heavy: bool, cam_d := 300.0) -> void:
 		return
 	var vfx: Vfx = main.fx.vfx
 	var col: Color = (DUST.get(_mood(), DUST.day) as Color).srgb_to_linear()
+	if cam_d > 400.0:
+		# 遠くの砂ぼこりは日の当たった明るい色に（霞と地面の色に溶けない）
+		col = col.lerp(Color(1.0, 0.86, 0.72), 0.45)
 	var near := cam_d < 160.0
+	# 遠くの足（400 m より遠い）：数画素の粒になるので、大きく濃くして高く上げる（地面と霞の色に溶けないように）
+	var far := cam_d > 400.0
 	var n := (14 if heavy else 11) if near else (18 if heavy else 14)
-	var big := 1.3 if heavy else 1.0
+	var big := (1.3 if heavy else 1.0) * (1.7 if far else 1.0)
 	var cap := maxf(cam_d * 0.6, 24.0)
 	for i in n:
 		var a := TAU * float(i) / n + _rng.randf_range(-0.18, 0.18)
@@ -440,8 +445,14 @@ func _dust(at: Vector3, heavy: bool, cam_d := 300.0) -> void:
 		# 足の裏の縁（半分の広さ 17 × 26 m）の少し外から、地面に沿って広がり、ゆっくり上がる
 		var p := at + Vector3(dir.x * 18.0, _rng.randf_range(2.0, 5.0), dir.z * 27.0)
 		var speed := _rng.randf_range(7.0, 13.0) * big
-		var q := vfx.emit(Vfx.DUST, p, dir * speed + Vector3(0, _rng.randf_range(1.0, 2.6), 0), _rng.randf_range(6.0, 9.0) * big,
-			minf(_rng.randf_range(14.0, 19.0) * big, cap * 0.4), minf(_rng.randf_range(46.0, 62.0) * big, cap), Color(col, _rng.randf_range(0.42, 0.58)))
+		# 3 粒のうち 2 粒はやわらかい丸い塊（SOFT：もくもくした雲）、1 粒は粒の見える砂（DUST：砂粒の細かさ）
+		var soft := i % 3 != 2
+		var s1 := minf(_rng.randf_range(46.0, 62.0) * big, cap)
+		# 遠くの足（地平線の近く）は高く上げる：地面の色に溶けず、空と霞を背に見える
+		var up := _rng.randf_range(4.0, 7.0) if far else _rng.randf_range(1.0, 2.6)
+		var q := vfx.emit(Vfx.SOFT if soft else Vfx.DUST, p, dir * speed + Vector3(0, up, 0),
+			_rng.randf_range(6.0, 9.0) * big, minf(_rng.randf_range(18.0, 24.0) * big, s1 * 0.45), s1,
+			Color(col, (_rng.randf_range(0.34, 0.46) if soft else _rng.randf_range(0.42, 0.58)) * (1.4 if far else 1.0)))
 		q.rot = _rng.randf() * TAU
 		q.spin = _rng.randf_range(-0.1, 0.1)
 		q.drag = 0.45

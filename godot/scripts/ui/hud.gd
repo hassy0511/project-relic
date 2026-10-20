@@ -640,7 +640,7 @@ func _sync_caption(vs: Vector2, dt: float) -> void:
 	var a := clampf(minf(_caption_len, _caption_time) / CAPTION_FADE, 0.0, 1.0)
 	_caption.visible = _caption_time > 0.0
 	_caption.modulate.a = a * a * (3.0 - 2.0 * a)
-	var fs := 44 if compact else 36
+	var fs := 40 if compact else 36
 	_caption.add_theme_font_size_override("font_size", fs)
 	var w := minf(1500.0, vs.x - 2.0 * (EDGE + 40.0))
 	_caption.custom_minimum_size = Vector2(w, 0)
