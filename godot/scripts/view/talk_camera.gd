@@ -58,7 +58,8 @@ static var trace = null
 ## 今、会話のカメラで映す話し相手（Props.Npc）。使わないときは null
 static func partner(game: GameSim):
 	var d: Dictionary = game.story.dialogue
-	if d.is_empty() or game.talk_npc == "" or game.cam_focus != null or game.cam_eye != null:
+	# 黒帯の場面（台本がカメラを取った・"cutscene" のイベント）では使わない
+	if d.is_empty() or game.talk_npc == "" or game.cam_focus != null or game.cam_eye != null or game.cinematic():
 		return null
 	for n in game.npcs:
 		if n.id == game.talk_npc:

@@ -380,7 +380,8 @@ func _physics_process(dt: float) -> void:
 		return
 	if demo != null and (demo.holding() or not demo._started):
 		return
-	if input.take_one_shot("pause") and demo == null:
+	# ポーズ：黒帯の場面でスキップと同じボタン（初期は Esc・Start）なら、すぐ離したときに開く（押し続けるとスキップ。InputSource.take_pause）
+	if demo == null and input.take_pause(game.skippable(), dt):
 		pause()
 		return
 	hud.device = input.last_device
@@ -422,6 +423,10 @@ func _process(dt: float) -> void:
 	if game != null:
 		var dlg: Dictionary = game.story.dialogue
 		touch.stick_hint = dlg.is_empty()
+		# 黒帯の場面：画面の操作は右上の「スキップ」だけ（会話の窓のタップは今までどおり）
+		touch.cinema = hud.cinema_enabled and game.cinematic()
+		touch.skip_shown = game.skippable() or game.story.skipping
+		touch.skip_progress = game.skip_hold / GameSim.SKIP_HOLD
 	var unavail: Array = []
 	if game != null:
 		for a in ["dash", "sword", "lock_on"]:
@@ -502,6 +507,9 @@ func _handle_events() -> void:
 					snap_views()
 					hud.fade_in(0.6)
 			"snap":
+				snap_views()
+			"skipped":
+				# イベントをスキップした：カメラは寄せを待たずに、すぐふだんの所へ（Fx は合図を終わりの姿にする）
 				snap_views()
 			"hint":
 				hud.set_hint(e.text)

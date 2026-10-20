@@ -26,6 +26,8 @@ var choice := -1
 var switch_left := false
 var switch_right := false
 var camera_reset := false
+## イベントのスキップのボタンを押している（黒帯の場面で SKIP_HOLD 秒押し続けるとスキップ。GameSim._update_skip）
+var skip := false
 
 
 ## 辞書から作る（テストで使う）。例：InputFrame.of({"move_y": 1, "jump": true})

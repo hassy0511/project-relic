@@ -124,6 +124,33 @@ func take_one_shot(a: String) -> bool:
 	return false
 
 
+## スキップのボタン（キー・パッド。割り当ては PadConfig の skip）を押しているか
+func skip_down() -> bool:
+	return InputMap.has_action("skip") and Input.is_action_pressed("skip")
+
+
+## ポーズを開くか（main が毎刻み呼ぶ）。ふだんは押した瞬間に開く。
+## スキップと同じボタン（初期はどちらも Esc・Start）を、長押しでスキップできる場面（skippable）で押したときは、すぐには開かず、
+## PAUSE_TAP 秒より短く押して離したら開く。押し続けたら開かない（スキップの長押し。GameSim.skip_hold が数える）
+const PAUSE_TAP := 0.35
+var _pause_wait := -1.0
+
+func take_pause(skippable: bool, dt: float) -> bool:
+	if _pause_wait >= 0.0:
+		if skip_down():
+			_pause_wait += dt
+			return false
+		var t := _pause_wait
+		_pause_wait = -1.0
+		return t < PAUSE_TAP
+	if not take_one_shot("pause"):
+		return false
+	if skippable and skip_down():
+		_pause_wait = 0.0
+		return false
+	return true
+
+
 ## この刻みの入力を作る
 func sample(dt: float) -> InputFrame:
 	var f := InputFrame.new()
@@ -155,6 +182,8 @@ func sample(dt: float) -> InputFrame:
 		f.set(b, Input.is_action_pressed(b) or _latched.has(b))
 	# 決定（メニュー・会話）：割り当ては設定画面の「決定」（ui_accept）
 	f.confirm = Input.is_action_pressed("ui_accept") or _latched.has("confirm")
+	# イベントのスキップ（長押し）：割り当ては設定画面の「スキップ（長押し）」
+	f.skip = skip_down()
 	_latched.clear()
 
 	# 対象を捉えていてロックオンのボタンを押している間：マウスを大きく横に振る・右スティックを弾くと、対象の切り替え
@@ -220,6 +249,10 @@ func _merge_touch(f: InputFrame) -> void:
 		if touch.button(b):
 			f.set(b, true)
 			last_device = "touch"
+	# 黒帯の場面の右上の「スキップ」のボタン
+	if touch.button("skip"):
+		f.skip = true
+		last_device = "touch"
 	var sw := touch.take_switch()
 	if sw != 0:
 		f.switch_left = sw < 0

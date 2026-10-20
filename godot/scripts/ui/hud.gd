@@ -120,6 +120,28 @@ static var _face_cache := {}
 var _fade: ColorRect
 var _fade_time := 0.0
 var _time := 0.0
+## 黒帯の場面（GameSim.cinematic()）：遊びの表示の入れ物、上下の黒帯、長押しでスキップの案内（キーボード・パッド）
+var _play: Control
+var _bars: Array[ColorRect] = []
+var _skip_box: PanelContainer
+var _skip_ring: ChargeRing
+var _skip_key: Label
+var _skip_label: Label
+## 黒帯を出した割合（0〜1。CINE_EASE 秒で出し入れする）
+var _cine := 0.0
+## 偽にすると黒帯の場面でも今までどおり（黒帯なし・遊びの表示あり・スキップの案内なし）。見本の「前」の画面の撮影用
+var cinema_enabled := true:
+	set(v):
+		cinema_enabled = v
+		if not v:
+			_cine = 0.0
+## 黒帯を出し入れする秒数
+const CINE_EASE := 0.3
+## 黒帯の太さ（画面の高さに対する割合）。スマホの配置では細く、会話の窓の下のすき間（窓は下から 40）に収める
+const CINE_BAR := 0.085
+const CINE_BAR_TOUCH := 0.05
+## スマホの配置で、下の帯と会話の窓の間に空ける幅（UI の単位）
+const CINE_BAR_GAP := 6.0
 
 
 ## 顔のアイコン用の絵（無ければ null）。who：話し手、face：表情の名前
@@ -241,6 +263,13 @@ func _ready() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
 	var root := _root
+	# 遊びの表示（HP・ゲージ・セル・目的・調べるの案内・照準・チャージ・操作の案内・ボスの体力・戦闘中のひと言）。
+	# 黒帯の場面ではまとめて隠す（知らせ・会話の窓・記憶の枠は残す）
+	_play = Control.new()
+	_play.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_play.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(_play)
+	var play := _play
 
 	# --- 左上：HP、特殊武器とエネルギー、補修パック、主武器 ---
 	var vitals := VBoxContainer.new()
@@ -248,7 +277,7 @@ func _ready() -> void:
 	vitals.position = Vector2(EDGE, EDGE - 6)
 	vitals.add_theme_constant_override("separation", 4)
 	vitals.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(vitals)
+	play.add_child(vitals)
 	var hp_row := HBoxContainer.new()
 	hp_row.add_theme_constant_override("separation", 8)
 	vitals.add_child(hp_row)
@@ -302,7 +331,7 @@ func _ready() -> void:
 	_cells_box = PanelContainer.new()
 	_cells_box.add_theme_stylebox_override("panel", UiArt.box("name", Vector4(14, 2, 22, 2)))
 	_pin(_cells_box, 1, 0, -EDGE, EDGE - 4)
-	root.add_child(_cells_box)
+	play.add_child(_cells_box)
 	var cells_row := HBoxContainer.new()
 	cells_row.add_theme_constant_override("separation", 8)
 	_cells_box.add_child(cells_row)
@@ -315,7 +344,7 @@ func _ready() -> void:
 	_objective_box = PanelContainer.new()
 	_objective_box.add_theme_stylebox_override("panel", UiArt.strip(0.62, Vector4(14, 8, 22, 8)))
 	_pin(_objective_box, 1, 0, -EDGE, EDGE + 62)
-	root.add_child(_objective_box)
+	play.add_child(_objective_box)
 	var obj_row := HBoxContainer.new()
 	obj_row.add_theme_constant_override("separation", 10)
 	_objective_box.add_child(obj_row)
@@ -331,7 +360,7 @@ func _ready() -> void:
 	_prompt_box = PanelContainer.new()
 	_prompt_box.add_theme_stylebox_override("panel", UiArt.strip(0.66, Vector4(10, 6, 24, 6), true))
 	_pin(_prompt_box, 0.5, 1, 0, -300)
-	root.add_child(_prompt_box)
+	play.add_child(_prompt_box)
 	var pr := HBoxContainer.new()
 	pr.add_theme_constant_override("separation", 12)
 	_prompt_box.add_child(pr)
@@ -350,33 +379,25 @@ func _ready() -> void:
 	pr.add_child(_prompt)
 
 	_reticle = Reticle.new()
-	root.add_child(_reticle)
+	play.add_child(_reticle)
 	_charge = ChargeRing.new()
 	_charge.size = Vector2(84, 84)
 	_charge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(_charge)
+	play.add_child(_charge)
 
-	# --- 上の中央：拾った物などの知らせ、その下に操作の案内 ---
-	_toast_box = PanelContainer.new()
-	_toast_box.add_theme_stylebox_override("panel", UiArt.strip(0.66, Vector4(28, 8, 28, 8)))
-	_pin(_toast_box, 0.5, 0, 0, EDGE)
-	root.add_child(_toast_box)
-	_toast = make_label("", 28, PAPER, true)
-	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_toast_box.add_child(_toast)
-
+	# --- 上の中央の操作の案内（その上に拾った物などの知らせ。知らせは黒帯の場面でも出す） ---
 	_hint = make_label("", 26, Color("#ffe7b8"), true)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint.add_theme_stylebox_override("normal", UiArt.strip(0.66, Vector4(24, 10, 24, 10), true))
 	_pin(_hint, 0.5, 0, 0, 200)
-	root.add_child(_hint)
+	play.add_child(_hint)
 
 	# --- ボスの体力（画面の下。名前は枠の中の左、段階の区切り 2 本） ---
 	_boss_box = Control.new()
 	_boss_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_boss_box.visible = false
-	root.add_child(_boss_box)
+	play.add_child(_boss_box)
 	var boss_made := _gauge("boss", "ui_parts_gauge_boss_fill", 1536, 0.62)
 	_boss = boss_made[1]
 	_boss.marks = [0.33, 0.66]
@@ -392,7 +413,7 @@ func _ready() -> void:
 	_sub.add_theme_stylebox_override("panel", UiArt.strip(0.62, Vector4(8, 6, 28, 6)))
 	_sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_sub.visible = false
-	root.add_child(_sub)
+	play.add_child(_sub)
 	var sub_row := HBoxContainer.new()
 	sub_row.add_theme_constant_override("separation", 16)
 	_sub.add_child(sub_row)
@@ -411,6 +432,24 @@ func _ready() -> void:
 	_sub_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_sub_text.custom_minimum_size = Vector2(620, 0)
 	sub_body.add_child(_sub_text)
+
+	# --- 黒帯（イベントの場面）：上下から出す黒い帯。遊びの表示より上、知らせ・会話の窓・記憶の枠より下 ---
+	for i in 2:
+		var bar := ColorRect.new()
+		bar.color = Color.BLACK
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bar.visible = false
+		root.add_child(bar)
+		_bars.append(bar)
+
+	# --- 上の中央：拾った物などの知らせ（黒帯の場面では上の帯の上に出る） ---
+	_toast_box = PanelContainer.new()
+	_toast_box.add_theme_stylebox_override("panel", UiArt.strip(0.66, Vector4(28, 8, 28, 8)))
+	_pin(_toast_box, 0.5, 0, 0, EDGE)
+	root.add_child(_toast_box)
+	_toast = make_label("", 28, PAPER, true)
+	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast_box.add_child(_toast)
 
 	_dmg = ColorRect.new()
 	_dmg.color = Color(0.8, 0.1, 0.05, 0.0)
@@ -497,6 +536,37 @@ func _ready() -> void:
 	_dlg_choices.custom_minimum_size = Vector2(620, 0)
 	row.add_child(_dlg_choices)
 
+	# --- 長押しでスキップ（キーボード・パッド。右上、上の黒帯の中）：進みの輪・ボタンの札・文字。スマホは TouchControls の右上のボタン ---
+	_skip_box = PanelContainer.new()
+	_skip_box.add_theme_stylebox_override("panel", UiArt.strip(0.5, Vector4(12, 4, 20, 4)))
+	_skip_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_skip_box.visible = false
+	_pin(_skip_box, 1, 0, -EDGE, EDGE)
+	root.add_child(_skip_box)
+	var sk := HBoxContainer.new()
+	sk.add_theme_constant_override("separation", 12)
+	_skip_box.add_child(sk)
+	_skip_ring = ChargeRing.new()
+	_skip_ring.custom_minimum_size = Vector2(40, 40)
+	_skip_ring.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_skip_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sk.add_child(_skip_ring)
+	var skb := PanelContainer.new()
+	var skbs := StyleBoxFlat.new()
+	skbs.bg_color = PAPER
+	skbs.set_corner_radius_all(16)
+	skbs.content_margin_left = 10
+	skbs.content_margin_right = 10
+	skb.add_theme_stylebox_override("panel", skbs)
+	skb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	sk.add_child(skb)
+	_skip_key = make_label("", 22, Color("#2a2622"), true)
+	_skip_key.remove_theme_constant_override("outline_size")
+	skb.add_child(_skip_key)
+	_skip_label = make_label("長押しでスキップ", 24, PAPER, true)
+	_skip_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	sk.add_child(_skip_label)
+
 	_fade = ColorRect.new()
 	_fade.color = Color(0, 0, 0, 0)
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -568,6 +638,56 @@ func damage_alpha() -> float:
 	return _dmg_time * 0.6 * flash_scale
 
 
+## 黒帯の太さ（UI の単位。帯を出しきったとき）。スマホの配置では、下の帯が会話の窓に掛からない太さまで
+func cinema_bar(vs: Vector2) -> float:
+	if compact:
+		return minf(vs.y * CINE_BAR_TOUCH, -_dlg.offset_bottom - CINE_BAR_GAP)
+	return vs.y * CINE_BAR
+
+
+## 黒帯を出した割合（0〜1。なめらかにする前）
+func cinema_amount() -> float:
+	return _cine
+
+
+## 長押しでスキップの案内のボタン名：パッドなら割り当てたボタン、キーボードなら割り当てたキー（Escape は Esc と書く）
+static func skip_key_text(dev: String) -> String:
+	if dev == "pad":
+		return PadConfig.pad_short("skip")
+	var k := PadConfig.keys_text("skip").get_slice(" / ", 0)
+	return "Esc" if k == "Escape" else k
+
+
+## 黒帯の場面：帯を出し入れし、遊びの表示を隠す。長押しでスキップの案内（スマホでは TouchControls の右上のボタン）
+func _sync_cinema(game: GameSim, vs: Vector2, dt: float) -> void:
+	var on := cinema_enabled and game.cinematic()
+	_cine = move_toward(_cine, 1.0 if on else 0.0, dt / CINE_EASE)
+	var k := smoothstep(0.0, 1.0, _cine)
+	var bh := cinema_bar(vs) * k
+	_bars[0].visible = bh > 0.01
+	_bars[1].visible = bh > 0.01
+	_bars[0].position = Vector2.ZERO
+	_bars[0].size = Vector2(vs.x, bh)
+	_bars[1].position = Vector2(0, vs.y - bh)
+	_bars[1].size = Vector2(vs.x, bh)
+	_play.modulate.a = 1.0 - k
+	_play.visible = k < 0.999
+	# 長押しでスキップ：スキップできる間・スキップ中（選択肢で止まっている間も）
+	var show_skip: bool = cinema_enabled and not compact and k > 0.01 and (game.skippable() or game.story.skipping)
+	_skip_box.visible = show_skip
+	if show_skip:
+		_skip_key.text = skip_key_text(device)
+		var hold := clampf(game.skip_hold / GameSim.SKIP_HOLD, 0.0, 1.0)
+		_skip_ring.stage = 2 if game.story.skipping else 0
+		_skip_ring.progress = hold
+		_skip_ring.queue_redraw()
+		_skip_box.modulate.a = k * (1.0 if hold > 0.0 or game.story.skipping else 0.85)
+		# 上の帯の中に、上下の真ん中をそろえて置く
+		var h := _skip_box.get_combined_minimum_size().y
+		_skip_box.offset_top = maxf(4.0, (cinema_bar(vs) - h) * 0.5)
+		_fit(_skip_box)
+
+
 ## 弱点が今あいているか（解析済みの敵の、狙い時）
 static func weak_open(t) -> bool:
 	match String(t.kind):
@@ -584,6 +704,9 @@ func sync(game: GameSim, camera: Camera3D, dt: float) -> void:
 	_time += dt
 	var vs := _root.size
 	var p := game.player
+	if compact != _compact_now:
+		_set_compact(compact)
+	_sync_cinema(game, vs, dt)
 	haru_framed = game.flag("ch1.frame_fitted")
 	_blade_tile.visible = game.has_ability("sword")
 	var ratio := clampf(p.hp / p.max_hp, 0.0, 1.0)

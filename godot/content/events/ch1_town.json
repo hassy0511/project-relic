@@ -138,6 +138,7 @@
   ]
  },
  "ch1.nico_run": {
+  "cutscene": true,
   "steps": [
    {
     "hint": ""
@@ -230,6 +231,7 @@
   ]
  },
  "ch1.scold": {
+  "cutscene": true,
   "steps": [
    {
     "say": "ch1.scold"
@@ -298,6 +300,7 @@
   ]
  },
  "ch1.debt": {
+  "cutscene": true,
   "steps": [
    {
     "say": "ch1.debt"
@@ -421,6 +424,7 @@
   ]
  },
  "ch1.stop": {
+  "cutscene": true,
   "steps": [
    {
     "freeze": true
@@ -479,6 +483,7 @@
   ]
  },
  "ch1.plaza": {
+  "cutscene": true,
   "steps": [
    {
     "say": "ch1.plaza"
@@ -517,6 +522,7 @@
   ]
  },
  "ch1.yana_gun": {
+  "cutscene": true,
   "steps": [
    {
     "freeze": true
