@@ -269,10 +269,14 @@ func test_ordo_landing_dress() -> void:
 		h.expect(o.landing != dressed and sc.is_equal_approx(Vector3.ZERO if dressed else Vector3.ONE),
 			"%s：オルドの踊り場は%s（骨の大きさ %s）" % [rid, "隠す" if dressed else "描く", sc])
 		var gi := root.get_node_or_null("Dress/town_ordo_landing") as MeshInstance3D
-		h.expect((gi != null) == dressed, "%s：踊り場の飾り town/ordo_landing は%s" % [rid, "ある" if dressed else "無い"])
-		if gi == null:
+		var aw := root.get_node_or_null("Dress/town_ordo_landing_awning") as MeshInstance3D
+		h.expect((gi != null) == dressed and (aw != null) == dressed,
+			"%s：踊り場の飾り town/ordo_landing・帆布 ordo_landing_awning は%s" % [rid, "ある" if dressed else "無い"])
+		if gi == null or aw == null:
 			root.free()
 			continue
+		h.expect(aw.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON and gi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+			"%s：影を落とすのは帆布だけ（影の描画を増やしすぎない）" % rid)
 		# 飾りとオルドの部品は同じ形・同じ所（部屋の座標の広がりが 2 cm 以内で一致）
 		var part := o.parts.get("lift_landing") as Node3D
 		var a := AABB()
@@ -282,7 +286,7 @@ func test_ordo_landing_dress() -> void:
 				var b: AABB = (mi as MeshInstance3D).global_transform * (mi as MeshInstance3D).mesh.get_aabb()
 				a = b if first else a.merge(b)
 				first = false
-		var d: AABB = gi.global_transform * gi.mesh.get_aabb()
+		var d: AABB = (gi.global_transform * gi.mesh.get_aabb()).merge(aw.global_transform * aw.mesh.get_aabb())
 		h.expect(a.position.distance_to(d.position) < 0.02 and a.end.distance_to(d.end) < 0.02,
 			"%s：飾りはオルドの踊り場と同じ所（%s / %s）" % [rid, d, a])
 		# 材質：板はキットの deck（板の絵と汚れの層）、布は揺れの重み（頂点の色のアルファ < 1）
@@ -293,8 +297,9 @@ func test_ordo_landing_dress() -> void:
 			var m := gi.mesh.surface_get_material(s)
 			if m == kit.mats.get("deck"):
 				deck_ok = (m as ShaderMaterial).get_shader_parameter("albedo_tex") != null
-			if m == kit.mats.get("flat"):
-				for c in (gi.mesh.surface_get_arrays(s)[Mesh.ARRAY_COLOR] as PackedColorArray):
+		for s in aw.mesh.get_surface_count():
+			if aw.mesh.surface_get_material(s) == kit.mats.get("flat"):
+				for c in (aw.mesh.surface_get_arrays(s)[Mesh.ARRAY_COLOR] as PackedColorArray):
 					if c.a < 0.99:
 						swaying += 1
 		h.expect(deck_ok, "%s：板の床はキットの材質 deck（板の絵）" % rid)

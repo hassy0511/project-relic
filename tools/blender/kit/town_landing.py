@@ -4,8 +4,8 @@ ordo_landing：原点 = オルドの原点（背の歩行面の真ん中）、+Z
   床    ：板張り（材質 deck：キットでは町の板の絵 town_wood と汚れの層。上段の展望台の床と同じ絵）を黒鉛の帯で区切り、縁は白磁の鼻隠しと真鍮の縁金具。
           内の端は下段の床に続く黒鉛の敷居。かごの口のふたは白磁の 2 枚の扉（板 3 枚ずつ、継ぎ目は黒鉛）、縁は真鍮と黒の縞（下段のリフトと同じ）。
   手すり：町の手すりと同じ作り（真鍮の柱と上の棒、黒鉛の中の棒 2 本、足元の板）。高さ 1.45 m（当たり判定の柵の高さ）、外の手すりは 4 m ごとに琥珀の灯。
-  日よけ：柱 4 本（当たり判定の柱と同じ所・高さ）に梁と垂木、赤い帆布（垂木の間でたるみ、風で揺れる：town_geo.sway）、外の縁の垂れ（波形）、
-          内の柱の上の小旗、垂木から吊った灯 2 つ。
+  日よけ：柱 4 本（当たり判定の柱と同じ所・高さ）に梁と垂木、赤と生成りの縞の帆布（垂木の間でたるみ、風で揺れる：town_geo.sway）、
+          外の縁の垂れ（波形）、内の柱の上の小旗、垂木から吊った灯 2 つ。帆布だけは別の部品 ordo_landing_awning（影を落とす）。
   小物  ：ベンチ 2 つ（日よけの下で南向き、北東の角で外向き）、木箱 3 つと携行灯、巻いた綱、「見下ろす」の端末の所の望遠鏡（端末の箱は描かない）。
   台    ：黒鉛の台の箱、白磁の鼻隠し、外の面の琥珀の灯、舷へ下りる斜めの支え 2 本（リフトのガイド・かごの通り道の外）。
 部屋（ch1.lower・ch1.mid）では飾り（dress）として、オルドと同じ pos（tools/dress_town.py の ORDO_POS）に置く。オルドのモデル（ordo.py）も
@@ -232,7 +232,7 @@ def _canopy_weight(v):
 
 
 def _canopy(p: Part):
-    """柱 4 本・内と外の梁・垂木 4 本・赤い帆布（垂木の間で 0.1 m たるむ）・外の縁の垂れ・内の柱の上の小旗・吊り灯 2 つ"""
+    """日よけの骨組み：柱 4 本・内と外の梁・垂木 4 本・外の縁の竿・内の柱の上の小旗・吊り灯 2 つ（帆布は _awning：影を落とす別の部品）"""
     for x, z, h in POSTS:
         top = L + h
         p.add('graphite', boxb(x - 0.24, x + 0.24, L + 0.02, L + 0.07, z - 0.21, z + 0.21))
@@ -248,6 +248,33 @@ def _canopy(p: Part):
         a = np.array([x0 + 0.05, _slope_y(x0 + 0.05) + 0.08, z])
         b = np.array([x1 - 0.05, _slope_y(x1 - 0.05) + 0.08, z])
         p.add('graphite', beam(a, b, 0.12, 0.16))
+    ye = _slope_y(x1) + 0.16
+    xd = x1 + 0.02
+    p.add('brass', cyl((xd, ye + 0.01, CANOPY_Z[0]), (xd, ye + 0.01, CANOPY_Z[1]), 0.03, 6))
+    # 内の柱の上の小旗（竿は梁の上から 1.5 m。風下 -Z へなびく：町は船首からの風）
+    for z in (RAFTERS[0], RAFTERS[-1]):
+        y0 = L + 7.26
+        p.add('brass', cyl((53.0, y0, z), (53.0, y0 + 1.55, z), 0.045, 8))
+        p.add('brass', lathe((53.0, y0 + 1.55, z), (53.0, y0 + 1.75, z), [(0, 0.09), (1, 0.02)], 8))
+        top, width, length = y0 + 1.45, 1.1, 0.75
+
+        def flag(u, v, z=z, top=top, width=width, length=length):
+            return (53.0 + 0.05 * math.sin(u * 4 + v), top - length * v, z - (0.06 + width * u))
+        p.add('cloth', sway(sheet(flag, 4, 3, 0.02), lambda q, z=z, width=width: np.clip((z - 0.06 - q[:, 2]) / width, 0, 1) ** 1.2))
+    # 吊り灯（真ん中の垂木 2 本から。灯の下の端は床から 5.2 m：跳んでも頭が届かない）
+    for z in RAFTERS[1:3]:
+        x = 57.75
+        yb = _slope_y(x)
+        yl = yb - 0.95
+        p.add('graphite', cyl((x, yl + 0.42, z), (x, yb, z), 0.012, 5))
+        p.add('brass', boxb(x - 0.08, x + 0.08, yb - 0.04, yb + 0.005, z - 0.08, z + 0.08))
+        P.lantern(p, x, yl, z, 1.25)
+
+
+def _awning(p: Part):
+    """日よけの帆布（部品 ordo_landing_awning。帆布だけを、影を落とす別の部品にする：踊り場の全部に影を付けると、影の描画が
+    面 4 つ × 影の段 4 つ = 16 回増えた。帆布は面 1 つなので 4 回）"""
+    x0, x1 = CANOPY_X
     # 帆布：垂木の上（垂木の上の面 + 1.5 cm）、垂木の間で 0.1 m たるむ。北・南は垂木の外へ 0.35 m。
     # 斜面に沿った縞（赤い帆布と生成りの麻を交互に、垂木の間に 4 本ずつ）：上の中段から見下ろすと 1 枚の大きな赤い板に見えたので
     def cloth_y(x, z):
@@ -279,25 +306,6 @@ def _canopy(p: Part):
         edge = _canopy_weight(np.stack([np.full(len(v), x1), v[:, 1], v[:, 2]], 1))
         return edge + P.SWAY_DROP * np.clip((ye - v[:, 1]) / 0.45, 0.0, 1.0)
     p.add('cloth2', sway(sheet(valance, int((CANOPY_Z[1] - CANOPY_Z[0]) * 2.2), 1, 0.02), valance_w))
-    p.add('brass', cyl((xd, ye + 0.01, CANOPY_Z[0]), (xd, ye + 0.01, CANOPY_Z[1]), 0.03, 6))
-    # 内の柱の上の小旗（竿は梁の上から 1.5 m。風下 -Z へなびく：町は船首からの風）
-    for z in (RAFTERS[0], RAFTERS[-1]):
-        y0 = L + 7.26
-        p.add('brass', cyl((53.0, y0, z), (53.0, y0 + 1.55, z), 0.045, 8))
-        p.add('brass', lathe((53.0, y0 + 1.55, z), (53.0, y0 + 1.75, z), [(0, 0.09), (1, 0.02)], 8))
-        top, width, length = y0 + 1.45, 1.1, 0.75
-
-        def flag(u, v, z=z, top=top, width=width, length=length):
-            return (53.0 + 0.05 * math.sin(u * 4 + v), top - length * v, z - (0.06 + width * u))
-        p.add('cloth', sway(sheet(flag, 4, 3, 0.02), lambda q, z=z, width=width: np.clip((z - 0.06 - q[:, 2]) / width, 0, 1) ** 1.2))
-    # 吊り灯（真ん中の垂木 2 本から。灯の下の端は床から 5.2 m：跳んでも頭が届かない）
-    for z in RAFTERS[1:3]:
-        x = 57.75
-        yb = _slope_y(x)
-        yl = yb - 0.95
-        p.add('graphite', cyl((x, yl + 0.42, z), (x, yb, z), 0.012, 5))
-        p.add('brass', boxb(x - 0.08, x + 0.08, yb - 0.04, yb + 0.005, z - 0.08, z + 0.08))
-        P.lantern(p, x, yl, z, 1.25)
 
 
 # ---------------------------------------------------------------- 小物
@@ -347,12 +355,19 @@ def _props(p: Part):
 
 
 def ordo_landing() -> Part:
+    """踊り場の全部（帆布のほか）。帆布は ordo_landing_awning"""
     p = Part('ordo_landing')
     _slab(p)
     _deck(p)
     _railing(p)
     _canopy(p)
     _props(p)
+    return p
+
+
+def ordo_landing_awning() -> Part:
+    p = Part('ordo_landing_awning')
+    _awning(p)
     return p
 
 
@@ -372,4 +387,4 @@ def landing_solid():
     ]
 
 
-PARTS = {'ordo_landing': ordo_landing}
+PARTS = {'ordo_landing': ordo_landing, 'ordo_landing_awning': ordo_landing_awning}

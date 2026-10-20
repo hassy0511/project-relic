@@ -106,11 +106,14 @@ def ordo(room, d, name, back="ordo_back", ground=True):
 
 def ordo_landing(room, d, name, solid):
     """オルドのリフトの踊り場（2026-10-20）を部屋の飾り town/ordo_landing で描く（オルドと同じ形・同じ pos。町のキットの汚れの層と
-    布の揺れつき。tools/blender/kit/town_landing.py）。オルドの同じ部品は隠す（部屋の "ordo" の "landing": false。同じ所に 2 つ描かない）。
+    布の揺れつき。tools/blender/kit/town_landing.py。帆布は影を落とす別の部品 town/ordo_landing_awning）。オルドの同じ部品は隠す
+    （部屋の "ordo" の "landing": false。同じ所に 2 つ描かない）。
     solid：小物（ベンチ・木箱・携行灯）に当たり判定（歩ける下段）。中段は上から見下ろすだけ（踊り場の床の当たり判定が無いので、
     小物の箱だけを宙に浮かせない）。部屋の dress の終わりに足す（前からの飾りの番号をずらさない）"""
     room["ordo"]["landing"] = False
     d.put("ordo_landing", ORDO_POS[name], **({"solid": town_landing.landing_solid()} if solid else {}))
+    # 帆布は影を落とす別の部品（踊り場の全部に影を付けると、影の描画が面 4 つ × 影の段 4 つ増える。帆布は面 1 つ）
+    d.put("ordo_landing_awning", ORDO_POS[name], shadow=True)
 
 
 # 生活感の小物（2026-10-15）は影を落とさない（部品の種類ごとに、影の描画が影の段の数だけ増えるため。CC0 の樽と長持ちに影を付けると

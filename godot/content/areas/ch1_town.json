@@ -9979,6 +9979,15 @@
        "cam": false
       }
      ]
+    },
+    {
+     "part": "town/ordo_landing_awning",
+     "pos": [
+      0.0,
+      -1.5,
+      8.0
+     ],
+     "shadow": true
     }
    ],
    "ordo": {
@@ -20795,6 +20804,15 @@
       -6.5,
       0.0
      ]
+    },
+    {
+     "part": "town/ordo_landing_awning",
+     "pos": [
+      0.0,
+      -6.5,
+      0.0
+     ],
+     "shadow": true
     }
    ],
    "ordo": {
