@@ -429,7 +429,8 @@ def charger(rig: Rig):
     for n, par, c, rad, w in cfg['wheels']:
         c = V3(c, float)
         sgx = np.sign(c[0])
-        susp = merge(box((sgx * 32, c[1], 30), (8, 16, 10)), cyl((sgx * 30, c[1], 30), (c[0], c[1], c[2]), 3.2, 8))
+        # 3e：細い腕をやめ、車輪と胴の間を埋める黒鉛の塊と短い軸（絵の正面の車輪の内側の暗い機構。細い腕は台車のように見えた）
+        susp = merge(box((sgx * 34.5, c[1], 27.5), (11, 20, 15)), cyl((sgx * 39.5, c[1], c[2]), (c[0], c[1], c[2]), 4.2, 8))
         rig.add(par, None, (sgx * 30, c[1], 30.0), (1, 0, 0), [('dark', susp)])
         tyre = B.cylinder(c, rad, w, 20)
         cov = B.c_disc(c, rad * 0.8, w, 20)
