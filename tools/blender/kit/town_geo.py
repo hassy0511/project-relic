@@ -4,6 +4,8 @@
 content/kits/town.json の "materials" の同じ名前の共有の材質に置き換える。UV は面の向きの平面投影でメートルのまま。
 違うのは書き方だけ：座標はゲームと同じ向き（X 右、Y 上、Z 手前 = 部品の正面。yaw=0 で +Z を向く）、単位は m、
 原点は部品の底の中心（壁は厚みの中心）。Blender へは (x, -z, y) で渡し、glTF に書き出すとゲームの座標に戻る。
+風で揺れる布（旗・洗濯物・垂れ幕・日よけの垂れ・小旗の綱）は、形に揺れの重み（sway・hang・sagging）を付ける。
+重みは頂点の色のアルファ（1 - 重み）に入り、キットの材質の "sway" がそれで頂点を動かす（docs/design/42_コンテンツの書き方.md 14.2.2）。
 """
 from __future__ import annotations
 
@@ -84,12 +86,15 @@ def frame(a, up=(0, 1, 0)):
 # ---------------------------------------------------------------- 形
 
 class Piece:
-    """頂点 v (N,3)、面 f、面ごとの滑らかさ sm"""
+    """頂点 v (N,3)、面 f、面ごとの滑らかさ sm。w は頂点ごとの揺れの重み（0〜1、None = 揺れない）：書き出しで頂点の色の
+    アルファ（1 - w）になり、キットの材質の "sway"（風で揺れる布・垂れたケーブル。42 章 14.2.2）が、重み 0 の留まった端から
+    重み 1 の自由な端へ大きく揺らす。組の部品（place）に入れても重みは付いたまま"""
 
-    def __init__(self, v, f, smooth=False, sm=None):
+    def __init__(self, v, f, smooth=False, sm=None, w=None):
         self.v = np.asarray(v, float)
         self.f = [list(x) for x in f]
         self.sm = list(sm) if sm is not None else [bool(smooth)] * len(self.f)
+        self.w = None if w is None else np.asarray(w, float)
 
     def moved(self, off=(0, 0, 0), yaw=0.0, scale=(1, 1, 1)) -> 'Piece':
         v = self.v * np.asarray(scale, float)
@@ -98,7 +103,36 @@ class Piece:
         f = self.f
         if np.prod(np.sign(scale)) < 0:
             f = [x[::-1] for x in f]
-        return Piece(v + np.asarray(off, float), f, sm=self.sm)
+        return Piece(v + np.asarray(off, float), f, sm=self.sm, w=self.w)
+
+
+def sway(piece: Piece, fn) -> Piece:
+    """揺れの重みを付ける：fn(頂点 (N,3)) → 重み (N,)（0〜1 に切る）。重みは位置だけで決める（同じ所の頂点は同じ重み：
+    布の表と裏・柄の板が一緒に動き、面が裂けない）。座標はその形を作ったときのもの"""
+    piece.w = np.clip(np.asarray(fn(piece.v), float).reshape(-1), 0.0, 1.0)
+    return piece
+
+
+def hang(top_y, length, k=1.0, x=None):
+    """吊った布の重み：上の端（y = top_y）で 0、length 下で k。x = (x0, x1) なら、その外は 0（柱・壁の受けを揺らさない）"""
+    def fn(v):
+        w = k * (top_y - v[:, 1]) / max(length, 1e-6)
+        if x is not None:
+            w = np.where((v[:, 0] >= x[0] - 1e-6) & (v[:, 0] <= x[1] + 1e-6), w, 0.0)
+        return w
+    return fn
+
+
+def sagging(x0, x1, y, dip, length, k=1.0, line=0.25):
+    """両端（x0・x1、高さ y）で留まり、真ん中が dip 下がる綱と、そこから吊った布の重み：綱は真ん中ほど揺れ（line × k まで）、
+    布は綱からの深さ length で残りの (1 - line) × k を足す"""
+    def fn(v):
+        s = np.clip((v[:, 0] - x0) / max(x1 - x0, 1e-6), 0.0, 1.0)
+        bow = 4.0 * s * (1.0 - s)
+        rope_y = y - dip * bow
+        drop = np.clip((rope_y - v[:, 1]) / max(length, 1e-6), 0.0, 1.0)
+        return k * (line * bow + (1.0 - line) * drop)
+    return fn
 
 
 def _orient(p: Piece) -> Piece:
@@ -276,7 +310,10 @@ def merge(pieces: Iterable[Piece]) -> Piece:
         vs.append(p.v)
         fs += [[i + off for i in f] for f in p.f]
         off += len(p.v)
-    return Piece(np.concatenate(vs) if vs else np.zeros((0, 3)), fs, sm=sum((p.sm for p in pieces), []))
+    w = None
+    if any(p.w is not None for p in pieces):
+        w = np.concatenate([p.w if p.w is not None else np.zeros(len(p.v)) for p in pieces])
+    return Piece(np.concatenate(vs) if vs else np.zeros((0, 3)), fs, sm=sum((p.sm for p in pieces), []), w=w)
 
 
 # ---------------------------------------------------------------- 部品
@@ -291,6 +328,17 @@ class Part:
     def add(self, mat: str, *pieces: Piece) -> 'Part':
         assert mat in MATERIALS, mat
         self.by_mat.setdefault(mat, []).extend(pieces)
+        return self
+
+    def mark(self) -> dict:
+        """今の形の数（材質ごと）。sway_since と組で、そのあとに足した形にだけ揺れの重みを付ける"""
+        return {m: len(ps) for m, ps in self.by_mat.items()}
+
+    def sway_since(self, mark: dict, fn) -> 'Part':
+        """mark のあとに足した形（どの材質も）に揺れの重み fn（town_geo.sway）を付ける"""
+        for m, ps in self.by_mat.items():
+            for pc in ps[mark.get(m, 0):]:
+                sway(pc, fn)
         return self
 
     def place(self, other: 'Part', off=(0, 0, 0), yaw=0.0, scale=(1, 1, 1)) -> 'Part':
@@ -345,14 +393,15 @@ def to_object(part: Part):
 
     import check_coplanar
     check_coplanar.separate_town(part)
-    verts, faces, mats, smooth, cols = [], [], [], [], []
+    verts, faces, mats, smooth, cols, sway_w = [], [], [], [], [], []
     groups = sorted({GROUP.get(m, m) for m in part.by_mat})
     off = 0
     for m in sorted(part.by_mat):
         mi = groups.index(GROUP.get(m, m))
-        col = (*hex_lin(MATERIALS[m]['color']), 1.0)
+        col = hex_lin(MATERIALS[m]['color'])
         for p in part.by_mat[m]:
             verts.append(p.v)
+            sway_w.append(p.w if p.w is not None else np.zeros(len(p.v)))
             for k, f in enumerate(p.f):
                 faces.append([i + off for i in f])
                 mats.append(mi)
@@ -360,6 +409,8 @@ def to_object(part: Part):
                 cols.append(col)
             off += len(p.v)
     g = np.concatenate(verts)
+    # 頂点の色のアルファ = 1 - 揺れの重み（揺れない頂点は 1。前と同じ色）
+    alpha = 1.0 - np.concatenate(sway_w)
     b = np.stack([g[:, 0], -g[:, 2], g[:, 1]], 1)      # ゲーム (x, y, z) → Blender (x, -z, y)
     me = bpy.data.meshes.new(part.name)
     me.from_pydata(b.tolist(), [], faces)
@@ -368,16 +419,20 @@ def to_object(part: Part):
     for pl, mi, sm in zip(me.polygons, mats, smooth):
         pl.material_index = mi
         pl.use_smooth = bool(sm)
-    ca = me.color_attributes.new(name='Col', type='FLOAT_COLOR', domain='CORNER')
-    uv = me.uv_layers.new(name='UVMap')
+    me.color_attributes.new(name='Col', type='FLOAT_COLOR', domain='CORNER')
+    me.uv_layers.new(name='UVMap')
+    # 層を足すと前に取った層の参照が古くなることがあるので、両方を作ってから名前で取り直す
+    ca = me.color_attributes['Col']
+    uv = me.uv_layers['UVMap']
     for pl in me.polygons:
         n = np.abs(np.array(pl.normal))
         ax = int(np.argmax(n))
         c = cols[pl.index]
         for li in pl.loop_indices:
-            co = b[me.loops[li].vertex_index]
+            vi = me.loops[li].vertex_index
+            co = b[vi]
             uv.data[li].uv = {0: (co[1], co[2]), 1: (co[0], co[2]), 2: (co[0], co[1])}[ax]
-            ca.data[li].color = c
+            ca.data[li].color = (*c, float(alpha[vi]))
     me.validate()
     ob = bpy.data.objects.new(part.name, me)
     bpy.context.scene.collection.objects.link(ob)
@@ -397,9 +452,13 @@ def write_glb(part: Part, path: str) -> dict:
     ob.select_set(True)
     bpy.context.view_layer.objects.active = ob
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    # 揺れの重みのある部品は、頂点の色をアルファごと書き出す（名前で選ぶ。ACTIVE だと、頂点の色を絵に使う材質（flat・metal）
+    # だけの部品では RGB だけになり、重みが消えた）。重みの無い部品は前と同じ書き出し（同じ GLB）
+    swaying = any(pc.w is not None and bool((pc.w > 0).any()) for ps in part.by_mat.values() for pc in ps)
+    vc = dict(export_vertex_color='NAME', export_vertex_color_name='Col') if swaying else dict(export_vertex_color='ACTIVE')
     bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', export_yup=True, export_apply=True,
                               export_animations=False, use_selection=True, export_extras=False,
-                              export_vertex_color='ACTIVE', export_active_vertex_color_when_no_material=True)
+                              export_active_vertex_color_when_no_material=True, **vc)
     lo, hi = part.bounds()
     return {'tris': part.tris(), 'mats': len({GROUP.get(m, m) for m in part.by_mat}), 'min': [round(float(x), 2) for x in lo],
             'max': [round(float(x), 2) for x in hi]}

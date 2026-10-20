@@ -1,6 +1,8 @@
 // キットの面の材質（RoomKit）の中身。kit_surface.gdshader と kit_surface_fade.gdshader（近くを網目に消す版）が読む。
 // 汚れ・傷みの層（材質の "detail"）のある材質は、DETAIL を定義した kit_surface_detail.gdshader・kit_surface_detail_fade.gdshader
 // （中身は kit_detail.gdshaderinc）。DETAIL の無い版は前と同じ。
+// 動き（材質の "sway" 風で揺れる布・垂れたケーブル、"flow" 落砂の流れ）は、どの版にも入っている（kit_motion.gdshaderinc）。
+// 値が 0 の材質は何もしない（揺れは頂点の色のアルファ = 1 - 重みのある頂点だけ）。
 // 部屋の灰色の地形と、飾りの部品（GLB）の両方に使う。
 // UV はメートル（部屋の面は RoomKit がワールド座標から、部品は Blender で付けた値）。1 枚の絵 = uv_m メートル。
 // seam_every を 0 より大きくすると、その間隔（m）で板の継ぎ目の線を描く（壁の白磁の板など）。
@@ -28,6 +30,14 @@ uniform vec2 near_fade = vec2(0.8, 1.5);
 #ifdef DETAIL
 #include "res://assets/shaders/kit_detail.gdshaderinc"
 #endif
+#include "res://assets/shaders/kit_motion.gdshaderinc"
+
+void vertex() {
+	// 揺れ（材質の "sway"：風で揺れる布・垂れたケーブル。kit_motion.gdshaderinc）。重みは頂点の色のアルファ（1 - 重み）
+	if (sway_amp.x + sway_amp.y > 0.0) {
+		kit_sway(VERTEX, 1.0 - COLOR.a, MODEL_MATRIX, TIME);
+	}
+}
 
 float seam(vec2 uvm) {
 	vec2 e = max(seam_every, vec2(1e-3));
@@ -67,6 +77,10 @@ void fragment() {
 #endif
 	if (seam_every.x > 0.0 || seam_every.y > 0.0) {
 		c = mix(c, seam_color.rgb, seam(UV));
+	}
+	// 流れ（材質の "flow"：落砂の流れの面に下へ流れる模様。kit_motion.gdshaderinc）
+	if (flow.x > 0.0) {
+		c = kit_flow(c, 1.0 - COLOR.a, (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz, MODEL_MATRIX[3].xyz, NORMAL, VIEW, TIME);
 	}
 	ALBEDO = c;
 	ROUGHNESS = roughness_value;

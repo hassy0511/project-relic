@@ -24,7 +24,7 @@ import math
 import numpy as np
 
 import town_parts as P
-from town_geo import Part, Piece, beam, boxb, cyl, lathe, sag, sheet, tube
+from town_geo import Part, Piece, beam, boxb, cyl, hang, lathe, sag, sheet, sway, tube
 from town_sets import _door, _retaining, _window
 
 WALL_Z = 16.0        # 段の壁の手前の面（擁壁の面）
@@ -123,9 +123,12 @@ def _awning_simple(p: Part, x0, x1, y, kind, out=1.2, drop=0.45):
     p.add('brass', beam((x0 + 0.06, y - drop, out), (x1 - 0.06, y - drop, out), 0.06))
     for x in (x0 + 0.08, x1 - 0.08):
         p.add('brass' if kind == 'hard' else 'graphite', beam((x, y, 0.05), (x, y - drop, out), 0.05))
-    p.add('cloth', sheet(lambda u, v: (x0 + 0.05 + (w - 0.1) * u, y - drop * v - 0.06 * math.sin(math.pi * u) * math.sin(math.pi * v) + 0.02,
-                                       0.06 + (out - 0.06) * v), 3, 2, 0.025))
-    p.add('cloth', boxb(x0 + 0.05, x1 - 0.05, y - drop - 0.2, y - drop + 0.02, out - 0.01, out + 0.02))
+    # 揺れ（town_geo.sway）：枠に張った帆布は真ん中だけ少し、前の垂れは前の棒から下へ
+    p.add('cloth', sway(sheet(lambda u, v: (x0 + 0.05 + (w - 0.1) * u, y - drop * v - 0.06 * math.sin(math.pi * u) * math.sin(math.pi * v) + 0.02,
+                                             0.06 + (out - 0.06) * v), 3, 2, 0.025),
+                        lambda v: P.SWAY_CANVAS * np.sin(np.pi * np.clip((v[:, 0] - x0 - 0.05) / (w - 0.1), 0, 1))
+                        * np.sin(np.pi * np.clip((v[:, 2] - 0.06) / (out - 0.06), 0, 1))))
+    p.add('cloth', sway(boxb(x0 + 0.05, x1 - 0.05, y - drop - 0.2, y - drop + 0.02, out - 0.01, out + 0.02), hang(y - drop + 0.02, 0.22, P.SWAY_DROP)))
 
 
 def pot(p: Part, x, y, z, s=1.0):
@@ -324,8 +327,11 @@ def canopy(p: Part, x0, x1, z0, z1, y, hgt=2.2, mat='cloth'):
         for z in (z0, z1):
             p.add('graphite', boxb(x - 0.06, x + 0.06, y, y + hgt, z - 0.06, z + 0.06))
             p.add('brass', boxb(x - 0.09, x + 0.09, y, y + 0.12, z - 0.09, z + 0.09))
-    p.add(mat, sheet(lambda u, v: (x0 - 0.15 + (x1 - x0 + 0.3) * u, y + hgt - 0.25 * math.sin(math.pi * u) * math.sin(math.pi * v),
-                                   z0 - 0.15 + (z1 - z0 + 0.3) * v), 4, 4, 0.03))
+    # 揺れ（town_geo.sway）：4 本の柱に張った帆布の真ん中が少しふくらむ
+    p.add(mat, sway(sheet(lambda u, v: (x0 - 0.15 + (x1 - x0 + 0.3) * u, y + hgt - 0.25 * math.sin(math.pi * u) * math.sin(math.pi * v),
+                                         z0 - 0.15 + (z1 - z0 + 0.3) * v), 4, 4, 0.03),
+                    lambda v: P.SWAY_CANVAS * np.sin(np.pi * np.clip((v[:, 0] - x0 + 0.15) / (x1 - x0 + 0.3), 0, 1))
+                    * np.sin(np.pi * np.clip((v[:, 2] - z0 + 0.15) / (z1 - z0 + 0.3), 0, 1))))
 
 
 def roof_items(p: Part, rng, x0, x1, y, z0, z1, tier):

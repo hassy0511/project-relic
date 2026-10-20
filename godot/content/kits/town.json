@@ -78,11 +78,11 @@
             {"mask": "grime", "uv_m": 1.4, "cover": 0.25, "color": "#9c7a58", "mode": "multiply", "amount": 0.5}]}
  },
  "materials": {
-  "flat": {"color": "#ffffff", "tint_mix": 1.0, "roughness": 0.82, "near_fade": [0.8, 1.5],
+  "flat": {"sway": {"push": 0.035, "flutter": 0.03, "wave": 0.45, "gust": 0.8, "speed": 1.0, "wind": [0, 0, -1]}, "color": "#ffffff", "tint_mix": 1.0, "roughness": 0.82, "near_fade": [0.8, 1.5],
            "detail": [
             {"mask": "grime", "uv_m": 2.6, "cover": 0.35, "color": "#9c846a", "mode": "multiply", "amount": 0.55, "gate": {"cover": 0.6, "uv_m": 8.0}},
             {"mask": "grime", "uv_m": 2.0, "cover": 0.9, "feet": [0.0, 1.0], "color": "#a08664", "mode": "multiply", "amount": 0.6}]},
-  "metal": {"color": "#ffffff", "tint_mix": 1.0, "roughness": 0.5, "metallic": 0.5, "near_fade": [0.8, 1.5],
+  "metal": {"sway": {"push": 0.035, "flutter": 0.03, "wave": 0.45, "gust": 0.8, "speed": 1.0, "wind": [0, 0, -1]}, "color": "#ffffff", "tint_mix": 1.0, "roughness": 0.5, "metallic": 0.5, "near_fade": [0.8, 1.5],
             "detail": [
              {"mask": "grime", "uv_m": 2.0, "cover": 0.35, "color": "#8a7460", "mode": "multiply", "amount": 0.5},
              {"mask": "streaks", "uv_m": [1.2, 2.0], "cover": 0.3, "color": "#9a6a4a", "mode": "multiply", "amount": 0.45}]},

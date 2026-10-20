@@ -28,7 +28,19 @@ import numpy as np
 import town_parts as P
 import town_sets as S
 import town_terrace as T
-from town_geo import Part, Piece, beam, box, boxb, cyl, lathe, sag, sheet, tube
+from town_geo import Part, Piece, beam, box, boxb, cyl, hang, lathe, sag, sheet, sway, tube
+
+
+def _pole_flag(p: Part, x, y_top, z, width, length, mat='cloth', amp=0.06, sx=0.0):
+    """竿の旗：竿（x, z）の y_top から下へ length、竿から風下（-Z：町は船首の +Z から風を受ける）へ width の布。
+    揺れの重みは竿の側 0 から先の 1 へ（town_geo.sway）。sx（±1）なら前のように竿から ±X へ（風の向きに関係しない飾り）"""
+    if sx:
+        f = lambda u, v: (x + sx * (0.1 + width * u), y_top - length * v, z + amp * math.sin(u * 4 + v))   # noqa: E731
+        wfn = lambda v: np.clip((np.abs(v[:, 0] - x) - 0.1) / width, 0, 1) ** 1.2   # noqa: E731
+    else:
+        f = lambda u, v: (x + amp * math.sin(u * 4 + v), y_top - length * v, z - (0.1 + width * u))   # noqa: E731
+        wfn = lambda v: np.clip((z - 0.1 - v[:, 2]) / width, 0, 1) ** 1.2   # noqa: E731
+    p.add(mat, sway(sheet(f, 4, 3, 0.02), wfn))
 
 YAW = {'-z': 180.0, '+z': 0.0, '+x': 90.0, '-x': -90.0}
 HEAD = 3.9          # これより上の物には、床から跳んでも頭が届かない（体 1.55 + 跳ぶ 2.2）
@@ -304,12 +316,11 @@ def lower_set() -> Part:
                     '+x': {'posts': [10.0], 'low': [(8.0, 1.05), (12.0, 1.05)], 'bands': [3.0], 'high': [(10.0, 4.05)]}},
              back={'posts': [-24.0], 'low': [(-27.0, 1.05), (-21.0, 1.05)], 'bands': [3.0]}, roof_y=6.6)
     roof_slab(p, -30.3, -17.7, 5.7, 14.3, 6.0, 6.6)
-    # 屋上：訓練場の旗竿 2 本（赤い旗）、給水塔、木箱
+    # 屋上：訓練場の旗竿 2 本（赤い旗。船首からの風で風下の -Z へなびく）、給水塔、木箱
     for x in (-29.4, -18.6):
         p.add('brass', cyl((x, 6.6, 6.4), (x, 10.6, 6.4), 0.07, 8))
         p.add('brass', lathe((x, 10.6, 6.4), (x, 10.85, 6.4), [(0, 0.12), (1, 0.02)], 8))
-        p.add('cloth', sheet(lambda u, v, x=x: (x + (0.12 + 0.95 * u) * (1 if x < -24 else -1), 10.4 - 1.5 * v,
-                                                 6.4 + 0.06 * math.sin(u * 3 + v * 2)), 3, 4, 0.02))
+        _pole_flag(p, x, 10.4, 6.4, 0.95, 1.5)
     p.place(P.water_tower(), (-21.0, 6.6, 12.0), 0, 1.15)
     p.place(P.crate(), (-27.5, 6.6, 12.6), 8, 0.9)
     p.place(P.crate(), (-26.6, 6.6, 12.8), -5, 0.7)
@@ -556,9 +567,9 @@ def upper_set() -> Part:
              back={'low': [(15.0, 1.05), (25.0, 1.05)], 'posts': [20.0]}, roof_y=8.6)
     roof_slab(p, 11.7, 28.3, 3.7, 13.3, 8.0, 8.6)
     _notice_ring(p, 15.2, 4.65, 4.0, 1.45)
-    # 屋上：旗竿（ギルドの赤い旗）、回収の箱、給水塔、日よけ
+    # 屋上：旗竿（ギルドの赤い旗。風下の -Z へ）、回収の箱、給水塔、日よけ
     p.add('brass', cyl((26.6, 8.6, 5.0), (26.6, 13.4, 5.0), 0.07, 8))
-    p.add('cloth', sheet(lambda u, v: (26.6 - 0.12 - 1.3 * u, 13.2 - 1.0 * v, 5.0 + 0.08 * math.sin(u * 4 + v)), 4, 3, 0.02))
+    _pole_flag(p, 26.6, 13.2, 5.0, 1.3, 1.0, amp=0.08)
     p.place(P.water_tower(), (14.0, 8.6, 11.4), 0, 1.2)
     T.canopy(p, 20.5, 24.5, 8.6, 11.4, 8.6, 2.1, 'cloth2')
     for x, z, s in ((16.6, 12.2, 0.9), (17.5, 12.3, 0.75), (16.9, 12.1, 0.6)):
@@ -571,7 +582,7 @@ def upper_set() -> Part:
         x = sx * 8.4
         p.add('brass', cyl((x, 1.2, 16.6), (x, 5.6, 16.6), 0.06, 8))
         p.add('brass', lathe((x, 5.6, 16.6), (x, 5.85, 16.6), [(0, 0.11), (1, 0.02)], 8))
-        p.add('cloth', sheet(lambda u, v, x=x, sx=sx: (x - sx * (0.1 + 1.1 * u), 5.45 - 0.8 * v, 16.6 + 0.06 * math.sin(u * 4)), 4, 2, 0.02))
+        _pole_flag(p, x, 5.45, 16.6, 1.1, 0.8)
     # 望遠鏡（geometry の台 (0, 0, 24) 1.6×1.2×1.6 と同じ大きさの白磁の台、その上の真鍮の筒）
     p.add('ivory2', boxb(-0.8, 0.8, 0.0, 1.05, 23.2, 24.8))
     p.add('graphite', boxb(-0.82, 0.82, 1.05, 1.2, 23.18, 24.82), boxb(-0.82, 0.82, 0.0, 0.12, 23.18, 24.82))
@@ -1170,7 +1181,7 @@ def guild_set() -> Part:
         a = k * math.pi / 8
         p.add('brass', box((11.97, 3.6 + 1.4 * math.sin(a), 2.0 + 1.4 * math.cos(a)), (0.06, 0.24, 0.24), 0))
     for x in (-9.0, -5.0, 5.0, 10.6):
-        p.place(P.banner(1.0, 1.8), (x, 5.5, 8.0), 180)
+        p.place(P.banner(1.0, 1.8, sway_k=0.0), (x, 5.5, 8.0), 180)      # 屋内は風が無いので揺らさない
     # 回収品の棚（東の壁、z -6〜-1 の高い棚。開いた面は西）
     _shelf_unit(p, 11.0, 11.98, -6.6, -1.4, 2.6, '-x', rng)
     # 天井の吊り灯 2 つ（4.6 m より上）
@@ -1246,7 +1257,7 @@ def opening_set() -> Part:
     for x in (-3.6, 3.6):
         p.add('brass', cyl((x, 1.2, 20.3), (x, 5.6, 20.3), 0.06, 8))
         p.add('brass', lathe((x, 5.6, 20.3), (x, 5.85, 20.3), [(0, 0.11), (1, 0.02)], 8))
-        p.add('cloth', sheet(lambda u, v, x=x: (x + (0.1 + 1.2 * u) * (1 if x < 0 else -1), 5.45 - 0.85 * v, 20.3 + 0.08 * math.sin(u * 4 + v)), 4, 2, 0.02))
+        _pole_flag(p, x, 5.45, 20.3, 1.2, 0.85, amp=0.08)
     # 縁の低い壁の外の面（|x|・|z| 21）の黒鉛の帯（下の外殻へ続く継ぎ目）
     for a0, a1, c, axis in ((-21.0, 21.0, -21.0, 'z'), (-21.0, 21.0, 21.0, 'z'), (-21.0, 21.0, -21.0, 'x'), (-21.0, 21.0, 21.0, 'x')):
         for t in np.arange(a0 + 2.0, a1 - 1.0, 4.0):
@@ -1303,7 +1314,9 @@ def bunting(L=10.0, sag=0.8, step=0.55) -> Part:
     原点 = 綱の両端の真ん中（両端は y 0、x ±L/2）。真ん中が sag 下がる。当たり判定なし（頭の上 5 m より高く渡す）"""
     p = Part('bunting')
     pts = sag_pts(L, sag, 24)
-    p.add('rope', tube(pts, 0.02, 5))
+    # 揺れ：両端で留まった綱が振り子のように揺れる（両端を結ぶ線からの深さ。小旗の先 sag + 0.42 で 1）
+    wfn = hang(0.0, sag + 0.42)
+    p.add('rope', sway(tube(pts, 0.02, 5), wfn))
     mats = ['cloth', 'cloth2', 'linen']
     n = int(L / step)
     for k in range(1, n):
@@ -1312,9 +1325,8 @@ def bunting(L=10.0, sag=0.8, step=0.55) -> Part:
         y = -sag * 4 * t * (1 - t)
         w, h = 0.36, 0.42
         v = np.array([[x - w / 2, y, 0.0], [x + w / 2, y, 0.0], [x, y - h, 0.0]], float)
-        from town_geo import Piece, _orient_dir
         tri = Piece(np.concatenate([v + [0, 0, 0.006], v - [0, 0, 0.006]]), [[0, 1, 2], [5, 4, 3]])
-        p.add(mats[k % 3], tri)
+        p.add(mats[k % 3], sway(tri, wfn))
     for x in (-L / 2, L / 2):
         p.add('brass', cyl((x, -0.1, 0.0), (x, 0.1, 0.0), 0.05, 6))
     return p

@@ -104,11 +104,21 @@ def sand_floor():
 STREAM = [(0, 0.07), (0.05, 0.03), (0.95, 0.024), (1, 0.045)]
 
 
+def _stream_motion(mat, v):
+    """落砂の流れの動きの重み（geo.Part.motion）：床の山の上（0.28 m）から上の細い流れだけ 1。キットの "sand" の "flow" が
+    そこにだけ下へ流れる模様を描く（床の山と吹きだまりは動かない）"""
+    if mat != 'sand':
+        return np.zeros(len(v))
+    r = np.hypot(v[:, 0], v[:, 1])
+    return np.where(r < 0.1, np.clip((v[:, 2] - 0.28) / 0.05, 0.0, 1.0), 0.0)
+
+
 def sand_stream():
     p = Part('sand_stream', '天井の穴からの落砂（W2-06b の 06 の流れと床の山だけ。天井の板の無い版：天井にもう割れ目・穴がある所）：'
              '床の山（直径 1.2・高さ 0.28）と高さ 8 m までの細い流れ。原点：床の山の底の中央。scale の y で天井の高さに。当たり判定なし')
     p.mound('sand', (0, 0, 0), 0.62, 0.58, 0.28, 12, 4)
     p.lathe('sand', (0, 0, 0.2), (0, 0, 8.0), STREAM, 6)
+    p.motion = _stream_motion
     return p
 
 
@@ -117,6 +127,7 @@ def sand_fall():
              '高さ 8 m の天井の割れた白磁の板（2×2×0.2、黒鉛の枠、暗い割れ目）。原点：床の山の底の中央。当たり判定なし（低い砂の山）')
     p.mound('sand', (0, 0, 0), 0.62, 0.58, 0.28, 12, 4)
     p.lathe('sand', (0, 0, 0.2), (0, 0, 7.9), STREAM, 6)
+    p.motion = _stream_motion
     H = 8.0
     p.box('ivory', (-0.9, -0.9, H - 0.14), (0.9, 0.9, H - 0.02))
     for (x0, y0, x1, y1) in ((-1.0, -1.0, 1.0, -0.88), (-1.0, 0.88, 1.0, 1.0), (-1.0, -0.88, -0.88, 0.88), (0.88, -0.88, 1.0, 0.88)):
@@ -198,16 +209,26 @@ def _hang(p: Part, sag_m, cut=False):
         p.sweep(D, pts, r, 5)
 
 
+def _cable_motion(mat, v):
+    """垂れたケーブルの揺れの重み（geo.Part.motion）：留め金の高さ（z 0）から下へ、深さ 1.25 m で 1。ケーブル（dark）と
+    切れた芯（brass）だけ。キットの "dark"・"brass" の "sway" が、下ほど大きく振り子のように揺らす（留め金は動かない）"""
+    if mat not in (D, B):
+        return np.zeros(len(v))
+    return np.clip((-v[:, 2] - 0.05) / 1.2, 0.0, 1.0)
+
+
 def cable_hang():
     p = Part('cable_hang', '垂れたケーブル（W2-06b の 08）：支持端の間 2 m、垂れ 0.8〜1.1 m の 3 本、両端の黒鉛の留め金（壁から 0.24 m）。'
              '原点：壁の面・留め金の高さの中央。正面（-Y）が部屋の内側。当たり判定なし（頭の上の高い所に付ける）')
     _hang(p, 0.8)
+    p.motion = _cable_motion
     return p
 
 
 def cable_hang_cut():
     p = Part('cable_hang_cut', '片方が切れた垂れたケーブル（W2-06b の 08 の破断。切れた端は接続しない）。原点は cable_hang と同じ。当たり判定なし')
     _hang(p, 1.1, cut=True)
+    p.motion = _cable_motion
     return p
 
 

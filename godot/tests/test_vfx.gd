@@ -356,6 +356,63 @@ func test_vfx_no_multiply_blend() -> void:
 	h.expect(FileAccess.get_file_as_string("res://assets/shaders/vfx_add.gdshader").contains("blend_add"), "光の層は足し合わせ")
 
 
+## 部屋の飾りの小さなエフェクト（AmbientFx：落砂の着く所の砂ぼこり・蒸気の吹き出し。42 章 14.2.2）：キットの "emitters" と
+## 部屋の飾りから出所を作り、Vfx の今ある層（DUST・SMOKE）で描く。見た目だけ：ゲームの中身は Fx があっても無くても同じで、
+## Fx の乱数の並び（ほかのエフェクト）も変えない。同じ部屋なら同じ出方。出所の無い部屋（町）では何も出さない
+func test_ambient_fx_view_only() -> void:
+	var g1 := _world_game()
+	var g2 := _world_game()
+	await h.settle()
+	for g in [g1, g2]:
+		g.load_room("ch1.r06", "fall")
+		for t in g.triggers:
+			t.fired = true
+	var fx := Fx.new()
+	h.tree.root.add_child(fx)
+	# 出所を作らない Fx（同じ出来事を渡して、乱数の並びを比べる）
+	var quiet := Fx.new()
+	h.tree.root.add_child(quiet)
+	quiet.ambient.room_id = "ch1.r06"
+	var smoke := 0
+	var dust := 0
+	for i in 420:
+		await h.tree.physics_frame
+		g1.step(InputFrame.of({}))
+		g2.step(InputFrame.of({}))
+		g2.drain_events()
+		for e in g1.drain_events():
+			fx.handle(e)
+			quiet.handle(e)
+		fx.sync(g1, 1.0 / 60.0)
+		quiet.sync(g1, 1.0 / 60.0)
+		smoke = maxi(smoke, _layer_n(fx.vfx, Vfx.SMOKE))
+		dust = maxi(dust, _layer_n(fx.vfx, Vfx.DUST))
+	h.expect(fx.ambient.count() == 5, "落下地点（r06）の出所：蒸気 4 つと落砂 1 つ（%d）" % fx.ambient.count())
+	h.expect(smoke >= 3 and dust >= 1, "蒸気の粒（%d）と砂ぼこり（%d）が出る" % [smoke, dust])
+	h.expect(smoke <= 60 and dust <= 12, "粒は少しだけ（蒸気 %d・砂ぼこり %d）" % [smoke, dust])
+	h.expect(_layer_n(quiet.vfx, Vfx.SMOKE) == 0 and _layer_n(quiet.vfx, Vfx.DUST) == 0, "出所が無ければ粒は出ない")
+	h.expect(fx._rng.state == quiet._rng.state, "Fx の乱数の並びは変わらない（飾りの粒は自分の乱数）")
+	h.expect(JSON.stringify(g1.to_save()) == JSON.stringify(g2.to_save()) and g1.player.pos == g2.player.pos,
+		"ゲームの中身は Fx があっても無くても同じ")
+	# 同じ部屋なら同じ出方（部屋ごとの種）
+	var a := AmbientFx.new()
+	var b := AmbientFx.new()
+	a.build("ch1.r06", g1.room)
+	b.build("ch1.r06", g1.room)
+	var same := a.count() == b.count()
+	for k in a.count():
+		same = same and is_equal_approx(float(a.sources[k].next), float(b.sources[k].next)) and a.sources[k].at == b.sources[k].at
+	h.expect(same, "同じ部屋なら同じ出所・同じ時刻")
+	# 町（出所の無いキット）では何も作らない
+	g1.load_room("ch1.lower", "start")
+	fx.sync(g1, 1.0 / 60.0)
+	h.expect(fx.ambient.room_id == "ch1.lower" and fx.ambient.count() == 0, "町の部屋には飾りの粒の出所は無い（布はシェーダーで揺れる）")
+	fx.queue_free()
+	quiet.queue_free()
+	h.free_game(g1)
+	h.free_game(g2)
+
+
 ## ゲームを n 刻み進め、main と同じ順に見た目へ渡す（出来事 → 番機の見た目 → エフェクト）
 func _step(g: GameSim, fx: Fx, ev: EnemyView, n: int, input := {}) -> void:
 	for i in n:

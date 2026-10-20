@@ -37,8 +37,10 @@ def export(part: geo.Part, path: str) -> int:
     bpy.ops.object.select_all(action='DESELECT')
     ob.select_set(True)
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    # 動きの重みのある部品（geo.Part.motion：垂れたケーブル・落砂の流れ）は頂点の色も書き出す（アルファ = 1 - 重み）
+    extra = dict(export_vertex_color='ACTIVE', export_active_vertex_color_when_no_material=True) if part.motion is not None else {}
     bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', export_yup=True, use_selection=True,
-                              export_animations=False, export_apply=True)
+                              export_animations=False, export_apply=True, **extra)
     return geo.tri_count(part)
 
 
