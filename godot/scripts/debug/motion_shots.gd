@@ -15,7 +15,7 @@ const VIEWS := [
 	["mid_north", "ch1.mid", "start", [0, 0, 3.0], [0, 2.6, 6.5], [0, 5.4, 18.0], 50.0],
 	["sand", "ch1.r06", "fall", [-3.0, 0, -4.0], [-0.6, 1.25, -8.0], [1.4, 1.0, -10.6], 40.0],
 	["steam", "ch1.r06", "fall", [-2.0, 0, -8.0], [-3.7, 1.9, -12.3], [-5.9, 1.95, -14.2], 45.0],
-	["cables", "ch1.r02", "from_r01", [-5.0, 0, 1.0], [-5.2, 4.4, 7.2], [-5.3, 6.6, 12.8], 45.0],
+	["cables", "ch1.r02", "from_r01", [-4.0, 0, 2.0], [-3.4, 4.6, 8.2], [-2.6, 6.5, 12.8], 40.0],
 ]
 
 static var _cam: Camera3D = null
@@ -72,7 +72,10 @@ static func _release(d) -> void:
 static func _strip(d, name: String, frames: int, every: int) -> void:
 	RenderingServer.render_loop_enabled = true
 	if name == "steam" and d.main.fx != null:
-		d.main.fx.ambient.burst_soon(0.3)
+		d.main.fx.ambient.burst_soon(0.45)
+	# 描き始めの数こまは暗い（止めていた描画の、時間で落ち着く光がまだそろわない）ので、少し描いてから撮る
+	for i in 8:
+		await RenderingServer.frame_post_draw
 	for k in frames:
 		for i in (1 if k == 0 else every):
 			await RenderingServer.frame_post_draw
