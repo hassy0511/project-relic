@@ -31,7 +31,7 @@
     材質 '<id>_body'（下地の色＋発光のテクスチャ）と '<id>_face'（face_atlas.png、UV は区画 0：
     Blender の u∈[0,0.5]、v∈[0.5,1]）
   spark_gun.glb（ハルだけ）：原点 = 握りの中心、銃身 +X、上 +Z、材質 'spark_gun'、空の目印 'muzzle'
-  haru_r.glb：標準の 20 本の骨・14 動作・銃（右手は部品 hand.py で、基準の姿勢のまま握っている。シェイプキーなし）・光刃 'LightBlade'（左の籠手のレール）・目印 'muzzle'、
+  haru_r.glb：標準の 20 本の骨＋揺れの骨 9 本（髪 hair.*・ポーチ pouch.L/R。--sway-bones、recon/sway.py）・14 動作・銃（右手は部品 hand.py で、基準の姿勢のまま握っている。シェイプキーなし）・光刃 'LightBlade'（左の籠手のレール）・目印 'muzzle'、
     'blade_socket'。材質 'haru_body'、'haru_face'、'spark_gun'、'haru_blade'、'haru_parts'（服の部品と右手）
     外装フレームの群は別の物体 'Frame_core'・'Frame_arm'・'Frame_legs'（同じ骨。部品と、元の塗りの殻の材質 'haru_frame_paint'。
     chars/haru_parts.py の FRAME_GROUPS・FRAME_PAINT。'Haru' の体のテクスチャは板の下を作業着の色にしたもの）
@@ -148,7 +148,7 @@ def stages(standin: bool) -> list[Stage]:
               + ['--stats', stats],
               outputs=[OUT_GLB, stats],
               inputs=rig_inputs,
-              deps=[f'{RECON_PY}/costume.py', f'{RECON_PY}/hand.py'] + PARTS_FILES + ['tools/blender/lib/humanoid.py', 'tools/blender/lib/mesh.py', 'tools/blender/lib/common.py',
+              deps=[f'{RECON_PY}/costume.py', f'{RECON_PY}/hand.py', f'{RECON_PY}/sway.py'] + PARTS_FILES + ['tools/blender/lib/humanoid.py', 'tools/blender/lib/mesh.py', 'tools/blender/lib/common.py',
                     'tools/blender/models/humanoid_anims.py', 'tools/blender/models/haru_a.py']
               + (['tools/blender/models/child_anims.py'] if 'child' in rig_args else [])
               + (['tools/blender/models/elder_anims.py'] if 'elder' in rig_args else []),

@@ -680,3 +680,85 @@ func test_frame_parts_toggle() -> void:
 	p.set_frame_parts(false, true, false)
 	h.expect(p.frame_nodes.is_empty(), "群の無いモデルでは何もしない")
 	p.free()
+
+
+## 2 次の動き（見た目だけ。W1_ハル再構築の結果.md 8 章）：haru_r の揺れの骨（髪 7・ポーチ 2）を HaruSway が揺らし、
+## FootIK が段・坂で足を床に置く。骨格の変形は物理の刻みで進み、描画のこまの更新（delta = 0）では揺れが進まない
+## （刻みの速さに左右されない）。ゲームの中身（位置）は見た目の有無・入り切りで変わらない
+func test_secondary_motion() -> void:
+	var v := PlayerView.new()
+	h.tree.root.add_child(v)
+	v.load_model("res://assets/models/haru_r.glb")
+	h.expect(v.sway != null and v.sway.bones.size() == 9, "haru_r に揺れの骨が 9 本（髪 7・ポーチ 2）")
+	h.expect(v.foot_ik != null, "足の接地の修飾がある")
+	h.expect(v.skeleton.modifier_callback_mode_process == Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_PHYSICS,
+		"骨格の変形は物理の刻みで進む")
+	# 足のいちばん低い点（骨格の更新の直後に読む。変形のあとの姿勢は更新の間だけ見える）
+	var feet := {}
+	var sk := v.skeleton
+	var on_update := func():
+		for bn in ["foot.L", "foot.R"]:
+			feet[bn] = (sk.global_transform * sk.get_bone_global_pose(sk.find_bone(bn))).origin
+	sk.skeleton_updated.connect(on_update)
+	# 0.3 m の段（z 4〜8）の縁に、+x を向いて立つ（体の真ん中は縁から 3 cm 出る）：左足（-z）は床、右足は段の上
+	var g := h.make_game({"boxes": [[Vector3(0, 0.15, 6.0), Vector3(6, 0.3, 4)]]})
+	await h.settle()
+	g.player.teleport(Vector3(0, 0.3, 3.97), PI / 2.0)
+	var tick := func(n: int, input: Dictionary):
+		for i in n:
+			await h.tree.physics_frame
+			g.step(InputFrame.of(input))
+			v.sync(g.player, g, 1.0 / 60.0, Vector3.FORWARD)
+	await tick.call(40, {})
+	h.expect(g.player.grounded and absf(g.player.pos.y - 0.3) < 0.02, "段の縁に立っている（%s）" % str(g.player.pos))
+	h.near(v.foot_ik.last_drop, -0.3, 0.03, "段の縁：腰を段の高さだけ下げる")
+	h.near(feet["foot.L"].y, 0.09, 0.03, "左足（床の上）：足首が床から 9 cm（足の裏が床）")
+	h.near(feet["foot.R"].y, 0.39, 0.03, "右足（段の上）：足首が段の上から 9 cm")
+	# 切ると動作のまま（腰は下げない。左足は段の高さに浮く）
+	v.set_secondary(false)
+	await tick.call(4, {})
+	h.near(feet["foot.L"].y, 0.39, 0.03, "足の接地を切ると、左足は段の高さのまま")
+	v.set_secondary(true)
+	# 平らな床では動作のまま（腰も足も動かさない）
+	g.player.teleport(Vector3(-6, 0, -6), PI / 2.0)
+	await tick.call(40, {})
+	h.near(v.foot_ik.last_drop, 0.0, 0.005, "平らな床では腰を下げない")
+	# 揺れ：走って止まると房が振れる。描画のこまの更新（delta = 0）を挟んでも揺れの状態は進まない
+	await tick.call(40, {"move_y": 1.0})
+	await tick.call(10, {})
+	h.expect(v.sway.last_max > 0.15, "走って止まると房が振れる（%.1f 度）" % rad_to_deg(v.sway.last_max))
+	h.expect(v.sway.last_max < 0.7, "振れは角度の上限まで（%.1f 度）" % rad_to_deg(v.sway.last_max))
+	var before_d := v.sway._d.duplicate()
+	var before_w := v.sway._w.duplicate()
+	for i in 3:
+		v.sway._process_modification_with_delta(0.0)
+	var same := true
+	for k in before_d.size():
+		same = same and v.sway._d[k].is_equal_approx(before_d[k]) and v.sway._w[k].is_equal_approx(before_w[k])
+	h.expect(same, "描画のこまの更新（delta = 0）では揺れが進まない")
+	sk.skeleton_updated.disconnect(on_update)
+	h.free_game(g)
+	v.free()
+	# 中身は見た目に左右されない：同じ入力で、見た目なし・揺れと足の接地を切った・入れたの 3 通りの位置が同じ
+	var ends := []
+	for mode in ["none", "off", "on"]:
+		var g2 := h.make_game({"boxes": [[Vector3(0, 0.15, 6.0), Vector3(6, 0.3, 4)]]})
+		await h.settle()
+		var pv: PlayerView = null
+		if mode != "none":
+			pv = PlayerView.new()
+			h.tree.root.add_child(pv)
+			pv.load_model("res://assets/models/haru_r.glb")
+			pv.set_secondary(mode == "on")
+		g2.player.teleport(Vector3(0, 0, 1.0), 0.0)
+		for i in 150:
+			await h.tree.physics_frame
+			var inp := {"move_y": 1.0} if i < 50 else ({"jump": true} if i < 60 else {})
+			g2.step(InputFrame.of(inp))
+			if pv != null:
+				pv.sync(g2.player, g2, 1.0 / 60.0, Vector3.FORWARD)
+		ends.append(g2.player.pos)
+		if pv != null:
+			pv.free()
+		h.free_game(g2)
+	h.expect(ends[0] == ends[1] and ends[1] == ends[2], "見た目の有無・入り切りで位置が変わらない（%s）" % str(ends))
