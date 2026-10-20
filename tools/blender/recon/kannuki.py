@@ -450,17 +450,20 @@ def build_arm_fl():
     # 前腕（肘）。角ばった板と白磁の襟、真鍮の帯
     up_f = np.cross(ea, f)
     fore = BP.prism(E + f * 0.22, D0 - f * 0.34, [(0, 0.29, 0.26, 0.22), (0.35, 0.35, 0.31, 0.25), (1, 0.32, 0.29, 0.23)], fwd=up_f)
+    # 肘の当て（前腕の板に重ねる 2 枚目。絵の腕の重なった板）
+    eguard = BP.prism(E + f * 0.1, E + f * 0.52, [(0, 0.33, 0.30, 0.18), (0.55, 0.40, 0.37, 0.24), (1, 0.37, 0.34, 0.22)], fwd=up_f)
+    fore = merge(fore, eguard)
     collar = lathe(D0 - f * 0.42, D0 + f * 0.02, [(0, 0.44), (1, 0.5)], 12)
     ebolt = cyl(E - ea * 0.5, E + ea * 0.5, 0.2, 8)
     band = lathe(D0 - f * 0.03, D0 + f * 0.08, [(0, 0.52), (1, 0.52)], 12)
     add('arm_fl_elbow', 'arm_fl_pitch', E, ea, [('ivory', merge(fore, collar)), ('dark', ebolt), ('brass', band)])
     # 削岩錐（自転）。3e：鋼の円すいに螺旋の溝（黒鉛の稜）と真鍮の螺旋・真鍮の帯 3 本・真鍮の先
     L = np.linalg.norm(T - D0)
-    cone = lathe(D0 + f * 0.08, T, [(0, 0.47), (1, 0.0)], 12)
+    cone = lathe(D0 + f * 0.08, T, [(0, 0.47), (1, 0.0)], 10)
     r_at = lambda d: 0.47 * (1 - (d - 0.08) / (L - 0.08))
     flute = helix(D0 + f * 0.1, T - f * 0.2, r_at(0.1) * 0.97, r_at(L - 0.2), 2.25, 0.12, 0.05, n=9, phase=math.pi)
     hx = helix(D0 + f * 0.1, T - f * 0.12, 0.47 * 0.96, 0.02, 2.25, 0.15, 0.06, n=9)
-    bands = [lathe(D0 + f * (d - 0.03), D0 + f * (d + 0.035), [(0, r_at(d) + 0.035), (1, r_at(d + 0.035) + 0.035)], 12)
+    bands = [lathe(D0 + f * (d - 0.03), D0 + f * (d + 0.035), [(0, r_at(d) + 0.035), (1, r_at(d + 0.035) + 0.035)], 10)
              for d in (0.24, 0.62, 1.0)]
     tipc = lathe(T - f * 0.26, T + f * 0.02, [(0, 0.09), (1, 0.0)], 8)
     add('arm_fl_drill', 'arm_fl_elbow', D0, f, [('dark', merge(cone, flute)), ('brass', merge(hx, tipc, *bands))])
