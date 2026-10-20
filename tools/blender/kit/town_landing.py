@@ -66,7 +66,10 @@ def _quad_up(x0, x1, z0, z1, y, mat, p: Part):
 def _slab(p: Part):
     """黒鉛の台の箱・白磁の鼻隠し（2.8 m ごとの板、すき間は黒鉛）・外の面の琥珀の灯・舷へ下りる斜めの支え"""
     p.add('graphite', boxb(X_SLAB, X_OUT - 0.1, L - 3.4, L - 0.06, Z_S + 0.1, Z_N - 0.1))
-    p.add('brass', boxb(X_SLAB + 0.3, X_OUT - 0.06, L - 3.48, L - 3.38, Z_S + 0.14, Z_N - 0.14))       # 下の縁の真鍮の帯
+    # 下の縁の真鍮の帯（外の縁と北・南の縁）
+    p.add('brass', boxb(X_OUT - 0.5, X_OUT - 0.06, L - 3.48, L - 3.38, Z_S + 0.14, Z_N - 0.14))
+    for z0, z1 in ((Z_S + 0.14, Z_S + 0.5), (Z_N - 0.5, Z_N - 0.14)):
+        p.add('brass', boxb(HULL + 0.3, X_OUT - 0.5, L - 3.48, L - 3.38, z0, z1))
     # 鼻隠し：外の面（x）と北・南の面（z）
     n = int(round((Z_N - Z_S) / 2.8))
     for k in range(n):
@@ -130,6 +133,9 @@ def _deck(p: Part):
     beams = ((52.75, 53.25), (56.88, 57.12))
     for a, b in beams:
         _strip(p, a, b, zs, zn)
+        for z in np.arange(zs + 0.6, zn - 0.3, 1.2):
+            for x in ((a + 0.09, b - 0.09) if b - a > 0.3 else ((a + b) / 2,)):
+                p.add('brass', boxb(x - 0.035, x + 0.035, L + 0.02, L + 0.035, z - 0.035, z + 0.035))
     # かごの口のふたの縁（真鍮と黒の縞、板より 4 cm 上）
     _hazard(p, hx0 - r, hx1 + r, hz0 - r, hz0, 0.04)
     _hazard(p, hx0 - r, hx1 + r, hz1, hz1 + r, 0.04)
@@ -146,10 +152,13 @@ def _deck(p: Part):
     p.add('graphite', boxb(hx0, hx1, L - 0.06, L - 0.005, hz0, hz1))
     xm = (hx0 + hx1) / 2
     for a, b in ((hx0 + 0.04, xm - 0.05), (xm + 0.05, hx1 - 0.04)):
-        for k in range(3):
-            z0 = hz0 + 0.04 + (hz1 - hz0 - 0.08) * k / 3 + (0.03 if k else 0.0)
-            z1 = hz0 + 0.04 + (hz1 - hz0 - 0.08) * (k + 1) / 3 - (0.03 if k < 2 else 0.0)
-            p.add('ivory', boxb(a, b, L - 0.04, L + 0.025, z0, z1))
+        for j in range(2):
+            x0 = a + (b - a) * j / 2 + (0.035 if j else 0.0)
+            x1 = a + (b - a) * (j + 1) / 2 - (0.035 if j == 0 else 0.0)
+            for k in range(3):
+                z0 = hz0 + 0.04 + (hz1 - hz0 - 0.08) * k / 3 + (0.035 if k else 0.0)
+                z1 = hz0 + 0.04 + (hz1 - hz0 - 0.08) * (k + 1) / 3 - (0.035 if k < 2 else 0.0)
+                p.add('ivory2', boxb(x0, x1, L - 0.04, L + 0.025, z0, z1))
     p.add('brass', boxb(xm - 0.05, xm + 0.05, L - 0.04, L + 0.035, hz0 + 0.04, hz1 - 0.04))
     for x in (hx0 + 0.04, hx1 - 0.04):
         for z in np.linspace(hz0 + 1.2, hz1 - 1.2, 4):
@@ -239,17 +248,25 @@ def _canopy(p: Part):
         a = np.array([x0 + 0.05, _slope_y(x0 + 0.05) + 0.08, z])
         b = np.array([x1 - 0.05, _slope_y(x1 - 0.05) + 0.08, z])
         p.add('graphite', beam(a, b, 0.12, 0.16))
-    # 帆布：垂木の上（垂木の上の面 + 1.5 cm）、垂木の間で 0.1 m たるむ。北・南は垂木の外へ 0.35 m
-    zk = [CANOPY_Z[0], *RAFTERS, CANOPY_Z[1]]
-    vk = [0.0] + [(1 + 4 * i) / 14.0 for i in range(len(RAFTERS))] + [1.0]
-
-    def cloth(u, v):
-        x = x0 + (x1 - x0) * u
-        z = float(np.interp(v, vk, zk))
+    # 帆布：垂木の上（垂木の上の面 + 1.5 cm）、垂木の間で 0.1 m たるむ。北・南は垂木の外へ 0.35 m。
+    # 斜面に沿った縞（赤い帆布と生成りの麻を交互に、垂木の間に 4 本ずつ）：上の中段から見下ろすと 1 枚の大きな赤い板に見えたので
+    def cloth_y(x, z):
         t = _canopy_t(z)
         sag = 0.1 * math.sin(math.pi * t) if t >= 0 else 0.03 * min(1.0, min(abs(z - RAFTERS[0]), abs(z - RAFTERS[-1])) / 0.35)
-        return (x, _slope_y(x) + 0.16 + 0.015 - sag, z)
-    p.add('cloth', sway(sheet(cloth, 12, 14, 0.03), _canopy_weight))
+        return _slope_y(x) + 0.16 + 0.015 - sag
+    edges = [CANOPY_Z[0]]
+    for z0, z1 in zip(RAFTERS[:-1], RAFTERS[1:]):
+        edges += [z0 + (z1 - z0) * k / 4 for k in range(4)]
+    edges += [RAFTERS[-1], CANOPY_Z[1]]
+    stripes = [(edges[i], edges[i + 1]) for i in range(len(edges) - 1)]
+    for i, (za, zb) in enumerate(stripes):
+        mat = 'cloth' if (i - 1) % 2 == 0 or i == 0 or i == len(stripes) - 1 else 'linen'
+
+        def cloth(u, v, za=za, zb=zb):
+            x = x0 + (x1 - x0) * u
+            z = za + (zb - za) * v
+            return (x, cloth_y(x, z), z)
+        p.add(mat, sway(sheet(cloth, 8, 2, 0.03), _canopy_weight))
     # 外の縁の垂れ（波形、0.45 m）：上の端は帆布の縁と同じ重み、下へ SWAY_DROP まで
     ye = _slope_y(x1) + 0.16
     xd = x1 + 0.02
