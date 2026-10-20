@@ -65,6 +65,10 @@ APRON = dict(top=BELT_Z[0] + 0.006, hem=0.398, trim=0.024, x_top=(-0.112, 0.118)
 APRON_BACK = dict(top=BELT_Z[0] + 0.006, hem=0.402, trim=0.024, x_top=(-0.072, 0.072), x_bot=(-0.096, 0.096))
 # 顔のまわりの髪の塗りの下の線（|x − X0| → z）。正面の絵の生え際（額の真ん中 1.438、こめかみへ下がる）
 HAIRLINE_PAINT = ([0.0, 0.04, 0.07, 0.09, 0.10, 0.11, 0.12, 0.13], [1.438, 1.425, 1.405, 1.385, 1.365, 1.335, 1.30, 1.27])
+# 3 周目：塗りの生え際（body_rules だけ。房の根は HAIRLINE_PAINT のまま）。こめかみ（|x| 0.09〜0.13）を 1〜3cm 上げる：
+# 左のこめかみの肌の色のしみは、顔の材質（肌の形の上の三角形）の縁が、その上の髪の色の塗りに三角形の辺の階段で
+# 食い込んだ所だった。塗りの肌をしみより上まで上げ、こめかみの生え際は額の縁の房（形）が作る
+PAINT_LINE = ([0.0, 0.04, 0.07, 0.09, 0.10, 0.11, 0.12, 0.13], [1.438, 1.425, 1.405, 1.395, 1.388, 1.372, 1.338, 1.295])
 BOOT_CUT = 0.155        # この高さより下の脚の体は消して、靴の部品に置き換える
 BOOT_RAMP = (0.06, 0.15)
 BOOT_CUT_X = (0.03, 0.30)
@@ -1004,13 +1008,13 @@ def body_rules(pos: np.ndarray, col: np.ndarray, lab: np.ndarray, under: np.ndar
         ax = np.abs(xh - X0)
         th_f = np.degrees(np.arctan2(ax, -(yh - 0.01)))
         flush = (f['hair'] - f['skin']) < 0.009
-        line = np.where(th_f < 72.0, np.interp(ax, HAIRLINE_PAINT[0], HAIRLINE_PAINT[1]),
+        line = np.where(th_f < 72.0, np.interp(ax, PAINT_LINE[0], PAINT_LINE[1]),
                         np.where(th_f < 112.0, 1.335, 1.25))
         hair &= ~(flush & (zh < line))
         lab_h = np.full(len(hi), NAMES.index('skin'))
         # 帽子（髪の土台）は内側の暗い髪（房のすき間が陰に見え、房の形が分かる）。生え際の 2.5cm 上までは房と同じ色
         # （ニコは帽子の縁が額の帯に見えた）
-        near_line = (th_f < 80.0) & (zh < np.interp(ax, HAIRLINE_PAINT[0], HAIRLINE_PAINT[1]) + 0.025)
+        near_line = (th_f < 80.0) & (zh < np.interp(ax, PAINT_LINE[0], PAINT_LINE[1]) + 0.025)
         lab_h[hair] = NAMES.index('hair_dark')
         lab_h[hair & near_line] = NAMES.index('hair')
         lab_h[ear] = NAMES.index('skin')

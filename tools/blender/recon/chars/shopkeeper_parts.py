@@ -617,7 +617,96 @@ def _petal(c, axis, up, L, W, T, n=8, k=6):
     return _loft_x(np.array(secs))
 
 
+BUN_AXIS = np.array([0.0, math.sin(math.radians(35.0)), math.cos(math.radians(35.0))])   # お団子の軸（上から 35 度後ろへ）
+BUN_RR = (0.056, 0.052)          # 軸に直角の半径・軸の向きの半径
+
+
+def _rose_petal(phi0, dphi, th_in, th_out, s0, s1, twist, thick=0.007, n_th=5, n_ph=9):
+    """お団子の花びら 1 枚（3 周目。トルーデのお団子と同じ作り）：軸 BUN_AXIS のまわりの楕円体の、方位 phi0〜phi0+dphi・
+    軸からの角度 th_in〜th_out の曲がった厚い板。方位の両端は下の重へもぐり、内の縁は少し外へめくれる。(頂点, 外の面, 縁と内の面)"""
+    ax = BUN_AXIS / np.linalg.norm(BUN_AXIS)
+    e1 = np.cross(ax, np.array([0.0, 0.0, 1.0]))
+    e1 /= np.linalg.norm(e1)
+    e2 = np.cross(ax, e1)
+
+    def pt(u, v, off):
+        ph = phi0 + dphi * u
+        th = (th_in + twist * u) + (th_out - (th_in + twist * u)) * v
+        s = s0 - 0.035 + (s1 - s0 + 0.035) * math.sin(math.pi * u) ** 0.5
+        lip = 0.006 * (1 - v) ** 3
+        d = math.sin(th) * (math.cos(ph) * e1 + math.sin(ph) * e2) * BUN_RR[0] + math.cos(th) * ax * BUN_RR[1]
+        dn = d / np.linalg.norm(d)
+        return BUN_C + d * s + dn * (lip - off)
+
+    us, vs = np.linspace(0, 1, n_ph), np.linspace(0, 1, n_th)
+    outer = np.array([[pt(u, v, 0.0) for u in us] for v in vs])
+    inner = np.array([[pt(u, v, thick) for u in us] for v in vs])
+    V = np.concatenate([outer.reshape(-1, 3), inner.reshape(-1, 3)])
+    no = n_th * n_ph
+
+    def idx(i, j, layer):
+        return layer * no + i * n_ph + j
+
+    Ft, Fu = [], []
+    for i in range(n_th - 1):
+        for j in range(n_ph - 1):
+            a, b, c, d = idx(i, j, 0), idx(i, j + 1, 0), idx(i + 1, j + 1, 0), idx(i + 1, j, 0)
+            Ft += [(a, b, c), (a, c, d)]
+            a, b, c, d = idx(i, j, 1), idx(i, j + 1, 1), idx(i + 1, j + 1, 1), idx(i + 1, j, 1)
+            Fu += [(a, c, b), (a, d, c)]
+    m, k = n_th - 1, n_ph - 1
+    for j in range(n_ph - 1):
+        o0, o1, i0, i1 = idx(0, j, 0), idx(0, j + 1, 0), idx(0, j, 1), idx(0, j + 1, 1)
+        Fu += [(o1, o0, i0), (o1, i0, i1)]
+        o0, o1, i0, i1 = idx(m, j, 0), idx(m, j + 1, 0), idx(m, j, 1), idx(m, j + 1, 1)
+        Fu += [(o0, o1, i1), (o0, i1, i0)]
+    for i in range(n_th - 1):
+        o0, o1, i0, i1 = idx(i, 0, 0), idx(i + 1, 0, 0), idx(i, 0, 1), idx(i + 1, 0, 1)
+        Fu += [(o0, o1, i1), (o0, i1, i0)]
+        o0, o1, i0, i1 = idx(i, k, 0), idx(i + 1, k, 0), idx(i, k, 1), idx(i + 1, k, 1)
+        Fu += [(o1, o0, i0), (o1, i0, i1)]
+    V, F = _orient(V, Ft + Fu)
+    return V, F[:len(Ft)], F[len(Ft):]
+
+
 def bun() -> list[dict]:
+    """お団子（3 周目）：頭頂の後ろの、花びらを巻いたハスのような大きな塊（絵 shopkeeper_head_*：外の大きな花びらが
+    中の芽を包み、横・後ろから重なった縁が見える）。2 周目は丸い房 22 個の輪で、近写ではブドウの房に見えた。
+    軸（上から 35 度後ろ）のまわりの楕円体に、芽 2 枚・中の重 4 枚・外の重 5 枚の曲がった厚い板。外の面は髪の色、縁と内は濃い茶"""
+    out = []
+    # 一番外の重（3）は付け根を包むすそ：お団子の下の口と、お団子の下へ集まる房の先の歯の列を覆う
+    layers = [(0, 2, 210.0, 0.0, 56.0, 0.84, 0.90, 0.0, 30.0),
+              (1, 4, 125.0, 26.0, 96.0, 0.92, 0.99, 12.0, 80.0),
+              (2, 5, 100.0, 48.0, 128.0, 1.00, 1.06, 10.0, 15.0),
+              (3, 6, 82.0, 96.0, 158.0, 0.98, 1.03, 8.0, 45.0)]
+    for L, cnt, wdeg, tin, tout, s0, s1, tw, ph0 in layers:
+        for k in range(cnt):
+            V, Ft, Fu = _rose_petal(math.radians(ph0 + 360.0 * k / cnt), math.radians(wdeg), math.radians(tin),
+                                    math.radians(tout), s0, s1, math.radians(tw))
+            out.append(dict(name=f'hair_bun{L}_{k}', bone='head', color='hair', mesh=(V, Ft)))
+            out.append(dict(name=f'hair_bun{L}_{k}_u', bone='head', color='hair_dark', mesh=(V, Fu)))
+    # 前の付け根の詰め物（まとめた髪のふくらみ）：額から上がる房の先がお団子の前で歯の列に見えた
+    nb_l, nb_m = 6, 14
+    c0, rx, ry, rz = BUN_C + np.array([0.0, -0.030, -0.034]), 0.054, 0.042, 0.022
+    Vb = [c0 + np.array([math.cos(ph) * math.cos(lm) * rx, math.cos(ph) * math.sin(lm) * ry, math.sin(ph) * rz])
+          for ph in (math.pi * i / nb_l - math.pi / 2 for i in range(1, nb_l))
+          for lm in (2 * math.pi * k / nb_m for k in range(nb_m))]
+    Vb += [c0 - np.array([0, 0, rz]), c0 + np.array([0, 0, rz])]
+    Fb = []
+    for i in range(nb_l - 2):
+        for k in range(nb_m):
+            a_, b_ = i * nb_m + k, i * nb_m + (k + 1) % nb_m
+            Fb += [(a_, b_, b_ + nb_m), (a_, b_ + nb_m, a_ + nb_m)]
+    s0, s1, last = len(Vb) - 2, len(Vb) - 1, (nb_l - 2) * nb_m
+    for k in range(nb_m):
+        Fb += [(s0, (k + 1) % nb_m, k), (s1, last + k, last + (k + 1) % nb_m)]
+    Vb, Fb = _orient(np.array(Vb), Fb)
+    out.append(dict(name='hair_bun_gather', bone='head', color='hair', mesh=(Vb, Fb)))
+    return out
+
+
+def _bun_r2() -> list[dict]:
+    """2 周目のお団子（丸い房の輪。使っていない。比べるために残す）"""
     """お団子：頭頂の後ろの、丸い房 8 個の輪 ＋ 上の房 1 個（絵の真上の図：花のように重なる）"""
     out = []
     ring = 8
@@ -740,7 +829,7 @@ def hair_parts() -> list[dict]:
         ('back_l4', 166, 174, 1.288, 0.038, 0.003), ('back_r4', -166, -174, 1.288, 0.038, 0.003),
         ('back_c', 180, 180, 1.278, 0.058, 0.012),
     ]
-    ROOT_WIDE = np.array([0.72, 1.0, 1.0, 0.95, 0.85, 0.7, 0.52, 0.3, 0.0])   # 根で広く、お団子の下でとがる
+    ROOT_WIDE = np.array([0.72, 1.0, 1.0, 0.97, 0.92, 0.84, 0.72, 0.55, 0.3])   # 根で広く、お団子の中で細る（3 周目：先をとがらせない）
     LEAF = np.array([0.35, 0.65, 0.88, 1.0, 1.0, 0.92, 0.75, 0.45, 0.0])      # 後ろの房：根が細く、中ほどで広く、えり足でとがる
     sgrid = np.linspace(0.0, 1.0, n)
     for name, thd, tht, zt, w, lift in sweep:
@@ -754,7 +843,9 @@ def hair_parts() -> list[dict]:
         P = np.stack([C[0] + rho * np.sin(np.radians(th)), C[1] - rho * np.cos(np.radians(th)), zz], 1)
         # 根はお団子の付け根（中心から 4cm、その向き）
         a = math.radians(thd)
-        P[0] = BUN_C + np.array([0.030 * math.sin(a), -0.030 * math.cos(a), -0.012])
+        # 3 周目：根をお団子の中へ（中心から 2cm、高さは中心）。お団子を下げ後ろへ移したら、お団子の前で房の先が
+        # 歯の列に並び、その間に帽子の上の面が見えた
+        P[0] = BUN_C + np.array([0.020 * math.sin(a), -0.020 * math.cos(a), 0.0])
         if abs(thd) <= 100:
             # 前と横の房は、生え際（広い根）からお団子（とがった先）へ（絵：額・こめかみ・耳の上から上へまとめ上げる）。
             # 2 周目の最初は根をお団子・先を生え際にして、額の生え際にとがった先の歯の列が並んだ
@@ -819,11 +910,11 @@ def hair_parts() -> list[dict]:
         eo /= np.linalg.norm(eo)
         bk = np.array([0.0, 1.0, 0.0]) - ax * ax[1] - eo * eo[1]
         bk /= np.linalg.norm(bk)
-        psi = np.radians(np.linspace(-70.0, 215.0, 16))
-        lift = 0.0045 + 0.0012 * np.sin(np.clip((psi + np.radians(70)) / np.radians(285), 0, 1) * math.pi)
+        psi = np.radians(np.linspace(-45.0, 195.0, 15))
+        lift = 0.0045 + 0.0012 * np.sin(np.clip((psi + np.radians(45)) / np.radians(240), 0, 1) * math.pi)
         path = (c[None] + np.outer(0.0235 * np.cos(psi), ax) + np.outer(0.0128 * np.sin(psi), bk)
                 + np.outer(lift, eo))
-        rr = 0.0024 * np.interp(psi, np.radians([-70, -40, 180, 215]), [0.4, 1.0, 1.0, 0.5])
+        rr = 0.0024 * np.interp(psi, np.radians([-45, -20, 165, 195]), [0.4, 1.0, 1.0, 0.5])
         secs = []
         for i in range(len(path)):
             tg = path[min(i + 1, len(path) - 1)] - path[max(i - 1, 0)]
