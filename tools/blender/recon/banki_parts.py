@@ -171,7 +171,9 @@ def sentry(rig: Rig):
     dark.append(cyl((0, -12.0, 67.0), (0, -17.5, 67.0), 2.6, 12))
     dark.append(cyl((0, -17.5, 67.0), (0, -18.2, 67.0), 1.5, 12))
     # 腰の黒鉛の塊（股の関節の間）
-    dark.append(ell_solid((0, 0.5, 52.0), (8.5, 6.5, 4.5, 4.5), 12, 6))
+    dark.append(ell_solid((0, 0.5, 52.5), (6.0, 6.0, 4.0, 4.0), 12, 6))
+    # 核の窓の縦の仕切り（黒鉛。絵の背面の窓は中央で 2 つに分かれる）
+    dark.append(ell_plate(C, AX, 46.0, 116.0, 178.6, 181.4, thick=1.2, grow=0.2, dth=12, dph=3))
     rig.add('body', None, (0, 0, 47.0), (1, 0, 0), [('ivory', merge(*ivory)), ('brass', merge(*brass)), ('dark', merge(*dark))])
     # 棘（真鍮）と付け根の輪
     spike = lathe((0, 0, 94.0), (0, 0, 110.0), [(0, 5.0), (0.12, 5.0), (0.2, 3.6), (1, 0.0)], 8)
@@ -193,7 +195,7 @@ def sentry(rig: Rig):
         d = (knee - hip) / np.linalg.norm(knee - hip)
         # 3e：腿・脛は角ばった板（前に稜。腿は中ほどがふくらみ、脛は下へ細る）。股・膝の黒鉛の円盤は大きめ
         thigh = prism(hip + d * 4.2, knee - d * 3.6, [(0, 4.6, 4.4, 4.0), (0.35, 5.8, 6.0, 5.0), (1, 4.6, 4.8, 4.0)], fwd=(0, -1, 0))
-        rig.add(f'thigh_{side}', 'body', hip, ax, [('ivory', thigh), ('dark', disc(hip, 5.2, 6.5))])
+        rig.add(f'thigh_{side}', 'body', hip, ax, [('ivory', thigh), ('dark', disc(hip + V3([sg * 1.0, 0, 0]), 4.9, 4.6))])   # 股の円盤は細く外へ（腰と分かれて丸い関節に見える）
         d2 = (ankle - knee) / np.linalg.norm(ankle - knee)
         shin = prism(knee + d2 * 3.8, ankle - d2 * 3.0, [(0, 4.4, 4.6, 3.6), (0.3, 4.6, 4.8, 3.6), (1, 3.2, 3.4, 2.8)], fwd=(0, -1, 0))
         knee_d = disc(knee, 4.8, 6.8)
