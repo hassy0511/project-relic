@@ -77,6 +77,7 @@ tools/setup_godot.sh, tools/godot.sh   Godot の用意と実行
 | 手触りの数値、戦闘、仕掛け、会話、セーブ、決定性（19 本） | `tools/godot.sh test` | 約 2 秒 |
 | 起動から一通り遊べるか（会話 → ドリル受け取り → ロックオン → 壁の破壊） | `tools/godot.sh run --fixed-fps 60 -- --demo=<フォルダ>`（画面なし） | 約 1 秒 |
 | 画面の見た目 | `tools/godot.sh shot --resolution 1600x900 -- --demo=<フォルダ>`（ソフトウェア描画で撮影） | 約 4 分 |
+| ハルの 2 次の動き（髪・ポーチの揺れ、足の接地）の前と後 | `tools/godot.sh shot --resolution 1280x720 --fixed-fps 60 -- --demo=<フォルダ> --haru_motion_shots`（重さは `--haru_secondary_bench`、画面なしでも可） | 約 8 分 |
 
 CI（GitHub Actions）で、テストと画面なしの通しの確認を毎回行う。
 
