@@ -252,6 +252,12 @@ func _is_frame_off(m: Node) -> bool:
 	return false
 
 
+## フレームの部品（core・arm・legs）が今体に見えているか：付いていて、装着の演出で隠していない（被弾の点滅の間も真）。
+## 群の無いモデル（以前の試作など）は false。ナゴミの見た目（NagomiView.back_socket：胴の背中の板に付く）が読む
+func frame_shown(part: String) -> bool:
+	return frame_nodes.has(part) and not _frame_off.has(frame_nodes[part])
+
+
 ## 表情：0 通常、1 笑顔、2 驚き、3 痛み。顔の材質（名前に face）のテクスチャは 2×2 の区画に 4 つの表情が
 ## 並び、UV は区画 0（左上）を指す。uv1_offset で区画をずらして切り替える
 func set_expression(i: int) -> void:

@@ -11,6 +11,7 @@ extends Node
 ##       -- --mvp                  第 1 章ではなく、古い試験場（mvp.main）から始める（開発用）
 ##       -- --flags=a,b             始めにフラグを立てておく（扉の条件などの確認用）
 ##       -- --items=a,b             始めにアイテムを持っておく（例：--items=special.drill,key.sample）
+##       -- --nagomi=dock|out       ナゴミを背中のユニットに付けたまま／肩の横に出したままにする（見比べの画像用。NagomiView.force）
 ## ブラウザ版では URL の引数で同じことができる：…/project-relic/?arena=kannuki&god や ?room=sample.gym（demo 以外）
 
 const SAVE_PATH := "user://save_slot1.json"
@@ -184,7 +185,7 @@ func snap_views() -> void:
 		player_view.sync_gun(game)
 		player_view.reset_physics_interpolation()
 		if nagomi_view:
-			nagomi_view.snap(game.player)
+			nagomi_view.snap(game.player, player_view)
 		camera.sync(game, game.player.pos, 1.0, 0.0)
 		camera.reset_physics_interpolation()
 
@@ -264,6 +265,7 @@ func start_game(save) -> void:
 	player_view = null
 	nagomi_view = NagomiView.new()
 	views.add_child(nagomi_view)
+	nagomi_view.force = String(args.get("nagomi", ""))
 	_load_haru(_haru_path(args.get("haru", "r")))
 	enemy_view = null
 	props_view = null
@@ -400,7 +402,8 @@ func _physics_process(dt: float) -> void:
 	# 銃はスパークを受け取るまで練習銃（ヤーナから受け取った刻みで持ち替える）
 	player_view.sync_gun(game)
 	player_view.sync(game.player, game, dt, _aim_dir())
-	nagomi_view.sync(game, camera.global_position, dt)
+	# ナゴミ：ハルの見た目（背中のユニット）と、会話のカメラが寄っているか（その間は背中・肩を変えない）を渡す
+	nagomi_view.sync(game, camera.global_position, dt, player_view, camera.talk_weight() > 0.0)
 	enemy_view.sync(game.enemies, dt)
 	_update_lines(dt)
 	props_view.sync(game, dt)
@@ -486,6 +489,7 @@ func _aim_dir() -> Vector3:
 func _handle_events() -> void:
 	for e in game.drain_events():
 		fx.handle(e)
+		nagomi_view.handle(e)
 		match e.type:
 			"sfx":
 				audio.play(e.id, e.get("at"))
