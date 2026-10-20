@@ -154,23 +154,24 @@ def sentry(rig: Rig):
     for sg in (1, -1):
         f0 = (lambda t: v_in(t)) if sg > 0 else (lambda t: -58.0)
         f1 = (lambda t: 58.0) if sg > 0 else (lambda t: -v_in(t))
-        ivory.append(ell_plate(C, AX, 24.0, min(vbot, 132.0), f0, f1, dth=9, dph=10))
-    # 横の真鍮の板（縦の帯）と、その後ろの白磁の板
+        ivory.append(ell_plate(C, AX, 24.0, min(vbot, 132.0), f0, f1, dth=15, dph=19))
+    # 横の真鍮の板（3e：縦に 4 つの塊に分ける。絵の段の真鍮）と、その後ろの白磁の板
     for sg in (1, -1):
         a, b = (61.0, 79.0) if sg > 0 else (-79.0, -61.0)
-        brass.append(ell_plate(C, AX, 40.0, 128.0, a, b, thick=1.6, grow=0.5, dth=8, dph=6))
+        for t0, t1 in ((38.0, 58.0), (60.0, 82.0), (84.0, 106.0), (108.0, 128.0)):
+            brass.append(ell_plate(C, AX, t0, t1, a, b, thick=1.8, grow=0.6, dth=11, dph=9))
         a, b = (82.0, 158.0) if sg > 0 else (-158.0, -82.0)
-        ivory.append(ell_plate(C, AX, 24.0, 138.0, a, b, dth=9, dph=12))
+        ivory.append(ell_plate(C, AX, 24.0, 138.0, a, b, dth=16, dph=19))
         # 後ろの核の窓の縁（真鍮）
         a, b = (158.5, 163.0) if sg > 0 else (-163.0, -158.5)
         brass.append(ell_plate(C, AX, 40.0, 122.0, a, b, thick=1.4, grow=0.4, dth=8, dph=4))
     # 上のかぶと（1 枚）と下の腹（黒鉛の芯が見える）
-    ivory.append(ell_plate(C, AX, 0.0, 21.5, -180.0, 180.0, dth=7, dph=30))
+    ivory.append(ell_plate(C, AX, 0.0, 21.5, -180.0, 180.0, dth=11, dph=45))
     # 砲口（V の奥、前へ突き出す）
     dark.append(cyl((0, -12.0, 67.0), (0, -17.5, 67.0), 2.6, 12))
     dark.append(cyl((0, -17.5, 67.0), (0, -18.2, 67.0), 1.5, 12))
     # 腰の黒鉛の塊（股の関節の間）
-    dark.append(ell_solid((0, 0.5, 51.0), (11.0, 8.0, 5.0, 5.0), 14, 6))
+    dark.append(ell_solid((0, 0.5, 52.0), (8.5, 6.5, 4.5, 4.5), 12, 6))
     rig.add('body', None, (0, 0, 47.0), (1, 0, 0), [('ivory', merge(*ivory)), ('brass', merge(*brass)), ('dark', merge(*dark))])
     # 棘（真鍮）と付け根の輪
     spike = lathe((0, 0, 94.0), (0, 0, 110.0), [(0, 5.0), (0.12, 5.0), (0.2, 3.6), (1, 0.0)], 8)
@@ -190,11 +191,12 @@ def sentry(rig: Rig):
         hip, knee, ankle = V3([sg * 9.0, -1.0, 49.0]), V3([sg * 11.0, 9.5, 31.0]), V3([sg * 13.0, 2.0, 9.0])
         ax = (1, 0, 0)
         d = (knee - hip) / np.linalg.norm(knee - hip)
-        thigh = limb(hip + d * 4.0, knee - d * 4.0, 5.6, 4.6, 8)
-        rig.add(f'thigh_{side}', 'body', hip, ax, [('ivory', thigh), ('dark', disc(hip, 4.6, 6.0))])
+        # 3e：腿・脛は角ばった板（前に稜。腿は中ほどがふくらみ、脛は下へ細る）。股・膝の黒鉛の円盤は大きめ
+        thigh = prism(hip + d * 4.2, knee - d * 3.6, [(0, 4.6, 4.4, 4.0), (0.35, 5.8, 6.0, 5.0), (1, 4.6, 4.8, 4.0)], fwd=(0, -1, 0))
+        rig.add(f'thigh_{side}', 'body', hip, ax, [('ivory', thigh), ('dark', disc(hip, 5.2, 6.5))])
         d2 = (ankle - knee) / np.linalg.norm(ankle - knee)
-        shin = limb(knee + d2 * 3.8, ankle - d2 * 3.0, 4.4, 3.4, 8)
-        knee_d = disc(knee, 4.4, 6.5)
+        shin = prism(knee + d2 * 3.8, ankle - d2 * 3.0, [(0, 4.4, 4.6, 3.6), (0.3, 4.6, 4.8, 3.6), (1, 3.2, 3.4, 2.8)], fwd=(0, -1, 0))
+        knee_d = disc(knee, 4.8, 6.8)
         hub = disc(knee + V3([sg * 3.6, 0, 0]), 2.0, 1.2, 10)
         rig.add(f'shin_{side}', f'thigh_{side}', knee, ax, [('ivory', shin), ('dark', knee_d), ('brass', hub)])
         # 足：足首の黒鉛の塊と 3 本の爪（前 2・後ろ 1）。爪は白磁で先が真鍮
@@ -714,6 +716,9 @@ def shield(rig: Rig):
         rig.add(f'foot_{side}', f'shin_{side}', ankle, (1, 0, 0), [('ivory', m(ft_iv)), ('brass', m(ft_br)), ('dark', m(ft_dk))])
 
 
+# 陰をなめらかにつなぐ面の角（度）。歩哨型は絵のように面の折れを見せる（3e）
+SMOOTH_DEG = {'sentry': 17.0}
+
 BUILDERS = {'sentry': sentry, 'charger': charger, 'mini': mini, 'floater': floater, 'shield': shield}
 
 
@@ -750,7 +755,7 @@ def build(t: str, out_glb: str) -> dict:
         mw = ob.matrix_world.copy()
         ob.parent = objs[p['parent']] if p['parent'] else root
         ob.matrix_world = mw
-    B.smooth_by_angle(meshes, 38.0)
+    B.smooth_by_angle(meshes, SMOOTH_DEG.get(t, 38.0))
     tri = sum(sum(len(pl.vertices) - 2 for pl in ob.data.polygons) for ob in meshes)
     os.makedirs(os.path.dirname(out_glb), exist_ok=True)
     bpy.ops.object.select_all(action='SELECT')
