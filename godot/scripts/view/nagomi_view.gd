@@ -89,10 +89,12 @@ const SCAN_HOLD := 0.4
 const NODE_HOLD := 1.4
 ## 着いたときの琥珀の光（Fx が click を読んで描く）の秒数
 const CLICK_TIME := 0.25
-## 背中に付いている間の、核の小さな光（背中の板・肩ひも・えりを照らす）：強さ（感情の明るさに掛ける）・届く距離・置き場所（ナゴミの中心から背中の側へ）
-const DOCK_LIGHT := 0.3
-const DOCK_LIGHT_RANGE := 0.42
-const DOCK_LIGHT_Z := -0.03
+## 背中に付いている間の、背中の側の小さな光（dock_glow：背中の板・肩ひも・えりを琥珀に照らす。影なし）：強さ（感情の明るさに掛ける）・
+## 届く距離・置き場所（ナゴミの中心から背中の側へ）。種子光（核）もこの割合だけ明るくする
+const DOCK_LIGHT := 0.55
+const DOCK_LIGHT_RANGE := 0.45
+const DOCK_LIGHT_Z := -0.05
+const DOCK_CORE := 0.4
 ## 体の当たり（body_caps。ナゴミの中心が RADIUS ＋この半径より近づかない）：胴（腰 → 首の骨。背中の板の面まで 0.108 m）・
 ## 肩（左右の上腕の付け根を結ぶ）・上腕（付け根 → 肘）・頭と髪（頭の骨の付け根から HEAD_C の球。髪の先まで）
 const BODY_R := 0.10
@@ -113,6 +115,7 @@ var shells: Array[Node3D] = []
 var shell_rest: Array[Transform3D] = []
 var core_mat: StandardMaterial3D
 var glow: OmniLight3D
+var dock_glow: OmniLight3D
 var emotion := "normal"
 var _angles := [0.0, 0.0, 0.0, 0.0]
 var _color := Color("#FFBC52")
@@ -195,6 +198,13 @@ func _ready() -> void:
 	glow.shadow_enabled = false
 	glow.position = Vector3(0, 0, 0.2)  # 殻の前（内側を照らしすぎないように）
 	add_child(glow)
+	dock_glow = OmniLight3D.new()
+	dock_glow.omni_range = DOCK_LIGHT_RANGE
+	dock_glow.light_energy = 0.0
+	dock_glow.shadow_enabled = false
+	dock_glow.position = Vector3(0, 0, DOCK_LIGHT_Z)
+	dock_glow.visible = false
+	add_child(dock_glow)
 	_apply(0.0)
 
 
@@ -718,7 +728,7 @@ func take_cues() -> Array:
 
 
 ## 感情の値へ、色・明るさ・殻の角度をなめらかに寄せる（dt = 0 ならすぐに合わせる）。背中に寄った割合（dock_k）だけ殻を閉じ、
-## 核の小さな光を背中の側へ移して強める（背中の板・肩ひもが琥珀に照らされる）。着いたときは click の分だけ明るく
+## 種子光を少し明るくし、背中の側の光（dock_glow）で背中の板・肩ひもを琥珀に照らす。着いたときは click の分だけ明るく
 func _apply(dt: float) -> void:
 	var e: Dictionary = EMOTIONS.get(emotion, EMOTIONS.normal)
 	var k := 1.0 if dt <= 0.0 else 1.0 - exp(-8.0 * dt)
@@ -727,15 +737,17 @@ func _apply(dt: float) -> void:
 	var blink := 1.0
 	if e.period > 0.0:
 		blink = 0.7 + 0.3 * (0.5 + 0.5 * sin(TAU * _time / e.period))
-	var flash := 1.0 + 1.5 * click
+	var flash := 1.0 + 1.5 * click + DOCK_CORE * dock_k
 	if core_mat:
 		core_mat.albedo_color = _color
 		core_mat.emission = _color
 		core_mat.emission_energy_multiplier = _energy * blink * flash
+	# 殻の前の光はいつも同じ（種子光のまわりの温かい明るさ）。背中に付いている間だけ、背中の側の光で背中の板・肩ひも・えりを照らす
 	glow.light_color = _color
-	glow.position = Vector3(0, 0, 0.2).lerp(Vector3(0, 0, DOCK_LIGHT_Z), dock_k)
-	glow.omni_range = lerpf(0.5, DOCK_LIGHT_RANGE, dock_k)
-	glow.light_energy = lerpf(0.08, DOCK_LIGHT, dock_k) * _energy * blink + 0.5 * click
+	glow.light_energy = 0.08 * _energy * blink
+	dock_glow.visible = dock_k > 0.0 or click > 0.0
+	dock_glow.light_color = _color
+	dock_glow.light_energy = DOCK_LIGHT * dock_k * _energy * blink + 0.6 * click
 	var ka := 1.0 if dt <= 0.0 else 1.0 - exp(-6.0 * dt)
 	for i in shells.size():
 		_angles[i] = lerpf(_angles[i], float(e.open[i]), ka)

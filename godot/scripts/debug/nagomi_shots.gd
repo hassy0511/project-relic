@@ -82,8 +82,10 @@ static func _use_cam(d, name: String) -> void:
 	_cam = Camera3D.new()
 	m.player_view.add_child(_cam)
 	_cam.fov = float(c[2])
-	_cam.position = c[0]
-	_cam.look_at_from_position(c[0], c[1], Vector3.UP)
+	# ハルの見た目の座標で置く（look_at は世界の座標なので使わない）
+	var eye: Vector3 = c[0]
+	var at: Vector3 = c[1]
+	_cam.transform = Transform3D(Basis.looking_at(at - eye, Vector3.UP), eye)
 	_cam.current = true
 	m.hud.visible = false
 

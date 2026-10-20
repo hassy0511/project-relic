@@ -213,8 +213,9 @@ func test_nagomi_docks_when_running_or_dashing() -> void:
 		closed = closed and nv.shells[i].transform.is_equal_approx(nv.shell_rest[i])
 	h.expect(closed, "殻 4 枚が閉じている")
 	h.expect(nv.global_basis.z.dot(-U.yaw_to_dir(g.player.yaw)) > 0.9, "種子光（正面）はハルの後ろを向く")
-	h.expect(nv.glow.position.z < 0.0 and nv.glow.light_energy > 0.15 and nv.core_mat.emission_energy_multiplier > 0.5,
-		"核は灯ったまま、小さな光が背中の側から背中の板を照らす（%.2f）" % nv.glow.light_energy)
+	h.expect(nv.dock_glow.visible and nv.dock_glow.position.z < 0.0 and nv.dock_glow.light_energy > 0.3 and nv.glow.light_energy > 0.0
+		and nv.core_mat.emission_energy_multiplier > 0.5,
+		"核は灯ったまま、背中の側の光が背中の板を照らす（%.2f）" % nv.dock_glow.light_energy)
 	# 立つ → 肩の横 → ダッシュ・跳ぶ・斬るはすぐ背中へ
 	for act in [{"dash": true}, {"jump": true}, {"sword": true}]:
 		await _out_by_standing(r)
@@ -295,7 +296,7 @@ func test_nagomi_out_after_standing() -> void:
 	h.expect(cues >= 4, "離れるとき背中に小さな煙（%d 粒）" % cues)
 	await _ticks(r, 30)
 	h.expect(_local(r).distance_to(Vector3(-0.40, 1.32, -0.08)) < 0.05, "出たあとは右肩の横（%s）" % _local(r))
-	h.expect(nv.dock_k == 0.0 and nv.glow.position.z > 0.1, "殻と光はふだんどおり")
+	h.expect(nv.dock_k == 0.0 and not nv.dock_glow.visible, "殻と光はふだんどおり（背中の側の光は消える）")
 	_free(r)
 
 
@@ -681,6 +682,87 @@ func test_nagomi_drawn_on_the_plate_while_attacking() -> void:
 	h.expect(worst[2] > 100, "描くこまの更新を見た（%d 回）" % worst[2])
 	h.expect(worst[0] < 0.002, "3 段斬り・溜め斬りの間、描くナゴミは描く骨格の受け口にいる（いちばん離れて %.4f m）" % worst[0])
 	h.expect(worst[1] > 0.05, "物理の刻みの所のままなら離れていた（%.3f m）" % worst[1])
+	_free(r)
+
+
+func test_nagomi_clear_of_swaying_hair() -> void:
+	# 付いたナゴミと、揺れる後ろ・えり足の髪（HaruSway の hair.back.L・hair.back.R・hair.nape）は当たらない：走る・向きを変える・跳ぶ・
+	# ダッシュ・3 段斬りの間、描くこまの骨格の更新ごと（1 回おき）に、変形（揺れ）を当てた骨の姿勢で髪の頂点を肌付けし、
+	# 付いたナゴミの中心から殻の球の半径（0.1245 m）＋2 cm より遠いことを見る
+	var r := await _setup()
+	var g: GameSim = r.g
+	var nv: NagomiView = r.nv
+	var pv: PlayerView = r.pv
+	var sk := pv.skeleton
+	h.expect(pv.sway != null, "haru_r に髪の揺れの骨がある（HaruSway）")
+	var sway := {}
+	for nm in ["hair.back.L", "hair.back.R", "hair.nape"]:
+		if sk.find_bone(nm) >= 0:
+			sway[sk.find_bone(nm)] = true
+	var body: MeshInstance3D = pv.model.find_child("Haru", true, false)
+	var skin: Skin = body.skin
+	var binds: Array[int] = []
+	var bind_poses: Array[Transform3D] = []
+	for i in skin.get_bind_count():
+		var b := skin.get_bind_bone(i)
+		binds.append(b if b >= 0 else sk.find_bone(skin.get_bind_name(i)))
+		bind_poses.append(skin.get_bind_pose(i))
+	var verts := PackedVector3Array()
+	var vb := PackedInt32Array()
+	var vw := PackedFloat32Array()
+	var stride := 4
+	for s in body.mesh.get_surface_count():
+		var arr := body.mesh.surface_get_arrays(s)
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var bo: PackedInt32Array = arr[Mesh.ARRAY_BONES]
+		var we: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
+		if bo.is_empty():
+			continue
+		stride = bo.size() / v.size()
+		for i in v.size():
+			var hw := 0.0
+			for k in stride:
+				if sway.has(binds[bo[i * stride + k]]):
+					hw += we[i * stride + k]
+			if hw >= 0.05:
+				verts.append(v[i])
+				for k in stride:
+					vb.append(bo[i * stride + k])
+					vw.append(we[i * stride + k])
+	h.expect(sway.size() == 3 and verts.size() > 500, "後ろ・えり足の髪の頂点（%d）" % verts.size())
+	await _ticks(r, 20)
+	nv.force = "dock"
+	await _until(r, 60, {}, func(): return _state(r) == NagomiView.Dock.DOCKED)
+	var chest := sk.find_bone("chest")
+	var st := [INF, 0, 0.0]
+	var check := func():
+		if Engine.is_in_physics_frame() or nv.dock_state != NagomiView.Dock.DOCKED or nv._sock.is_empty():
+			return
+		st[1] += 1
+		if st[1] % 2 == 1:
+			return
+		var c := NagomiView.seat_of((sk.global_transform * sk.get_bone_global_pose(chest) * (nv._sock.local as Transform3D)).orthonormalized())
+		var mats := {}
+		for i in verts.size():
+			var p := Vector3.ZERO
+			for k in stride:
+				var w := vw[i * stride + k]
+				if w > 0.0:
+					var bi := vb[i * stride + k]
+					if not mats.has(bi):
+						mats[bi] = sk.get_bone_global_pose(binds[bi]) * bind_poses[bi]
+					p += (mats[bi] as Transform3D) * verts[i] * w
+			st[0] = minf(st[0], (sk.global_transform * p).distance_to(c))
+		st[2] = maxf(st[2], pv.sway.last_max)
+	sk.skeleton_updated.connect(check)
+	await _ticks(r, 60, {"move_y": 1.0})
+	await _ticks(r, 60, func(i): return {"move_x": 1.0 if (i / 20) % 2 == 0 else -1.0, "move_y": 0.5})
+	await _ticks(r, 80, func(i): return {"dash": i % 40 == 0, "move_y": 1.0})
+	await _ticks(r, 70, func(i): return {"jump": i < 10, "move_y": 0.6})
+	await _ticks(r, 60, func(i): return {"sword": i % 8 < 2})
+	sk.skeleton_updated.disconnect(check)
+	h.expect(st[1] > 300 and st[2] > 0.4, "揺れの大きい場面を見た（更新 %d 回、揺れの角度 %.2f rad）" % [st[1], st[2]])
+	h.expect(st[0] > 0.1245 + 0.02, "揺れる後ろ・えり足の髪は、付いたナゴミの殻から 2 cm より離れている（中心から %.3f m）" % st[0])
 	_free(r)
 
 
