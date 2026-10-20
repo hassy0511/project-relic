@@ -95,6 +95,8 @@ var skip_hold := 0.0
 const SKIP_HOLD := 1.0
 ## スキップしたあと、ボタンを一度離すまで次の長押しを数えない（押したまま次の場面まで飛ばさない）
 var _skip_release := false
+## この刻みは敵と敵の弾を止める（刻みの始めの cutscene_hold()）
+var _hold_tick := false
 ## 部屋の移動の予約 { room, spawn?, at?, yaw?, autosave }。刻みの最後に実行する
 var _pending_room := {}
 var _load_wait := 0
@@ -558,6 +560,9 @@ func step(frame: InputFrame) -> void:
 	input = frame
 	edges.update(frame)
 	consumed_jump = false
+	# 敵を止めるかは刻みの始めに決める（操作が戻った刻みも止めたまま）。見ていても、会話の途中でスキップしても、
+	# 敵が動き出すのは操作が戻った次の刻みからになる（スキップは会話中の刻みに終わり、その刻みは世界が動かないので）
+	_hold_tick = cutscene_hold()
 	_update_skip(frame)
 
 	# 部屋の読み込み直後は、物理の世界に反映されるまで 2 刻み待つ
@@ -607,7 +612,7 @@ func step(frame: InputFrame) -> void:
 	_update_movers(DT)
 	_update_switches(DT)
 	player.update(DT)
-	if not cutscene_hold():
+	if not _hold_tick:
 		for e in enemies:
 			e.update(DT)
 	_update_shots(DT)
@@ -1264,12 +1269,11 @@ func spawn_enemy_shot(origin: Vector3, dir: Vector3, speed: float, damage: float
 
 func _update_shots(dt: float) -> void:
 	var homing_rate: float = tuning.lockOn.homingDegPerSec * U.DEG
-	var hold := cutscene_hold()
 	for s in shots:
 		if not s.alive:
 			continue
 		# 黒帯の場面で操作が止まっている間は、敵の弾も宙で止める（場面が終わると続きを飛ぶ）
-		if hold and not s.from_player:
+		if _hold_tick and not s.from_player:
 			continue
 		# 追尾：ロックオン対象の狙った点（撃ったときに見えていた中心か頭）へ緩やかに曲げる
 		if s.homing != null and s.homing.alive:
