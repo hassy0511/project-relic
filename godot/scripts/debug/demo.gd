@@ -141,6 +141,10 @@ func _ready() -> void:
 	if main.args.has("motion_shots"):
 		_steps.clear()
 		_steps.append_array(MotionShots.steps(self))
+	# --nagomi_shots：ナゴミの背中のユニットへの着地のコマと静止画（scripts/debug/nagomi_shots.gd）
+	if main.args.has("nagomi_shots"):
+		_steps.clear()
+		_steps.append_array(NagomiShots.steps(self))
 	# --haru_motion_shots：ハルの髪・ポーチの揺れと足の接地の前と後（scripts/debug/haru_motion_shots.gd）
 	if main.args.has("haru_motion_shots"):
 		_steps.clear()

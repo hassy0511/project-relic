@@ -372,6 +372,7 @@ func sync(game: GameSim, dt: float, pv: PlayerView = null, ev: EnemyView = null,
 	_sync_player(game, dt)
 	_sync_enemies(game, dt)
 	_sync_world(game, dt)
+	_nagomi_dock()
 	# 部屋の飾りの小さなエフェクト（AmbientFx。キットの "emitters"）：部屋が変わったら出所を作り直す
 	if game.room_id != ambient.room_id:
 		ambient.build(game.room_id, game.room)
@@ -1521,6 +1522,39 @@ func _nagomi_eye(game: GameSim, look: Vector3) -> Vector3:
 		c = p.pos + Vector3(-cos(p.yaw), 0.0, sin(p.yaw)) * NagomiView.OFFSET.x + Vector3(0, NagomiView.OFFSET.y, 0) + U.yaw_to_dir(p.yaw) * NagomiView.OFFSET.z
 	var d := look - c
 	return c + d.normalized() * 0.13 if d.length() > 0.3 else c
+
+
+## ナゴミの背中のユニットへの着地（NagomiView）：着いたときの琥珀の小さな光（click：種子光の前の閃きと、背中の板の面に広がる細い輪。
+## 0.25 秒。動くハルの背中について行くので、その刻みだけの板で描く）と、離れたときの小さな煙（undock：白い煙 4 粒と淡い琥珀、約 0.45 秒）。
+## 乱数は使わない（Fx の乱数の並びを変えない）
+func _nagomi_dock() -> void:
+	var nv := _nv as NagomiView if _nv != null and is_instance_valid(_nv) else null
+	if nv == null:
+		return
+	for c in nv.take_cues():
+		if c.type == "undock":
+			_undock_puff(c.at, c.n)
+	var k := nv.click
+	if k <= 0.0 or not nv.is_visible_in_tree():
+		return
+	var n := nv.dock_normal
+	vfx.sprite(Vfx.GLINT, _to_cam(nv.global_position, 0.16), 0.3 + 0.2 * k, _c(AMBER, 0.6 * k))
+	vfx.sprite(Vfx.RING, nv.dock_point + n * 0.012, (0.12 + 0.1 * (1.0 - k)) / Vfx.RING_FRAC, _c(AMBER, 0.5 * k), Vfx.FLAT, _facing(n))
+
+
+func _undock_puff(at: Vector3, n: Vector3) -> void:
+	var b := _facing(n)
+	for i in 4:
+		var a := TAU * (i + 0.5) / 4.0
+		var side := b.x * cos(a) + b.y * sin(a)
+		var q := vfx.emit(Vfx.SMOKE, at + n * 0.06 + side * 0.05, n * 0.7 + side * 0.35 + Vector3(0, 0.15, 0), 0.45, 0.07, 0.2, Color(PALE, 0.35))
+		q.rot = a
+		q.drag = 2.5
+		q.fin = 0.1
+		q.fpow = 1.3
+	var g := vfx.emit(Vfx.SOFT, at + n * 0.05, n * 0.3, 0.22, 0.16, 0.28, Color(AMBER, 0.45))
+	g.fin = 0.05
+	g.fpow = 1.4
 
 
 ## 解析の光の帯（scan：細輪 0.3）：ナゴミの目から、相手をなぞる輪の左右の端（画面で見た左右）へ細い光の線、その間に淡い琥珀の扇。
