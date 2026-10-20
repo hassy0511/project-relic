@@ -371,7 +371,13 @@ def charger_half(sg=1):
     # 後ろの羽（背の高い所から後ろの車輪の上まで）と、前の泥よけ（前の車輪の上）
     for WC, WA, th0, th1, a0, a1 in (((0.0, 56.0, 38.0), (46.0, 58.0, 63.0, 63.0), 20.0, 78.0, 48.0, 145.0),
                                      ((0.0, -30.0, 30.0), (50.0, 40.0, 42.0, 42.0), 36.0, 82.0, 20.0, 95.0)):
-        iv.append(ell_plate(WC, WA, th0, th1, a0, a1, thick=2.4, dth=9.5, dph=12))
+        if WC[1] > 0:
+            # 後ろの羽は重ね板に（絵の真横の後ろへ流れる板）：上の板が下の板に少し重なり、下の板は前後 2 枚に分かれる
+            iv.append(ell_plate(WC, WA, th0, 51.0, a0, a1, thick=2.4, grow=1.8, dth=9.5, dph=12))
+            for b0, b1 in ((a0 + 3.0, 95.0), (98.0, a1 - 4.0)):
+                iv.append(ell_plate(WC, WA, 47.0, th1, b0, b1, thick=2.4, dth=9.5, dph=12))
+        else:
+            iv.append(ell_plate(WC, WA, th0, th1, a0, a1, thick=2.4, dth=9.5, dph=12))
         br.append(ell_plate(WC, WA, th1, th1 + 3.0, a0 + 1.5, a1 - 1.5, thick=1.6, grow=-0.3, dth=3, dph=12))
         dk.append(ell_plate(WC, WA, th0 + 4.0, th1 + 2.0, a0 + 3.0, a1 - 3.0, thick=9.0, grow=-2.6, dth=15, dph=18))
     return iv, br, dk
