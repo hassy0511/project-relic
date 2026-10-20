@@ -112,7 +112,9 @@ def ordo_landing(room, d, name, solid):
     中段（東の壁の 5 m 下に見える）は飾りにせず、オルドの部品のまま（同じ形。板は形の板、汚れの層・揺れは無い）：飾りにすると、
     踊り場の見えない向き（いちばん重い mid_high など）でも広がりの箱が視野に入って描画が 6〜9 回増えた"""
     room["ordo"]["landing"] = False
-    d.put("ordo_landing", ORDO_POS[name], **({"solid": town_landing.landing_solid()} if solid else {}))
+    # 日よけの吊り灯 2 つの間の明かり（夜、帆布の影の中の板とベンチ・木箱が見える）。部品の中の位置（オルドの座標）
+    lamp = {"at": [57.75, 6.6, -12.0], "color": "#ffc27a", "range": 11.0, "energy": 1.5}
+    d.put("ordo_landing", ORDO_POS[name], light=lamp, **({"solid": town_landing.landing_solid()} if solid else {}))
     # 帆布は影を落とす別の部品（踊り場の全部に影を付けると、影の描画が面 4 つ × 影の段 4 つ増える。帆布は面 1 つ）
     d.put("ordo_landing_awning", ORDO_POS[name], shadow=True)
 
