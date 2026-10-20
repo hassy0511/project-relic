@@ -42,8 +42,10 @@ def ell_point(c, ax, th, ph, grow=0.0):
     return V3([c[0] + (ax[0] + grow) * st * math.sin(ph), c[1] - (ax[1] + grow) * st * math.cos(ph), c[2] + (az + grow) * ct])
 
 
-def ell_plate(c, ax, th0, th1, ph0, ph1, thick=1.2, grow=0.0, dth=10.0, dph=12.0):
-    """楕円体の上の板（厚み thick）。ph0・ph1 は数（度）か、th（度）の関数。角は度"""
+def ell_plate(c, ax, th0, th1, ph0, ph1, thick=1.2, grow=0.0, dth=10.0, dph=12.0, pfn=None):
+    """楕円体の上の板（厚み thick）。ph0・ph1 は数（度）か、th（度）の関数。角は度。
+    pfn(th, ph, grow)（ラジアン）を渡すと、楕円体の代わりにその面の上の板（浮遊型の葉の花びら形など）"""
+    P = pfn or (lambda t_, p_, g_: ell_point(c, ax, t_, p_, g_))
     f0 = ph0 if callable(ph0) else (lambda t, v=ph0: v)
     f1 = ph1 if callable(ph1) else (lambda t, v=ph1: v)
     nv = max(2, int(math.ceil((th1 - th0) / dth)))
@@ -56,7 +58,7 @@ def ell_plate(c, ax, th0, th1, ph0, ph1, thick=1.2, grow=0.0, dth=10.0, dph=12.0
             a, b = f0(t), f1(t)
             for j in range(nu + 1):
                 p = a + (b - a) * j / nu
-                verts.append(ell_point(c, ax, math.radians(t), math.radians(p), g))
+                verts.append(P(math.radians(t), math.radians(p), g))
     W = nu + 1
     n1 = (nv + 1) * W
     idx = lambda s, i, j: s * n1 + i * W + j
@@ -472,36 +474,72 @@ def rot_z(piece, ang):
     return v, f
 
 
+def ridge(pts, ups, widths, h=1.6, sink=0.5):
+    """面に沿う細い稜（真鍮の筋）：点の列 pts・外向き ups・半幅 widths の台形の断面をつなぐ"""
+    pts, ups = [V3(p, float) for p in pts], [V3(u, float) / np.linalg.norm(u) for u in ups]
+    rings = []
+    for i, (p, u, w) in enumerate(zip(pts, ups, widths)):
+        t = pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]
+        sd = np.cross(t, u)
+        sd = sd / np.linalg.norm(sd)
+        q = p - u * sink
+        rings.append([q - sd * w, q + sd * w, q + sd * w * 0.45 + u * (h + sink), q - sd * w * 0.45 + u * (h + sink)])
+    return loft_rings(rings)
+
+
 def floater(rig: Rig):
-    """浮遊型（全高 51 cm）。レンズ形のハブ（前にセンサー）・3 枚の葉（上下の白磁の板の間に真鍮の帯）・上の冠（琥珀の核）・下の黒鉛の砲口"""
-    C = (0.0, 0.0, 24.0)
-    AX = (19.0, 19.0, 8.5, 8.5)
-    th_z = lambda z: math.degrees(math.acos(np.clip((z - C[2]) / 8.5, -1, 1)))
-    ivory = [ell_plate(C, AX, 6.0, 83.0, -180.0, 180.0, thick=0.8, dth=11, dph=15),
-             ell_plate(C, AX, 97.0, 140.0, -180.0, 180.0, thick=0.8, dth=11, dph=15)]
-    brass = [ell_plate(C, AX, 85.0, 95.0, -180.0, 180.0, thick=1.0, grow=0.3, dth=10, dph=12)]
-    dark = [ell_solid(C, (18.2, 18.2, 7.8, 7.8), 20, 8), ell_solid((0, 0, 17.0), (15.0, 15.0, 4.0, 4.0), 16, 6)]
-    dark.append(ell_plate(C, AX, th_z(22.6), th_z(19.4), -38.0, 38.0, thick=0.4, grow=0.1, dth=5, dph=12))   # センサーの窓の縁
+    """浮遊型（直径 80 cm・全高 51 cm）。3e：黒鉛の丸い三角のハブ（前に白磁の前板とセンサー）・3 枚の花びら形の葉
+    （上の板は中央の真鍮の稜で左右 2 枚、赤道に真鍮の帯、下の板）・頭の冠（尖った塔の前が真鍮、後ろを覆うかぶとの下に琥珀の丸い核）・黒鉛の砲口。
+    寸法は正面の絵（21.8 px/cm）、葉の平面形と真鍮の稜は真上の絵（縮尺が 0.8 倍なので 1.25 倍して読む）。部品の名前・原点・軸は前と同じ"""
+    ivory, brass, dark = [], [], []
+    # ハブ（黒鉛のこま形。下は砲口へすぼまる）
+    dark.append(lathe((0, 0, 11.5), (0, 0, 31.0), [(0, 8.0), (0.25, 14.5), (0.5, 20.5), (0.78, 20.5), (1, 12.5)], 24))
+    dark.append(lathe((0, 0, 30.0), (0, 0, 32.2), [(0, 12.0), (1, 10.2)], 16))      # 核のまわりの輪
+    # 前板（白磁の枕）とセンサーの窓の縁
+    FC, FA = (0.0, -15.0, 23.5), (14.0, 13.5, 8.5, 8.0)
+    ivory.append(ell_plate(FC, FA, 6.0, 174.0, -78.0, 78.0, thick=3.0, dth=14, dph=13))
+    th_f = lambda z: math.degrees(math.acos(np.clip((z - FC[2]) / (FA[2] if z >= FC[2] else FA[3]), -1, 1)))
+    dark.append(ell_plate(FC, FA, th_f(23.2), th_f(19.2), -35.0, 35.0, thick=0.5, grow=0.12, dth=6, dph=10))
+    rig.add('sensor', 'body', (0, -28, 21.0), (1, 0, 0), [('sensor', ell_plate(FC, FA, th_f(22.5), th_f(19.9), -30.0, 30.0, thick=0.5, grow=0.3,
+                                                                                  dth=6, dph=10))])
+    # 葉の付け根の真鍮の軸
+    for ang in (90.0, 210.0, 330.0):
+        a = math.radians(ang)
+        brass.append(cyl((13.5 * math.cos(a), 13.5 * math.sin(a), 24.5), (18.0 * math.cos(a), 18.0 * math.sin(a), 24.5), 3.4, 10))
     rig.add('body', None, (0, 0, 25.0), (1, 0, 0), [('ivory', merge(*ivory)), ('brass', merge(*brass)), ('dark', merge(*dark))])
-    rig.add('sensor', 'body', (0, -18, 21.0), (1, 0, 0), [('sensor', ell_plate(C, AX, th_z(22.0), th_z(20.0), -32.0, 32.0, thick=0.4, grow=0.3, dth=5, dph=12))])
-    # 葉：+X へ伸ばして作り、角度へ回す
-    LC, LA = (37.0, 0.0, 24.5), (19.0, 12.5, 7.0, 7.0)
+    rig.parts.insert(0, rig.parts.pop())
+    # 葉：+X へ伸ばして作り、角度へ回す。花びら形（外ほど幅が広い）のレンズ
+    CX, CZ, AL, AW, AT, AB, KW = 29.0, 24.0, 12.5, 15.5, 9.0, 8.0, 0.5
+    def lobe_pt(th, ph, g):
+        st, ct = math.sin(th), math.cos(th)
+        sp, cp = math.sin(ph), math.cos(ph)
+        az = (AT if ct >= 0 else AB) * (1.0 - 0.5 * max(0.0, st * sp))     # 先ほど薄いレンズ
+        return V3([CX + (AL + g) * st * sp, -(AW + g) * st * cp * (1 + KW * st * sp), CZ + (az + g) * ct])
+    up_a = ell_plate(None, None, 0.0, 83.0, -87.0, 87.0, thick=1.0, dth=12, dph=15, pfn=lobe_pt)
+    up_b = ell_plate(None, None, 0.0, 83.0, 93.0, 267.0, thick=1.0, dth=12, dph=15, pfn=lobe_pt)
+    lo = ell_plate(None, None, 97.0, 180.0, -180.0, 180.0, thick=1.0, dth=14, dph=20, pfn=lobe_pt)
+    band = ell_plate(None, None, 84.0, 96.0, -180.0, 180.0, thick=1.4, grow=0.3, dth=12, dph=15, pfn=lobe_pt)
+    psi = np.linspace(-78.0, 80.0, 12)
+    rp = [lobe_pt(math.radians(abs(q)), math.radians(90.0 if q >= 0 else 270.0), 0.0) for q in psi]
+    ru = [p - V3([CX, 0.0, CZ - 4.0]) for p in rp]
+    rw = [float(np.interp(q, [-78, 0, 80], [4.2, 3.4, 1.4])) for q in psi]
+    rid = ridge(rp, ru, rw, h=1.0, sink=0.6)
+    core_l = ell_solid((CX - 2.0, 0.0, CZ), (AL - 3.0, AW - 2.5, AT - 2.0, AB - 2.0), 14, 6)
+    root = box((18.5, 0, 24.5), (6.0, 10.0, 8.0))
     for k, ang in enumerate((90.0, 210.0, 330.0)):
         a = math.radians(ang)
-        up = ell_plate(LC, LA, 0.0, 82.0, -180.0, 180.0, thick=0.8, dth=13, dph=20)
-        lo = ell_plate(LC, LA, 98.0, 180.0, -180.0, 180.0, thick=0.8, dth=13, dph=20)
-        band = ell_plate(LC, LA, 84.0, 96.0, -180.0, 180.0, thick=1.2, grow=0.2, dth=12, dph=15)
-        root = box((20.5, 0, 24.5), (5.0, 9.0, 8.0))
         piv = (17.0 * math.cos(a), 17.0 * math.sin(a), 25.0)
-        rig.add(f'lobe_{k}', 'body', piv, (1, 0, 0), [('ivory', rot_z(merge(up, lo), a)), ('brass', rot_z(band, a)), ('dark', rot_z(root, a))])
-    # 冠（上の尖り、白磁。前に真鍮の筋）と琥珀の核
-    crown = lathe((0, 2.0, 31.0), (0, 2.0, 50.5), [(0, 9.5), (0.35, 7.0), (1, 1.2)], 6)
-    stripe = extrude_taper([(-1.0, -0.6), (1.0, -0.6), (1.0, 0.6), (-1.0, 0.6)], V3([0, -5.2, 33.0]), V3([0, 0.9, 50.0]), 0.5, (0, 1, 0))
-    rig.add('crown', 'body', (0, 8, 37.5), (1, 0, 0), [('ivory', crown), ('brass', stripe)])
-    core = ell_plate((0, -4.5, 33.5), (4.6, 4.6, 4.6, 4.6), 0.0, 90.0, -110.0, 110.0, thick=0.6, dth=15, dph=20)
+        rig.add(f'lobe_{k}', 'body', piv, (1, 0, 0), [('ivory', rot_z(merge(up_a, up_b, lo), a)), ('brass', rot_z(merge(band, rid), a)),
+                                                     ('dark', rot_z(merge(root, core_l), a))])
+    # 冠：後ろと横を覆うかぶと（前が尖った弧に開く）＋ 尖った塔（前の稜が真鍮）
+    hood = ell_plate((0, 1.0, 30.5), (10.0, 9.5, 11.0, 2.0), 0.0, 90.0, 48.0, 312.0, thick=1.8, dth=15, dph=22)
+    tower = prism((0, 3.0, 38.0), (0, 3.0, 51.5), [(0, 5.5, 5.5, 5.0), (0.55, 4.0, 4.5, 3.5), (1, 0.4, 0.5, 0.4)])
+    stripe = prism((0, -2.0, 38.5), (0, 2.6, 51.0), [(0, 2.4, 1.1, 0.5), (1, 0.6, 0.5, 0.3)])
+    rig.add('crown', 'body', (0, 8, 37.5), (1, 0, 0), [('ivory', merge(hood, tower)), ('brass', stripe)])
+    core = ell_plate((0, 0.0, 30.0), (7.0, 7.0, 8.0, 1.0), 0.0, 90.0, -180.0, 180.0, thick=2.0, dth=18, dph=24)
     rig.add('core', 'crown', (0, -5, 35.0), (1, 0, 0), [('core', core)])
     # 砲口（下、黒鉛）
-    muzzle = lathe((0, 0, 14.0), (0, 0, 1.5), [(0, 7.5), (0.55, 6.0), (0.6, 4.2), (1, 3.4)], 10)
+    muzzle = lathe((0, 0, 14.0), (0, 0, 1.5), [(0, 9.0), (0.45, 6.6), (0.55, 5.2), (0.62, 5.6), (0.8, 5.0), (1, 3.8)], 10)
     rig.add('muzzle', 'body', (0, 0, 12.5), (1, 0, 0), [('dark', muzzle)])
 
 

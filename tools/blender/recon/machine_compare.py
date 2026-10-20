@@ -24,17 +24,17 @@ RES = 640
 VIEW_JA = {'front': '正面', 'back': '背面', 'top': '真上', 'front_right45': '斜め 45°', 'side': '真横', 'bottom': '真下'}
 
 
-def banki_views(t):
+def banki_views(t, pick=('front', 'side', 'back', 'front_right45')):
     """(名前, 絵のファイル, カメラの向き, 上, 左右反転, 中心の高さ m)。番機は絵の中央の画素に写る点が中心"""
     cfg = B.TYPES[t]
     s = B.scale_of(cfg)
     zc = (cfg['rows'][1] - B.IMG / 2) / s / 100.0
     out = []
     for name, art, d, up, flip in B.review_views(t):
-        if name in ('front', 'back', 'front_right45') or name == cfg['side'][0]:
-            out.append((name if name != cfg['side'][0] else 'side', os.path.join(B.SRC, f'{t}_3d_{art}_r2.png'), d, up, flip, zc))
-    order = {'front': 0, 'side': 1, 'back': 2, 'front_right45': 3}
-    return sorted(out, key=lambda v: order[v[0]]), B.IMG / s / 100.0
+        nm = name if name != cfg['side'][0] else 'side'
+        if nm in pick:
+            out.append((nm, os.path.join(B.SRC, f'{t}_3d_{art}_r2.png'), d, up, flip, zc))
+    return sorted(out, key=lambda v: list(pick).index(v[0])), B.IMG / s / 100.0
 
 
 def kannuki_views():
@@ -103,7 +103,7 @@ def render_glb(glb, views, ortho, out_prefix, kannuki=False):
     return paths
 
 
-def compose(rows, out, title, tile=360):
+def compose(rows, out, title, tile=360, top_flip=False):
     """rows = [(方向, 絵, 前, 後, 反転)]。各方向で 3 枚の外形の和の箱で切り抜き、2 方向ずつ横に並べる"""
     from PIL import Image, ImageDraw, ImageFont
     font = ImageFont.truetype(FONT, 20)
@@ -116,7 +116,12 @@ def compose(rows, out, title, tile=360):
             im = Image.open(p).convert('RGBA').resize((RES, RES), Image.LANCZOS)
             if flip and k > 0:
                 im = im.transpose(Image.FLIP_LEFT_RIGHT)
+            if name == 'top' and k == 0 and top_flip:
+                im = im.transpose(Image.FLIP_TOP_BOTTOM)
             ims.append(im)
+        if name == 'top':
+            # 真上の絵は縮尺が違うので、絵の外形の箱を「後」の外形の箱に合わせる（banki.py の _fit_bbox と同じ）
+            ims[0] = _fit(ims[0], ims[2])
         a = np.zeros((RES, RES), bool)
         for im in ims:
             a |= np.asarray(im)[..., 3] > 40
@@ -149,6 +154,20 @@ def compose(rows, out, title, tile=360):
     return W.size
 
 
+def _fit(art, ren):
+    from PIL import Image
+    a = np.asarray(art)[..., 3] > 64
+    b = np.asarray(ren)[..., 3] > 64
+    if not a.any() or not b.any():
+        return art
+    ra, ca = np.nonzero(a.any(1))[0], np.nonzero(a.any(0))[0]
+    rb, cb = np.nonzero(b.any(1))[0], np.nonzero(b.any(0))[0]
+    crop = art.crop((ca[0], ra[0], ca[-1] + 1, ra[-1] + 1)).resize((cb[-1] + 1 - cb[0], rb[-1] + 1 - rb[0]), Image.LANCZOS)
+    out = Image.new('RGBA', art.size, (0, 0, 0, 0))
+    out.paste(crop, (cb[0], rb[0]))
+    return out
+
+
 def _pad_crop(im, box):
     from PIL import Image
     out = Image.new('RGBA', (box[2] - box[0], box[3] - box[1]), (0, 0, 0, 0))
@@ -163,6 +182,7 @@ def main():
     ap.add_argument('--after')
     ap.add_argument('--out', required=True)
     ap.add_argument('--title', default='')
+    ap.add_argument('--views', default='front,side,back,front_right45', help='番機の方向（front・side・back・top・front_right45）')
     args = ap.parse_args()
     t = args.type
     kann = t == 'kannuki'
@@ -173,14 +193,14 @@ def main():
         after = args.after or os.path.join(B.MODELS, 'kannuki.glb')
     else:
         B.fetch_art()
-        views, ortho = banki_views(t)
+        views, ortho = banki_views(t, tuple(args.views.split(',')))
         after = args.after or os.path.join(B.MODELS, f'banki_{t}.glb')
     work = os.path.join(B.REPO, 'build', 'compare', t)
     os.makedirs(work, exist_ok=True)
     pb = render_glb(args.before, views, ortho, os.path.join(work, 'before'), kann)
     pa = render_glb(after, views, ortho, os.path.join(work, 'after'), kann)
     rows = [(v[0], v[1], b, a, v[4]) for v, b, a in zip(views, pb, pa)]
-    size = compose(rows, args.out, args.title or f'{t}：絵 | 前 | 後')
+    size = compose(rows, args.out, args.title or f'{t}：絵 | 前 | 後', top_flip=(not kann) and bool(B.TYPES[t].get('top_flip')))
     print(f'[compare] {args.out} {size} {os.path.getsize(args.out) // 1024} KB', flush=True)
 
 
