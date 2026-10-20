@@ -70,7 +70,16 @@ const DOCK_HOP := 0.012
 const UNDOCK_HOP := 0.025
 ## 弧のふくらみ（m）：胴の縦の軸から外へ・上へ。弧の真ん中でいちばん大きい（肩の上を回る）
 const ARC_OUT := 0.11
-const ARC_UP := 0.17
+const ARC_UP := 0.2
+## 肩の横にいるままハルが速く動く（解析・話す・強制で出ている）とき、ハルについて運ばれる割合：この速さ（m/s）から運ばれ始め、
+## CARRY_FULL で全部（遅れて取り残されない。ゆっくり歩く間は今までどおり少し遅れてついて行く）
+const CARRY_FROM := 2.5
+const CARRY_FULL := 5.0
+## 天井が低い所・肩の横が壁や物に埋まる所では背中のほうがよい：頭の上（足元から 1.45 m）から HEADROOM m の内に天井があるか、
+## 肩の横の位置に殻が収まらない状態が CRAMP_TIME 秒続いたら背中へ（話す・解析・台本で出すときは出る。弧は天井の下に収める：_arc_lift）
+const HEADROOM := 0.45
+const CRAMP_TIME := 0.25
+const ROOM_MASK := Phys.TERRAIN | Phys.BREAKABLE | Phys.PROP
 ## 胴の縦の軸の前後の位置（ハルの足元の座標の z。弧と、近くでついて行くときの回り方の中心）
 const AXIS_Z := -0.015
 ## 解析の間、肩の横から相手の方へ寄る距離（m）と、解析が終わってから出ている秒数（弱点への光の線）
@@ -123,10 +132,14 @@ var dock_normal := Vector3.BACK
 var _cues: Array = []
 var _pv: Node3D = null
 var _base := Vector3.ZERO
+var _prev_fr := Transform3D.IDENTITY
 var _t := 0.0
 var _from := Vector3.ZERO
 var _calm := 0.0
 var _fast := 0.0
+var _cramp := 0.0
+var _lift := ARC_UP
+var _dock_basis := Basis(Vector3.LEFT, Vector3.UP, Vector3.FORWARD)
 var _settle := -1.0
 var _scan_hold := 0.0
 var _node_t := 0.0
@@ -219,11 +232,11 @@ func sync(game, cam_pos: Vector3, dt: float, pv: Node3D = null, talking := false
 	# ヒットストップの間は、ハルの動作と同じく弧・ついて行くのも止める
 	var mdt := 0.0 if float(game.hitstop) > 0.0 else dt
 	var fr := _frame(game.player)
-	var want := _want_dock(game, mdt, talking)
+	var want := _want_dock(game, fr, mdt, talking)
 	if want and (dock_state == Dock.OUT or dock_state == Dock.UNDOCKING):
-		_start(Dock.DOCKING, fr)
+		_start(Dock.DOCKING, _carried(game, fr, mdt), _arc_lift(game, fr))
 	elif not want and (dock_state == Dock.DOCKING or dock_state == Dock.DOCKED):
-		_start(Dock.UNDOCKING, fr)
+		_start(Dock.UNDOCKING, _carried(game, fr, mdt), _arc_lift(game, fr))
 	_move(game, fr, cam_pos, mdt, dt)
 	_apply(dt)
 
@@ -262,7 +275,7 @@ static func motion_kind(p) -> int:
 
 
 ## 背中へ入る（true）か、肩の横へ出る（false）か
-func _want_dock(game, dt: float, talking: bool) -> bool:
+func _want_dock(game, fr: Transform3D, dt: float, talking: bool) -> bool:
 	var p = game.player
 	var docked := dock_state == Dock.DOCKING or dock_state == Dock.DOCKED
 	var d: Dictionary = game.story.dialogue
@@ -291,6 +304,10 @@ func _want_dock(game, dt: float, talking: bool) -> bool:
 	# ほかの人の会話の行の間は世界が止まっている（ハルの速さも止まったまま）：今のまま
 	if not d.is_empty():
 		return docked
+	# 天井が低い・肩の横が壁に埋まる：背中のほうがよい
+	_cramp = _cramp + dt if _cramped(game, fr) else 0.0
+	if _cramp >= CRAMP_TIME:
+		return true
 	var kind := motion_kind(p)
 	if kind > 0:
 		_fast += dt
@@ -301,14 +318,49 @@ func _want_dock(game, dt: float, talking: bool) -> bool:
 	return false if _calm >= CALM_OUT else docked
 
 
-## 弧を始める（今の位置から）。背中から離れるときは煙の合図を Fx へ
-func _start(state: int, fr: Transform3D) -> void:
+## 弧を始める（今の位置 from から。ハルの足元の座標。lift：上へのふくらみ）。背中から離れるときは煙の合図を Fx へ
+func _start(state: int, from: Vector3, lift: float) -> void:
 	if state == Dock.UNDOCKING and dock_state == Dock.DOCKED:
 		_cues.append({"type": "undock", "at": dock_point, "n": dock_normal})
 	dock_state = state
 	_t = 0.0
-	_from = fr.affine_inverse() * _base
+	_from = from
+	_lift = lift
 	_settle = -1.0
+
+
+## 天井が低い所・肩の横が壁や物に埋まる所か（HEADROOM・CRAMP_TIME）。ゲームの中身の当たり判定を読むだけ
+func _cramped(game, fr: Transform3D) -> bool:
+	var ph = game.get("phys")
+	if ph == null:
+		return false
+	if not ph.raycast(fr * Vector3(0, 1.45, 0), Vector3.UP, HEADROOM, ROOM_MASK).is_empty():
+		return true
+	return ph.sphere_hits(fr * Vector3(-OFFSET.x, OFFSET.y, OFFSET.z), RADIUS + 0.015, ROOM_MASK)
+
+
+## 弧の上へのふくらみ：頭の上の天井の下に殻が収まるだけ（天井が遠ければ ARC_UP）。弧のいちばん高い所は、肩の横の高さ＋ふくらみの 0.7 ほど
+func _arc_lift(game, fr: Transform3D) -> float:
+	var ph = game.get("phys")
+	if ph == null:
+		return ARC_UP
+	var hit: Dictionary = ph.raycast(fr * Vector3(0, 1.45, 0), Vector3.UP, 1.0, ROOM_MASK)
+	if hit.is_empty():
+		return ARC_UP
+	return clampf((1.45 + float(hit.distance) - 0.03 - RADIUS - OFFSET.y - BOB) / 0.7, 0.0, ARC_UP)
+
+
+## 今のナゴミの位置（この刻みのハルの足元の座標）：背中・弧の間はハルについて運ばれている（前の刻みの座標のまま）。
+## 肩の横では、ハルが速く動くほど運ばれる（CARRY_FROM〜CARRY_FULL）。台本の位置にいる間は運ばれない
+func _carried(game, fr: Transform3D, mdt: float) -> Vector3:
+	var now := fr.affine_inverse() * _base
+	var prev := _prev_fr.affine_inverse() * _base
+	if dock_state != Dock.OUT:
+		return prev
+	if _script == "at" or mdt <= 0.0:
+		return now
+	var carry := clampf((float(game.player.speed()) - CARRY_FROM) / (CARRY_FULL - CARRY_FROM), 0.0, 1.0)
+	return now.lerp(prev, carry)
 
 
 ## 位置と向き。mdt：弧・ついて行くの刻み（ヒットストップの間は 0）
@@ -318,6 +370,7 @@ func _move(game, fr: Transform3D, cam_pos: Vector3, mdt: float, dt: float) -> vo
 	if sock != null:
 		dock_point = sock.origin
 		dock_normal = sock.basis.z
+		_dock_basis = inv.basis * sock.basis
 	var caps := body_caps(fr)
 	var hop := Vector3.ZERO
 	var k := 0.0
@@ -330,12 +383,12 @@ func _move(game, fr: Transform3D, cam_pos: Vector3, mdt: float, dt: float) -> vo
 		dock_state = Dock.OUT
 	match dock_state:
 		Dock.OUT:
-			var c := follow_step(inv * _base, inv * _out_target(game, fr), 1.0 - exp(-FOLLOW * mdt))
+			var c := follow_step(_carried(game, fr, mdt), inv * _out_target(game, fr), 1.0 - exp(-FOLLOW * mdt))
 			_base = fr * clear_of_body(c, caps)
 			hop = Vector3.UP * UNDOCK_HOP * bounce
 		Dock.DOCKING:
 			_t = minf(1.0, _t + mdt / DOCK_TIME)
-			var c := arc_point(_from, inv * seat_of(sock), _t)
+			var c := arc_point(_from, inv * seat_of(sock), _t, _lift)
 			# 体から押し出す（終わりの着地は受け口へそのまま：受け口は背中の板に触れる所）
 			c = clear_of_body(c, caps).lerp(c, smoothstep(0.75, 1.0, _t))
 			_base = fr * c
@@ -350,7 +403,7 @@ func _move(game, fr: Transform3D, cam_pos: Vector3, mdt: float, dt: float) -> vo
 			hop = dock_normal * DOCK_HOP * bounce
 		Dock.UNDOCKING:
 			_t = minf(1.0, _t + mdt / UNDOCK_TIME)
-			var c := arc_point(_from, inv * _out_target(game, fr), _t)
+			var c := arc_point(_from, inv * _out_target(game, fr), _t, _lift)
 			# 始めは受け口（背中の板に触れている）から外へ出るので、押し出しは少しずつ
 			c = c.lerp(clear_of_body(c, caps), smoothstep(0.0, 0.25, _t))
 			_base = fr * c
@@ -360,9 +413,11 @@ func _move(game, fr: Transform3D, cam_pos: Vector3, mdt: float, dt: float) -> vo
 				_settle = 0.0
 	click = maxf(0.0, click - dt / CLICK_TIME)
 	dock_k = k
+	_prev_fr = fr
+	# 向き：肩の横の向きから、受け口の向き（種子光が後ろ）へ、背中に寄った割合だけ（受け口が消えた刻みは最後の受け口の向き）
 	var b := _out_basis(game, cam_pos, dt)
-	if sock != null and k > 0.0:
-		b = b.slerp(sock.basis, k)
+	if k > 0.0:
+		b = b.slerp((fr.basis * _dock_basis).orthonormalized(), k)
 	global_transform = Transform3D(b, _base + hop)
 
 
@@ -399,10 +454,12 @@ func snap(p, pv: Node3D = null) -> void:
 	_settle = -1.0
 	click = 0.0
 	_yaw = p.yaw
+	_prev_fr = _frame(p)
 	var sock = back_socket(_pv) if dock_state == Dock.DOCKED else null
 	if sock != null:
 		_base = seat_of(sock)
 		dock_k = 1.0
+		_dock_basis = _prev_fr.basis.inverse() * sock.basis
 		global_transform = Transform3D(sock.basis, _base)
 	else:
 		dock_state = Dock.OUT
@@ -539,13 +596,13 @@ static func _turn(a: float, b: float) -> float:
 
 
 ## 背中と肩の間の弧（ハルの足元の座標）：胴の縦の軸のまわりの角度・軸からの距離・高さを別々になめらかに変え、途中で外へ ARC_OUT・
-## 上へ ARC_UP ふくらませる（肩の上を回る）。t：0〜1。終わりは上の後ろから下りて受け口に着く
-static func arc_point(a: Vector3, b: Vector3, t: float) -> Vector3:
+## 上へ lift（ふつうは ARC_UP。天井が低ければ小さく）ふくらませる（肩の上を回る）。t：0〜1。終わりは上の後ろから下りて受け口に着く
+static func arc_point(a: Vector3, b: Vector3, t: float, lift := ARC_UP) -> Vector3:
 	var ca := _cyl(a)
 	var cb := _cyl(b)
 	var e := smoothstep(0.0, 1.0, t)
 	var s := sin(PI * t)
-	return _from_cyl(ca.x + _turn(ca.x, cb.x) * e, lerpf(ca.y, cb.y, e) + ARC_OUT * s, lerpf(ca.z, cb.z, e) + ARC_UP * s)
+	return _from_cyl(ca.x + _turn(ca.x, cb.x) * e, lerpf(ca.y, cb.y, e) + ARC_OUT * s, lerpf(ca.z, cb.z, e) + lift * s)
 
 
 ## 肩の横へついて行く 1 刻み（割合 k だけ寄る）。ハルの近く（軸から 1.5 m 以内）では、縦の軸のまわりの角度・距離・高さで寄る

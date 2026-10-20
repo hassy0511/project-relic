@@ -141,6 +141,10 @@ func _ready() -> void:
 	if main.args.has("motion_shots"):
 		_steps.clear()
 		_steps.append_array(MotionShots.steps(self))
+	# --nagomi_shots：ナゴミの背中のユニットへの着地のコマと静止画（scripts/debug/nagomi_shots.gd）
+	if main.args.has("nagomi_shots"):
+		_steps.clear()
+		_steps.append_array(NagomiShots.steps(self))
 	if not main.args.has("ch1_full"):
 		_steps.append({"ticks": 1, "done": true})
 	# --bk_kit・--bk_props：BlenderKit の素材の比べ（scripts/debug/bk_test.gd）。引数が無ければ何もしない
