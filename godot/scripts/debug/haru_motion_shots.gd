@@ -6,7 +6,8 @@ class_name HaruMotionShots
 ## 動き（runstop・landing・dash）：6 こま、0.1 秒（6 刻み）ずつ。haru_<名前>_<off|on>_<こま>.png。カメラはハルの横から、
 ## 水平にだけ付いて動く（高さは床に固定。跳ぶ・着地の上下が見える）。--fixed-fps 60 で 1 こま = 1 刻み。
 ## 止まった絵（stairs・ramp）：階段の段の縁・坂に横向きに立ち、足もとを前から撮る。haru_<名前>_<off|on>.png。
-## 見た目だけ：ゲームの中身には手を加えない（部屋を読み、ハルを置き、入力を渡すだけ）
+## 見た目だけ：ゲームの中身には手を加えない（部屋を読み、ハルを置き、入力を渡すだけ）。ナゴミは隠す（止まるとハルの頭の後ろに来て、
+## 後ろの房を隠すので）
 
 ## 動きの場面：[名前, 部屋:目印, 立つ所, 見る所（向き）, 入力の並び [[刻み数, 入力]...], 撮り始めの合図]
 ## 合図 "end"：入力の並びの最後の段の始め、"land"：空中から着地した刻み、"start"：動きの段の始め
@@ -199,6 +200,18 @@ static func _place(d, room: String, at: Vector3, look: Vector3, on: bool) -> voi
 		pv.anim.seek(0.0, true)
 		pv.current = "idle"
 	m.hud.visible = false
+	_hide_nagomi(d, true)
+
+
+## ナゴミ（止まるとハルの頭の後ろに浮く）を隠す・戻す：後ろの房を隠さないように（撮影だけ。中身・ほかの見た目は変えない）
+static func _hide_nagomi(d, hide: bool) -> void:
+	var nv: NagomiView = d.main.nagomi_view
+	if nv == null:
+		return
+	if nv.model != null:
+		nv.model.visible = not hide
+	if nv.glow != null:
+		nv.glow.visible = not hide
 
 
 ## ハルの横から付いて動くカメラ（水平だけ。高さは床から決める）。描く直前（process_frame）に、描かれるハルの位置へ置く
@@ -289,3 +302,4 @@ static func _release(d) -> void:
 	d.main.camera.current = true
 	d.main.hud.visible = true
 	d.main.player_view.set_secondary(PlayerView.secondary_default)
+	_hide_nagomi(d, false)
