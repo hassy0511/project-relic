@@ -79,7 +79,11 @@ func _collect_steps(node, ids: Dictionary, path: String) -> void:
 func test_music_selection() -> void:
 	var g := _new_game()
 	await h.settle()
-	h.expect(g.music_id() == "bgm_town_day", "最初の町（オープニング）は昼の町の曲（%s）" % g.music_id())
+	# 夜明けの甲羅（オープニングだけの部屋。出口なし）は部屋の "music": "none" で無音から始まる：
+	# 場面の始めは風と足音だけで、町の昼の曲は台本の music が入れる（オープニングのあとは訓練場の曲。今までどおり）
+	h.expect(g.music_id() == "", "オープニングの部屋は無音で始まる（%s）" % g.music_id())
+	g.load_room("ch1.lower", "start")
+	h.expect(g.music_id() == "bgm_town_day", "町（下段）は昼の町の曲（%s）" % g.music_id())
 	g.set_flag("ch1.night")
 	h.expect(g.music_id() == "bgm_town_night", "停電の夜は夜の曲")
 	g.set_flag("ch1.night", false)
