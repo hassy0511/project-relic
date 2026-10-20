@@ -220,7 +220,20 @@ func show_title() -> void:
 	hud.visible = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_title_backdrop()
-	menu.show_title(has_save(), func(): start_game(null), func(): start_game(read_save()), func(): get_tree().quit())
+	menu.show_title(has_save(), func(): start_game(null), func(): start_game(read_save()), func(): quit())
+
+
+## ゲームを終える。先に音を全部止めて、止めた再生を音の側が外す（混ぜる回は約 12 ms ごと）・次のフレームで片付けるまで待つ
+## （鳴ったまま終わると、終わりに「resources still in use at exit」が出る。GameAudio.stop_all）
+func quit(code := 0) -> void:
+	if state == "quitting":
+		return
+	state = "quitting"   # 待つ間にゲームを進めない（曲を鳴らし直さない）
+	audio.stop_all()
+	for i in 3:
+		OS.delay_msec(20)
+		await get_tree().process_frame
+	get_tree().quit(code)
 
 
 ## タイトルの後ろ：夜明けの空（ui_title.png の空の色）。遊んでいた部屋は隠す（はじめから・つづきからで作り直す）

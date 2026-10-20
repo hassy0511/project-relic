@@ -127,6 +127,24 @@ func test_music_crossfade() -> void:
 	a.queue_free()
 
 
+## 終わる前に音を全部止める（鳴ったまま終わると、終わりに「resources still in use at exit」が出る。main.quit）
+func test_stop_all_sounds() -> void:
+	var a := GameAudio.new()
+	h.tree.root.add_child(a)
+	a.play_music("bgm_town_day")
+	a.set_ambience("amb_wind", -6.0, 0.1)
+	a.play("item")
+	a.play("lift", Vector3.ZERO)
+	var playing := func() -> int:
+		return a.get_children().filter(func(n): return (n is AudioStreamPlayer or n is AudioStreamPlayer3D) and n.playing).size()
+	h.expect(playing.call() >= 4, "曲・環境音・効果音が鳴っている（%d）" % playing.call())
+	a.stop_all()
+	h.expect(playing.call() == 0 and a.current_music == "" and a.ambience == "", "全部止まって、今の曲と環境音も空になる")
+	await h.tree.create_timer(0.3).timeout
+	h.expect(playing.call() == 0, "止めたあとで、なめらかに変える途中の音が鳴り直さない")
+	a.queue_free()
+
+
 func test_face_icons() -> void:
 	var was := Hud.haru_framed
 	Hud.haru_framed = true

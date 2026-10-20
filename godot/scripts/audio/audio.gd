@@ -164,3 +164,17 @@ func play_music(id: String, fade := -1.0) -> void:
 
 func stop_music() -> void:
 	play_music("")
+
+
+## 音を全部止める（ゲームを終える前。main.quit）。鳴っている途中の音を残したまま終わると、音の側（AudioServer）が持つ再生が
+## 終わりの片付けに間に合わず、「resources still in use at exit」と「ObjectDB instances leaked at exit」が出る
+func stop_all() -> void:
+	for t in [_music_tween, _amb_tween]:
+		if t != null and t.is_valid():
+			t.kill()
+	for n in get_children():
+		if n is AudioStreamPlayer or n is AudioStreamPlayer3D:
+			n.stop()
+	_active = null
+	current_music = ""
+	ambience = ""

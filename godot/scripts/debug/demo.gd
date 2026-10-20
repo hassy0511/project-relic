@@ -1333,7 +1333,7 @@ func _shoot(name: String) -> void:
 func _finish() -> void:
 	RenderingServer.render_loop_enabled = true
 	print("見本の完了（失敗 %d 件）" % failures.size())
-	get_tree().quit(1 if failures.size() > 0 else 0)
+	main.quit(1 if failures.size() > 0 else 0)
 
 
 ## イベントの黒帯とスキップの確認（--letterbox_shots。--letterbox=ordo,node,plaza,ending で一部だけ。--touch でスマホの画面の操作つき）：
