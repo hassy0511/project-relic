@@ -82,7 +82,7 @@ func _run() -> void:
 	var edge: Array[Image] = []
 	# 町の部屋の縁（|x| ≤ 49）からは、舷（|x| = 55、背の面の 2.5 m 上）が手前をふさいで真下の脚は見えない。
 	# 脚が見えるのは舷から外へ出た所：左舷のリフトの踊り場（x 48.5〜71、床は背の面の 1.5 m 上）と、その「見下ろす」のカメラ（結果の文書 3.3・9.4）
-	await _shot(edge, Vector3(70.3, 3.1, -6.0), Vector3(84.0, -60.0, 20.0), 64.0, "from the lift landing's outer rail (x=70, eye 1.6 m above the deck): legs l2 and l3 below, desert 120 m down")
+	await _shot(edge, Vector3(70.4, 3.1, -3.6), Vector3(63.0, -28.0, 46.0), 64.0, "north-east corner of the lift landing (eye 1.6 m above the deck): shoulder and thigh of leg l2 beyond the rail; the deck hides what is straight below")
 	await _shot(edge, Vector3(150.0, -43.5, -12.0), Vector3(62.0, -64.5, -12.0), 60.0, "the lookout camera (event ch1.ordo_legs): legs l2 and l3 from outside the port flank")
 	await _shot(edge, Vector3(56.0, 34.0, 176.0), Vector3(76.0, -95.0, 70.0), 62.0, "beside the raised bow visor looking back-down: leg l1, the flank, the landing")
 	await _shot(edge, Vector3(47.0, 10.0, 20.0), Vector3(200.0, -60.0, 60.0), 60.0, "town edge (x=47, 10 m above the back): the rim hides the legs, desert far below")

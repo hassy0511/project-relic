@@ -12,7 +12,7 @@ ordo_landing：原点 = オルドの原点（背の歩行面の真ん中）、+Z
 同じ形を部品 lift_landing として持ち（町の部屋の外・確認ページ・紹介の画像）、飾りを置く部屋では OrdoView がその部品を隠す（同じ所に 2 つ描かない）。
 寸法はオルドの踊り場（ordo.py の LIFT_Y・LANDING_TOP・landing_x）と、下段の当たり判定の形（ch1_town.json：床の箱 x 47.9〜71・z -13〜+5、柵 3 つ
 （高さ 1.45 m）、日よけの柱 4 本、端末）に合わせる。下段の部屋の座標 = この座標 + (0, -1.5, 8)。
-当たり判定（ベンチ・木箱・携行灯）は dress_town.py が部品の中の箱（LANDING_SOLID）で付ける。手すり・柱・端末の箱は部屋の形のまま。
+当たり判定（ベンチ・木箱・携行灯）は dress_town.py が部品の中の箱（landing_solid）で付ける。手すり・柱・端末の箱は部屋の形のまま。
 """
 from __future__ import annotations
 
@@ -357,13 +357,14 @@ def _scope(p: Part, x, z):
 
 
 def _props(p: Part):
-    """ベンチ 2 つ・木箱 3 つ・携行灯・巻いた綱・望遠鏡（当たり判定は LANDING_SOLID）"""
+    """ベンチ 2 つ・木箱 3 つ・携行灯・巻いた綱・望遠鏡（当たり判定は landing_solid）"""
     p.place(P.bench(), (BENCH_S[0], L, BENCH_S[1]), 180)
     p.place(P.bench(), (BENCH_E[0], L, BENCH_E[1]), 90)
     for x, z in CRATES:
         p.place(P.crate(), (x, L, z), 0)
     p.place(P.crate(), (CRATES[0][0] + 0.02, L + 0.74, CRATES[0][1] + 0.01), 4, 0.8)
-    p.place(P.hand_lantern(), (CRATES[1][0], L + 0.74, CRATES[1][1]))
+    # 携行灯は上の小さな木箱の真ん中（隣の木箱の上に置くと、上の木箱との間 0.41 m に体の丸い底が挟まって宙に止まった：test_traps）
+    p.place(P.hand_lantern(), (CRATES[0][0] + 0.02, L + 0.74 + 0.592, CRATES[0][1] + 0.01))
     _coil(p, *COIL)
     _scope(p, *TERMINAL)
 
@@ -398,7 +399,7 @@ def landing_solid():
         DS.B(ex - 0.34, ex + 0.24, L, L + 0.56, ez - 0.99, ez + 0.99), DS.B(ex - 0.34, ex - 0.18, L, L + 1.07, ez - 0.99, ez + 0.99),
         DS.B(c1x - 0.47, c1x + 0.47, L, L + 0.74, c1z - 0.47, c1z + 0.47), DS.B(c2x - 0.47, c2x + 0.47, L, L + 0.74, c2z - 0.47, c2z + 0.47),
         DS.R(c1x + 0.02, c1z + 0.01, 0.752, 0.752, L + 0.74, L + 0.74 + 0.592, 4),
-        DS.B(c2x - 0.13, c2x + 0.13, L + 0.74, L + 0.74 + 0.69, c2z - 0.13, c2z + 0.13, cam=False),
+        DS.B(c1x + 0.02 - 0.13, c1x + 0.02 + 0.13, L + 1.332, L + 1.332 + 0.69, c1z + 0.01 - 0.13, c1z + 0.01 + 0.13, cam=False),
     ]
 
 
