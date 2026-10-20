@@ -4,7 +4,8 @@
   .venv-blender/bin/python tools/blender/recon/ordo.py [--review]
 
 できるもの
-  godot/assets/models/ordo.glb   部品の階層。材質は 5 つ：ivory（白磁）・graphite（黒鉛）・brass（真鍮）・cloth（布）・amber（琥珀の発光）。
+  godot/assets/models/ordo.glb   部品の階層。材質は 7 つ：ivory（白磁）・graphite（黒鉛）・brass（真鍮）・cloth（布）・amber（琥珀の発光）・
+                                 dark（梁の奥の芯）・deck（リフトの踊り場の板）。
                                  名前は町のキット（content/kits/town.json の "materials"）と同じなので、あとで同じ名前の材質（汚れの層つき）に
                                  置き換えられる（ordo_view.gd の apply_kit）。UV は面の向きの平面投影（m、部品の原点から）
   build/ordo/rig.json            関節の位置（Godot の座標）・脚の長さ・背の面の範囲・三角形の数（結果の文書・確かめ用）
@@ -28,6 +29,8 @@
   body                         船体：黒鉛の芯＋すき間を空けた白磁の板（背・縁・舷の上下 2 段）・黒鉛の梁（トラス）・下に下がる突起・肩の受け・
                                船首のセンサースリット（琥珀）・船尾の禁足扉の外枠（船体側）・右舷のリフトの踊り場（布の日よけ）
    ├ door                      禁足扉（白磁の 2 枚扉＋真鍮の中の桟）。ローカル +X = 下：0〜30 m 下へ滑って開く（平行移動）
+   ├ lift_landing              リフトの踊り場（動かない）：台・板張りの床・かごの口のふた・手すり・布の日よけ・小物。形は町のキットの
+   │                           town/ordo_landing と同じ（tools/blender/kit/town_landing.py）。それを飾りに置く部屋では OrdoView が隠す
    ├ lift_guide                リフトのガイド（黒鉛の柱 4 本・真鍮の滑車）。ローカル +X = 下へ伸びる（平行移動）
    │  └ lift_cage              かご（10 × 8 × 12 m）。ローカル +X = 下（平行移動）。元の姿勢は踊り場の真下に収まった所
    └ leg_<l|r><1..4>_roll      肩の横振り（ローカル +X = 船首の向き、±5 度）。l = 左舷（+X）、r = 右舷（-X）、1〜4 は船首から
@@ -89,6 +92,7 @@ MAT_COLORS = {   # 名前は town.json の materials と同じ（あとでキッ
     'cloth': ('#B75B43', 0.95, 0.0),
     'amber': ('#FFBC52', 0.4, 0.0),
     'dark': ('#2B2824', 0.7, 0.0),       # 黒鉛の梁の奥の閉じた芯（梁の外の面と色を分けて、骨組みに見せる。キットの dark と同じ）
+    'deck': ('#594333', 0.85, 0.0),      # リフトの踊り場の板張りの床・ベンチと木箱の木・綱（町の板の絵の平均の色。キットでは絵の材質 deck）
 }
 
 
@@ -547,47 +551,42 @@ def landing_x():
 
 
 def build_lift(pc):
-    """リフトの踊り場（船体の部品。LIFT_SIDE の舷 = 左舷）：上の面が背の面の LANDING_TOP 上（下の段の床と同じ）の台・真鍮の手すり・
-    布の日よけ・琥珀の灯。ガイドとかごは別の部品。下の段の部屋（ch1.lower）では、この台が歩ける展望の台（手すりの外に脚が見える）"""
+    """舷の上から下がる布の垂れ幕 2 枚（人が後から足した物。船体の部品）。踊り場そのもの（台・床・手すり・日よけ・小物）は部品
+    lift_landing（build_landing）"""
     S = LIFT_SIDE
     hw = half_w(LIFT_Y)
-    xi, xo = landing_x()
-    L = LANDING_TOP
-    y0, y1 = LIFT_Y - 9.0, LIFT_Y + 9.0
     X = lambda a, b: (S * a, S * b)                     # noqa: E731
-    pc['graphite'].append(boxr(*X(xi, xo), y0, y1, L - 3.4, L - 0.6))
-    pc['ivory'].append(boxr(*X(xi + 0.4, xo - 0.6), y0 + 0.6, y1 - 0.6, L - 0.6, L))
-    # かごの通る口のふた（踊り場の外寄り）：真鍮の枠と黒鉛の格子（上の面から 3 cm。歩ける。前は黒鉛の板 1 枚で、大きな黒い敷物に見えた）
-    xa, xb, ya, yb = hw + 6.2, hw + 14.2, LIFT_Y - 5.6, LIFT_Y + 5.6
-    for x0, x1, y_0, y_1 in ((xa, xb, ya, ya + 0.5), (xa, xb, yb - 0.5, yb), (xa, xa + 0.5, ya, yb), (xb - 0.5, xb, ya, yb)):
-        pc['brass'].append(boxr(*X(x0, x1), y_0, y_1, L - 0.2, L + 0.03))
-    for x in np.arange(xa + 1.3, xb - 0.9, 1.2):
-        pc['graphite'].append(boxr(*X(x - 0.2, x + 0.2), ya + 0.5, yb - 0.5, L - 0.2, L + 0.02))
-    # 手すり（外の縁と前後の縁、高さ 1.45 m。前後の縁は内の端から：下の段の部屋では、この線に当たり判定の柵がある）
-    for x in np.arange(xi + 0.6, xo - 0.8, 3.0):
-        for y in (y0 + 0.5, y1 - 0.5):
-            pc['brass'].append(boxr(*X(x - 0.15, x + 0.15), y - 0.15, y + 0.15, L, L + 1.3))
-    for y in np.arange(y0 + 0.5, y1, 2.9):
-        pc['brass'].append(boxr(*X(xo - 0.65, xo - 0.35), y - 0.15, y + 0.15, L, L + 1.3))
-    pc['brass'].append(boxr(*X(xo - 0.7, xo - 0.3), y0 + 0.3, y1 - 0.3, L + 1.2, L + 1.45))
-    for y in (y0 + 0.5, y1 - 0.5):
-        pc['brass'].append(boxr(*X(xi + 0.4, xo - 0.3), y - 0.2, y + 0.2, L + 1.2, L + 1.45))
-        pc['brass'].append(boxr(*X(xi + 0.4, xo - 0.3), y - 0.12, y + 0.12, L + 0.55, L + 0.7))
-    # 布の日よけ（縁の側に柱 2 本、外へ下がる。柱は前後の手すりに付ける：柱と手すりの間に体が挟まらない）
-    for y in (y0 + 0.9, y1 - 0.9):
-        pc['graphite'].append(boxr(*X(hw - 2.0 - 0.3, hw - 2.0 + 0.3), y - 0.3, y + 0.3, L, L + 7.0))
-        pc['graphite'].append(boxr(*X(hw + 7.5 - 0.3, hw + 7.5 + 0.3), y - 0.3, y + 0.3, L, L + 5.2))
-    v = V3([(S * (hw - 2.6), y0 + 0.8, L + 7.2), (S * (hw + 8.4), y0 + 0.8, L + 5.0), (S * (hw + 8.4), y1 - 0.8, L + 5.0),
-            (S * (hw - 2.6), y1 - 0.8, L + 7.2)])
-    vv = np.concatenate([v, v + V3([0, 0, 0.35])])
-    ff = [[0, 1, 2, 3], [4, 7, 6, 5], [0, 4, 5, 1], [1, 5, 6, 2], [2, 6, 7, 3], [3, 7, 4, 0]]
-    pc['cloth'].append((vv, K.orient(vv, ff)))
-    # 舷の上から下がる布の垂れ幕 2 枚（人が後から足した物）
     for yb in (LIFT_Y - 16.0, LIFT_Y + 16.0):
         pc['cloth'].append(boxr(*X(hw + 0.3, hw + 0.6), yb - 2.5, yb + 2.5, -12.0, 2.0))
         pc['brass'].append(boxr(*X(hw + 0.2, hw + 0.9), yb - 3.0, yb + 3.0, 1.6, 2.4))
-    for y in (y0 + 0.4, y1 - 0.4):
-        pc['amber'].append(boxr(*X(xo - 0.8, xo - 0.2), y - 0.4, y + 0.4, L - 2.6, L - 1.4))
+
+
+# 踊り場の材質（町のキットの名前 → オルドの 7 つ）。白磁の 2 段目・麻は白磁、布の濃い色は布、木・綱は板（deck）
+LANDING_MATS = {'ivory': 'ivory', 'ivory2': 'ivory', 'linen': 'ivory', 'graphite': 'graphite', 'brass': 'brass', 'cloth': 'cloth',
+                'cloth2': 'cloth', 'amber': 'amber', 'dark': 'dark', 'deck': 'deck', 'wood': 'deck', 'wood2': 'deck', 'rope': 'deck'}
+
+
+def build_landing():
+    """リフトの踊り場（部品 lift_landing、体の子・動かない）：台の箱・板張りの床・かごの口のふた・真鍮の手すり・布の日よけ・吊り灯・
+    ベンチ・木箱・巻いた綱・望遠鏡。形は町のキットの部品 town/ordo_landing・ordo_landing_awning（帆布）と同じ
+    （tools/blender/kit/town_landing.py。オルドの座標で書いてある）。
+    床は板 1 枚ずつの形（キットの部品は 1 枚の面に板の絵）。下段の部屋は同じ形を飾り（板の絵・汚れの層・布の揺れつき）として置き、
+    OrdoView がこの部品を隠す（同じ所に 2 つ描かない：結果の文書 10 章）"""
+    kit = os.path.join(REPO, 'tools', 'blender', 'kit')
+    if kit not in sys.path:
+        sys.path.insert(0, kit)
+    import town_landing as TL
+    assert abs(half_w(LIFT_Y) - TL.HULL) < 1e-6 and abs(LANDING_TOP - TL.L) < 1e-6 and abs(-(TL.Z_S + TL.Z_N) / 2 - LIFT_Y) < 1e-6, \
+        'town_landing.py の寸法がオルドの踊り場と合わない'
+    pc = pieces()
+    for mat, plist in [kv for part in (TL.ordo_landing(planks=True), TL.ordo_landing_awning()) for kv in part.by_mat.items()]:
+        for q in plist:
+            v = np.asarray(q.v, float)
+            b = np.stack([LIFT_SIDE * v[:, 0], -v[:, 2], v[:, 1]], 1)       # ゲーム (x, y, z) → Blender (x, -z, y)
+            f = [list(x) for x in q.f] if LIFT_SIDE > 0 else [list(x)[::-1] for x in q.f]
+            pc[LANDING_MATS[mat]].append((b, f))
+    xi, xo = landing_x()
+    add('lift_landing', 'body', (LIFT_SIDE * 0.5 * (xi + xo), LIFT_Y, LANDING_TOP - 1.7), (1, 0, 0), pc)
 
 
 # ---------------------------------------------------------------- 部品
@@ -833,6 +832,7 @@ def build(export=True) -> dict:
     build_body()
     build_door()
     build_lift_parts()
+    build_landing()
     build_legs()
     mats = make_materials()
     objs, meshes = {}, []
@@ -848,7 +848,8 @@ def build(export=True) -> dict:
             metre_uv(ob)
             nt = sum(len(pl.vertices) - 2 for pl in ob.data.polygons)
             tri_by_mat[mk] += nt
-            grp = 'legs' if p['name'].startswith('leg_') else ('lift' if p['name'].startswith('lift') else p['name'])
+            grp = 'legs' if p['name'].startswith('leg_') else ('landing' if p['name'] == 'lift_landing'
+                                                                else ('lift' if p['name'].startswith('lift') else p['name']))
             tri_by_group[grp] = tri_by_group.get(grp, 0) + nt
             meshes.append(ob)
             if first is None:

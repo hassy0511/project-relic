@@ -1,0 +1,15 @@
+[
+ {"name": "lk_walk", "room": "ch1.lower", "spawn": "start", "at": [44, 0, -3.5], "look": [60, 0, -3.5], "pitch": 12, "walk": true, "wait": 150},
+ {"name": "lk_rail", "room": "ch1.lower", "spawn": "start", "at": [69.9, 0, -4.5], "look": [90, 0, -2.0], "pitch": 24, "wait": 40},
+ {"name": "lk_legs", "room": "ch1.lower", "spawn": "start", "at": [69.0, 0, -10.5], "look": [80, 0, -10.5], "eye": [150.0, -45.0, -4.0], "target": [62.0, -66.0, -4.0]},
+ {"name": "lk_terminal", "room": "ch1.lower", "spawn": "start", "at": [69.0, 0, -10.5], "look": [80, 0, -10.5], "pitch": 20},
+ {"name": "lk_back", "room": "ch1.lower", "spawn": "start", "at": [69, 0, -4], "look": [40, 0, -4], "pitch": 14},
+ {"name": "lk_canopy", "room": "ch1.lower", "spawn": "start", "at": [52.5, 0, -6.5], "look": [66, 0, 2.5], "pitch": 10},
+ {"name": "lk_entry", "room": "ch1.lower", "spawn": "start", "at": [36, 0, -3.5], "look": [60, 0, -3.5], "pitch": 8},
+ {"name": "lk_gate", "room": "ch1.lower", "spawn": "start", "at": [45.5, 0, -3.5], "look": [60, 0, -3.5], "pitch": 24},
+ {"name": "lk_top", "room": "ch1.lower", "spawn": "start", "at": [58, 0, -4], "look": [70, 0, -4], "eye": [56.0, 16.0, -24.0], "target": [60.0, 0.0, -4.0]},
+ {"name": "lk_outside", "room": "ch1.lower", "spawn": "start", "at": [58, 0, -4], "look": [70, 0, -4], "eye": [96.0, 4.0, -28.0], "target": [60.0, -1.0, -4.0]},
+ {"name": "lk_below", "room": "ch1.lower", "spawn": "start", "at": [58, 0, -4], "look": [70, 0, -4], "eye": [88.0, -16.0, 10.0], "target": [62.0, -2.0, -4.0]},
+ {"name": "lk_mid_east", "room": "ch1.mid", "spawn": "start", "at": [46.6, 0, -6], "look": [80, 0, -12], "pitch": 30},
+ {"name": "lk_mid_wall", "room": "ch1.mid", "spawn": "start", "at": [46.6, 0, -12], "look": [80, 0, -12], "pitch": 45}
+]

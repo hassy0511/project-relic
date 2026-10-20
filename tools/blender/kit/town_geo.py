@@ -44,6 +44,9 @@ MATERIALS: dict[str, dict] = {
     'crop_yellow': dict(color='#D69E57', rough=0.9),   # 作物の黄（根菜・豆・乾燥果実）
     'wicker':   dict(color='#B08656', rough=0.95),     # かごの編み（spec に色が無いので絵のかごの色。編み目は形にしない）
     'slate':    dict(color='#555A5F', rough=0.9),      # 灰色の布・灰色の袋とかめ・干し魚（絵の灰色。金属でない黒鉛色）
+    # オルドのリフトの踊り場の板張りの床（town_landing.py）。flat にまとめず、キットの "deck"（町の板の絵 town_wood と汚れの層）で描く。
+    # 色は絵の平均（キットの無い所・オルドのモデルの部品 lift_landing はこの 1 色）
+    'deck':     dict(color='#594333', rough=0.85),
 }
 
 
