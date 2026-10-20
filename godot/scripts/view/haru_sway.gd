@@ -17,22 +17,22 @@ extends SkeletonModifier3D
 ## 置き直すだけ（--fixed-fps 30・60・144 で同じ動き）。
 ## SpringBoneSimulator3D（Godot 4.5）は使わなかった：delta = 0 の更新でも速さの項で 1 歩進むので、動作を描画のこまで進める
 ## このゲームでは描画の速さで揺れ方が変わる。世界に対する減衰のため走る速さで房が 60〜110 度なびき、跳び始めの速い沈みで
-## 150 度めくれた。角度の上限も無い（W1_ハル再構築の結果.md 9 章）。
+## 150 度めくれた。角度の上限も無い（W1_ハル再構築の結果.md 8 章）。
 ## 調整：CHAINS（固さ・減衰・慣性・風・角度の上限）、ACCEL_*（加速度のなめらかさと上限）。
 
 ## 骨の名前 → 揺れ方。stiffness：戻す強さ（1/秒²。√ が 1 秒あたりの振れの角速度。250 で約 2.5 回/秒）。damping：回る速さを
 ## 減らす（1/秒。2√stiffness で振れずに止まる）。inertia：加速度 1 m/秒² あたりの押し（ラジアン/秒²）。wind：走る速さ
 ## 1 m/秒あたりの後ろへの押し。limit：d0 からの角度の上限（ラジアン）。axis "out"：体の外向きの軸のまわりだけ回す
 const CHAINS := {
-	"hair.front": {"stiffness": 300.0, "damping": 13.0, "inertia": 1.1, "wind": 2.0, "limit": 0.35},
-	"hair.top": {"stiffness": 240.0, "damping": 11.0, "inertia": 1.3, "wind": 2.5, "limit": 0.45},
-	"hair.back.L": {"stiffness": 220.0, "damping": 10.0, "inertia": 1.4, "wind": 3.0, "limit": 0.45},
-	"hair.back.R": {"stiffness": 220.0, "damping": 10.0, "inertia": 1.4, "wind": 3.0, "limit": 0.45},
-	"hair.nape": {"stiffness": 260.0, "damping": 12.0, "inertia": 1.2, "wind": 2.5, "limit": 0.35},
-	"hair.side.L": {"stiffness": 230.0, "damping": 10.5, "inertia": 1.3, "wind": 2.5, "limit": 0.40},
-	"hair.side.R": {"stiffness": 230.0, "damping": 10.5, "inertia": 1.3, "wind": 2.5, "limit": 0.40},
-	"pouch.L": {"stiffness": 160.0, "damping": 7.0, "inertia": 1.6, "wind": 0.0, "limit": 0.45, "axis": "out"},
-	"pouch.R": {"stiffness": 160.0, "damping": 7.0, "inertia": 1.6, "wind": 0.0, "limit": 0.45, "axis": "out"},
+	"hair.front": {"stiffness": 260.0, "damping": 11.0, "inertia": 2.6, "wind": 2.4, "limit": 0.50},
+	"hair.top": {"stiffness": 200.0, "damping": 9.0, "inertia": 3.2, "wind": 3.2, "limit": 0.62},
+	"hair.back.L": {"stiffness": 180.0, "damping": 8.0, "inertia": 3.4, "wind": 3.6, "limit": 0.62},
+	"hair.back.R": {"stiffness": 180.0, "damping": 8.0, "inertia": 3.4, "wind": 3.6, "limit": 0.62},
+	"hair.nape": {"stiffness": 220.0, "damping": 10.0, "inertia": 2.8, "wind": 2.8, "limit": 0.50},
+	"hair.side.L": {"stiffness": 200.0, "damping": 9.0, "inertia": 2.8, "wind": 3.0, "limit": 0.45},
+	"hair.side.R": {"stiffness": 200.0, "damping": 9.0, "inertia": 2.8, "wind": 3.0, "limit": 0.45},
+	"pouch.L": {"stiffness": 150.0, "damping": 6.5, "inertia": 2.6, "wind": 0.0, "limit": 0.42, "axis": "out"},
+	"pouch.R": {"stiffness": 150.0, "damping": 6.5, "inertia": 2.6, "wind": 0.0, "limit": 0.42, "axis": "out"},
 }
 ## 加速度をなめらかにする速さ（1/秒）と大きさの上限（m/秒²）。着地・跳び始めの 1 刻みの大きな加速度を数刻みへ広げ、
 ## 動作の速い沈み（跳び始めに頭が 2 刻みで 17 cm 下がる）でも房が上限に張りつかないように
@@ -40,6 +40,12 @@ const ACCEL_SMOOTH := 20.0
 const ACCEL_MAX := 60.0
 
 var bones: PackedInt32Array = []
+## 最後の物理の刻みの、揺れの角度の最大（ラジアン。確かめ用）
+var last_max := 0.0
+## 計測（HaruMotionShots の --haru_secondary_bench）：真の間、この修飾にかかった時間（マイクロ秒）と呼ばれた回数を足していく
+static var profile := false
+static var prof_usec := 0
+static var prof_calls := 0
 var _e: Array = []           ## 骨ごとの設定と状態（Dictionary）
 
 
@@ -74,6 +80,7 @@ static func attach(sk: Skeleton3D) -> HaruSway:
 ## 入れる・切る（PlayerView.set_secondary）
 func set_enabled(on: bool) -> void:
 	active = on
+	last_max = 0.0
 	reset()
 
 
@@ -87,8 +94,10 @@ func _process_modification_with_delta(delta: float) -> void:
 	var sk := get_skeleton()
 	if sk == null:
 		return
+	var t0 := Time.get_ticks_usec() if profile else 0
 	var S := sk.global_transform
 	var sb := S.basis.orthonormalized()
+	var mx := 0.0
 	for e in _e:
 		var rest: Transform3D = e.rest
 		if delta > 0.0 or e.fresh:
@@ -106,7 +115,13 @@ func _process_modification_with_delta(delta: float) -> void:
 				e.q = Quaternion.IDENTITY
 			else:
 				_step(e, pg, sb, pivot, d0, delta)
+				mx = maxf(mx, d0.angle_to(e.d))
 		sk.set_bone_pose_rotation(e.b, (e.q as Quaternion) * rest.basis.get_rotation_quaternion())
+	if delta > 0.0:
+		last_max = mx
+	if profile:
+		prof_usec += Time.get_ticks_usec() - t0
+		prof_calls += 1
 
 
 ## 1 刻み進める（物理の刻み）。e.q：揺れの回転を親の骨の座標で（描画のこまでは今の親の姿勢にそのまま載る）

@@ -638,16 +638,21 @@ def add_sway(body: bpy.types.Object, arm: bpy.types.Object, spec: dict) -> dict:
     co = np.empty(n * 3)
     me.vertices.foreach_get('co', co)
     co = co.reshape(-1, 3)
-    # 頂点の材質（その頂点を使う面の材質。体の材質 <名前>_body の面の頂点だけを髪の候補にする）
+    # 頂点の材質（その頂点を使う面の材質）。体の材質 <名前>_body の面の頂点だけを髪の候補にし、顔の材質（名前に face）の面にも
+    # 使われる頂点（顔の窓の縁）は除く：縁の頂点は体のテクスチャでは髪の色でも、動かすと顔の輪郭（ほお・もみあげ）がゆがむ
     body_mat = next((i for i, m in enumerate(me.materials) if m and m.name.endswith('_body')), -1)
+    face_mats = {i for i, m in enumerate(me.materials) if m and 'face' in m.name.lower()}
     on_body = np.zeros(n, bool)
+    on_face = np.zeros(n, bool)
     for p in me.polygons:
         if p.material_index == body_mat:
             on_body[list(p.vertices)] = True
+        elif p.material_index in face_mats:
+            on_face[list(p.vertices)] = True
     vc = vertex_colors_from_texture(body)
     hc = np.asarray(spec['center'], float)
     near = np.linalg.norm(co - hc, axis=1) < spec['radius_max']
-    hair = on_body & near & (co[:, 2] > spec['hair_z_min']) & SW.hair_color(vc)
+    hair = on_body & ~on_face & near & (co[:, 2] > spec['hair_z_min']) & SW.hair_color(vc)
     other = co[near & ~hair]
     res = SW.hair_weights(co, hair, other, spec)
     defs = [(nm, root, tail, 'head') for nm, root, tail in res['bones']]

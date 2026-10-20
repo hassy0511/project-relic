@@ -53,6 +53,8 @@ var _hidden_mat: StandardMaterial3D = null
 ## 2 次の動き（見た目だけ）：髪・ポーチの揺れ（HaruSway。揺れの骨のあるモデルだけ）と足の接地（FootIK）。
 ## secondary_default：新しく作る PlayerView の既定（main.gd が起動の引数 --no_secondary で偽にする。比べの画面の撮影用）
 static var secondary_default := true
+## 計測（FootIK.profile が真の間）：足の接地の毎刻みの更新（光線を含む）にかかった時間（マイクロ秒）
+static var prof_sync_usec := 0
 var secondary := true
 var sway: HaruSway = null
 var foot_ik: FootIK = null
@@ -246,6 +248,9 @@ func set_secondary(on: bool) -> void:
 		foot_ik.weight = 0.0
 		foot_ik.plane_valid[0] = false
 		foot_ik.plane_valid[1] = false
+		foot_ik.last_drop = 0.0
+		foot_ik.last_lift[0] = 0.0
+		foot_ik.last_lift[1] = 0.0
 
 
 ## 2 次の動きの毎刻みの更新（sync から。物理の刻み = 1/60 秒）。
@@ -253,22 +258,34 @@ func set_secondary(on: bool) -> void:
 ## 足の接地：止まって立つ間だけ効かせる（走る速さ・空中・ダッシュ・倒れでは 0 へ）。各足の動作のままの足の裏の点の真下へ、
 ## 部屋の当たり（地形・壊せる物）に光線を撃って床の面を決め、なめらかにして FootIK に渡す。光線は調べるだけ（中身は変えない）
 func _sync_secondary(p: Player, game: GameSim, dt: float) -> void:
-	if sway != null and p.pos.distance_to(_last_pos) > 1.0:
+	var moved := p.pos - _last_pos
+	var jumped := moved.length() > 1.0
+	if sway != null and jumped:
 		sway.reset()
 	_last_pos = p.pos
 	if foot_ik == null:
 		return
 	var want := 0.0
-	if secondary and p.grounded and not p.dead and p.dash_time <= 0.0:
+	var standing: bool = secondary and p.grounded and not p.dead and p.dash_time <= 0.0
+	if standing:
 		want = clampf(1.0 - (p.speed() - 0.4) / 1.4, 0.0, 1.0)
+	if want > 0.0 and _on_body_only(p, game):
+		want = 0.0
 	var k := 1.0 - exp(-(FOOT_IK_IN if want > foot_ik.weight else FOOT_IK_OUT) * dt)
 	foot_ik.weight = lerpf(foot_ik.weight, want, k)
-	if want <= 0.0 and foot_ik.weight < 0.003:
+	if jumped or (want <= 0.0 and foot_ik.weight < 0.003):
 		foot_ik.weight = 0.0
 		foot_ik.plane_valid[0] = false
 		foot_ik.plane_valid[1] = false
 		return
 	foot_ik.base_point = p.pos
+	if not standing:
+		# 跳んだ・ダッシュ・倒れ：効きが消えるまで（約 0.15 秒）、床の面をハルと一緒に動かす。足の上げ・腰の下げをそのまま保って薄れさせる
+		# （床に残すと、跳び上がる間に足が床へ伸び、体が沈んで見えた）
+		for i in 2:
+			if foot_ik.plane_valid[i]:
+				foot_ik.plane_point[i] += moved
+		return
 	var xf := skeleton.global_transform
 	var kp := 1.0 - exp(-FOOT_PLANE_RATE * dt)
 	for i in 2:
@@ -313,6 +330,17 @@ func _sync_secondary(p: Player, game: GameSim, dt: float) -> void:
 			var y := lerpf(foot_ik.plane_point[i].y, point.y, kp)
 			foot_ik.plane_point[i] = Vector3(point.x, y, point.z)
 			foot_ik.plane_normal[i] = foot_ik.plane_normal[i].slerp(normal, kp).normalized()
+
+
+## 体だけを止める形（Phys.PROP：細い柱の上など）に立っているか。足の光線はその形を見ないので、足を下の床へ伸ばしてしまう。
+## その間は足の接地を切る（体の真ん中の真下の、体だけの形の面が、地形の面より高い）
+func _on_body_only(p: Player, game: GameSim) -> bool:
+	var o := Vector3(p.pos.x, p.pos.y + 0.2, p.pos.z)
+	var prop: Dictionary = game.phys.raycast(o, Vector3.DOWN, 0.3, Phys.PROP)
+	if prop.is_empty():
+		return false
+	var ground: Dictionary = game.phys.raycast(o, Vector3.DOWN, 0.3, FOOT_RAY_MASK)
+	return ground.is_empty() or (prop.point as Vector3).y > (ground.point as Vector3).y + 0.02
 
 
 ## 外装フレームの段：付いている群だけを見せる（core：胴の板と肩ひも、arm：左の籠手、legs：膝当てとすね当て）。
@@ -444,7 +472,12 @@ func sync(p: Player, game: GameSim, dt: float, aim_dir: Vector3) -> void:
 				fn.visible = true
 				_frame_off.erase(fn)
 
-	_sync_secondary(p, game, dt)
+	if FootIK.profile:
+		var t0 := Time.get_ticks_usec()
+		_sync_secondary(p, game, dt)
+		prof_sync_usec += Time.get_ticks_usec() - t0
+	else:
+		_sync_secondary(p, game, dt)
 
 	# 被弾後の無敵時間は点滅
 	_flash_time += dt

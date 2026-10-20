@@ -6,7 +6,8 @@ extends SkeletonModifier3D
 ## 足の裏を置く：
 ##   1. 足首を上下にだけ動かして、足の裏の中ほどが面に載る高さ t を求める（坂では足を面の傾きへ倒してから）
 ##   2. 腰を低いほうの足の t だけ下げる（伸ばせない脚を下の段へ届かせる。上の足は膝を曲げて上げる）
-##   3. 脚ごとに 2 本の骨（太もも・すね）の解析的な IK で足首を目標へ。膝は今の曲がりの向き（無ければ足の前）へ
+##   3. 脚ごとに 2 本の骨（太もも・すね）の解析的な IK で足首を目標へ。膝は足の前（つま先の向き）へ。目標が動作の足首のまま
+##      （平らな床）なら脚は動かさない
 ##   4. 足は動作の向きのまま、床の面の傾きへ倒す（MAX_TILT まで）
 ## 効き weight（0〜1）は PlayerView が決める（止まって立つ間 1、走る・跳ぶ・ダッシュ・倒れでは 0 へ）。
 
@@ -22,6 +23,8 @@ const MAX_TILT := 0.52
 ## 光線を撃つのは母指球（前 0.14）・中ほど（前 0.07）・かかと（後ろ 0.05）
 const SOLE_DOWN := 0.09
 const SOLE_POINTS := [0.14, 0.07, -0.05]
+## 膝を曲げる向きに足す、足の前の向きの重さ（m。今の膝のずれと比べる長さ）
+const POLE_FORWARD := 0.06
 
 ## 効き（0〜1）
 var weight := 0.0
@@ -36,6 +39,10 @@ var sole_anim: Array = [[], []]
 ## 最後に使った腰の下げ・足の上げ（確かめ用、世界の m）
 var last_drop := 0.0
 var last_lift: Array[float] = [0.0, 0.0]
+## 計測（HaruMotionShots の --haru_secondary_bench）：真の間、この修飾にかかった時間（マイクロ秒）と回数を足していく
+static var profile := false
+static var prof_usec := 0
+static var prof_calls := 0
 
 var _ids := []          # [[thigh, shin, foot], ...]
 var _hips := -1
@@ -76,6 +83,16 @@ func _process_modification() -> void:
 	var sk := get_skeleton()
 	if sk == null or not _bind(sk):
 		return
+	if profile:
+		var t0 := Time.get_ticks_usec()
+		_modify(sk)
+		prof_usec += Time.get_ticks_usec() - t0
+		prof_calls += 1
+	else:
+		_modify(sk)
+
+
+func _modify(sk: Skeleton3D) -> void:
 	# 動作のままの足の裏の点（次の刻みの光線の元）
 	for i in 2:
 		var g := sk.get_bone_global_pose(_ids[i][2])
@@ -153,16 +170,23 @@ func _solve_leg(sk: Skeleton3D, ids: Array, target: Vector3, foot_g: Transform3D
 	var A := sk.get_bone_global_pose(ft).origin
 	var a := H.distance_to(K)
 	var b := K.distance_to(A)
+	if target.distance_to(A) < 0.002:
+		# 足首は動かさない（平らな床）：膝の向きも動作のまま。足だけ床の傾きへ
+		var sg0 := sk.get_bone_global_pose(sh)
+		sk.set_bone_pose_rotation(ft, (sg0.basis.inverse() * (Basis(tilt) * foot_g.basis)).get_rotation_quaternion())
+		return
 	var ht := target - H
 	var d := clampf(ht.length(), absf(a - b) + 1e-4, (a + b) * 0.9995)
 	if ht.length() < 1e-5:
 		return
 	var dir := ht.normalized()
-	# 膝の向き：今の膝の、腰 → 目標の線からの向き（まっすぐなら足の前）
-	var pole := (K - H) - dir * (K - H).dot(dir)
-	if pole.length() < 1e-3:
-		var fwd := foot_g.basis.y
-		pole = fwd - dir * fwd.dot(dir)
+	# 膝の向き：足の前（つま先の向き）に、今の膝の曲がり（腰 → 目標の線からのずれ）を足したもの。待機の脚はほぼまっすぐで、
+	# ずれは外への小さな反り（1〜2 cm）なので、それだけだと膝が横へ曲がる。踏み込みのように大きく曲げた膝はその向きのまま
+	var fwd := foot_g.basis.y
+	fwd = (fwd - dir * fwd.dot(dir)).normalized() * POLE_FORWARD
+	var pole := (K - H) - dir * (K - H).dot(dir) + fwd
+	if pole.length() < 1e-4:
+		return
 	pole = pole.normalized()
 	var cos_a := clampf((a * a + d * d - b * b) / (2.0 * a * d), -1.0, 1.0)
 	var sin_a := sqrt(maxf(0.0, 1.0 - cos_a * cos_a))

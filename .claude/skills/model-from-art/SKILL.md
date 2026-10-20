@@ -138,6 +138,10 @@ Godot：`godot/assets/models/<名前>.glb` に置き、`tools/godot.sh import` �
 - `params`：各スクリプトの定数の上書き `{"モジュール.定数名": 値}`（頭と首の高さ、房の表、UV の切る高さ、顔の範囲、塗りの範囲など）。値は `calib.json` のカメラで絵に 1cm の格子を重ねた画像から読む（1 体 20 分）。
 - **部品の表は `chars/<id>_parts.py`**：色見本 `PALETTE`（`CELLS`）、関節 `J`、`pieces()`・`boot_pieces()`、決まりの塗り `body_rules()`、手の寸法 `HAND`、`FOLLOW_*`・`BOOT_CUT(_X)`。`costume.py` が読み込み、道具（`frame`・`octagon`・`rrect`・`jp`・`param_of`・`inside_poly`）を渡す。新しい人物は `burton_parts.py`（NPC・素手・靴・襟）、`yana_parts.py`（義手・前後の垂れ布・腰の小物・腰に下げた持ち物）か `haru_parts.py` を写す。
 - **出し入れする装備**（ハルの外装フレーム）：`FRAME_GROUPS`（群の名前 → 部品の名前の頭）に書くと、`ai_character.py` が群ごとに別の skinned mesh（同じ骨・動作）にする。板の下の塗りは `FRAME_PAINT`（範囲・残す色・埋める色。元の塗りは群の殻に移り、全部見せると元と同じ）、体のこぶは `smooth`・`radial` で殻の下へだけならす。ゲームは `PlayerView.set_frame_parts`、確認は `audit_viewer.mjs --frame`・`godot_frame_stages.gd`（`W1_ハル再構築の結果.md` 7 章）。
+- **揺れる髪・垂れる部品**（ハルの髪 7 まとまり・ポーチ 2 つ、2026-10-20）：`SWAY`（髪のまとまりの向き・広がり・重みの上限、部品の名前 → 骨の名前）を書き、
+  `rig_args` に `--sway-bones`。骨はまとまりごとに 1 本（親 head・hips）、髪の重みは「髪の土台の面から外へ出た長さ × 髪でない面（顔・耳・ゴーグル・ヒモ・えり）
+  からの距離」（`recon/sway.py`）。作り直しは骨付けの段だけ。ゲームは `HaruSway`（骨の名前を `CHAINS` に）と足の接地 `FootIK`（`W1_ハル再構築の結果.md` 8 章）。
+  前髪のように顔・ゴーグルに近い房は、重みがほぼ 0 になるので骨を作らない。
 - 頭の表（`hair.SKIN`・`CAP`・`EAR`・`LOCK_*`）と顔の範囲（`face.*`）も格子で読む。あごの幅を絵の肌の色から読む既定は、立ち襟・白いえりの陰を肌に数える（バートンはあごが襟の幅の横棒になった）。そのときは `hair.SKIN.jaw_ka` で書く。刈り上げは `hair.CAP.undercut`。
 - 新しいキャラクター：`chars/haru.json` を写して名前・絵・視点・顔を書き、`--only views`・`--only calib --force` で較正し、格子の画像から `params` と部品の表を埋めて通す。
 
