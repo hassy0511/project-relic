@@ -1936,7 +1936,7 @@ def main() -> None:
                     help='体の右手を消し、銃を握った手の部品（recon/hand.py）にする。基準の姿勢で握っている（ハル 6 回目）')
     ap.add_argument('--sway-bones', action='store_true',
                     help='揺れの骨（recon/sway.py）：部品の表の SWAY の髪のまとまり・ポーチに骨を足して重みを付ける'
-                         '（ゲームが SpringBoneSimulator3D で揺らす。ハル。既定は付けない＝骨 20 本）')
+                         '（ゲームの HaruSway が揺らす。ハル。既定は付けない＝骨 20 本）')
     ap.add_argument('--no-weapon', action='store_true', help='銃・光刃・目印を付けない（NPC）')
     ap.add_argument('--final-height', type=float, default=None, help='最後に一様に拡大する身長（m）')
     ap.add_argument('--name', default='Haru', help='物体の名前（骨は <名前>Rig）')
@@ -2059,7 +2059,7 @@ def main() -> None:
     body.name = args.name
     name_images(body)
     frame = split_frame(body, frames, tex_dir) if args.costume else None
-    # 揺れの骨（髪・ポーチ）：動作は付けない（基準の姿勢のまま。ゲームの SpringBoneSimulator3D が揺らす）
+    # 揺れの骨（髪・ポーチ）：動作は付けない（基準の姿勢のまま。ゲームの HaruSway（godot/scripts/view/haru_sway.gd）が揺らす）
     sway = add_sway(body, arm, sway_spec) if sway_spec else None
     contacts = None
     if args.foot_contacts:

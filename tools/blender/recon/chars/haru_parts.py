@@ -442,7 +442,7 @@ def frame_paint_rule(pos: np.ndarray) -> dict:
 # ---------------------------------------------------------------- 揺れの骨（2026-10-20、recon/sway.py）
 
 # ai_character.py --sway-bones（chars/haru.json の rig_args）：髪のまとまりとポーチに骨を足す。ゲームは
-# godot/scripts/view/haru_sway.gd の SpringBoneSimulator3D で揺らす（走り出し・止まる・着地・ダッシュ・振り向き）。
+# godot/scripts/view/haru_sway.gd（HaruSway：骨ごとの振り子）で揺らす（走り出し・止まる・着地・ダッシュ・振り向き）。
 # hair：(骨の名前, 頭の中心から見た向き（本人の左 +X・後ろ +Y・上 +Z）, 広がり（度）, 重みの上限)
 #   前髪（ゴーグルの下で額にかかる房）は顔・ゴーグルに近く、髪でない面からの距離の重みでほぼ 0 になるので、骨を作らない
 #   （試しに作った 'hair.fringe' は重みの最大 0.09）。ヒモの上下の帯の髪も、ヒモからの距離で動かない（ヒモが房を押さえている）
