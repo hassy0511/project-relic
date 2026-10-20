@@ -103,7 +103,7 @@ def render_glb(glb, views, ortho, out_prefix, kannuki=False):
     return paths
 
 
-def compose(rows, out, title, tile=360, top_flip=False):
+def compose(rows, out, title, tile=360, top_flip=False, fit_all=False):
     """rows = [(方向, 絵, 前, 後, 反転)]。各方向で 3 枚の外形の和の箱で切り抜き、2 方向ずつ横に並べる"""
     from PIL import Image, ImageDraw, ImageFont
     font = ImageFont.truetype(FONT, 20)
@@ -119,8 +119,8 @@ def compose(rows, out, title, tile=360, top_flip=False):
             if name == 'top' and k == 0 and top_flip:
                 im = im.transpose(Image.FLIP_TOP_BOTTOM)
             ims.append(im)
-        if name == 'top':
-            # 真上の絵は縮尺が違うので、絵の外形の箱を「後」の外形の箱に合わせる（banki.py の _fit_bbox と同じ）
+        if name == 'top' or fit_all:
+            # 真上の絵は縮尺が違うので（--fit では全方向で：形だけを比べる）、絵の外形の箱を「後」の外形の箱に合わせる（banki.py の _fit_bbox と同じ）
             ims[0] = _fit(ims[0], ims[2])
         a = np.zeros((RES, RES), bool)
         for im in ims:
@@ -183,6 +183,8 @@ def main():
     ap.add_argument('--out', required=True)
     ap.add_argument('--title', default='')
     ap.add_argument('--views', default='front,side,back,front_right45', help='番機の方向（front・side・back・top・front_right45）')
+    ap.add_argument('--fit', action='store_true', help='絵の外形の箱を「後」の外形の箱に合わせる（大きさでなく形を比べる）')
+    ap.add_argument('--reuse', action='store_true', help='build/compare/<型>/ の前回の画像を使い、描き直さない')
     args = ap.parse_args()
     t = args.type
     kann = t == 'kannuki'
@@ -197,10 +199,15 @@ def main():
         after = args.after or os.path.join(B.MODELS, f'banki_{t}.glb')
     work = os.path.join(B.REPO, 'build', 'compare', t)
     os.makedirs(work, exist_ok=True)
-    pb = render_glb(args.before, views, ortho, os.path.join(work, 'before'), kann)
-    pa = render_glb(after, views, ortho, os.path.join(work, 'after'), kann)
+    if args.reuse:
+        pb = [os.path.join(work, f'before_{v[0]}.png') for v in views]
+        pa = [os.path.join(work, f'after_{v[0]}.png') for v in views]
+    else:
+        pb = render_glb(args.before, views, ortho, os.path.join(work, 'before'), kann)
+        pa = render_glb(after, views, ortho, os.path.join(work, 'after'), kann)
     rows = [(v[0], v[1], b, a, v[4]) for v, b, a in zip(views, pb, pa)]
-    size = compose(rows, args.out, args.title or f'{t}：絵 | 前 | 後', top_flip=(not kann) and bool(B.TYPES[t].get('top_flip')))
+    size = compose(rows, args.out, args.title or f'{t}：絵 | 前 | 後', top_flip=(not kann) and bool(B.TYPES[t].get('top_flip')),
+                   fit_all=args.fit)
     print(f'[compare] {args.out} {size} {os.path.getsize(args.out) // 1024} KB', flush=True)
 
 

@@ -671,6 +671,7 @@ def shield(rig: Rig):
         return v, orient(v, f)
     face = xz_slab([(56, 184), (80, 150), (78, 40), (58, 14), (38, 40), (36, 150)], -13.0, -9.0)
     rim = xz_slab([(56, 189), (83, 151), (81, 38), (58, 9), (35, 38), (33, 151)], -10.0, -6.5)
+    back = xz_slab([(56, 184), (80, 150), (78, 40), (58, 14), (38, 40), (36, 150)], -6.6, -5.6)   # 3e：盾の裏も白磁（真鍮は縁だけ）
     bolt = [(57, 172), (49, 146), (47, 104), (63, 92), (56, 70), (54, 36)]
     stripes = []
     for (x0, z0), (x1, z1) in zip(bolt[:-1], bolt[1:]):
@@ -689,7 +690,7 @@ def shield(rig: Rig):
         x, y = v[:, 0] - c[0], v[:, 1] - c[1]
         v = np.stack([c[0] + x * math.cos(a) - y * math.sin(a), c[1] + x * math.sin(a) + y * math.cos(a), v[:, 2]], 1)
         return v, f
-    rig.add('shield', 'body', (30, 5, 127.0), (0, 0, 1), [('ivory', turn(face)), ('brass', turn(merge(rim, boss_ring, *stripes))),
+    rig.add('shield', 'body', (30, 5, 127.0), (0, 0, 1), [('ivory', turn(merge(face, back))), ('brass', turn(merge(rim, boss_ring, *stripes))),
                                                          ('dark', merge(turn(boss), grip))])
     # 脚（本人の左 = +X で作り、右は鏡写し）：腿 2 段・膝当て・脛 2 段の板を黒鉛の芯の上に。靴は長い楔、底は真鍮
     tk = lambda n, k=-0.3: [(k, 0.0)] * n           # 板の縁を斜めに（内側が低い。絵の膝・足首の斜めの継ぎ目）
