@@ -406,15 +406,15 @@ def charger(rig: Rig):
     rig.add('body', None, cfg['body_pivot'], (1, 0, 0),
             [('ivory', merge(nose, mid, rear, *iv, *ivm)), ('dark', merge(core_body, *dk, *dkm)), ('brass', merge(spine, *br, *brm))])
     # センサー（鼻の上の横長の窓）
-    rig.add('sensor', 'body', (0, -47, 56), (1, 0, 0), [('sensor', box((0, -46.5, 55.5), (30, 5, 2.4)))])
+    rig.add('sensor', 'body', (0, -47, 56), (1, 0, 0), [('sensor', box((0, -46.5, 55.5), (22, 5, 2.4)))])   # 3e：細くした背の上の面に収まる幅
     # 核（本人の右 = -X の横の窓の奥の円柱）と、その蓋（窓をふさぐ面に沿う板。上の縁が蝶番）
     zc = 0.5 * (POCKET_Z[0] + POCKET_Z[1])
-    core = cyl((-25.0, 6, zc), (-18.6, 6, zc), 11.8, 16)
+    core = cyl((-18.2, 6, zc), (-12.0, 6, zc), 11.8, 16)   # 3e：胴を兜形にした分だけ内へ（斜めの蓋の下に収まる）
     rig.add('core', 'body', (-26, 6, 64), (1, 0, 0), [('core', core)])
     cy = np.linspace(POCKET_Y[0] - 2.0, POCKET_Y[1] + 2.0, 8)
     cover = mirror_x(surf_plate(cy, lambda y: POCKET_Z[0] - 2.0, lambda y: 78.0, 0.9, 2.6, 8))
     trim = mirror_x(surf_plate(cy, lambda y: 75.6, lambda y: 78.4, 1.6, 2.6, 2))
-    rig.add('core_cover', 'body', (-22, 6, 86.0), (0, -1, 0), [('ivory', cover), ('brass', trim)])
+    rig.add('core_cover', 'body', (-14.5, 6, 78.5), (0, -1, 0), [('ivory', cover), ('brass', trim)])   # 3e：蝶番を兜形の胴の面（蓋の上の縁）へ
     # 衝角（真鍮の角ばった箱）とレール
     ram = merge(extrude_taper([(-11, -11), (11, -11), (11, 11), (-11, 11)], V3([0, -86, 21]), V3([0, -102, 21]), 0.8, (0, 0, 1)))
     rail = box((0, -61, 24), (12, 42, 8))
@@ -510,11 +510,17 @@ def floater(rig: Rig):
     寸法は正面の絵（21.8 px/cm）、葉の平面形と真鍮の稜は真上の絵（縮尺が 0.8 倍なので 1.25 倍して読む）。部品の名前・原点・軸は前と同じ"""
     ivory, brass, dark = [], [], []
     # ハブ（黒鉛のこま形。下は砲口へすぼまる）
-    dark.append(lathe((0, 0, 11.5), (0, 0, 31.0), [(0, 8.0), (0.25, 14.5), (0.5, 20.5), (0.78, 20.5), (1, 12.5)], 24))
+    dark.append(lathe((0, 0, 11.5), (0, 0, 31.0), [(0, 8.0), (0.25, 13.0), (0.5, 17.0), (0.78, 17.0), (1, 12.0)], 24))   # 葉の間に見える黒鉛を減らす
     dark.append(lathe((0, 0, 30.0), (0, 0, 32.2), [(0, 12.0), (1, 10.2)], 16))      # 核のまわりの輪
     # 前板（白磁の枕）とセンサーの窓の縁
     FC, FA = (0.0, -15.0, 23.5), (14.0, 13.5, 8.5, 8.0)
-    ivory.append(ell_plate(FC, FA, 6.0, 174.0, -78.0, 78.0, thick=3.0, dth=14, dph=13))
+    front_plate = ell_plate(FC, FA, 6.0, 174.0, -78.0, 78.0, thick=3.0, dth=14, dph=13)
+    ivory.append(front_plate)
+    # 後ろの左右の角（30・150 度）にも同じ枕の板（センサーなし、赤道に真鍮の帯。絵の真横の中央の枕）。葉の間の黒鉛を覆う
+    side_band = ell_plate(FC, FA, 86.0, 94.0, -74.0, 74.0, thick=1.2, grow=0.25, dth=8, dph=13)
+    for ang in (120.0, -120.0):
+        ivory.append(rot_z(front_plate, math.radians(ang)))
+        brass.append(rot_z(side_band, math.radians(ang)))
     th_f = lambda z: math.degrees(math.acos(np.clip((z - FC[2]) / (FA[2] if z >= FC[2] else FA[3]), -1, 1)))
     dark.append(ell_plate(FC, FA, th_f(23.2), th_f(19.2), -35.0, 35.0, thick=0.5, grow=0.12, dth=6, dph=10))
     rig.add('sensor', 'body', (0, -28, 21.0), (1, 0, 0), [('sensor', ell_plate(FC, FA, th_f(22.5), th_f(19.9), -30.0, 30.0, thick=0.5, grow=0.3,
@@ -526,7 +532,7 @@ def floater(rig: Rig):
     rig.add('body', None, (0, 0, 25.0), (1, 0, 0), [('ivory', merge(*ivory)), ('brass', merge(*brass)), ('dark', merge(*dark))])
     rig.parts.insert(0, rig.parts.pop())
     # 葉：+X へ伸ばして作り、角度へ回す。花びら形（外ほど幅が広い）のレンズ
-    CX, CZ, AL, AW, AT, AB, KW = 29.0, 24.0, 12.5, 15.5, 9.0, 8.0, 0.5
+    CX, CZ, AL, AW, AT, AB, KW = 29.0, 24.0, 12.5, 16.0, 9.0, 8.0, 0.36
     def lobe_pt(th, ph, g):
         st, ct = math.sin(th), math.cos(th)
         sp, cp = math.sin(ph), math.cos(ph)
