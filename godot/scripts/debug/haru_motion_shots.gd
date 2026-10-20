@@ -48,15 +48,15 @@ static func steps(d) -> Array:
 	var m = d.main
 	var want := String(m.args.get("haru_motion_shots", "1"))
 	# --haru_motion_view=back：横ではなく、ゲームのカメラに近い後ろ斜め上から（ハルは +x を向く）
-	# --haru_motion_view=pouch：右の前斜めから腰の高さで（右のポーチ。左は籠手の腕に隠れる）
+	# --haru_motion_view=pouch：右の後ろ斜めから腰の高さで（右のポーチ。前からは銃を持つ右手に、左は籠手の腕に隠れる）
 	var view := String(m.args.get("haru_motion_view", "side"))
 	_offset = TRACK_SIDE
 	_look_y = TRACK_LOOK_Y
 	if view == "back":
 		_offset = Vector3(-2.3, 0.45, -1.1)
 	elif view == "pouch":
-		_offset = Vector3(0.55, -0.35, 1.05)
-		_look_y = 0.78
+		_offset = Vector3(-0.45, -0.35, 0.95)
+		_look_y = 0.80
 	var s := []
 	for v in MOTIONS:
 		if want != "1" and not want.split(",").has(String(v[0])):
