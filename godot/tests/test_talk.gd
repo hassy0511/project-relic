@@ -350,10 +350,11 @@ func test_talk_camera_fades_name_labels() -> void:
 	h.tree.root.add_child(pv)
 	pv.build(g)
 	var labels: Array = pv.find_children("*", "Label3D", true, false)
+	# 薄くした割合（色の不透明さで見る。transparency は gl_compatibility で効かないので使わない）
 	var alpha := func() -> float:
 		var worst := 0.0
 		for lb in labels:
-			worst = maxf(worst, (lb as Label3D).transparency)
+			worst = maxf(worst, 1.0 - (lb as Label3D).modulate.a)
 		return worst
 	h.expect(labels.size() >= 4, "住人の名札がある（%d）" % labels.size())
 	_face(g, Vector3(0, 0, 2.2), "npc_a")
@@ -363,11 +364,12 @@ func test_talk_camera_fades_name_labels() -> void:
 	await _tick(g, [cam], {"jump": true})
 	await _ticks(g, [cam], 40)
 	pv.fade_labels(cam.talk_weight())
-	h.expect(labels.all(func(lb): return (lb as Label3D).transparency == 1.0), "寄せている間は名札を消す")
+	h.expect(labels.all(func(lb): return (lb as Label3D).modulate.a == 0.0 and (lb as Label3D).outline_modulate.a == 0.0 and not (lb as Label3D).visible),
+		"寄せている間は名札を消す（色の不透明さ 0・非表示。スマホ・ブラウザ版でも効く）")
 	await _finish_dialogue(g, [cam])
 	await _ticks(g, [cam], 40)
 	pv.fade_labels(cam.talk_weight())
-	h.expect(alpha.call() == 0.0, "戻ると名札も元どおり")
+	h.expect(alpha.call() == 0.0 and labels.all(func(lb): return (lb as Label3D).visible), "戻ると名札も元どおり")
 	pv.queue_free()
 	cam.queue_free()
 	h.free_game(g)

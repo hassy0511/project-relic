@@ -353,6 +353,8 @@ func _sync_leaving(game: GameSim, dt: float) -> void:
 
 ## 会話のカメラ（CameraRig）で話し相手へ寄せている間は、住人の頭の上の名札を薄くする（近くから映すと話し相手の名札が大きく、
 ## まわりの住人の名札も画面の端・HUD に掛かる。話し手の名前は会話の窓に出ている）。w：寄せた割合（0〜1）
+## 薄くするのは色の不透明さ（modulate・outline_modulate の a）。GeometryInstance3D.transparency はスマホ・ブラウザ版
+## （gl_compatibility）で効かず、名札が大きく映ったまま残った。もとの不透明さは最初に meta に覚えておく
 func fade_labels(w: float) -> void:
 	if w == _label_fade:
 		return
@@ -360,7 +362,13 @@ func fade_labels(w: float) -> void:
 	for nid in _npcs:
 		for ch in (_npcs[nid] as Node3D).get_children():
 			if ch is Label3D:
-				(ch as Label3D).transparency = w
+				var l := ch as Label3D
+				if not l.has_meta("base_alpha"):
+					l.set_meta("base_alpha", Vector2(l.modulate.a, l.outline_modulate.a))
+				var a: Vector2 = l.get_meta("base_alpha")
+				l.modulate.a = a.x * (1.0 - w)
+				l.outline_modulate.a = a.y * (1.0 - w)
+				l.visible = w < 1.0
 
 
 func _set_npc_face(info: Dictionary, i: int) -> void:
