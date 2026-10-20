@@ -17,6 +17,8 @@ import sys
 import dress_solid
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+sys.path.insert(0, os.path.join(ROOT, "tools", "blender", "kit"))
+import town_landing  # noqa: E402  オルドのリフトの踊り場の部品の寸法と、小物の当たり判定の箱（bpy は使わない）
 PATH = os.path.join(ROOT, "godot", "content", "areas", "ch1_town.json")
 
 
@@ -100,6 +102,15 @@ def ordo(room, d, name, back="ordo_back", ground=True):
     room["ordo"] = {"pos": ORDO_POS[name], "back": "town/" + back}
     if not ground:
         room["ordo"]["ground"] = False
+
+
+def ordo_landing(room, d, name, solid):
+    """オルドのリフトの踊り場（2026-10-20）を部屋の飾り town/ordo_landing で描く（オルドと同じ形・同じ pos。町のキットの汚れの層と
+    布の揺れつき。tools/blender/kit/town_landing.py）。オルドの同じ部品は隠す（部屋の "ordo" の "landing": false。同じ所に 2 つ描かない）。
+    solid：小物（ベンチ・木箱・携行灯）に当たり判定（歩ける下段）。中段は上から見下ろすだけ（踊り場の床の当たり判定が無いので、
+    小物の箱だけを宙に浮かせない）。部屋の dress の終わりに足す（前からの飾りの番号をずらさない）"""
+    room["ordo"]["landing"] = False
+    d.put("ordo_landing", ORDO_POS[name], **({"solid": town_landing.landing_solid()} if solid else {}))
 
 
 # 生活感の小物（2026-10-15）は影を落とさない（部品の種類ごとに、影の描画が影の段の数だけ増えるため。CC0 の樽と長持ちに影を付けると
@@ -282,6 +293,7 @@ def mid(room):
 
     lived_mid(d)
     grime_mid(d)
+    ordo_landing(room, d, "mid", solid=False)
     return finish(room, d)
 
 
@@ -504,8 +516,11 @@ def lower(room):
             p["part"] = "town/gate_door"        # 扉の見た目（PropsView。開くと床へ沈む）
         if p.get("id") == "ch1.lower.lift":
             p["hide"] = True                    # 操作盤は lower_set（端末の箱と同じ所）
+        if p.get("id") == "ch1.lower.lookout":
+            p["hide"] = True                    # 「見下ろす」の望遠鏡は ordo_landing（端末の箱の中に立つ）
     lived_lower(d)
     grime_lower(d)
+    ordo_landing(room, d, "lower", solid=True)
     return finish(room, d)
 
 
@@ -594,6 +609,13 @@ def grime_lower(d):
     dirt(d, 41.0, 15.6, 6.0, 1.2)           # 東の棟の裏
     dirt(d, 46.0, 10.0, 2.4, 8.0)           # 東の棟と東の壁の間の路地
     dirt(d, 46.0, 0.2, 3.0, 1.8)            # 物置の戸口
+    # オルドのリフトの踊り場（2026-10-20）：口からの足跡、かごの口のふたのまわりの油、ベンチ・木箱・望遠鏡の前
+    dirt(d, 50.2, -3.5, 3.2, 7.4)           # 東の口の板（町から入る所）
+    dirt(d, 60.2, -4.0, 1.4, 7.0, kind="oil_patch")   # ふたの西の縁（蝶番）
+    dirt(d, 70.1, -4.0, 1.0, 6.0, kind="oil_patch")   # ふたの東の縁
+    dirt(d, 57.75, 2.9, 3.6, 1.6)           # 日よけの下のベンチの前
+    dirt(d, 58.6, -10.9, 3.6, 1.4)          # 南の柵の前の木箱
+    dirt(d, 69.0, -10.5, 1.8, 2.4)          # 望遠鏡の前
 
 
 # ---------------------------------------------------------------- 上段（U1 町長の家・U2 回収屋ギルド・U3 展望台）

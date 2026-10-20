@@ -83,11 +83,12 @@ def _slab(p: Part):
     for z in (Z_S + 1.2, (Z_S + Z_N) / 2, Z_N - 1.2):
         p.add('graphite', boxb(X_OUT - 0.1, X_OUT + 0.06, L - 2.75, L - 1.25, z - 0.55, z + 0.55))
         p.add('amber', boxb(X_OUT + 0.06, X_OUT + 0.1, L - 2.55, L - 1.45, z - 0.4, z + 0.4))
-    # 舷へ下りる斜めの支え（リフトのガイド z -19〜-5・かごの通り道の外）：黒鉛の角材と真鍮の受け
+    # 舷へ下りる斜めの支え（リフトのガイド z -19〜-5・かごの通り道の外）：黒鉛の角材と真鍮の受け。下の端は帯の下の梁の上の弦材
+    # （ordo.frame_x：背の面の 13.9 m 下で x 52.6）の外の面
     for z in (Z_S + 0.45, Z_N - 0.45):
-        a, b = np.array([HULL + 0.3, L - 15.0, z]), np.array([67.5, L - 3.4, z])
+        a, b = np.array([HULL - 2.2, L - 15.4, z]), np.array([67.5, L - 3.4, z])
         p.add('graphite', beam(a, b, 0.5, 0.6, up=(0, 0, 1)))
-        p.add('brass', boxb(HULL - 0.05, HULL + 0.35, L - 15.9, L - 14.1, z - 0.4, z + 0.4))
+        p.add('brass', boxb(HULL - 2.45, HULL - 2.05, L - 16.3, L - 14.5, z - 0.4, z + 0.4))
         p.add('brass', boxb(66.6, 68.4, L - 3.5, L - 3.36, z - 0.4, z + 0.4))
 
 

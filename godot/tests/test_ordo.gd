@@ -23,7 +23,7 @@ func test_ordo_model_loads() -> void:
 	var o := _make()
 	h.expect(o.model != null and o.body != null, "ordo.glb が読める（body がある）")
 	h.expect(o.legs.size() == 8, "脚が 8 本（%d）" % o.legs.size())
-	for nm in ["door", "lift_guide", "lift_cage"]:
+	for nm in ["door", "lift_guide", "lift_cage", "lift_landing"]:
 		h.expect(o.parts.get(nm) != null, "部品 %s がある" % nm)
 	var tri := 0
 	var mats := {}
@@ -36,7 +36,7 @@ func test_ordo_model_loads() -> void:
 	h.expect(tri > 10000 and tri <= 60000, "三角形が 6 万以内（%d）" % tri)
 	var names := mats.keys()
 	names.sort()
-	h.expect(names == ["amber", "brass", "cloth", "dark", "graphite", "ivory"], "材質は 6 つ（キットの名前）：%s" % [names])
+	h.expect(names == ["amber", "brass", "cloth", "dark", "deck", "graphite", "ivory"], "材質は 7 つ（キットの名前）：%s" % [names])
 	# 材質の名前が町のキットと同じなので、全部の面をキットの材質（あとで汚れの層を足す所）に替えられる
 	var surfaces := 0
 	for mi in o.model.find_children("*", "MeshInstance3D", true, false):
@@ -248,3 +248,69 @@ func test_ordo_feet_clear() -> void:
 	h.expect(lowest >= -0.3, "足の裏の四隅が地面に潜らない（最も低い所 %.2f m）" % lowest)
 	h.expect(gap > 2.0, "同じ舷の隣の足が重ならない（最も近い所 %.1f m）" % gap)
 	o.free()
+
+
+## リフトの踊り場（2026-10-20）：下段・中段は、オルドの部品 lift_landing と同じ形の飾り town/ordo_landing（キットの汚れの層・布の揺れつき）を
+## オルドと同じ所に置き、オルドの部品は骨の大きさ 0 で隠す（同じ所に 2 つ描かない）。夜明けの甲羅はオルドの部品のまま。
+## 下段は板の床が当たり判定の床の箱の上の面に、望遠鏡は「見下ろす」の端末の箱の中に立ち、端末の箱は描かない
+func test_ordo_landing_dress() -> void:
+	var world := World.load_manifest("res://content/world.json")
+	for rid in ["ch1.lower", "ch1.mid", "ch1.opening"]:
+		var root := RoomView.build(world, rid)
+		h.tree.root.add_child(root)
+		var o := root.get_node_or_null("Ordo") as OrdoView
+		var dressed: bool = rid != "ch1.opening"
+		var bi := o.skeleton.find_bone("lift_landing") if o != null and o.skeleton != null else -1
+		h.expect(bi >= 0, "%s：踊り場はオルドの 1 つのメッシュの骨（lift_landing）" % rid)
+		if bi < 0:
+			root.free()
+			continue
+		var sc := o.skeleton.get_bone_pose_scale(bi)
+		h.expect(o.landing != dressed and sc.is_equal_approx(Vector3.ZERO if dressed else Vector3.ONE),
+			"%s：オルドの踊り場は%s（骨の大きさ %s）" % [rid, "隠す" if dressed else "描く", sc])
+		var gi := root.get_node_or_null("Dress/town_ordo_landing") as MeshInstance3D
+		h.expect((gi != null) == dressed, "%s：踊り場の飾り town/ordo_landing は%s" % [rid, "ある" if dressed else "無い"])
+		if gi == null:
+			root.free()
+			continue
+		# 飾りとオルドの部品は同じ形・同じ所（部屋の座標の広がりが 2 cm 以内で一致）
+		var part := o.parts.get("lift_landing") as Node3D
+		var a := AABB()
+		var first := true
+		for mi in [part] + part.find_children("*", "MeshInstance3D", false, false):
+			if mi is MeshInstance3D:
+				var b: AABB = (mi as MeshInstance3D).global_transform * (mi as MeshInstance3D).mesh.get_aabb()
+				a = b if first else a.merge(b)
+				first = false
+		var d: AABB = gi.global_transform * gi.mesh.get_aabb()
+		h.expect(a.position.distance_to(d.position) < 0.02 and a.end.distance_to(d.end) < 0.02,
+			"%s：飾りはオルドの踊り場と同じ所（%s / %s）" % [rid, d, a])
+		# 材質：板はキットの deck（板の絵と汚れの層）、布は揺れの重み（頂点の色のアルファ < 1）
+		var kit := RoomKit.load_kit("town")
+		var deck_ok := false
+		var swaying := 0
+		for s in gi.mesh.get_surface_count():
+			var m := gi.mesh.surface_get_material(s)
+			if m == kit.mats.get("deck"):
+				deck_ok = (m as ShaderMaterial).get_shader_parameter("albedo_tex") != null
+			if m == kit.mats.get("flat"):
+				for c in (gi.mesh.surface_get_arrays(s)[Mesh.ARRAY_COLOR] as PackedColorArray):
+					if c.a < 0.99:
+						swaying += 1
+		h.expect(deck_ok, "%s：板の床はキットの材質 deck（板の絵）" % rid)
+		h.expect(swaying > 200, "%s：日よけの布は風で揺れる（重みのある頂点 %d）" % [rid, swaying])
+		if rid == "ch1.lower":
+			var room := world.room(rid)
+			var floor_top := -INF
+			for g in room.geometry:
+				if g.get("t", "box") == "box" and absf(float(g.pos[0]) - 59.45) < 0.01 and absf(float(g.pos[2]) + 4.0) < 0.01:
+					floor_top = float(g.pos[1]) + float(g.size[1])
+			h.expect(absf(floor_top) < 0.001 and absf(gi.global_transform.origin.y + 1.5) < 0.001,
+				"下段：踊り場の床の上の面（オルドの背の 1.5 m 上）が当たり判定の床の箱の上の面（%.2f）" % floor_top)
+			var term := {}
+			for p in room.props:
+				if p.get("id", "") == "ch1.lower.lookout":
+					term = p
+			h.expect(term.get("hide", false), "下段：「見下ろす」の端末の箱は描かない（踊り場の望遠鏡）")
+		root.free()
+

@@ -9,6 +9,8 @@ extends Node3D
 ##   leg_<l|r><1..4>_roll（肩の横振り。軸 = 船首の向き）→ _shoulder（肩のピッチ。軸 +X）→ _knee → _ankle。
 ##   l = 左舷（+X）、r = 右舷（-X、昇降リフトの側）。1〜4 は船首から（取付は全長の 15・38・62・85 %）。
 ##   1・2 は膝が船尾へ、3・4 は船首へ曲がる（絵の側面図）。door（禁足扉）・lift_guide・lift_cage は下へ滑る（ローカル +X = 下）。
+##   lift_landing（リフトの踊り場：台・板の床・手すり・日よけ・小物）は動かない。町のキットの town/ordo_landing と同じ形で、
+##   それを飾りに置く部屋（下段・中段。汚れの層と布の揺れつき）では landing = false で隠す（同じ所に 2 つ描かない）。
 ## 歩き方（spec_ordo_3d.md の「関節と歩行」）：右の列は 1 → 3 → 2 → 4 の順に足を振り出し、左の列は半周期ずらす。
 ##   1 周 cycle_s 秒（既定 80 秒。1 本の振り出しは swing_frac × 80 = 19.2 秒）。同時に浮く足は最大 2 本（右と左で 1 本ずつ）。
 ##   地面に着いている足は動かない：着いた所（地面の上の位置）を覚え、体から見た位置を毎回逆算して関節の角度を解く（2 節の IK）。
@@ -48,6 +50,7 @@ const ANKLE_SWING_MAX := 15.0    ## 浮いている足の足首の角の上限�
 @export var cast_shadows := false  ## 影を落とすか（町の遠景では落とさない）
 @export var ground := false      ## 120 m 下の砂の床（body_fixed のとき体の進みだけ流れる。遠くは透明にして空の絵の下の帯へつなぐ）
 @export var back_part := ""      ## 背の上の遠くの町（キットの部品の名前。例 "town/ordo_back"）。体と一緒の 3 つの面で描く（merged のとき）
+@export var landing := true      ## リフトの踊り場（部品 lift_landing）を描くか。部屋が同じ形の飾り town/ordo_landing を置くときは false（set_landing）
 
 var model: Node3D
 var body: Node3D
@@ -66,7 +69,7 @@ var _bones: Array = []           ## 骨の番号 → 部品のノード
 var _root_pose := Transform3D.IDENTITY
 static var _merged_cache := {}   ## MODEL_PATH → { "mesh", "skin" }（部屋を移るたびに作り直さない）
 
-const JOINTS := ["body", "door", "lift_guide", "lift_cage"]
+const JOINTS := ["body", "door", "lift_guide", "lift_cage", "lift_landing"]
 const GROUND_SIZE := 6000.0
 ## 雰囲気ごとの砂の床の色（近く・暗い所・遠く・風紋の濃さ）。遠くの色は空の絵（sky_*.jpg）の地平線の 15〜20 度下の色（床が透明になる所）
 const GROUND_MOODS := {
@@ -86,7 +89,7 @@ func _ready() -> void:
 	body = model.find_child("body", true, false) as Node3D
 	for n in model.find_children("*", "Node3D", true, false):
 		_rest[n.name] = (n as Node3D).transform
-	for nm in ["body", "door", "lift_guide", "lift_cage"]:
+	for nm in JOINTS:
 		parts[nm] = model.find_child(nm, true, false)
 	for tag in LEGS:
 		var leg := _setup_leg(tag)
@@ -94,6 +97,7 @@ func _ready() -> void:
 			legs.append(leg)
 	if merged:
 		_build_skinned()
+	set_landing(landing)
 	if ground:
 		_make_ground()
 	if walking:
@@ -331,6 +335,19 @@ func is_planted(tag: String) -> bool:
 		if leg.tag == tag:
 			return not leg.swinging
 	return false
+
+
+## リフトの踊り場（部品 lift_landing）を描くか。部屋が同じ形の飾り（town/ordo_landing。キットの汚れの層・布の揺れつき）を
+## オルドと同じ pos に置くときは false：1 つにまとめたメッシュでは、その骨の大きさを 0 にして消す（描画の回数は変わらない）
+func set_landing(on: bool) -> void:
+	landing = on
+	var n := parts.get("lift_landing") as Node3D
+	if n != null:
+		n.visible = on
+	if skeleton != null:
+		var bi := skeleton.find_bone("lift_landing")
+		if bi >= 0:
+			skeleton.set_bone_pose_scale(bi, Vector3.ONE if on else Vector3.ZERO)
 
 
 ## 禁足扉を開ける（0〜30 m 下へ）・リフトのガイドとかごを下ろす（m）

@@ -34,6 +34,7 @@ WORK = os.path.join(REPO, 'build', 'kit_town')
 def catalog() -> dict:
     import town_backdrop as BD
     import town_goods as G
+    import town_landing as LD
     import town_parts as P
     import town_rooms as R
     import town_sets as S
@@ -66,6 +67,8 @@ def catalog() -> dict:
         **R.PARTS,
         # W2-05b 市場のにぎわいの小物 16 点と露店の組（2026-10-17。town_goods.py）
         **G.PARTS,
+        # オルドのリフトの踊り場（2026-10-20。town_landing.py。オルドの座標のまま、オルドと同じ pos に置く）
+        **LD.PARTS,
     }
 
 
@@ -94,7 +97,7 @@ def gallery(cat: dict) -> None:
 
     import town_geo as geo
     import town_rooms as R
-    skip = {'ordo_back', 'ordo_town', 'deck_slab', 'plaza_ring', 'terrace_west', 'terrace_east', 'stair_gate', 'stair_well_s',
+    skip = {'ordo_back', 'ordo_town', 'ordo_landing', 'deck_slab', 'plaza_ring', 'terrace_west', 'terrace_east', 'stair_gate', 'stair_well_s',
             *(n for n in R.PARTS if n.endswith('_set') or n.endswith('_patch'))}   # 部屋の座標の大きな組と床の汚れの斑
     for ob in list(bpy.data.objects):
         bpy.data.objects.remove(ob, do_unlink=True)
