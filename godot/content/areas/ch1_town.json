@@ -7407,7 +7407,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 95
+     "dress": 91
     },
     {
      "t": "box",
@@ -7423,7 +7423,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 95
+     "dress": 91
     },
     {
      "t": "box",
@@ -7439,7 +7439,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 95
+     "dress": 91
     },
     {
      "t": "box",
@@ -7455,7 +7455,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 95
+     "dress": 91
     },
     {
      "t": "box",
@@ -7471,7 +7471,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 95
+     "dress": 91
     },
     {
      "t": "box",
@@ -7487,7 +7487,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 95
+     "dress": 91
     },
     {
      "t": "box",
@@ -7503,7 +7503,7 @@
      ],
      "hide": true,
      "tint": "#5a5048",
-     "dress": 95
+     "dress": 91
     },
     {
      "t": "box",
@@ -7520,7 +7520,7 @@
      "cam": false,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 95
+     "dress": 91
     },
     {
      "t": "box",
@@ -7537,7 +7537,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 95
+     "dress": 91
     },
     {
      "t": "box",
@@ -7588,7 +7588,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 95
+     "dress": 91
     },
     {
      "t": "box",
@@ -7605,7 +7605,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 95
+     "dress": 91
     },
     {
      "t": "box",
@@ -8013,7 +8013,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 95
+     "dress": 91
     },
     {
      "t": "box",
@@ -8098,7 +8098,7 @@
      "fill": true,
      "hide": true,
      "tint": "#5a5048",
-     "dress": 95
+     "dress": 91
     },
     {
      "t": "box",
@@ -9754,19 +9754,6 @@
      ]
     },
     {
-     "part": "town/grime_patch",
-     "pos": [
-      50.2,
-      0.0,
-      -3.5
-     ],
-     "scale": [
-      3.2,
-      1.0,
-      7.4
-     ]
-    },
-    {
      "part": "town/oil_patch",
      "pos": [
       60.2,
@@ -9790,45 +9777,6 @@
       1.0,
       1.0,
       6.0
-     ]
-    },
-    {
-     "part": "town/grime_patch",
-     "pos": [
-      57.75,
-      0.0,
-      2.9
-     ],
-     "scale": [
-      3.6,
-      1.0,
-      1.6
-     ]
-    },
-    {
-     "part": "town/grime_patch",
-     "pos": [
-      58.6,
-      0.0,
-      -10.9
-     ],
-     "scale": [
-      3.6,
-      1.0,
-      1.4
-     ]
-    },
-    {
-     "part": "town/grime_patch",
-     "pos": [
-      69.0,
-      0.0,
-      -10.5
-     ],
-     "scale": [
-      1.8,
-      1.0,
-      2.4
      ]
     },
     {
