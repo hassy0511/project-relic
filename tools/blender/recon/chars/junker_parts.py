@@ -732,12 +732,12 @@ def hair_locks() -> list[dict]:
 
     WPROF = (np.array([0, 0.10, 0.45, 0.75, 1.0]), np.array([0.40, 0.90, 1.0, 0.70, 0.05]))
 
-    def tier(spec, k_w=0.60, thick=0.013, w_max=0.040):
+    def tier(spec, k_w=0.60, thick=0.013, w_max=0.040, tip_start=0.62):
         """spec：[(名前, [(角度, 高さ), ...] の道の節, 根の浮き, 先の浮き, 節の割合)]。幅はとなりの房との距離から"""
         lines = []
         for name, keys, l0, l1, fk in spec:
             dk = [dir_at(a, z) for a, z in keys]
-            lines.append(centre(dk, l0, l1, thick, fkeys=np.array(fk) if fk is not None else None))
+            lines.append(centre(dk, l0, l1, thick, fkeys=np.array(fk) if fk is not None else None, tip_start=tip_start))
         for i, (name, *_r) in enumerate(spec):
             dirs, P, th_ = lines[i]
             nb = [j for j in range(len(spec)) if j != i]
@@ -755,14 +755,15 @@ def hair_locks() -> list[dict]:
     # 短い 2 段に分け、どちらも先を帽子から 2.6〜3.2cm 浮かせて立てる（絵：頭頂の房も上・前へ立つ）。
     # 後ろの段はつむじから頭頂の少し前まで、前の段は頭頂の少し後ろから額の上まで（前の段の根は後ろの段の立った先の下）
     top_a, top_b = [], []
-    for i, a in enumerate((-36, 0, 36)):
+    for i, a in enumerate((-38, 0, 38)):
         root = (180.0 - a * 0.30 if a <= 0 else -180.0 - a * 0.30, crown[1] - 0.004)
-        top_a.append((f'top{i}', [root, (a * 0.6, HR.HEAD_C[2] + 0.57)], 0.001, 0.026, None))
+        top_a.append((f'top{i}', [root, (a, HR.HEAD_C[2] + 0.27)], 0.001, 0.018, None))
     for i, a in enumerate((-44, 0, 44)):
-        root = (180.0 - a * 0.25 if a <= 0 else -180.0 - a * 0.25, HR.HEAD_C[2] + 0.37)
-        top_b.append((f'topf{i}', [root, (a, 1.548)], 0.001, 0.032, None))
-    tier(top_a, k_w=0.72, thick=0.014, w_max=0.046)
-    tier(top_b, k_w=0.72, thick=0.014, w_max=0.046)
+        root = (180.0 - a * 0.25 if a <= 0 else -180.0 - a * 0.25, HR.HEAD_C[2] + 0.17)
+        top_b.append((f'topf{i}', [root, (a, 1.548)], 0.001, 0.022, None))
+    # 先は最後の 2 割で急に立てる（板の全体を浮かせると、正面から瓦を重ねたような平たい板の縁に見えた）
+    tier(top_a, k_w=0.80, thick=0.014, w_max=0.054, tip_start=0.80)
+    tier(top_b, k_w=0.80, thick=0.014, w_max=0.054, tip_start=0.80)
     # 頭頂の左右で外・上へはねる大きな房 2 本（正面の外形の上の左右の張り）
     flare = [('flare_l', [(16.0, 1.550), (48.0, 1.538), (84.0, 1.522)], 0.002, 0.046, [0.0, 0.5, 1.0]),
              ('flare_r', [(-16.0, 1.550), (-50.0, 1.535), (-86.0, 1.515)], 0.002, 0.046, [0.0, 0.5, 1.0])]
