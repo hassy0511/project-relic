@@ -39,8 +39,9 @@ float kit_noise(vec2 p, float period) {
 
 // 揺れ：頂点を動かす（重み w）。ワールドの風下 W と、それに直角の水平の向き S へ、場所で少しずつずれた 2 つのゆっくりした揺れと、
 // ときどき来る突風（風下へ流れていく帯）で押す。同じ所の頂点は同じだけ動く（布の表と裏・柄の板が裂けない）。
-// 面の向きは、風下へ進む波の傾きの分だけ傾ける（揺れは数 cm なので小さい）
-void kit_sway(inout vec3 vertex, inout vec3 normal, float w, mat4 model, float time) {
+// 面の向き（NORMAL）は変えない：数 cm の揺れでは陰はほとんど変わらず（傾けても画素は変わらなかった）、スマホ・ブラウザ版の
+// 描き方（gl_compatibility）で、傾けた面に一瞬だけ白い点が散った（2026-10-19）
+void kit_sway(inout vec3 vertex, float w, mat4 model, float time) {
 	if (w <= 0.002) {
 		return;
 	}
@@ -63,10 +64,6 @@ void kit_sway(inout vec3 vertex, inout vec3 normal, float w, mat4 model, float t
 	float push = sway_amp.x * (0.25 + 0.75 * g) * (0.85 + 0.15 * sin(t * 0.9 + ph));
 	vec3 d = (W * (push + fl * 0.45 * sin(a2)) + S * (fl * sin(a1))) * w;
 	vertex += inverse(m) * d;
-	// 波の傾き（d を風下の距離で微分した向き）で面の向きを傾ける
-	vec3 dd = (S * (fl * cos(a1)) + W * (fl * 0.36 * cos(a2))) * (-k);
-	vec3 nw = normalize(m * normal);
-	normal = normalize(normal - (transpose(m) * W) * (w * dot(dd, nw)));
 }
 
 // 流れ：落砂の流れの面の色に、下へ流れる明暗の筋と、縁（面が横を向く所）のちらつきを掛ける。fw = 重み、wp = ワールドの位置、

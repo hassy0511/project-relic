@@ -35,7 +35,7 @@ uniform vec2 near_fade = vec2(0.8, 1.5);
 void vertex() {
 	// 揺れ（材質の "sway"：風で揺れる布・垂れたケーブル。kit_motion.gdshaderinc）。重みは頂点の色のアルファ（1 - 重み）
 	if (sway_amp.x + sway_amp.y > 0.0) {
-		kit_sway(VERTEX, NORMAL, 1.0 - COLOR.a, MODEL_MATRIX, TIME);
+		kit_sway(VERTEX, 1.0 - COLOR.a, MODEL_MATRIX, TIME);
 	}
 }
 
