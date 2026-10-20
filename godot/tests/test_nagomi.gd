@@ -591,10 +591,10 @@ func test_nagomi_keeps_state_on_snap_and_pause() -> void:
 	await _until(r, 30, {"move_y": 1.0}, func(): return _state(r) == NagomiView.Dock.DOCKING)
 	await _ticks(r, 6, {"move_y": 1.0})
 	var t0 := nv._t
-	var p0 := nv.global_position
+	var p0 := nv._base
 	for i in 60:
 		await h.tree.physics_frame
-	h.expect(nv._t == t0 and nv.global_position == p0, "ポーズの間は弧が止まる")
+	h.expect(nv._t == t0 and nv._base == p0, "ポーズの間は弧が止まる")
 	await _tick(r, {"move_y": 1.0})
 	h.between(nv._t - t0, 0.0, 0.1, "ポーズのあとは続きから")
 	_free(r)
@@ -645,6 +645,42 @@ func test_nagomi_debug_force_and_script_cues() -> void:
 	h.expect(_state(r) != NagomiView.Dock.DOCKED, "合図の間は出ている")
 	await _ticks(r, 60, {"move_y": 1.0})
 	h.expect(_state(r) == NagomiView.Dock.DOCKED and not g.story.running_event(), "台本が終われば、走っていれば背中へ")
+	_free(r)
+
+
+func test_nagomi_drawn_on_the_plate_while_attacking() -> void:
+	# 背中に付いている間、描くこまのナゴミは、描くこまの骨格（動作はこまごとに進み、HaruPose・足の接地の変形が当たる）の背中の板の
+	# 受け口にいる。斬るひねりでは背中の板が 1 こまに最大 0.24 m 動くので、物理の刻みで決めた所（1 こま前の姿勢）では離れて見えた
+	var r := await _setup()
+	var g: GameSim = r.g
+	var nv: NagomiView = r.nv
+	var pv: PlayerView = r.pv
+	await _ticks(r, 20)
+	nv.force = "dock"
+	await _until(r, 60, {}, func(): return _state(r) == NagomiView.Dock.DOCKED)
+	await _ticks(r, 20)
+	var sk := pv.skeleton
+	var chest := sk.find_bone("chest")
+	var worst := [0.0, 0.0, 0]
+	# ナゴミの見張り（受け口の写し）のあとに呼ばれるよう、あとからつなぐ：描くこまの更新ごとに、その姿勢の受け口と、描く所を比べる
+	var check := func():
+		if Engine.is_in_physics_frame() or nv.dock_state != NagomiView.Dock.DOCKED or nv._settle >= 0.0:
+			return
+		var inv := Transform3D(Basis(Vector3.UP, pv.rotation.y), pv.global_position).affine_inverse()
+		var seat: Vector3 = inv * NagomiView.seat_of((sk.global_transform * sk.get_bone_global_pose(chest) * (nv._sock.local as Transform3D)).orthonormalized())
+		var pt := pv.get_global_transform_interpolated()
+		var want := Transform3D(Basis(Vector3.UP, pt.basis.get_euler().y), pt.origin) * seat
+		worst[0] = maxf(worst[0], nv.global_position.distance_to(want))
+		# 物理の刻みで決めた所（前の版の描き方）との差：これがこまごとの板の動き
+		worst[1] = maxf(worst[1], (inv * nv._base).distance_to(seat))
+		worst[2] += 1
+	sk.skeleton_updated.connect(check)
+	await _ticks(r, 120, func(i): return {"sword": i % 8 < 2})
+	await _ticks(r, 70, func(i): return {"sword": i < 50})
+	sk.skeleton_updated.disconnect(check)
+	h.expect(worst[2] > 100, "描くこまの更新を見た（%d 回）" % worst[2])
+	h.expect(worst[0] < 0.002, "3 段斬り・溜め斬りの間、描くナゴミは描く骨格の受け口にいる（いちばん離れて %.4f m）" % worst[0])
+	h.expect(worst[1] > 0.05, "物理の刻みの所のままなら離れていた（%.3f m）" % worst[1])
 	_free(r)
 
 

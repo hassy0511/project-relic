@@ -147,9 +147,23 @@ var _script := ""
 var _script_at := Vector3.ZERO
 var _sock := {}
 var _bones := {}
+## 骨格の最後の更新の、変形を当てたあとの骨の姿勢（_pose。骨の番号 → 骨格の座標）と、写す骨・見ている骨格
+var _poses := {}
+var _pose_bones := PackedInt32Array()
+var _watched := 0
+## 描くときの置き方（_render）：ハルの足元の座標でのナゴミの置き方（前と今の物理の刻み）と、今の刻みで使った受け口の中心
+var _r_prev := Transform3D.IDENTITY
+var _r_cur := Transform3D.IDENTITY
+var _r_seat := Vector3.ZERO
+var _r_hop_prev := Vector3.ZERO
+var _r_hop := Vector3.ZERO
+var _r_tick := -1
 
 
 func _ready() -> void:
+	# 物理の刻みの補間は自分でする（_render：ハルの見た目の、描くこまの位置と向きに付ける）。補間を切らないと、背中に付いている間、
+	# 描くこまの骨格（動作はこまごとに進む）より 1 こま遅れて、斬るひねりで背中の板から最大 0.24 m ずれた
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	if ResourceLoader.exists(MODEL_PATH):
 		model = (load(MODEL_PATH) as PackedScene).instantiate()
 		add_child(model)
@@ -419,6 +433,42 @@ func _move(game, fr: Transform3D, cam_pos: Vector3, mdt: float, dt: float) -> vo
 	if k > 0.0:
 		b = b.slerp((fr.basis * _dock_basis).orthonormalized(), k)
 	global_transform = Transform3D(b, _base + hop)
+	# 描くこま用（_render）：ハルの足元の座標での置き方の、前の刻みと今の刻み（弾みは別に持つ）と、使った受け口の中心
+	_r_prev = _r_cur
+	_r_cur = inv * Transform3D(b, _base)
+	_r_hop_prev = _r_hop
+	_r_hop = inv.basis * hop
+	if sock != null:
+		_r_seat = inv * seat_of(sock)
+	_r_tick = Engine.get_physics_frames()
+
+
+## 描くこまごと（_process と、描くこまの骨格の更新 skeleton_updated のあと）：ハルの見た目の描く位置と向き（物理の刻みの補間つき）に、
+## ナゴミの置き方（前と今の刻みの間を補間）を付ける。ナゴミは物理の刻みの補間を切ってあるので、描くのはここで決めた所。
+## 背中に付いている間は、描くこまの骨格の姿勢（変形を当てたあと）から受け口を求め直す：動作はこまごとに進むので、刻みで決めた所は
+## 1 こま遅れる（斬るひねりで最大 0.24 m）。付きに行く弧の終わりも、同じだけ受け口へ寄せる。
+## 刻みが進んでいない（ポーズ・見本の撮影の待ち）ときは補間せず、今の刻みの所
+func _render() -> void:
+	if not visible or _pv == null or not is_instance_valid(_pv) or not _pv.is_inside_tree() or _r_tick < 0:
+		return
+	var f := Engine.get_physics_interpolation_fraction() if Engine.get_physics_frames() == _r_tick else 1.0
+	var l := Transform3D(_r_prev.basis.slerp(_r_cur.basis, f), _r_prev.origin.lerp(_r_cur.origin, f))
+	var hop := _r_hop_prev.lerp(_r_hop, f)
+	if dock_state == Dock.DOCKED or dock_state == Dock.DOCKING:
+		var sock = back_socket(_pv)
+		if sock != null:
+			var inv := Transform3D(Basis(Vector3.UP, _pv.rotation.y), _pv.global_position).affine_inverse()
+			var seat := inv * seat_of(sock)
+			if dock_state == Dock.DOCKED:
+				l = Transform3D((inv.basis * sock.basis).orthonormalized(), seat)
+			else:
+				l.origin += (seat - _r_seat) * smoothstep(0.0, 1.0, _t)
+	var pt := _pv.get_global_transform_interpolated()
+	global_transform = Transform3D(Basis(Vector3.UP, pt.basis.get_euler().y), pt.origin) * Transform3D(l.basis, l.origin + hop)
+
+
+func _process(_delta: float) -> void:
+	_render()
 
 
 ## 肩の横にいるときの向き：ふだんはハルの向きとカメラの間（後ろのカメラから種子光が見えるように、少し振り返る）、
@@ -466,6 +516,15 @@ func snap(p, pv: Node3D = null) -> void:
 		dock_k = 0.0
 		_base = _frame(p) * Vector3(-OFFSET.x, OFFSET.y, OFFSET.z)
 		global_transform = Transform3D(Basis(Vector3.UP, _yaw), _base)
+	# 描くこま用の前と今の置き方も、ここから（置き直す前の所から補間しない）
+	var inv := _prev_fr.affine_inverse()
+	_r_cur = inv * global_transform
+	_r_prev = _r_cur
+	_r_hop = Vector3.ZERO
+	_r_hop_prev = Vector3.ZERO
+	if sock != null:
+		_r_seat = inv * seat_of(sock)
+	_r_tick = Engine.get_physics_frames()
 	reset_physics_interpolation()
 
 
@@ -509,8 +568,44 @@ func back_socket(pv) -> Variant:
 		var rest := Transform3D(socket_basis(SOCKET_OUT), SOCKET_POS)
 		_sock = {"id": sk.get_instance_id(), "bone": bone,
 			"local": sk.get_bone_global_rest(bone).affine_inverse() * skel_in_model.affine_inverse() * rest}
-	var t: Transform3D = sk.global_transform * sk.get_bone_global_pose(_sock.bone) * _sock.local
+	var t: Transform3D = sk.global_transform * _pose(sk, int(_sock.bone)) * _sock.local
 	return t.orthonormalized()
+
+
+## 骨の今の姿勢（骨格の座標）：骨格の最後の更新で、変形（HaruPose の傾き・照準のひねり、足の接地の腰の下げ）を当てたあとの姿勢。
+## Godot 4.5 の骨格は、修飾（SkeletonModifier3D）の変形を骨格の更新の中でだけ当て、肌を描く姿勢を決めたら動作だけの姿勢へ戻す。
+## なので外から読む get_bone_global_pose は動作だけの姿勢で、見えている胸と最大 0.2 rad（照準のひねり）ずれる。
+## skeleton_updated（変形を当てた所）で写しておいたものを使う（まだ無ければ動作だけの姿勢）。骨格には何も足さない（読むだけ）
+func _pose(sk: Skeleton3D, bone: int) -> Transform3D:
+	_watch(sk)
+	if _poses.has(bone):
+		return _poses[bone]
+	return sk.get_bone_global_pose(bone)
+
+
+func _watch(sk: Skeleton3D) -> void:
+	if sk.get_instance_id() == _watched:
+		return
+	_watched = sk.get_instance_id()
+	_poses = {}
+	_pose_bones = PackedInt32Array()
+	for nm in [SOCKET_BONE] + CAP_BONES:
+		var b := sk.find_bone(nm)
+		if b >= 0:
+			_pose_bones.append(b)
+	var cb := _on_skeleton_updated.bind(sk)
+	if not sk.skeleton_updated.is_connected(cb):
+		sk.skeleton_updated.connect(cb)
+
+
+func _on_skeleton_updated(sk: Skeleton3D) -> void:
+	if not is_instance_valid(sk) or sk.get_instance_id() != _watched:
+		return
+	for b in _pose_bones:
+		_poses[b] = sk.get_bone_global_pose(b)
+	# 描くこまの更新（動作が進んだ姿勢）：その姿勢で描く所を決め直す（物理の刻みの更新では、次の刻みの sync が使う）
+	if not Engine.is_in_physics_frame():
+		_render()
 
 
 ## 受け口に付いたときのナゴミの中心（ワールド）
@@ -539,9 +634,9 @@ func body_caps(fr: Transform3D) -> Array:
 		var to := fr.affine_inverse() * sk.global_transform
 		for nm in CAP_BONES:
 			if int(_bones[nm]) >= 0:
-				pts[nm] = to * sk.get_bone_global_pose(int(_bones[nm])).origin
+				pts[nm] = to * _pose(sk, int(_bones[nm])).origin
 		if int(_bones["head"]) >= 0:
-			pts["head"] = to * (sk.get_bone_global_pose(int(_bones["head"])) * HEAD_C)
+			pts["head"] = to * (_pose(sk, int(_bones["head"])) * HEAD_C)
 		else:
 			pts["head"] = pts["head"] + HEAD_C
 	else:
