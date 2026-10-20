@@ -14,8 +14,8 @@ extends Node
 ## ポーズ・撮影で止めている間はオルドも止まる。場面が終わると OrdoView に返す。
 ## スキップ（skipped）・部屋の移動（roomChanged）・{"shot": {}} で、道筋・舞台・霞などを元へ戻す。
 
-## 砂ぼこりの色（雰囲気ごと。照らされない粒なので、光の当たった砂の色をそのまま）
-const DUST := {"dawn": Color("#b07c66"), "night": Color("#454f72"), "day": Color("#cba27e")}
+## 砂ぼこりの色（雰囲気ごと。照らされない粒なので、光の当たった砂の色をそのまま。画面の色＝sRGB で書き、粒には線形にして渡す）
+const DUST := {"dawn": Color("#b8846c"), "night": Color("#5a668c"), "day": Color("#cba27e")}
 ## 町の灯の明るさと、遠くの灯の最小の大きさ（画素）（雰囲気ごと。夜明けは空が明るいので強く、夜は大きめ）
 const LIGHT_POWER := {"dawn": 1.0, "night": 0.9, "day": 0.5}
 const LIGHT_PX := {"dawn": 5.5, "night": 7.0, "day": 4.0}
@@ -23,6 +23,8 @@ const LIGHT_PX := {"dawn": 5.5, "night": 7.0, "day": 4.0}
 const WIND_DB := -9.0
 ## 霞・カメラの遠く・砂の床の消える距離の既定（元に戻す値）
 const GROUND_FADE := Vector2(320.0, 850.0)
+## 場面の間の砂の床の岩の斑の濃さ（既定 0.9）
+const ROCKS := 0.3
 
 var main
 ## 今の道筋（空ならふだんのカメラ）と、始めてからの秒
@@ -153,11 +155,15 @@ func reset() -> void:
 func sync(dt: float) -> void:
 	_time += dt
 	_kick = maxf(0.0, _kick - dt * 1.4)
+	_update_stop(dt)
+	if not shot.is_empty():
+		_sync_camera(dt)
+	# 場面のオルドの時計（カメラを決めたあと：足が着いた知らせの足音の大きさは、この刻みの場面のカメラからの距離で決める）
 	if _driven != null and is_instance_valid(_driven):
 		_driven.advance(dt)
-	_update_stop(dt)
-	if shot.is_empty():
-		return
+
+
+func _sync_camera(dt: float) -> void:
 	var cam: Camera3D = main.camera
 	_play_eye = cam.global_position
 	_play_look = cam.global_position + cam.forward_dir() * 5.5
@@ -279,6 +285,10 @@ func _apply_env(sh: Dictionary, u: float) -> void:
 		var gf: Array = sh.ground_fade
 		o.set_ground_fade(float(gf[0]), float(gf[1]))
 		_env_saved["ground_fade"] = true
+	if o != null and not _env_saved.has("rocks"):
+		# 砂の床の岩の斑：場面の間は薄く（低いカメラから見ると黒い穴に見える）
+		o.set_ground_rocks(ROCKS)
+		_env_saved["rocks"] = true
 
 
 func _restore_env() -> void:
@@ -290,6 +300,8 @@ func _restore_env() -> void:
 	var o := ordo()
 	if _env_saved.has("ground_fade") and o != null:
 		o.set_ground_fade(GROUND_FADE.x, GROUND_FADE.y)
+	if _env_saved.has("rocks") and o != null:
+		o.set_ground_rocks(0.9)
 	_env_saved = {}
 
 
@@ -416,7 +428,7 @@ func _dust(at: Vector3, heavy: bool) -> void:
 	if main.fx == null or main.fx.vfx == null:
 		return
 	var vfx: Vfx = main.fx.vfx
-	var col: Color = DUST.get(_mood(), DUST.day)
+	var col: Color = (DUST.get(_mood(), DUST.day) as Color).srgb_to_linear()
 	var n := 18 if heavy else 14
 	var big := 1.3 if heavy else 1.0
 	for i in n:
@@ -424,9 +436,9 @@ func _dust(at: Vector3, heavy: bool) -> void:
 		var dir := Vector3(sin(a), 0.0, cos(a))
 		# 足の裏の縁（半分の広さ 17 × 26 m）の少し外から、地面に沿って広がり、ゆっくり上がる
 		var p := at + Vector3(dir.x * 18.0, _rng.randf_range(2.0, 5.0), dir.z * 27.0)
-		var speed := _rng.randf_range(5.0, 10.0) * big
+		var speed := _rng.randf_range(7.0, 13.0) * big
 		var q := vfx.emit(Vfx.DUST, p, dir * speed + Vector3(0, _rng.randf_range(1.0, 2.6), 0), _rng.randf_range(6.0, 9.0) * big,
-			_rng.randf_range(9.0, 13.0) * big, _rng.randf_range(34.0, 46.0) * big, Color(col, _rng.randf_range(0.42, 0.58)))
+			_rng.randf_range(14.0, 19.0) * big, _rng.randf_range(46.0, 62.0) * big, Color(col, _rng.randf_range(0.42, 0.58)))
 		q.rot = _rng.randf() * TAU
 		q.spin = _rng.randf_range(-0.1, 0.1)
 		q.drag = 0.45

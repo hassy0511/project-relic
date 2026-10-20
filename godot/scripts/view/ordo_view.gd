@@ -789,6 +789,12 @@ func set_ground_fade(start: float, end: float) -> void:
 	m.set_shader_parameter("fade_end", end)
 
 
+## 砂の床の岩・小石の斑の濃さ（既定 0.9。低いカメラの場面では薄くする）
+func set_ground_rocks(k: float) -> void:
+	if ground_node != null:
+		(ground_node.material_override as ShaderMaterial).set_shader_parameter("rock_amount", k)
+
+
 ## 背の上の町の灯（TownLights。家の壁の窓・大通りの街灯・段の縁・塔の灯）を出す。体と一緒に動く骨の子に置く。描画 +1
 func add_town_lights() -> TownLights:
 	if town_lights == null:

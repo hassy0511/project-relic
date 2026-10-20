@@ -43,6 +43,8 @@ static func scenes() -> Array:
 		{"event": "ch1.scold", "room": "ch1.guild", "flags": _upto("ch1.scolded"), "pos": [0, 0, -2]},
 		{"event": "ch1.debt", "room": "ch1.workshop", "flags": _upto("ch1.debt_scene"), "pos": [0, 0, -2], "choice": 1},
 		{"event": "ch1.sleep", "covers": ["ch1.stop"], "room": "ch1.home", "flags": _upto("ch1.night"), "pos": [-3, 0, 3.5], "yaw": 270},
+		# 停止の場面だけ（外の舞台の道筋・動力が切れる合図 ordo_stop・語りなし。2026-10-20 の映画のような場面）
+		{"event": "ch1.stop", "room": "ch1.home", "flags": _upto("ch1.night"), "pos": [-2, 0, 1.5], "yaw": 270},
 		{"event": "ch1.plaza", "room": "ch1.mid", "flags": _upto("ch1.plaza_done"), "pos": [0, 0, 3]},
 		{"event": "ch1.yana_gun", "room": "ch1.lower", "flags": _upto("ch1.got_spark"), "pos": [-37, 0, 0], "yaw": 90},
 		{"event": "ch1.ordo_legs", "room": "ch1.lower", "flags": _upto("ch1.scolded"), "pos": [68.8, 0, -10.5], "yaw": 90, "tag": "昼"},
