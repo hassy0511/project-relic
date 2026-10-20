@@ -570,7 +570,8 @@ def build_landing():
     """リフトの踊り場（部品 lift_landing、体の子・動かない）：台の箱・板張りの床・かごの口のふた・真鍮の手すり・布の日よけ・吊り灯・
     ベンチ・木箱・巻いた綱・望遠鏡。形は町のキットの部品 town/ordo_landing・ordo_landing_awning（帆布）と同じ
     （tools/blender/kit/town_landing.py。オルドの座標で書いてある）。
-    下段・中段の部屋は同じ形を飾り（汚れの層・布の揺れつき）として置き、OrdoView がこの部品を隠す（同じ所に 2 つ描かない：結果の文書 10 章）"""
+    床は板 1 枚ずつの形（キットの部品は 1 枚の面に板の絵）。下段の部屋は同じ形を飾り（板の絵・汚れの層・布の揺れつき）として置き、
+    OrdoView がこの部品を隠す（同じ所に 2 つ描かない：結果の文書 10 章）"""
     kit = os.path.join(REPO, 'tools', 'blender', 'kit')
     if kit not in sys.path:
         sys.path.insert(0, kit)
@@ -578,7 +579,7 @@ def build_landing():
     assert abs(half_w(LIFT_Y) - TL.HULL) < 1e-6 and abs(LANDING_TOP - TL.L) < 1e-6 and abs(-(TL.Z_S + TL.Z_N) / 2 - LIFT_Y) < 1e-6, \
         'town_landing.py の寸法がオルドの踊り場と合わない'
     pc = pieces()
-    for mat, plist in [kv for part in (TL.ordo_landing(), TL.ordo_landing_awning()) for kv in part.by_mat.items()]:
+    for mat, plist in [kv for part in (TL.ordo_landing(planks=True), TL.ordo_landing_awning()) for kv in part.by_mat.items()]:
         for q in plist:
             v = np.asarray(q.v, float)
             b = np.stack([LIFT_SIDE * v[:, 0], -v[:, 2], v[:, 1]], 1)       # ゲーム (x, y, z) → Blender (x, -z, y)

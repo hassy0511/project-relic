@@ -20796,23 +20796,6 @@
       1.0,
       2.4
      ]
-    },
-    {
-     "part": "town/ordo_landing",
-     "pos": [
-      0.0,
-      -6.5,
-      0.0
-     ]
-    },
-    {
-     "part": "town/ordo_landing_awning",
-     "pos": [
-      0.0,
-      -6.5,
-      0.0
-     ],
-     "shadow": true
     }
    ],
    "ordo": {
@@ -20821,8 +20804,7 @@
      -6.5,
      0
     ],
-    "back": "town/ordo_back",
-    "landing": false
+    "back": "town/ordo_back"
    }
   },
   "upper": {

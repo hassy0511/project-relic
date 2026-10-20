@@ -250,8 +250,8 @@ func test_ordo_feet_clear() -> void:
 	o.free()
 
 
-## リフトの踊り場（2026-10-20）：下段・中段は、オルドの部品 lift_landing と同じ形の飾り town/ordo_landing（キットの汚れの層・布の揺れつき）を
-## オルドと同じ所に置き、オルドの部品は骨の大きさ 0 で隠す（同じ所に 2 つ描かない）。夜明けの甲羅はオルドの部品のまま。
+## リフトの踊り場（2026-10-20）：下段は、オルドの部品 lift_landing と同じ形の飾り town/ordo_landing（キットの汚れの層・布の揺れつき）を
+## オルドと同じ所に置き、オルドの部品は骨の大きさ 0 で隠す（同じ所に 2 つ描かない）。中段・夜明けの甲羅はオルドの部品のまま。
 ## 下段は板の床が当たり判定の床の箱の上の面に、望遠鏡は「見下ろす」の端末の箱の中に立ち、端末の箱は描かない
 func test_ordo_landing_dress() -> void:
 	var world := World.load_manifest("res://content/world.json")
@@ -259,7 +259,7 @@ func test_ordo_landing_dress() -> void:
 		var root := RoomView.build(world, rid)
 		h.tree.root.add_child(root)
 		var o := root.get_node_or_null("Ordo") as OrdoView
-		var dressed: bool = rid != "ch1.opening"
+		var dressed: bool = rid == "ch1.lower"
 		var bi := o.skeleton.find_bone("lift_landing") if o != null and o.skeleton != null else -1
 		h.expect(bi >= 0, "%s：踊り場はオルドの 1 つのメッシュの骨（lift_landing）" % rid)
 		if bi < 0:

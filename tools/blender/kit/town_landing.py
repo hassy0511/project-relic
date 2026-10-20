@@ -116,8 +116,22 @@ def _hazard(p: Part, x0, x1, z0, z1, top, seg=0.6):
             p.add(mat, boxb(x0, x1, L - 0.06, L + top, z0 + (z1 - z0) * t0, z0 + (z1 - z0) * t1))
 
 
-def _deck(p: Part):
-    """板張りの床（材質 deck の面だけ。板の模様と汚れはキットの材質）を黒鉛の帯で区切る。ふたは白磁の 2 枚の扉"""
+def _field(p: Part, x0, x1, z0, z1, planks: bool):
+    """板の面。キットの部品（planks=False）は 1 枚の面（板の模様と汚れはキットの材質 deck の絵）。オルドのモデルの部品
+    （planks=True：頂点の色の 1 色で描く）は、幅 0.3 m の板（x の向き。絵の板と同じ向き）を 3 cm のすき間を空けて並べ、すき間から暗い下地が見える"""
+    if not planks:
+        _quad_up(x0, x1, z0, z1, L, 'deck', p)
+        return
+    _quad_up(x0, x1, z0, z1, L - 0.012, 'dark', p)
+    n = max(1, int(round((z1 - z0) / 0.33)))
+    for k in range(n):
+        a = z0 + (z1 - z0) * k / n + 0.015
+        b = z0 + (z1 - z0) * (k + 1) / n - 0.015
+        _quad_up(x0, x1, a, b, L, 'deck', p)
+
+
+def _deck(p: Part, planks=False):
+    """板張りの床（材質 deck）を黒鉛の帯で区切る。ふたは白磁の 2 枚の扉"""
     hx0, hx1, hz0, hz1 = HATCH
     r = HATCH_RIM
     zs, zn = Z_S + BAND, Z_N - BAND
@@ -144,10 +158,10 @@ def _deck(p: Part):
     # 板の面（帯とふたの縁の間）
     xs = [X_IN + 0.66, beams[0][0], beams[0][1], beams[1][0], beams[1][1], hx0 - r]
     for a, b in ((xs[0], xs[1]), (xs[2], xs[3]), (xs[4], xs[5])):
-        _quad_up(a, b, zs, zn, L, 'deck', p)
-    _quad_up(hx0 - r, hx1 + r, hz1 + r, zn, L, 'deck', p)
-    _quad_up(hx0 - r, hx1 + r, zs, hz0 - r, L, 'deck', p)
-    _quad_up(hx1 + r, X_OUT - 0.5, zs, zn, L, 'deck', p)
+        _field(p, a, b, zs, zn, planks)
+    _field(p, hx0 - r, hx1 + r, hz1 + r, zn, planks)
+    _field(p, hx0 - r, hx1 + r, zs, hz0 - r, planks)
+    _field(p, hx1 + r, X_OUT - 0.5, zs, zn, planks)
     # ふた：下の黒鉛の受け、白磁の扉 2 枚（板 3 枚ずつ。継ぎ目 6 cm）、扉の合わせ目の真鍮の桟、蝶番と吊り環
     p.add('graphite', boxb(hx0, hx1, L - 0.06, L - 0.005, hz0, hz1))
     xm = (hx0 + hx1) / 2
@@ -354,11 +368,12 @@ def _props(p: Part):
     _scope(p, *TERMINAL)
 
 
-def ordo_landing() -> Part:
-    """踊り場の全部（帆布のほか）。帆布は ordo_landing_awning"""
+def ordo_landing(planks=False) -> Part:
+    """踊り場の全部（帆布のほか）。帆布は ordo_landing_awning。planks：床を板 1 枚ずつの形にする（オルドのモデルの部品 lift_landing。
+    頂点の色の 1 色で描くので、絵の板の代わりに形の板とすき間）"""
     p = Part('ordo_landing')
     _slab(p)
-    _deck(p)
+    _deck(p, planks)
     _railing(p)
     _canopy(p)
     _props(p)

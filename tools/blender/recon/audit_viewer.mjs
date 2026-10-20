@@ -6,6 +6,7 @@
 //        [--height 1.55] [--head-y 1.36]   （バートン：--model burton --head-y 1.43）
 //        [--frame none|core|core,arm|core,arm,legs]   外装フレームの段（haru_r の Frame_* の群。既定は全部見せる）
 //        [--az 0,90,180,45] [--el level]   方位・高さを絞る（既定は区域の格子。段の見比べ frame_stages.jpg に使った）
+//        [--tile 360]   並べる 1 こまの大きさ（px。既定 360。docs に置く画像を長辺 1600 px 以下にするとき 194：8 方位で 1588 px）
 //
 // 格子（固定。比べられるように変えない）：
 //   full（全身）：方位 8 つ（0 = 正面から 45 度ずつ、+ = 本人の左へ回る）× 高さ 3 つ（下から・水平・上から）
@@ -159,8 +160,9 @@ for (const zone of zones) {
     }
   }
   // 並べる：横 8（方位）× 縦（高さ）
-  const cols = (z.az || AZ).length, size = 360;
-  const html = `<html><body style="margin:0;background:#222;font:13px sans-serif;color:#eee">
+  const cols = (z.az || AZ).length, size = parseInt(args.tile || '360', 10);
+  const font = Math.max(9, Math.round(13 * size / 360));
+  const html = `<html><body style="margin:0;background:#222;font:${font}px sans-serif;color:#eee">
     <div style="display:grid;grid-template-columns:repeat(${cols},${size}px);gap:4px;padding:4px">
     ${tiles.map((t) => `<div style="position:relative"><img src="data:image/png;base64,${fs.readFileSync(t.f).toString('base64')}"
       style="width:${size}px;height:${size}px;display:block"><span style="position:absolute;left:4px;top:3px;
