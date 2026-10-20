@@ -420,17 +420,20 @@ func _on_planted(tag: String, at: Vector3) -> void:
 	else:
 		main.audio.play_gain("ordo_step", gain, _rng.randf_range(0.93, 1.04))
 	_kick = maxf(_kick, clampf(70.0 / maxf(d, 1.0), 0.03, 0.7) * (1.8 if heavy else 1.0))
-	_dust(at, heavy)
+	_dust(at, heavy, d)
 
 
-## 足の裏（52 × 34 m）のまわりから、横へ広がって上がる大きな砂ぼこり
-func _dust(at: Vector3, heavy: bool) -> void:
+## 足の裏（52 × 34 m）のまわりから、横へ広がって上がる大きな砂ぼこり。cam_d：カメラから足までの距離
+## （近いカメラでは粒を減らし、粒の大きさを距離の 0.6 倍までにする：大きな半透明の粒が画面を何枚も覆うと、スマホで重い）
+func _dust(at: Vector3, heavy: bool, cam_d := 300.0) -> void:
 	if main.fx == null or main.fx.vfx == null:
 		return
 	var vfx: Vfx = main.fx.vfx
 	var col: Color = (DUST.get(_mood(), DUST.day) as Color).srgb_to_linear()
-	var n := 18 if heavy else 14
+	var near := cam_d < 160.0
+	var n := (14 if heavy else 11) if near else (18 if heavy else 14)
 	var big := 1.3 if heavy else 1.0
+	var cap := maxf(cam_d * 0.6, 24.0)
 	for i in n:
 		var a := TAU * float(i) / n + _rng.randf_range(-0.18, 0.18)
 		var dir := Vector3(sin(a), 0.0, cos(a))
@@ -438,7 +441,7 @@ func _dust(at: Vector3, heavy: bool) -> void:
 		var p := at + Vector3(dir.x * 18.0, _rng.randf_range(2.0, 5.0), dir.z * 27.0)
 		var speed := _rng.randf_range(7.0, 13.0) * big
 		var q := vfx.emit(Vfx.DUST, p, dir * speed + Vector3(0, _rng.randf_range(1.0, 2.6), 0), _rng.randf_range(6.0, 9.0) * big,
-			_rng.randf_range(14.0, 19.0) * big, _rng.randf_range(46.0, 62.0) * big, Color(col, _rng.randf_range(0.42, 0.58)))
+			minf(_rng.randf_range(14.0, 19.0) * big, cap * 0.4), minf(_rng.randf_range(46.0, 62.0) * big, cap), Color(col, _rng.randf_range(0.42, 0.58)))
 		q.rot = _rng.randf() * TAU
 		q.spin = _rng.randf_range(-0.1, 0.1)
 		q.drag = 0.45

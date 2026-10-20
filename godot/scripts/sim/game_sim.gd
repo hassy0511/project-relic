@@ -532,7 +532,8 @@ func music_id() -> String:
 		return "bgm_boss"
 	var r: Dictionary = room
 	if r.has("music"):
-		return String(r.music)
+		# 部屋の既定の曲。"none" は無音（夜明けの甲羅：オープニングの場面の始めは風と足音だけ。曲は台本の music が入れる）
+		return "" if String(r.music) == "none" else String(r.music)
 	var night := flag("ch1.night")
 	match String(r.get("mood", "")):
 		"ruin_b1", "ruin_b2", "ruin_b3", "ruin_b4":

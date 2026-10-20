@@ -1225,6 +1225,8 @@ func shot(shot_name: String) -> void:
 
 
 func milestone(shot_name: String) -> void:
+	# 節目までの刻み（通しの長さの内訳。前の版と比べる）
+	print("節目 %s：%d 刻み" % [shot_name, bot_ticks])
 	await shot(shot_name)
 
 
@@ -1239,6 +1241,8 @@ func _run_bot() -> void:
 	g.god_mode = true
 	_bot_active = true
 	var run := Ch1Run.new(self, self)
+	# --ch1_skip_scenes：オープニングと停止の場面を、長押しのスキップで飛ばして進める（見たときと結果は同じ。通しの刻みが短くなる）
+	run.skip_scenes = main.args.has("ch1_skip_scenes")
 	await run.play_all(g)
 	_bot_active = false
 	var secs := Time.get_ticks_msec() - t0

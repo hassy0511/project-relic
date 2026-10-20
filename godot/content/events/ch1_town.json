@@ -6,9 +6,6 @@
     "freeze": true
    },
    {
-    "music": "none"
-   },
-   {
     "shot": {
      "time": 14.0,
      "frame": "ordo",
@@ -178,7 +175,7 @@
     }
    },
    {
-    "music": "auto"
+    "music": "bgm_town_day"
    },
    {
     "shot": {
@@ -696,6 +693,9 @@
     "message": "ハルは家に帰って、そのまま眠ってしまった……"
    },
    {
+    "music": "none"
+   },
+   {
     "wait": 2.0
    },
    {
@@ -708,10 +708,13 @@
     }
    },
    {
-    "wait": 1.2
+    "wait": 0.05
    },
    {
     "music": "none"
+   },
+   {
+    "wait": 1.15
    },
    {
     "shot": {

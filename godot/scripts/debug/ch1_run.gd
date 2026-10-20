@@ -6,6 +6,8 @@ extends RefCounted
 
 var h
 var driver
+## オープニングと停止の場面を、長押しのスキップ（Esc／Start を 1 秒）で飛ばして進める（既定は見る。見ても飛ばしても結果は同じ：test_cutscene）
+var skip_scenes := false
 
 
 func _init(helpers, drv) -> void:
@@ -72,6 +74,11 @@ func _in_order(g: GameSim, names: Array) -> bool:
 	return true
 
 
+## 場面を待つ間の入力：skip_scenes なら、スキップのボタンを押し続ける（会話の間は会話を送る：_pump）
+func _scene_hold() -> Dictionary:
+	return {"skip": true} if skip_scenes else {}
+
+
 ## 最初から最後まで
 func play_all(g: GameSim) -> void:
 	await play_part1(g)
@@ -81,7 +88,7 @@ func play_all(g: GameSim) -> void:
 ## 第 1 章 前半（オープニング〜遺構 B1 の入口）を最後まで進める。終わると遺構 B1（ch1.r02）にいる
 func play_part1(g: GameSim) -> void:
 	# 1 オープニング：自動で進み、訓練場へ
-	h.expect(await _pump(g, 4800, func(): return g.room_id == "ch1.training"), "オープニング（約 1 分の場面）のあと訓練場に移る")
+	h.expect(await _pump(g, 4800, func(): return g.room_id == "ch1.training", false, _scene_hold()), "オープニング（約 1 分の場面）のあと訓練場に移る")
 	h.expect(g.flag("ch1.opening_done"), "オープニングが終わる")
 	await driver.milestone("01_opening")
 	# 2 見習いの仕事
@@ -151,7 +158,7 @@ func play_part1(g: GameSim) -> void:
 	await _pump(g, 6)
 	_warp(g, Vector3(-3, 0, 3.5))
 	await _use(g)
-	h.expect(await _pump(g, 3000, func(): return g.flag("ch1.ordo_stopped") and not g.story.running_event()), "休むと夜、オルドが止まる")
+	h.expect(await _pump(g, 3000, func(): return g.flag("ch1.ordo_stopped") and not g.story.running_event(), false, _scene_hold()), "休むと夜、オルドが止まる")
 	h.expect(g.flag("ch1.night") and g.room_id == "ch1.home", "夜になる")
 	# 広場：町長の話
 	g.load_room("ch1.mid", "start")
