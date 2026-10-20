@@ -12,6 +12,7 @@ extends Node
 ##       -- --flags=a,b             始めにフラグを立てておく（扉の条件などの確認用）
 ##       -- --items=a,b             始めにアイテムを持っておく（例：--items=special.drill,key.sample）
 ##       -- --nagomi=dock|out       ナゴミを背中のユニットに付けたまま／肩の横に出したままにする（見比べの画像用。NagomiView.force）
+##       -- --no_secondary          ハルの髪・ポーチの揺れと足の接地を切る（前と後を比べる画面の撮影用）
 ## ブラウザ版では URL の引数で同じことができる：…/project-relic/?arena=kannuki&god や ?room=sample.gym（demo 以外）
 
 const SAVE_PATH := "user://save_slot1.json"
@@ -59,6 +60,8 @@ func _ready() -> void:
 			for a in query.trim_prefix("?").split("&", false):
 				var kv: PackedStringArray = a.uri_decode().split("=", true, 1)
 				args[kv[0]] = kv[1] if kv.size() > 1 else "1"
+	# --no_secondary：ハルの髪・ポーチの揺れと足の接地を切る（比べの画面の撮影用。見た目だけ）
+	PlayerView.secondary_default = not args.has("no_secondary")
 	InputSource.setup_actions()
 	input = InputSource.new()
 	add_child(input)
