@@ -29,8 +29,9 @@ from models import humanoid_anims as A  # noqa: E402
 
 REPO = C.REPO
 DEFAULT_OUT = 'godot/assets/models/haru_r.glb'
-# 骨・形・塗りを最後に作り直した版（2026-10-07 外装フレームを群に分けた版）。この版の GLB を元にして動作だけ替える
-BASE_REV = 'c9faf94'
+# 骨・形・塗りを最後に作り直した版（2026-10-20 揺れの骨（髪 7・ポーチ 2）を足した版。前は 2026-10-07 外装フレームを群に分けた
+# c9faf94）。この版の GLB を元にして動作だけ替える（前の版から焼き直すと揺れの骨が消える）
+BASE_REV = 'f2516e2'
 
 
 def base_glb(base: str | None, out_rel: str) -> str:
