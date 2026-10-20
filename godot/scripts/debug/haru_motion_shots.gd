@@ -246,9 +246,6 @@ static func _strip(d, name: String, land: bool) -> void:
 		var air := false
 		for i in 240:
 			await RenderingServer.frame_post_draw
-			if i < 4:
-				print("跳ぶ：刻み %d 接地 %s 上の速さ %.2f 会話 %s 調べる物 %s" % [i, str(g.player.grounded), g.player.vel.y,
-					str(g.story.blocking()), str(g.focus)])
 			if not g.player.grounded:
 				air = true
 			elif air:
