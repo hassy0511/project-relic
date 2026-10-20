@@ -61,9 +61,10 @@ tools/setup_godot.sh, tools/godot.sh   Godot の用意と実行
 - 髪・ポーチの揺れ（`HaruSway`、2026-10-20）：モデルの揺れの骨（`ai_character.py --sway-bones`、部品の表の `SWAY`）を、骨ごとの振り子として揺らす。
   根の世界の加速度の逆向きに押され（走り出す・止まる・着地・ダッシュ）、走る速さの風、頭が回ると遅れて追いつき、ばね・減衰で戻る。角度の上限つき。
   揺れの骨（`HaruSway.CHAINS` の名前）が無いモデルでは何もしない。
-- 骨格の変形（`HaruPose`・`FootIK`・`HaruSway`）は物理の刻みで進める（`Skeleton3D.modifier_callback_mode_process = PHYSICS`）。揺れは刻みの更新
-  （delta > 0）でだけ進め、動作が描画のこまで姿勢を変えたときの更新（delta = 0）では、同じ変形を今の姿勢に置き直すだけにする：描画の速さで揺れ方が
-  変わらない（Godot 4.5 の `SpringBoneSimulator3D` は delta = 0 でも速さの項で 1 歩進むので、この形では使わなかった）。
+- 2 次の動きを入れている間、骨格の変形（`HaruPose`・`FootIK`・`HaruSway`）は物理の刻みで進める（`Skeleton3D.modifier_callback_mode_process = PHYSICS`。
+  切ると前と同じ `IDLE`）。揺れは刻みの更新（delta > 0）でだけ進め、動作が描画のこまで姿勢を変えたときの更新（delta = 0）では、同じ変形を今の姿勢に
+  置き直すだけにする：描画の速さで揺れ方が変わらない（Godot 4.5 の `SpringBoneSimulator3D` は delta = 0 でも速さの項で 1 歩進むので、この形では
+  使わなかった）。重さは 1 こま約 0.08 ms（画面なしの計測）。
 - どれも見た目だけ：ゲームの中身（カプセル・物理・位置）は変えない（光線は調べるだけ。`test_ui:test_secondary_motion` が、見た目なし・切った・
   入れたで位置が同じことを確かめる）。比べの撮影は起動の引数 `-- --no_secondary`（両方を切る）か `PlayerView.set_secondary(false)`。
   決まりの詳細と調整のしかた：`docs/art_orders/W1_ハル再構築の結果.md` 8 章。

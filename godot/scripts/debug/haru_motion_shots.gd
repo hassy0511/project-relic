@@ -89,7 +89,7 @@ static func steps(d) -> Array:
 ## --haru_secondary_bench：混んだ町の部屋（中段の広場）で、ゲームのカメラのまま、ハルを円く走らせ・止め・跳ばせながら
 ## 2 次の動きを切った（off）・入れた（on）で BENCH_TICKS こまずつ描き（off → on → off → on）、1 こまの実時間・処理・物理の刻み・
 ## 2 次の動きの時間（HaruSway・FootIK の修飾、足の接地の光線）を出す。画面なし（tools/godot.sh run）でも動き、そのときは
-## 描かない 1 こま（CPU だけ）の時間になる
+## 描かない 1 こま（CPU だけ）の時間になる。--bench_pairs=<n> で組の数
 const BENCH_ROOM := "ch1.mid:start"
 const BENCH_TICKS := 150
 static var _bench := {}
@@ -97,7 +97,11 @@ static var _bench := {}
 
 static func bench_steps(d) -> Array:
 	var s := []
-	for mode in ["off", "on", "off", "on"]:
+	# --bench_pairs=<n>：切った・入れたの組の数（既定 2。描く計測は 1 組で約 6 分）
+	var modes := []
+	for k in maxi(1, int(String(d.main.args.get("bench_pairs", "2")))):
+		modes.append_array(["off", "on"])
+	for mode in modes:
 		s.append({"ticks": 2, "setup": func():
 			var m = d.main
 			var g: GameSim = m.game
