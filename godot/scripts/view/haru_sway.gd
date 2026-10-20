@@ -61,14 +61,14 @@ var _inertia: PackedFloat32Array = []
 var _wind: PackedFloat32Array = []
 var _limit: PackedFloat32Array = []
 var _axis: PackedVector3Array = []     # 親の骨の座標での回る軸（ZERO = どの向きにも回る）
-# 骨ごとの状態：向き d・角速度 w（世界）、根の位置・速さ・なめらかにした加速度（世界）、揺れの回転（親の骨の座標）、置く回転
+# 骨ごとの状態：向き d・角速度 w（世界）、根の位置・速さ・なめらかにした加速度（世界）、
+# 置く回転（揺れの回転を親の骨の座標で × 基準の姿勢の回転）
 var _d: PackedVector3Array = []
 var _w: PackedVector3Array = []
 var _pos: PackedVector3Array = []
 var _pos2: PackedVector3Array = []    # 2 刻み前の根の位置
 var _vel: PackedVector3Array = []
 var _acc: PackedVector3Array = []
-var _q: Array[Quaternion] = []
 var _out: Array[Quaternion] = []
 var _fresh := true
 var _warm := 0                          # 置き直しのあと、速さだけを取る刻みの残り（加速度の跳ねを出さない）
@@ -112,7 +112,6 @@ static func attach(sk: Skeleton3D) -> HaruSway:
 		s._pos2.append(Vector3.ZERO)
 		s._vel.append(Vector3.ZERO)
 		s._acc.append(Vector3.ZERO)
-		s._q.append(Quaternion.IDENTITY)
 		s._out.append(s._rest_rot[-1])
 	return s
 
@@ -144,7 +143,7 @@ func _process_modification_with_delta(delta: float) -> void:
 		prof_calls += 1
 
 
-## 1 刻み進める（物理の刻み。_fresh なら今の姿勢から始める）。_q：揺れの回転を親の骨の座標で
+## 1 刻み進める（物理の刻み。_fresh なら今の姿勢から始める）。_out：揺れの回転を親の骨の座標で、基準の姿勢の回転にかけたもの
 func _advance(sk: Skeleton3D, dt: float) -> void:
 	var S := sk.global_transform
 	var sb := S.basis.orthonormalized()
@@ -177,7 +176,6 @@ func _advance(sk: Skeleton3D, dt: float) -> void:
 			_pos2[i] = pivot
 			_vel[i] = Vector3.ZERO
 			_acc[i] = Vector3.ZERO
-			_q[i] = Quaternion.IDENTITY
 			_out[i] = _rest_rot[i]
 			continue
 		var v := (pivot - _pos2[i]) / (2.0 * dt)
@@ -216,9 +214,7 @@ func _advance(sk: Skeleton3D, dt: float) -> void:
 		_w[i] = w
 		mx = maxf(mx, d0.angle_to(d))
 		# 揺れの回転（世界の d0 → d）を親の骨の座標へ：q = Pw⁻¹ · A · Pw
-		var q := pq.inverse() * HaruPose._arc(d0, d) * pq
-		_q[i] = q
-		_out[i] = q * _rest_rot[i]
+		_out[i] = pq.inverse() * HaruPose._arc(d0, d) * pq * _rest_rot[i]
 	if dt > 0.0:
 		last_max = mx
 
