@@ -483,11 +483,13 @@ def rigid_parts(body: bpy.types.Object, J: dict) -> dict:
     return counts
 
 
-def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple[bpy.types.Object, dict, dict]:
+def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = (),
+                sway_parts: dict | None = None) -> tuple[bpy.types.Object, dict, dict]:
     """服の硬い部品（recon/costume.py）を体の形から作り、1 本の骨に重み 1 で付ける（A ポーズ、自動の重みのあと）。
 
     材質 haru_parts：色見本の画像（8 区画）を UV で指す。部品の面は角度 35 度より鋭い所で折る（板の縁はくっきり、
     板の面はなめらか）。返り値：(部品の物体, 数値の記録, 外装フレームの群の名前 → その部品の物体（split_costume_frames）)
+    sway_parts：揺れの骨に付ける部品（部品の名前 → 骨の名前。--sway-bones のポーチ。recon/sway.py）。骨は main が足す
     """
     sys.path.insert(0, os.path.join(C.REPO, 'tools', 'blender', 'recon'))
     import costume as CO
@@ -546,9 +548,17 @@ def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple
     for pi, nm in enumerate(names):
         if nm in CO.FOLLOW_BODY:
             follow[np.unique(P['F'][P['piece'] == pi])] = True
+    # 揺れの骨に付ける部品（ポーチ）：載る骨の代わりに、その部品の揺れの骨に重み 1
+    swayed = np.zeros(len(P['V']), bool)
+    for pi, nm in enumerate(names):
+        if sway_parts and nm in sway_parts:
+            vi = np.unique(P['F'][P['piece'] == pi])
+            swayed[vi] = True
+            vg = obj.vertex_groups.get(sway_parts[nm]) or obj.vertex_groups.new(name=sway_parts[nm])
+            vg.add(vi.tolist(), 1.0, 'REPLACE')
     for bi, bone in enumerate(P['bones']):
         vg = obj.vertex_groups.new(name=str(bone))
-        vg.add(np.nonzero((P['vbone'] == bi) & ~follow)[0].tolist(), 1.0, 'REPLACE')
+        vg.add(np.nonzero((P['vbone'] == bi) & ~follow & ~swayed)[0].tolist(), 1.0, 'REPLACE')
     # 靴：高さで foot から shin へなめらかに移す（カフの中の胴の上は shin に 1 = カフ・脚と一緒に動く）
     sw = P['shin_w']
     for vi in np.nonzero(sw >= 0)[0]:
@@ -616,6 +626,48 @@ def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = ()) -> tuple
     frames = split_costume_frames(obj, list(getattr(CO, 'FRAME_GROUPS', {}) or {}))
     return obj, {'tris': int(len(P['F'])), 'pieces': [str(n) for n in P['names']], 'body_feet_removed': removed_feet,
                  'fit': dict(getattr(CO, 'FIT', {})), 'frame': frame_info}, frames
+
+
+def add_sway(body: bpy.types.Object, arm: bpy.types.Object, spec: dict) -> dict:
+    """揺れの骨（--sway-bones、recon/sway.py）：髪のまとまりの骨（親 head）と、ポーチの骨（親 hips）を足し、髪の重みを付ける。
+    ポーチの頂点は add_costume が骨の名前の重みの群に入れてある。基準の姿勢（腕を下ろしたあと）の体で、髪・ポーチは A ポーズと同じ所"""
+    sys.path.insert(0, os.path.join(C.REPO, 'tools', 'blender', 'recon'))
+    import sway as SW
+    me = body.data
+    n = len(me.vertices)
+    co = np.empty(n * 3)
+    me.vertices.foreach_get('co', co)
+    co = co.reshape(-1, 3)
+    # 頂点の材質（その頂点を使う面の材質。体の材質 <名前>_body の面の頂点だけを髪の候補にする）
+    body_mat = next((i for i, m in enumerate(me.materials) if m and m.name.endswith('_body')), -1)
+    on_body = np.zeros(n, bool)
+    for p in me.polygons:
+        if p.material_index == body_mat:
+            on_body[list(p.vertices)] = True
+    vc = vertex_colors_from_texture(body)
+    hc = np.asarray(spec['center'], float)
+    near = np.linalg.norm(co - hc, axis=1) < spec['radius_max']
+    hair = on_body & near & (co[:, 2] > spec['hair_z_min']) & SW.hair_color(vc)
+    other = co[near & ~hair]
+    res = SW.hair_weights(co, hair, other, spec)
+    defs = [(nm, root, tail, 'head') for nm, root, tail in res['bones']]
+    pouch = {}
+    for part, bone in spec['pouches'].items():
+        vg = body.vertex_groups.get(bone)
+        if vg is None:
+            continue
+        vi = [v.index for v in me.vertices if any(g.group == vg.index and g.weight > 0.5 for g in v.groups)]
+        if not vi:
+            continue
+        root, tail = SW.pouch_bone(co[vi], spec['pouch_pivot_down'])
+        defs.append((bone, root, tail, 'hips'))
+        pouch[bone] = {'part': part, 'verts': len(vi), 'root': [round(float(c), 4) for c in root],
+                       'tail': [round(float(c), 4) for c in tail]}
+    SW.add_bones(arm, defs)
+    changed = SW.apply_hair_weights(body, res['weights'])
+    rep = dict(res['report'], weights_changed=changed, pouches=pouch, bones=[d[0] for d in defs])
+    print('揺れの骨：', json.dumps({k: v for k, v in rep.items() if k != 'regions'}, ensure_ascii=False))
+    return rep
 
 
 # ---------------------------------------------------------------- 外装フレームの段（2026-10-07）
@@ -1877,6 +1929,9 @@ def main() -> None:
                     help='服の硬い部品（recon/costume.py）を別の形にして、載る骨 1 本に付ける（ハル）')
     ap.add_argument('--hand-part', action='store_true',
                     help='体の右手を消し、銃を握った手の部品（recon/hand.py）にする。基準の姿勢で握っている（ハル 6 回目）')
+    ap.add_argument('--sway-bones', action='store_true',
+                    help='揺れの骨（recon/sway.py）：部品の表の SWAY の髪のまとまり・ポーチに骨を足して重みを付ける'
+                         '（ゲームが SpringBoneSimulator3D で揺らす。ハル。既定は付けない＝骨 20 本）')
     ap.add_argument('--no-weapon', action='store_true', help='銃・光刃・目印を付けない（NPC）')
     ap.add_argument('--final-height', type=float, default=None, help='最後に一様に拡大する身長（m）')
     ap.add_argument('--name', default='Haru', help='物体の名前（骨は <名前>Rig）')
@@ -1920,9 +1975,18 @@ def main() -> None:
     rigid = rigid_parts(body, J) if args.rigid_parts else None
     costume = None
     frames = {}
+    sway_spec = None
+    if args.sway_bones:
+        sys.path.insert(0, os.path.join(C.REPO, 'tools', 'blender', 'recon'))
+        import costume as CO
+        import sway as SW
+        sway_spec = SW.spec_of(CO)
+        if sway_spec is None:
+            sys.exit('--sway-bones：部品の表（chars/<id>_parts.py）に SWAY が無い')
     if args.costume:
         cobj, costume, frames = add_costume(body, tempfile.mkdtemp(prefix='ai_costume_'),
-                                            skip=('glove_cuff.R',) if args.hand_part else ())
+                                            skip=('glove_cuff.R',) if args.hand_part else (),
+                                            sway_parts=sway_spec['pouches'] if sway_spec else None)
         body = C.join([body, cobj], 'Body')
     lowered, q_left = lower_arms(body, tmp, args.rest_arm_deg, extra=list(frames.values()))
     bpy.data.objects.remove(tmp, do_unlink=True)
@@ -1990,6 +2054,8 @@ def main() -> None:
     body.name = args.name
     name_images(body)
     frame = split_frame(body, frames, tex_dir) if args.costume else None
+    # 揺れの骨（髪・ポーチ）：動作は付けない（基準の姿勢のまま。ゲームの SpringBoneSimulator3D が揺らす）
+    sway = add_sway(body, arm, sway_spec) if sway_spec else None
     contacts = None
     if args.foot_contacts:
         ty, hy, dz = (float(v) for v in args.foot_contacts.split(','))
@@ -2030,6 +2096,8 @@ def main() -> None:
         'costume': costume,
         'frame_split': frame,
     }
+    if sway:
+        stats['sway'] = sway
     with open(args.stats or (os.path.splitext(args.out)[0] + '.stats.json'), 'w') as f:
         json.dump(stats, f, indent=2, ensure_ascii=False)
     if args.render:

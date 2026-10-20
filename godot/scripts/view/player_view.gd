@@ -50,6 +50,24 @@ var practice_muzzle: Node3D = null
 ## スパークの面：[MeshInstance3D, 面の番号, 材質]
 var _spark_surfaces: Array = []
 var _hidden_mat: StandardMaterial3D = null
+## 2 次の動き（見た目だけ）：髪・ポーチの揺れ（HaruSway。揺れの骨のあるモデルだけ）と足の接地（FootIK）。
+## secondary_default：新しく作る PlayerView の既定（main.gd が起動の引数 --no_secondary で偽にする。比べの画面の撮影用）
+static var secondary_default := true
+var secondary := true
+var sway: HaruSway = null
+var foot_ik: FootIK = null
+var _last_pos := Vector3.ZERO
+## 足の接地の効きを上げる・下げる速さ（1/秒）。床の面をなめらかにする速さ
+const FOOT_IK_IN := 8.0
+const FOOT_IK_OUT := 18.0
+const FOOT_PLANE_RATE := 14.0
+## 足の下の床を探す光線：カプセルの底からこれだけ上から、これだけ下まで（m）。当たるのは地形と壊せる物だけ
+## （体だけを止める見えない箱 Phys.PROP・敵・ほかの体には足を置かない）
+const FOOT_RAY_UP := 0.5
+const FOOT_RAY_DOWN := 0.45
+const FOOT_RAY_MASK := Phys.TERRAIN | Phys.BREAKABLE
+## 足の下の点（母指球・中ほど・かかと）の高さの差がこれより大きければ段の縁：いちばん高い点に平らに置く
+const FOOT_EDGE_STEP := 0.02
 
 
 func load_model(path: String, shade: String = "soft") -> void:
@@ -99,8 +117,18 @@ func load_model(path: String, shade: String = "soft") -> void:
 		blade.visible = false
 		(blade as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if skeleton:
+		# 骨格の変形（HaruPose・足の接地・揺れ）は物理の刻みで進める：揺れ（SpringBoneSimulator3D）が刻みの速さに左右されない。
+		# 描画のこまでは、動作の新しい姿勢の上に同じ変形を置き直す（揺れは進めない）
+		skeleton.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_PHYSICS
+		foot_ik = FootIK.new()
+		foot_ik.name = "FootIK"
+		skeleton.add_child(foot_ik)
 		pose = HaruPose.new()
 		skeleton.add_child(pose)
+		# 揺れは最後（腰の下げ・体の傾き・頭の向きのあとの頭と腰に付いて揺れる）
+		sway = HaruSway.attach(skeleton)
+		secondary = secondary_default
+		set_secondary(secondary)
 	spark_muzzle = muzzle
 	gun = "spark"
 	_attach_practice_gun()
@@ -206,6 +234,85 @@ func set_shading(mode: String) -> void:
 		else:
 			m.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
 			m.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
+
+
+## 2 次の動き（髪・ポーチの揺れと足の接地）を入れる・切る（比べの画面の撮影用。ゲームの中身には関係しない）
+func set_secondary(on: bool) -> void:
+	secondary = on
+	if sway != null:
+		sway.set_enabled(on)
+	if foot_ik != null:
+		foot_ik.active = on
+		foot_ik.weight = 0.0
+		foot_ik.plane_valid[0] = false
+		foot_ik.plane_valid[1] = false
+
+
+## 2 次の動きの毎刻みの更新（sync から。物理の刻み = 1/60 秒）。
+## 揺れ：部屋の移動・復活などで一度に大きく動いたら置き直す（前の場所から振れてこない）。
+## 足の接地：止まって立つ間だけ効かせる（走る速さ・空中・ダッシュ・倒れでは 0 へ）。各足の動作のままの足の裏の点の真下へ、
+## 部屋の当たり（地形・壊せる物）に光線を撃って床の面を決め、なめらかにして FootIK に渡す。光線は調べるだけ（中身は変えない）
+func _sync_secondary(p: Player, game: GameSim, dt: float) -> void:
+	if sway != null and p.pos.distance_to(_last_pos) > 1.0:
+		sway.reset()
+	_last_pos = p.pos
+	if foot_ik == null:
+		return
+	var want := 0.0
+	if secondary and p.grounded and not p.dead and p.dash_time <= 0.0:
+		want = clampf(1.0 - (p.speed() - 0.4) / 1.4, 0.0, 1.0)
+	var k := 1.0 - exp(-(FOOT_IK_IN if want > foot_ik.weight else FOOT_IK_OUT) * dt)
+	foot_ik.weight = lerpf(foot_ik.weight, want, k)
+	if want <= 0.0 and foot_ik.weight < 0.003:
+		foot_ik.weight = 0.0
+		foot_ik.plane_valid[0] = false
+		foot_ik.plane_valid[1] = false
+		return
+	foot_ik.base_point = p.pos
+	var xf := skeleton.global_transform
+	var kp := 1.0 - exp(-FOOT_PLANE_RATE * dt)
+	for i in 2:
+		var pts: Array = foot_ik.sole_anim[i]
+		if pts.is_empty():
+			continue
+		var hits := []
+		for sp in pts:
+			var w: Vector3 = xf * (sp as Vector3)
+			var o := Vector3(w.x, p.pos.y + FOOT_RAY_UP, w.z)
+			var h: Dictionary = game.phys.raycast(o, Vector3.DOWN, FOOT_RAY_UP + FOOT_RAY_DOWN, FOOT_RAY_MASK)
+			if not h.is_empty() and (h.normal as Vector3).y > 0.6:
+				hits.append(h)
+		var found := not hits.is_empty()
+		var point := Vector3.ZERO
+		var normal := Vector3.UP
+		if found:
+			var top: Dictionary = hits[0]
+			var low: Dictionary = hits[0]
+			for h in hits:
+				if h.point.y > top.point.y:
+					top = h
+				if h.point.y < low.point.y:
+					low = h
+			if top.point.y - low.point.y > FOOT_EDGE_STEP:
+				# 段の縁：いちばん高い点に平らに置く（つま先・かかとが縁から出ても、足は上の段に載る）
+				point = top.point
+			else:
+				# 平ら・坂：中ほどの点の面（無ければ当たった点）
+				var mid: Dictionary = hits[mini(1, hits.size() - 1)]
+				point = mid.point
+				normal = mid.normal
+		if not found:
+			foot_ik.plane_valid[i] = false
+			continue
+		if not foot_ik.plane_valid[i]:
+			foot_ik.plane_point[i] = point
+			foot_ik.plane_normal[i] = normal
+			foot_ik.plane_valid[i] = true
+		else:
+			# 高さだけなめらかに（横の位置は今の足の下）。向きもなめらかに
+			var y := lerpf(foot_ik.plane_point[i].y, point.y, kp)
+			foot_ik.plane_point[i] = Vector3(point.x, y, point.z)
+			foot_ik.plane_normal[i] = foot_ik.plane_normal[i].slerp(normal, kp).normalized()
 
 
 ## 外装フレームの段：付いている群だけを見せる（core：胴の板と肩ひも、arm：左の籠手、legs：膝当てとすね当て）。
@@ -336,6 +443,8 @@ func sync(p: Player, game: GameSim, dt: float, aim_dir: Vector3) -> void:
 			if fn != null and _part_on(k):
 				fn.visible = true
 				_frame_off.erase(fn)
+
+	_sync_secondary(p, game, dt)
 
 	# 被弾後の無敵時間は点滅
 	_flash_time += dt
