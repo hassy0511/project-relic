@@ -17,6 +17,10 @@ signal music_finished(id: String)
 var _pool: Array[AudioStreamPlayer3D] = []
 var _ui_pool: Array[AudioStreamPlayer] = []
 var volumes := {"master": 0.8, "music": 0.5, "sfx": 0.8}
+## 環境音（風など、くり返す音。set_ambience）。今の ID と、なめらかに変える Tween
+var _amb: AudioStreamPlayer
+var _amb_tween: Tween
+var ambience := ""
 
 
 func _ready() -> void:
@@ -39,6 +43,9 @@ func _ready() -> void:
 		var q := AudioStreamPlayer.new()
 		add_child(q)
 		_ui_pool.append(q)
+	_amb = AudioStreamPlayer.new()
+	_amb.volume_db = -60.0
+	add_child(_amb)
 	AudioServer.set_bus_volume_db(0, linear_to_db(volumes.master))
 
 
@@ -77,6 +84,46 @@ func play(id: String, at = null) -> void:
 			q.volume_db = vol
 			q.play()
 			return
+
+
+## 効果音を、位置なしで大きさ（gain_db：効果音の音量からの差）と高さを決めて鳴らす。遠くの大きな物の音（オルドの足音：
+## 3D の音は 60 m で聞こえなくなるので、見た目の側が距離から大きさを決める）
+func play_gain(id: String, gain_db := 0.0, pitch := 1.0) -> void:
+	var s := _stream(id)
+	if s == null:
+		return
+	for q in _ui_pool:
+		if not q.playing:
+			q.stream = s
+			q.pitch_scale = pitch
+			q.volume_db = linear_to_db(volumes.sfx) + gain_db
+			q.play()
+			return
+
+
+## くり返す環境音（風など）を fade 秒でその大きさ（gain_db：効果音の音量からの差）へ。id が "" なら fade 秒で消して止める
+func set_ambience(id: String, gain_db := 0.0, fade := 1.5) -> void:
+	if _amb_tween != null and _amb_tween.is_valid():
+		_amb_tween.kill()
+	_amb_tween = create_tween()
+	if id == "":
+		ambience = ""
+		_amb_tween.tween_property(_amb, "volume_db", -60.0, fade)
+		_amb_tween.tween_callback(_amb.stop)
+		return
+	if id != ambience or not _amb.playing:
+		var s := _stream(id)
+		if s == null:
+			return
+		if s is AudioStreamOggVorbis:
+			(s as AudioStreamOggVorbis).loop = true
+		if id != ambience:
+			_amb.stop()
+			_amb.volume_db = -60.0
+		_amb.stream = s
+		_amb.play()
+		ambience = id
+	_amb_tween.tween_property(_amb, "volume_db", linear_to_db(volumes.sfx) + gain_db, fade)
 
 
 func _on_music_finished(p: AudioStreamPlayer) -> void:

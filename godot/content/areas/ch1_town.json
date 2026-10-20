@@ -2068,8 +2068,13 @@
      -176
     ],
     "back": "town/ordo_town",
-    "ground": false
-   }
+    "ground": false,
+    "phase": 0.84
+   },
+   "intro_fade": [
+    2.0,
+    1.6
+   ]
   },
   "training": {
    "name": "訓練場",

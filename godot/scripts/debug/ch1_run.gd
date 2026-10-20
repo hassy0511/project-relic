@@ -81,7 +81,7 @@ func play_all(g: GameSim) -> void:
 ## 第 1 章 前半（オープニング〜遺構 B1 の入口）を最後まで進める。終わると遺構 B1（ch1.r02）にいる
 func play_part1(g: GameSim) -> void:
 	# 1 オープニング：自動で進み、訓練場へ
-	h.expect(await _pump(g, 1800, func(): return g.room_id == "ch1.training"), "オープニングのあと訓練場に移る")
+	h.expect(await _pump(g, 4800, func(): return g.room_id == "ch1.training"), "オープニング（約 1 分の場面）のあと訓練場に移る")
 	h.expect(g.flag("ch1.opening_done"), "オープニングが終わる")
 	await driver.milestone("01_opening")
 	# 2 見習いの仕事

@@ -146,8 +146,8 @@ func charge_type() -> bool:
 
 
 func emit_event(e: Dictionary) -> void:
-	# スキップの間は効果音・画面の揺れを出さない（見ていれば鳴った音は、終わりの姿には残らない。曲は music_id() が終わりの状態から決める）
-	if story != null and story.skipping and (e.type == "sfx" or e.type == "shake"):
+	# スキップの間は効果音・画面の揺れ・語りの字幕を出さない（見ていれば鳴った音は、終わりの姿には残らない。曲は music_id() が終わりの状態から決める）
+	if story != null and story.skipping and (e.type == "sfx" or e.type == "shake" or e.type == "caption"):
 		return
 	_events.append(e)
 

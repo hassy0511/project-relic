@@ -35,6 +35,8 @@ var nagomi_view: NagomiView = null
 var enemy_view: EnemyView
 var props_view: PropsView
 var fx: Fx
+## 映画のような場面（オープニング・オルドの停止）のカメラの道筋・外の舞台・足音・砂ぼこり・風（view/cine_director.gd）
+var cine: CineDirector
 var sun: DirectionalLight3D
 var args := {}
 var demo: Demo = null
@@ -86,6 +88,8 @@ func _ready() -> void:
 	camera = CameraRig.new()
 	add_child(camera)
 	camera.current = true
+	cine = CineDirector.new(self)
+	add_child(cine)
 	camera.position = Vector3(0, 6, -10)
 	camera.look_at(Vector3.ZERO)
 	hud = Hud.new()
@@ -211,6 +215,8 @@ func read_save():
 
 func show_title() -> void:
 	state = "title"
+	cine.reset()
+	hud.clear_caption()
 	hud.visible = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_title_backdrop()
@@ -240,6 +246,7 @@ func _update_ui_scale() -> void:
 
 
 func start_game(save) -> void:
+	cine.reset()
 	if views:
 		views.queue_free()
 	if game:
@@ -284,8 +291,13 @@ func start_game(save) -> void:
 	# やられたら「やられた」画面で選ぶ（見本・自動確認では自動で再開する）
 	game.manual_respawn = demo == null
 	audio.play_music(arena_music() if arena_kind != "" else game.music_id(), 0.3)
+	hud.clear_caption()
 	if save != null:
 		hud.show_toast("セーブした場所から再開しました")
+	elif arena_kind == "" and game.room.has("intro_fade"):
+		# 新しいゲームの最初の部屋が場面で始まる（オープニング）：黒から明るくする（場面のカメラが決まる前の 1〜2 刻みを見せない）
+		var f: Array = game.room.intro_fade
+		hud.fade_in(float(f[0]), float(f[1]))
 
 
 ## ハルのモデル：r = 絵から起こしたもの（既定）、a = 箱の組み合わせの試作、proxy = MVP の仮、b = AI 変換
@@ -412,6 +424,8 @@ func _physics_process(dt: float) -> void:
 	props_view.sync(game, dt)
 	fx.sync(game, dt, player_view, enemy_view, nagomi_view)
 	camera.sync(game, game.player.pos, dt, fx.shake)
+	# 映画のような場面：遊びのカメラが決めた姿を、台本の道筋（shot）で上書きする
+	cine.sync(dt)
 	props_view.fade_labels(camera.talk_weight())
 
 
@@ -492,10 +506,13 @@ func _aim_dir() -> Vector3:
 func _handle_events() -> void:
 	for e in game.drain_events():
 		fx.handle(e)
+		cine.handle(e)
 		nagomi_view.handle(e)
 		match e.type:
 			"sfx":
 				audio.play(e.id, e.get("at"))
+			"caption":
+				hud.show_caption(String(e.text), float(e.get("time", 6.0)))
 			"message":
 				if menu.is_open():
 					menu.set_note(e.text)
@@ -510,13 +527,16 @@ func _handle_events() -> void:
 				_write_save(AUTOSAVE_PATH)
 			"roomChanged":
 				if not e.first:
+					hud.clear_caption()
 					_rebuild_room_views()
 					snap_views()
 					hud.fade_in(0.6)
 			"snap":
 				snap_views()
 			"skipped":
-				# イベントをスキップした：カメラは寄せを待たずに、すぐふだんの所へ（Fx は合図を終わりの姿にする）
+				# イベントをスキップした：カメラは寄せを待たずに、すぐふだんの所へ（Fx は合図を終わりの姿にする。
+				# 映画のような場面の道筋・外の舞台は CineDirector が片付ける。語りの字幕も消す）
+				hud.clear_caption()
 				snap_views()
 			"hint":
 				hud.set_hint(e.text)
