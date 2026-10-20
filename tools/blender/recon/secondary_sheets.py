@@ -2,12 +2,14 @@
 撮るのは Godot の --haru_motion_shots（godot/scripts/debug/haru_motion_shots.gd）。ここではその PNG を切り抜いて、日本語の見出しを付けた
 JPG（1 枚 400 KB まで）にする：
   .venv-blender/bin/python tools/blender/recon/secondary_sheets.py <撮った所> <出す所> [--pouch=<ポーチの撮った所>]
-動き（strip_runstop・strip_landing・strip_dash、--pouch で strip_pouch）：行 = 前（切った）・後（入れた）、列 = 0.0〜0.5 秒。
+動き（strip_runstop・strip_landing・strip_dash、--pouch で strip_pouch）：行 = 前（切った）・後（入れた）・違い（前と後で色の違う
+画素を赤に。同じ場面・同じカメラなので、揺れで動いた所だけが赤くなる）、列 = 0.0〜0.5 秒。
 止まった絵（still_stairs・still_ramp）：前・後のそれぞれに全身と足もと。
 """
 import os
 import sys
 
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 FONT = '/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf'
@@ -17,7 +19,7 @@ TITLES = {
     'dash': 'ダッシュ（押した刻みから 0.1 秒ごと）',
 }
 POUCH_TITLE = '帯のポーチ（右）：走って止まる（スティックを離した刻みから 0.1 秒ごと）'
-ROWS = {'off': ('前', '（揺れなし）'), 'on': ('後', '（髪・ポーチが揺れる）')}
+ROWS = {'off': ('前', '（揺れなし）'), 'on': ('後', '（髪・ポーチが', '揺れる）'), 'diff': ('違い', '（赤：前と後で', '動いた所）')}
 STILL_TITLES = {'stairs': '階段の段の縁に横向きに立つ（1 段 0.31 m）', 'ramp': '坂に横向きに立つ（23.8 度）'}
 # 切り抜き（画面の割合）：動きは追うカメラの真ん中の上半身、ポーチは腰のまわり。止まった絵は全身と足もと
 STRIP_BOX = (0.35, 0.04, 0.65, 0.62)
@@ -39,6 +41,17 @@ def crop_box(im, box):
     return im.crop((int(x0 * w), int(y0 * h), int(x1 * w), int(y1 * h)))
 
 
+def diff_cell(a, b, thresh=28):
+    """違いの行のこま：後のこまを薄い灰にし、前と違う画素（揺れで動いた所）を赤で塗る"""
+    A = np.asarray(a, np.int16)
+    B = np.asarray(b, np.int16)
+    mask = np.abs(A - B).max(axis=2) > thresh
+    g = np.asarray(b.convert('L'), np.float32) * 0.45 + 120
+    out = np.repeat(g[:, :, None], 3, axis=2)
+    out[mask] = (226, 40, 64)
+    return Image.fromarray(out.clip(0, 255).astype(np.uint8))
+
+
 def strip(folder, name, box, cell_h, title):
     frames = {m: [Image.open(os.path.join(folder, f'haru_{name}_{m}_{k}.png')).convert('RGB') for k in range(6)]
               for m in ('off', 'on')}
@@ -46,17 +59,24 @@ def strip(folder, name, box, cell_h, title):
     cw = int(c0.width * cell_h / c0.height)
     label_w = 150
     head = 46
-    sheet = Image.new('RGB', (label_w + cw * 6, head + 26 + cell_h * 2 + 6), (245, 243, 238))
+    sheet = Image.new('RGB', (label_w + cw * 6, head + 26 + cell_h * 3 + 12), (245, 243, 238))
     d = ImageDraw.Draw(sheet)
     d.text((12, 10), 'ハルの 2 次の動き：' + title, fill=(30, 30, 30), font=font(24))
     for k in range(6):
         d.text((label_w + k * cw + cw // 2 - 22, head + 2), f'{k * 0.1:.1f} 秒', fill=(60, 60, 60), font=font(18))
-    for r, m in enumerate(('off', 'on')):
+    cells = {}
+    for r, m in enumerate(('off', 'on', 'diff')):
         y = head + 26 + r * (cell_h + 6)
-        d.text((10, y + cell_h // 2 - 24), ROWS[m][0], fill=(20, 20, 20), font=font(26))
-        d.text((10, y + cell_h // 2 + 8), ROWS[m][1], fill=(80, 80, 80), font=font(15))
+        label = ROWS[m]
+        d.text((10, y + cell_h // 2 - 30), label[0], fill=(20, 20, 20), font=font(26))
+        for i, line in enumerate(label[1:]):
+            d.text((10, y + cell_h // 2 + 4 + i * 19), line, fill=(80, 80, 80), font=font(15))
         for k in range(6):
-            c = crop_box(frames[m][k], box).resize((cw, cell_h), Image.LANCZOS)
+            if m == 'diff':
+                c = diff_cell(cells[('off', k)], cells[('on', k)])
+            else:
+                c = crop_box(frames[m][k], box).resize((cw, cell_h), Image.LANCZOS)
+                cells[(m, k)] = c
             sheet.paste(c, (label_w + k * cw, y))
             d.rectangle((label_w + k * cw, y, label_w + (k + 1) * cw - 1, y + cell_h - 1), outline=(200, 196, 188))
     return sheet

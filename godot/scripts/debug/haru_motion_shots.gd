@@ -37,6 +37,10 @@ static var _cam: Camera3D = null
 static var _follow := false
 static var _offset := TRACK_SIDE
 static var _look_y := TRACK_LOOK_Y
+static var _capturing := false
+## 置いたあとに描くこまの数：描かない刻みのあとの最初の十数こまは、空の光が前の部屋のまま残る（空の放射の図は描くこまの間に
+## 作り直される）。切った・入れたの 2 回で明るさがそろうように、撮る前に描いて落ち着かせる
+const WARM_FRAMES := 24
 
 
 static func steps(d) -> Array:
@@ -201,6 +205,22 @@ static func _place(d, room: String, at: Vector3, look: Vector3, on: bool) -> voi
 		pv.current = "idle"
 	m.hud.visible = false
 	_hide_nagomi(d, true)
+	# エフェクトの乱数を同じ種から：切った・入れたの 2 回でダッシュの光の筋などが同じに出る（比べの違いの行に混ざらない）
+	if m.fx != null:
+		m.fx._rng.seed = 20261020
+		m.fx.ambient._rng.seed = 20261020
+	_warm_render()
+
+
+## 置いたあと WARM_FRAMES こま描く（撮る間でなければ、描くのをまた止める）
+static func _warm_render() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	RenderingServer.render_loop_enabled = true
+	for i in WARM_FRAMES:
+		await RenderingServer.frame_post_draw
+	if not _capturing:
+		RenderingServer.render_loop_enabled = false
 
 
 ## ナゴミ（止まるとハルの頭の後ろに浮く）を隠す・戻す：後ろの房を隠さないように（撮影だけ。中身・ほかの見た目は変えない）
@@ -252,6 +272,7 @@ static func _strip(d, name: String, land: bool) -> void:
 	if _cam.has_meta("ground"):
 		_cam.remove_meta("ground")
 	_follow = true
+	_capturing = true
 	RenderingServer.render_loop_enabled = true
 	var g: GameSim = d.main.game
 	if land:
@@ -274,11 +295,13 @@ static func _strip(d, name: String, land: bool) -> void:
 		if pv.sway != null:
 			line += "　揺れの最大 %.1f 度" % rad_to_deg(pv.sway.last_max)
 		print(line)
+	_capturing = false
 	RenderingServer.render_loop_enabled = false
 
 
 ## 止まった絵：描いて撮る。足の接地の値も出す
 static func _still(d, name: String) -> void:
+	_capturing = true
 	RenderingServer.render_loop_enabled = true
 	for i in 3:
 		await RenderingServer.frame_post_draw
@@ -291,6 +314,7 @@ static func _still(d, name: String) -> void:
 	print("止まった絵：%s　位置 %s　接地 %s　足の接地の効き %.2f　腰 %.3f m　足の上げ 左 %.3f・右 %.3f m" % [path, str(g.player.pos),
 		str(g.player.grounded), ik.weight if ik else 0.0, ik.last_drop if ik else 0.0, ik.last_lift[0] if ik else 0.0,
 		ik.last_lift[1] if ik else 0.0])
+	_capturing = false
 	RenderingServer.render_loop_enabled = false
 
 
