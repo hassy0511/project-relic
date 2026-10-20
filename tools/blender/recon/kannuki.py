@@ -267,11 +267,11 @@ def build_body():
         for y0, y1 in ((ya, -1.45), (1.80, yb)):
             ivory.append(mx(sector_prism(y0, y1, 65.0, 90.0, R_PLATE, 0.14, 1)))        # 背の板（蓋の前後）
     # 真鍮：結束環 2 本・側帯（上下の板の継ぎ目）・蓋の走り・留め具
-    ring = lambda y: lathe((0, y - 0.25, zc), (0, y + 0.25, zc), [(0, 1.5), (0.06, 1.75), (0.94, 1.75), (1, 1.5)], 24)
+    ring = lambda y: lathe((0, y - 0.25, zc), (0, y + 0.25, zc), [(0, 1.5), (0.06, 1.75), (0.94, 1.75), (1, 1.5)], 20)
     brass += [ring(y_rf), ring(y_rr)]
     for sx in (-1, 1):
         brass.append(box((sx * 1.44, 0.2, zc + 0.04), (0.1, yb - ya - 0.2, 0.12)))
-        brass.append(box((sx * 0.98, 0.15, zc + 1.14), (0.22, 4.3, 0.1)))          # 蓋の走り
+        brass.append(box((sx * 0.98, 0.15, zc + 1.05), (0.22, 4.3, 0.1)))          # 蓋の走り（楔の蓋の低い端から出ない高さ）
         for y in (ya + 0.25, -1.0, 1.3, yb - 0.25):
             for a in (16.0, 54.0):
                 ar = math.radians(a)
@@ -349,11 +349,15 @@ def build_core():
     rollers = [cyl((-0.45, yc + d, zc + 1.5), (0.45, yc + d, zc + 1.5), 0.15, 12) for d in (-0.39, 0.39)]
     add('core', 'body', (0, yc, zc + 1.3), (1, 0, 0), [('core', merge(hexr, *rollers))])
     # 蓋（滑る）
-    def lid(y0, y1):
-        w0, w1, z0, z1 = 1.1, 0.78, zc + 0.8, zc + 1.88
-        poly = [(-w0, z0), (-w0, zc + 1.2), (-w1, z1), (w1, z1), (w0, zc + 1.2), (w0, z0)]
-        return extrude(poly, (0, y0, 0), (0, y1, 0), up=(0, 0, 1))
-    lf, lr = lid(-1.33, -0.38), lid(0.68, 1.68)
+    def lid(y_core, y_out):
+        # 3e：箱をやめて楔に（核の側が高く、環の側へ下がって細る。絵の真横の台形）
+        import banki_parts as BP
+        def ring(y, w1, z1, zm):
+            return [(-1.1, y, zc + 0.8), (-1.1, y, zm), (-w1, y, z1), (w1, y, z1), (1.1, y, zm), (1.1, y, zc + 0.8)]
+        mid = y_core + (y_out - y_core) * 0.35
+        return BP.loft_rings([ring(y_core, 0.78, zc + 1.88, zc + 1.2), ring(mid, 0.74, zc + 1.8, zc + 1.2),
+                              ring(y_out, 0.56, zc + 1.42, zc + 1.12)])
+    lf, lr = lid(-0.38, -1.33), lid(0.68, 1.68)
     trim_f = box((0, -0.41, zc + 1.6), (1.3, 0.06, 0.3))
     trim_r = box((0, 0.71, zc + 1.6), (1.3, 0.06, 0.3))
     add('lid_f', 'body', (0, -0.855, zc + 1.4), (0, -1, 0), [('ivory', lf), ('brass', trim_f)])
@@ -454,8 +458,8 @@ def build_arm_fl():
     L = np.linalg.norm(T - D0)
     cone = lathe(D0 + f * 0.08, T, [(0, 0.47), (1, 0.0)], 12)
     r_at = lambda d: 0.47 * (1 - (d - 0.08) / (L - 0.08))
-    flute = helix(D0 + f * 0.1, T - f * 0.2, r_at(0.1) * 0.97, r_at(L - 0.2), 2.25, 0.12, 0.05, n=12, phase=math.pi)
-    hx = helix(D0 + f * 0.1, T - f * 0.12, 0.47 * 0.96, 0.02, 2.25, 0.15, 0.06, n=12)
+    flute = helix(D0 + f * 0.1, T - f * 0.2, r_at(0.1) * 0.97, r_at(L - 0.2), 2.25, 0.12, 0.05, n=9, phase=math.pi)
+    hx = helix(D0 + f * 0.1, T - f * 0.12, 0.47 * 0.96, 0.02, 2.25, 0.15, 0.06, n=9)
     bands = [lathe(D0 + f * (d - 0.03), D0 + f * (d + 0.035), [(0, r_at(d) + 0.035), (1, r_at(d + 0.035) + 0.035)], 12)
              for d in (0.24, 0.62, 1.0)]
     tipc = lathe(T - f * 0.26, T + f * 0.02, [(0, 0.09), (1, 0.0)], 8)

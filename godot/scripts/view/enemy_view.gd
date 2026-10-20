@@ -16,6 +16,9 @@ const MODELS := {
 const SENSOR_NORMAL := Color("#FFBC52")
 const SENSOR_ALERT := Color("#E26A4A")
 const GLASS_OFF := Color("#302F2B")
+## 閂の錠前核の琥珀（絵の深い橙。番機のセンサーの #FFBC52 のままだと AgX の色調で淡く見えた）と、開いて脈打つときの明るい琥珀
+const BOSS_AMBER := Color("#F59A2A")
+const BOSS_AMBER_HOT := Color("#FFB040")
 ## 危険な範囲の床の色：珊瑚色 #E26A4A が画面でそう見える、少し濃い色（Fx.CORAL と同じ）
 const HAZARD := Color(0.95, 0.30, 0.16)
 
@@ -407,7 +410,7 @@ func _anim_kannuki(b: Built, e, dt: float, P: Dictionary) -> void:
 			n.transform = Transform3D(r.basis, r.origin + r.basis.x * P.lid_slide * b.open)
 	_pose(b, "keyplate", P.key_open * b.open)
 	var pulse := 0.5 + 0.5 * sin(_time * 10.0)
-	_set_glow(b.core, SENSOR_NORMAL.lerp(Color(1.0, 0.9, 0.6), b.open * pulse), 1.2 + b.open * (3.0 + pulse * 4.0))
+	_set_glow(b.core, BOSS_AMBER.lerp(BOSS_AMBER_HOT, b.open * pulse), 1.0 + b.open * (1.4 + pulse * 1.8))
 	# 過熱：真鍮の継手・外装の隙間が珊瑚色に赤熱する（第 3 段階だけ。錠前核は琥珀のまま。W2-09 の kannuki_overheat）
 	b.hot = move_toward(b.hot, 1.0 if e.overheat else 0.0, dt * 0.8)
 	if b.brass != null:
