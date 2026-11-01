@@ -157,6 +157,10 @@ func _ready() -> void:
 	if main.args.has("haru_secondary_bench"):
 		_steps.clear()
 		_steps.append_array(HaruMotionShots.bench_steps(self))
+	# --steps_shots：オルドの足音で揺れる灯・布・砂ぼこりのコマと、設定の「画面の揺れ」（scripts/debug/steps_shots.gd）
+	if main.args.has("steps_shots"):
+		_steps.clear()
+		_steps.append_array(StepsShots.steps(self))
 	if not main.args.has("ch1_full"):
 		_steps.append({"ticks": 1, "done": true})
 	# --bk_kit・--bk_props：BlenderKit の素材の比べ（scripts/debug/bk_test.gd）。引数が無ければ何もしない

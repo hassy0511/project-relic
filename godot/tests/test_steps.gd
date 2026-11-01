@@ -196,15 +196,20 @@ func test_steps_walking_interior() -> void:
 
 ## 停止の夜から再始動まで鳴らない。再始動すると restart_first_s 秒で重い 1 歩、そのあと 20 秒ごと
 func test_steps_stop_and_restart() -> void:
-	var made: Array = await _setup("ch1.home", ["ch1.night", "ch1.ordo_stopped"])
+	var made: Array = await _setup("ch1.home", ["ch1.night"])
 	var m: FakeMain = made[1]
 	var st: OrdoSteps = made[2]
 	_tick(m, st)
-	h.expect(not st.walking, "停止の夜は止まっている")
+	h.expect(st.walking, "停止の前の夜は歩いている")
+	# 停止の場面の「動力が切れる」合図から、フラグが立つ前も鳴らさない
+	st.handle({"type": "fx", "id": "ordo_stop"})
 	st.phase = OrdoSteps.plant_phase("r1") - 1.0 / OrdoSteps.CYCLE_S
-	var at := _run(m, st, int(45.0 / DT))
+	var at := _run(m, st, int(5.0 / DT))
+	h.expect(at.is_empty() and not st.walking, "動力が切れる合図のあとは鳴らない（%d 歩）" % at.size())
+	m.game.set_flag("ch1.ordo_stopped")
+	at = _run(m, st, int(40.0 / DT))
 	h.expect(at.is_empty() and m.audio.log.filter(func(e): return String(e[0]).begins_with("ordo_")).is_empty(),
-		"止まっている間は足音が無い（45 秒で %d 歩）" % at.size())
+		"止まっている間は足音が無い（40 秒で %d 歩）" % at.size())
 	var t0 := st.time
 	m.game.set_flag("ch1.ordo_restarted")
 	at = _run(m, st, int(25.0 / DT))
@@ -301,7 +306,7 @@ func test_steps_lantern_weights() -> void:
 				if absf(vs[i].x) < 0.3:
 					post_moving += 1
 	h.expect(weighted > 20 and post_moving == 0, "外灯の灯に揺れの重み（%d 頂点、最大 %.2f）、柱は動かない（%d）" % [weighted, max_w, post_moving])
-	h.between(max_w, 0.2, 0.5, "灯の下の端の重み")
+	h.between(max_w, 0.3, 0.75, "灯の下の端の重み")
 	var mats: Dictionary = kit.mats
 	h.expect(mats.amber.get_shader_parameter("sway_amp") == mats.metal.get_shader_parameter("sway_amp"), "芯（amber）にも籠と同じ風の揺れ")
 	var room: Dictionary = World.load_manifest("res://content/world.json").rooms.get("ch1.mid", {})

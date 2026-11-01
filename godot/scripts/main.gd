@@ -533,6 +533,7 @@ func _handle_events() -> void:
 	for e in game.drain_events():
 		fx.handle(e)
 		cine.handle(e)
+		steps.handle(e)
 		nagomi_view.handle(e)
 		match e.type:
 			"sfx":

@@ -5,7 +5,8 @@ extends Node
 ##   遠い低い地響き（耳より体で感じる音。近い脚ほど大きい）・画面のごく小さな沈みと揺れ（場面の揺れよりずっと小さい）・
 ##   布・旗・吊り札・吊り灯が少し揺れる（キットの材質の "jolt"。揺れの重み = 頂点の色のアルファ。吊り灯には部品を読むときに重みを足す）・
 ##   日よけ・洗濯物から砂ぼこりが少し落ちる（屋外）／天井から砂がこぼれ、器が小さく鳴る（屋内）／鉄の胴の重い響き（遺構）。
-## 止まる：停止の夜（ch1.ordo_stopped）から再始動（ch1.ordo_restarted）までは足音が無い（いつもの足音がしない静けさ）。
+## 止まる：停止の夜（ch1.ordo_stopped。場面の「動力が切れる」合図 fx: ordo_stop から）から再始動（ch1.ordo_restarted）までは足音が無い
+##   （いつもの足音がしない静けさ）。
 ##   再始動の刻みに部屋にいれば、restart_first_s 秒後に重い最初の 1 歩（「止まっていた足音が、ゆっくりと、また始まった」）。
 ## 時計：オルドの歩きの周期の位置（phase。OrdoView と同じ。1 周 CYCLE_S 秒、足が着くのは PHASE + SWING_FRAC）。部屋を移っても続く。
 ##   部屋にオルド（OrdoView。下段・中段・オープニング）がいる間は、そのオルドの時計に従い、足が着いた知らせ（foot_planted）で鳴らす
@@ -40,6 +41,8 @@ var _room_cfg := {}
 var _bound: OrdoView = null
 var _pending: Array = []
 var _heavy_next := false
+## 停止の場面の「動力が切れる」合図（fx: ordo_stop）を受けた：フラグ ch1.ordo_stopped が立つ前（場面の外の舞台が消えてから数秒）も鳴らさない
+var _cue_stop := false
 var _rng := RandomNumberGenerator.new()
 ## 揺れ：カメラ（経過の秒・幅 m・横揺れの角）と材質（経過の秒・幅 m・向き）
 var _cam_t := 99.0
@@ -119,7 +122,9 @@ func sync(dt: float) -> void:
 	time += dt
 	if String(g.room_id) != _room_id:
 		_enter_room(g)
-	var w := walk_flag(g)
+	if _cue_stop and g.flag("ch1.ordo_restarted"):
+		_cue_stop = false
+	var w := walk_flag(g) and not _cue_stop
 	if w != walking:
 		_walk_changed(w)
 	var tags: Array = []
@@ -145,9 +150,16 @@ func sync(dt: float) -> void:
 	_apply_camera(dt)
 
 
+## ゲームの出来事（main._handle_events から）：停止の場面の「動力が切れる」合図
+func handle(e: Dictionary) -> void:
+	if String(e.get("type", "")) == "fx" and String(e.get("id", "")) == "ordo_stop":
+		_cue_stop = true
+
+
 ## 新しいゲーム・ロード：時計はプレイ時間から（セーブから続けても、毎回同じ所から）
 func _reset(g) -> void:
 	_game = g
+	_cue_stop = false
 	phase = fposmod(float(g.play_time) / CYCLE_S, 1.0)
 	walking = walk_flag(g)
 	_room_id = ""
@@ -260,7 +272,8 @@ func _step(tags: Array) -> void:
 		if gdb > best_db:
 			best_db = gdb
 			best = tag
-	var db := 10.0 * log(power) / log(10.0)
+	# 同じ所に立っていても毎回少しずつ違う（±1 dB）
+	var db := 10.0 * log(power) / log(10.0) + _rng.randf_range(-1.0, 1.0)
 	var heavy := _heavy_next
 	_heavy_next = false
 	if heavy:
@@ -311,18 +324,27 @@ func _run_later(dt: float) -> void:
 	_later = keep
 
 
-## 屋外：カメラの前の近く（25 m 以内）の、揺れる布の下の端から、砂ぼこりを少し
+## 今、画面を描いているカメラ（ふだんは遊びのカメラ。撮影の固定カメラのときはそれ）
+func _view_cam() -> Camera3D:
+	var c: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
+	if c == null and main != null:
+		c = main.camera
+	return c
+
+
+## 屋外：カメラの前の近く（25 m 以内、近いものから）の、揺れる布の下の端から、砂ぼこりを少し
 func _puffs(n: int) -> void:
-	if main.fx == null or main.fx.vfx == null or main.camera == null:
+	var cam := _view_cam()
+	if main.fx == null or main.fx.vfx == null or cam == null:
 		return
 	var amb: AmbientFx = main.fx.ambient
 	if amb == null:
 		return
-	var cam: Camera3D = main.camera
-	amb.step_puffs(main.fx.vfx, cam.global_position, -cam.global_transform.basis.z, n, clampf(_jolt_amp / 0.055, 0.5, 1.6))
+	amb.step_puffs(main.fx.vfx, cam.global_position, -cam.global_transform.basis.z, n, clampf(_jolt_amp / 0.07, 0.5, 1.6))
 
 
-## 屋内・遺構：ハルの近くの天井から、細い砂がこぼれる
+## 屋内・遺構：ハルの前・まわりの天井から、細い砂がこぼれる。高さは部屋の "ceiling"（ハルの足元からの高さ m。遺構の縦坑のような
+## 高い部屋でも、ハルの上から落ちる。本当の天井より上から出た粒は天井に隠れ、天井の面から出てくるように見える）
 func _sift(n: int) -> void:
 	if main.fx == null or main.fx.vfx == null or _game == null:
 		return
@@ -330,8 +352,8 @@ func _sift(n: int) -> void:
 	if amb == null:
 		return
 	var p: Vector3 = _game.player.pos
-	var top := float(_room_cfg.get("ceiling", p.y + 4.5))
-	var cam: Camera3D = main.camera
+	var top := p.y + float(_room_cfg.get("ceiling", 4.5))
+	var cam := _view_cam()
 	var fwd := Vector3(0, 0, 1)
 	if cam != null:
 		fwd = -cam.global_transform.basis.z
@@ -445,8 +467,10 @@ static func weight_lanterns(surfs: Dictionary, w: float, chains: Array) -> int:
 		var sx := b.size.x
 		var sz := b.size.z
 		var sy := b.size.y
-		# 芯の筒：半径 0.075 s・高さ 0.25 s（s = 0.7〜1.4）
-		if sx < 0.08 or sx > 0.3 or sz < 0.08 or sz > 0.3 or sy < 0.15 or sy > 0.4 or sy < 1.2 * maxf(sx, sz):
+		# 芯の筒：半径 0.075 s・高さ 0.25 s（s = 0.72〜1.4。小さな携行灯は置いてあるので外す）。上から見て丸い（壁の平たい灯 _sconce は外す）
+		if sx < 0.08 or sx > 0.3 or sz < 0.08 or sz > 0.3 or sy < 0.18 or sy > 0.4 or sy < 1.2 * maxf(sx, sz):
+			continue
+		if maxf(sx, sz) > 1.25 * minf(sx, sz):
 			continue
 		var s := sy / 0.25
 		var cpos := b.get_center()
@@ -457,6 +481,14 @@ static func weight_lanterns(surfs: Dictionary, w: float, chains: Array) -> int:
 		lamps.append([cpos.x, cpos.z, pivot, cpos.y - 0.2 * s, 0.155 * s])
 	if lamps.is_empty():
 		return 0
+	# 灯のまわりの箱（ここに入らない頂点はすぐ飛ばす：大きな部屋の部品でも速い）
+	var box := AABB()
+	for i in lamps.size():
+		var l: Array = lamps[i]
+		var lb := AABB(Vector3(float(l[0]) - float(l[4]), float(l[3]) - 0.02, float(l[1]) - float(l[4])),
+			Vector3(2.0 * float(l[4]), float(l[2]) - float(l[3]) + 0.02, 2.0 * float(l[4])))
+		box = lb if i == 0 else box.merge(lb)
+	box = box.grow(0.01)
 	for name in ["flat", "metal", "amber"]:
 		if not surfs.has(name):
 			continue
@@ -470,6 +502,8 @@ static func weight_lanterns(surfs: Dictionary, w: float, chains: Array) -> int:
 		var changed := false
 		for i in vs.size():
 			var v := vs[i]
+			if not box.has_point(v):
+				continue
 			for l in lamps:
 				if v.y > float(l[2]) or v.y < float(l[3]) - 0.02:
 					continue
