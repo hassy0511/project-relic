@@ -12,6 +12,7 @@ uniform float out_amount = 0.0;
 uniform float base_size = 1.7;
 uniform float px_size = 5.5;
 uniform float gain = 3.2;
+uniform vec2 near_fade = vec2(70.0, 150.0);
 uniform vec3 warm : source_color = vec3(1.0, 0.66, 0.30);
 uniform vec3 cool : source_color = vec3(1.0, 0.86, 0.62);
 
@@ -40,7 +41,7 @@ void vertex() {
 	float n = hash(floor(TIME * 13.0 + c.x * 97.0) + c.x * 311.0);
 	float on = n < fl * 0.75 ? 0.12 : 1.0;
 	// 遠いほど少し暗く（霞の代わり）
-	float far_k = mix(1.0, 0.55, smoothstep(250.0, 1500.0, dist));
+	float far_k = mix(1.0, 0.55, smoothstep(250.0, 1500.0, dist)) * smoothstep(near_fade.x, near_fade.y, dist);
 	v_col = mix(cool, warm, c.w) * power * lit * on * far_k * gain;
 }
 

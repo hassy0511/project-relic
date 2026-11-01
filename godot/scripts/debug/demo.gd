@@ -606,6 +606,7 @@ func _town_steps() -> Array:
 ## "wait"：構えてから撮るまでの刻み（既定 20。宙に置いて落ちる途中を撮るときは長く）。--audit_only=<名前,…> で一部だけ。--audit_state=night で停止の夜
 ## "walk": true：撮るまでの間、look の向きへ歩き続ける（箱・樽に歩いて当たって止まるかの確かめ。自由なカメラでも "look" で向きを決める）
 ## "jump": n：撮るまでの間の初めの n 刻み、跳ぶボタンを押す（"walk" と合わせて、跳んで乗れない所・頭が当たる所の確かめ）
+## "back_lights": [明るさ, ちらつき, 消えた割合]：部屋のオルドの背の上の遠くの町の灯（OrdoView.set_back_lights。既定は消えている）
 func _audit_steps() -> Array:
 	var path := String(main.args.get("audit_views", ProjectSettings.globalize_path("res://") + "../tools/audit_views.json"))
 	var views: Array = JSON.parse_string(FileAccess.get_file_as_string(path))
@@ -631,6 +632,9 @@ func _audit_steps() -> Array:
 			else:
 				_stand(RoomGeo.v3(v.at), RoomGeo.v3(v.look))
 				g.cam.pitch = float(v.get("pitch", 12.0)) * U.DEG
+			var bl: Array = v.get("back_lights", [])
+			if bl.size() == 3 and main._ordo() != null:
+				main._ordo().set_back_lights(float(bl[0]), float(bl[1]), float(bl[2]))
 			main.snap_views()})
 		var walk: bool = v.get("walk", false)
 		var jump := int(v.get("jump", 0))
