@@ -10,7 +10,7 @@
 > 第 1 章 後半（CP2 の段階 C-2）：「はじめから」が章末まで通る（遺構 B1〜B4 の 19 部屋・ボス「閂」・再始動・翌朝の町・隠し部屋・章末）。部屋から始める（`&god` 推奨）：B1 ジャンク溜まり https://hassy0511.github.io/project-relic/?room=ch1.r02&flags=ch1.got_spark ・ B1 整備通路 …/?room=ch1.r03 ・ B1 換気室 …/?room=ch1.r04 ・ B1 崩落床 …/?room=ch1.r05 ・ B2 配管広間 …/?room=ch1.r09&flags=ch1.frame_fitted ・ B2 弁の間 …/?room=ch1.r10 ・ B2 縦坑 …/?room=ch1.r11 ・ B3 駆動回廊（ピストン）…/?room=ch1.r12 ・ B3 歯車の間（浮遊型）…/?room=ch1.r13&flags=ch1.drive_powered ・ B3 伝導路 …/?room=ch1.r15 ・ B3 中央縦坑 …/?room=ch1.r16 ・ B4 前室 …/?room=ch1.r18 ・ B4 ボス「閂」…/?room=ch1.r19&flags=ch1.diagnosis ・ 炉心（再始動）…/?room=ch1.r20&flags=ch1.boss_defeated ・ 隠し部屋 …/?room=ch1.r14 ・ 朝の町 …/?room=ch1.mid&flags=ch1.morning,ch1.ordo_restarted
 > **CP2（第 1 章の仮組み）の報告**：`design/62_CP2報告.md`（遊び方・自動通しの結果・既知の問題）。画面の確認：`progress_shots/cp2d/`
 > 3D モデルを回して見る：https://hassy0511.github.io/project-relic/models/ （4 章の「見る」から各モデルへ）
-> 最終更新：2026-10-20
+> 最終更新：2026-11-01
 
 ---
 
