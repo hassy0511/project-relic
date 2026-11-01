@@ -125,7 +125,8 @@ func burst_soon(delay: float) -> void:
 
 # ---------------------------------------------------------------- オルドの足音（OrdoSteps が足の着くたびに呼ぶ）
 
-## 屋外：カメラ（cam）の前・25 m 以内の、揺れる布の下の端から n か所選び、砂ぼこりが少し落ちる（strength：近い脚ほど大きい 0.5〜1.6）
+## 屋外：カメラ（cam）の前・25 m 以内の、揺れる布の下の端から n か所選び、砂ぼこりが少し落ちる（strength：近い脚ほど大きい 0.5〜1.6）。
+## 選ぶのは近いもの 2n か所の中から（遠くの小さな砂ぼこりは見えないので、見える近くに出す）
 func step_puffs(vfx: Vfx, cam: Vector3, fwd: Vector3, n: int, strength := 1.0) -> int:
 	if puffs.is_empty() or vfx == null:
 		return 0
@@ -133,9 +134,11 @@ func step_puffs(vfx: Vfx, cam: Vector3, fwd: Vector3, n: int, strength := 1.0) -
 	for p in puffs:
 		var d := p - cam
 		var l := d.length()
-		if l < 2.0 or l > 25.0 or d.dot(fwd) < 0.35 * l:
+		if l < 2.0 or l > 25.0 or d.dot(fwd) < 0.5 * l:
 			continue
-		near.append(p)
+		near.append([l, p])
+	near.sort_custom(func(a, b): return a[0] < b[0])
+	near = near.slice(0, 2 * n).map(func(e): return e[1])
 	var made := 0
 	for k in mini(n, near.size()):
 		var i := _srng.randi_range(0, near.size() - 1)
