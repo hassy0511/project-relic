@@ -475,6 +475,27 @@ def bunting(m: Mesh, a, b, y, sag_m, rng):
         m.poly([p[1], p[0], tip], [(u0, v0), (u1, v0), ((u0 + u1) / 2, v1)], col)
 
 
+def laundry(m: Mesh, a, b, y, rng, sag_m=0.35):
+    """洗濯物の綱（a → b、高さ y）：たるんだ綱に、生成り・赤・砂色の布を間をあけて吊る（両面）"""
+    L = math.dist(a, b)
+    n = max(2, int(L / 1.1))
+    cols = [_lin('#EDE3CC'), _lin('#C8553C'), _lin('#E2CFA6'), _lin('#9BA7A0'), _lin('#F4EEE0')]
+    for i in range(n):
+        if rng.random() < 0.3:
+            continue
+        t0 = (i + 0.15) / n
+        t1 = t0 + rng.uniform(0.45, 0.75) / n
+        pa = (a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0)
+        pb = (a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1)
+        ya = y - sag_m * 4 * t0 * (1 - t0)
+        yb = y - sag_m * 4 * t1 * (1 - t1)
+        hgt = rng.uniform(0.5, 0.9)
+        col = rgba(cols[int(rng.integers(len(cols)))])
+        m.quad((pa[0], ya - hgt, pa[1]), (pb[0], yb - hgt, pb[1]), (pb[0], yb, pb[1]), (pa[0], ya, pa[1]), 'cl_white', col, (0, 0, 0.5, 0.5))
+        m.quad((pb[0], yb - hgt, pb[1]), (pa[0], ya - hgt, pa[1]), (pa[0], ya, pa[1]), (pb[0], yb, pb[1]), 'cl_white', col * np.array([0.8, 0.8, 0.8, 1]),
+               (0, 0, 0.5, 0.5))
+
+
 def house(m: Mesh, h: House, lights: Lights, neighbours=(), street_faces='nsew', ground='house', awn=0.3, ban=0.12):
     """家の箱：見える面の正面（隣の家に隠れる所は、隣より高い階だけ）、屋根、日よけ・旗"""
     rng = h.rng
@@ -701,6 +722,24 @@ def stall(m: Mesh, lights: Lights, cx, cz, w, d, y, rng, yaw_front='-z'):
     lights.add((cx, y1 - 0.25, zf), order, 1)
 
 
+def crates(m: Mesh, cx, cz, y, rng, n=3):
+    """木箱と樽の小さな山（露店の裏・店の前）"""
+    for k in range(n):
+        x = cx + rng.uniform(-0.9, 0.9)
+        z = cz + rng.uniform(-0.6, 0.6)
+        s = rng.uniform(0.45, 0.7)
+        if rng.random() < 0.6:
+            box(m, x - s / 2, x + s / 2, y, y + s, z - s / 2, z + s / 2, 'mt_wood', rgba(_lin('#D9B48A')), faces='nsewt')
+        else:
+            cylinder(m, x, z, y, y + s * 1.3, s * 0.42, 'mt_wood', rgba(_lin('#B98A60')), 6, top_cell='mt_wood')
+
+
+def planter(m: Mesh, cx, cz, y, rng, w=1.6):
+    """四角い植え込み（白磁の箱と緑）"""
+    box(m, cx - w / 2, cx + w / 2, y, y + 0.6, cz - 0.45, cz + 0.45, 'st_ret', rgba(WHITE), top_cell='mt_green', faces='nsewt', cell_w=None)
+    blob(m, cx, y + 0.9, cz, w * 0.45, 0.45, 0.4, 'mt_green2' if rng.random() < 0.5 else 'mt_green', rgba(WHITE), int(rng.integers(1 << 30)))
+
+
 def tent(m: Mesh, cx, cz, w, d, y, h, cell='cl_red'):
     """四角い帆布の天幕（4 本の柱と四角錐の屋根）"""
     x0, x1, z0, z1 = cx - w / 2, cx + w / 2, cz - d / 2, cz + d / 2
@@ -788,6 +827,10 @@ def stern_district(m: Mesh, lights: Lights) -> None:
                 tree(m, sx * 2.6, y, z - 5.5, rng.uniform(2.8, 3.6), int(rng.integers(1 << 30)))
         z -= 11.0
         k += 1
+    for zc in (-108.0, -92.0, -88.0, -76.0, -62.0):
+        for sx in (-1, 1):
+            if rng.random() < 0.75:
+                laundry(m, (sx * 21.5, zc), (sx * 24.5, zc + rng.uniform(-1.0, 1.0)), y + rng.uniform(4.0, 6.0), rng)
     for zc in (-98.0, -82.0, -68.0):
         bunting(m, (-3.5, zc + 1.0), (3.5, zc - 1.0), y + 6.4, 0.8, rng)
         bunting(m, (21.5 if zc > -90 else -21.5, zc), (24.5 if zc > -90 else -24.5, zc), y + 5.6, 0.4, rng)
@@ -848,6 +891,9 @@ def lower_district(m: Mesh, lights: Lights) -> None:
         z -= 11.0
     for zc in (-43.0,):
         bunting(m, (-3.5, zc), (3.5, zc), y + 6.0, 0.7, rng)
+    for zc in (-52.0, -38.0, -24.0):
+        for sx in (-1, 1):
+            laundry(m, (sx * 21.5, zc), (sx * 24.5, zc + rng.uniform(-1.0, 1.0)), y + rng.uniform(4.0, 5.5), rng)
 
 
 def mid_tier(m: Mesh, lights: Lights) -> None:
@@ -891,6 +937,11 @@ def mid_tier(m: Mesh, lights: Lights) -> None:
         lamp_post(m, lights, lx, y, lz, rng)
     for x in (-40.0, -28.0, -16.0, 16.0, 28.0, 40.0):
         tree(m, x, y, -12.0, 3.0, int(x * 10) + 7)
+    # 広場の植え込み・露店の裏の木箱と樽
+    for (px, pz) in ((-12.0, -6.0), (12.0, -6.0), (-6.0, 13.5), (6.0, 13.5), (-44.0, 2.0), (20.0, 13.0)):
+        planter(m, px, pz, y, rng)
+    for (cx, cz) in ((24.0, 8.6), (38.0, 8.6), (17.5, 0.3), (31.0, 0.3), (45.0, 1.3), (-20.0, -2.5), (-34.0, 2.5)):
+        crates(m, cx, cz, y, rng, 3)
 
 
 def terraces(m: Mesh, lights: Lights) -> None:
@@ -944,10 +995,11 @@ def upper_tier(m: Mesh, lights: Lights) -> None:
     rng = np.random.default_rng(95)
     y = UP
     tier_floor(m, -TOWN_X, TOWN_X, GATE_Z, BOW_Z, y, 'st_pave2')
+    # 東西と北（船首の側）の段の壁：下の 4 m に扉と灯（外から見る面。夜に明かりがともる）
     for sx in (-1, 1):
         a, b = ((sx * TOWN_X, MID_N), (sx * TOWN_X, BOW_Z)) if sx > 0 else ((sx * TOWN_X, BOW_Z), (sx * TOWN_X, MID_N))
-        retaining(m, a, b, 0.0, y, rng, doors=0)
-    retaining(m, (-TOWN_X, BOW_Z), (TOWN_X, BOW_Z), 0.0, y, rng, doors=0)
+        retaining(m, a, b, 0.0, y, rng, doors=0.3)
+    retaining(m, (-TOWN_X, BOW_Z), (TOWN_X, BOW_Z), 0.0, y, rng, doors=0.35)
     # 町長の家：落ち着いた家（緑の屋上の庭、真鍮の帯、両開きの扉）
     landmark(m, lights, -29.0, -15.0, 52.0, 61.0, y, 2, 'lm_mayor', rng, front='-z', roof_kind='garden', tint=_lin('#F6EEDC'),
              ground_cell=lambda i, nb: 'gr_door2' if i == nb // 2 else 'lm_mayor')
