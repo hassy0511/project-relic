@@ -8,7 +8,7 @@ render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabl
 
 uniform vec4 color : source_color = vec4(1.0, 0.62, 0.3, 1.0);
 // 全体の強さ（にじみ・床の輪）
-uniform vec2 strength = vec2(0.55, 0.32);
+uniform vec2 strength = vec2(0.8, 0.42);
 
 varying float v_kind;
 varying float v_amt;

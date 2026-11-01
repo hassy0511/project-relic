@@ -46,6 +46,8 @@ var last_params := {}
 var _lights: Array = []
 var _glows: MultiMeshInstance3D = null
 var _game: GameSim = null
+## 今描いている部屋の電気の網（begin_room で覚える。フラグと部屋の移動が同じ刻みに来ても、描いている部屋で決める）
+var _grid := ""
 var _was_on := {}
 var _time := 0.0
 var _sent := -1.0
@@ -66,6 +68,7 @@ func begin_room(game: GameSim) -> bool:
 		pending.clear()
 		_was_on.clear()
 	_remember(game)
+	_grid = String(game.room.get("grid", ""))
 	wave_dir = 0
 	wave_t = 0.0
 	built_dark = dark_at_build(game)
@@ -105,7 +108,7 @@ func light_for(game: GameSim, mood: String, table: Dictionary) -> Dictionary:
 func light_key(game: GameSim, mood: String) -> String:
 	if game == null:
 		return mood
-	if game.room.has("grid") and dark():
+	if _grid != "" and dark():
 		return mood + "_blackout"
 	if mood == "interior" and game.flag("ch1.night"):
 		return "interior_night"
@@ -139,7 +142,7 @@ func _on_flags() -> void:
 	var game := _game_now()
 	if game == null:
 		return
-	var grid := String(game.room.get("grid", ""))
+	var grid := _grid
 	for g in (game.world.power.keys() if game.world != null else []):
 		var on := game.grid_powered(g)
 		var was: bool = _was_on.get(g, true)
@@ -164,9 +167,7 @@ func _on_flags() -> void:
 
 ## 電気の灯を点ける（歓声の合図 fx: town_power_on。at：波の原点、無ければハルのいる所の下）。skipped ならすぐ点いた姿
 func power_on(at = null, skipped := false) -> void:
-	var game := _game_now()
-	if game != null:
-		pending.erase(String(game.room.get("grid", "")))
+	pending.erase(_grid)
 	if not dark() and wave_dir == 0:
 		return
 	if skipped:

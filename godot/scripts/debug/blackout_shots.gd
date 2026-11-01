@@ -15,7 +15,7 @@ const LINE := ["ch1.opening_done", "ch1.chores_started", "ch1.t_move", "ch1.t_ju
 ## [名前, 部屋, 立つ所, 見る所, 見下ろす角度（度）, ここまでのフラグ]
 const VIEWS := [
 	["home", "ch1.home", Vector3(2.4, 0, -3.2), Vector3(-4.0, 0, 3.0), 16.0, "ch1.ordo_stopped"],
-	["plaza", "ch1.mid", Vector3(0, 0, -5), Vector3(0, 0, 8), 12.0, "ch1.ordo_stopped"],
+	["plaza", "ch1.mid", Vector3(-6, 0, -1), Vector3(1, 0, 9), 12.0, "ch1.ordo_stopped"],
 	["market", "ch1.mid", Vector3(18.5, 0, -3), Vector3(27, 0, 7), 10.0, "ch1.ordo_stopped"],
 	["gate", "ch1.lower", Vector3(-24, 0, -1.5), Vector3(-45, 0, 1), 10.0, "ch1.plaza_done"],
 	["guild", "ch1.guild", Vector3(1.5, 0, -3.5), Vector3(-6, 0, 5), 14.0, "ch1.ordo_stopped"],
@@ -119,9 +119,9 @@ static func _cheer(d, bench: int) -> Array:
 		for t in g.triggers:
 			t.fired = true})
 	s.append({"ticks": 10, "input": {}})
+	s.append({"ticks": 2, "setup": func(): m.game.set_flag("ch1.ordo_restarted")})
 	s.append({"ticks": 2, "setup": func():
 		var g: GameSim = m.game
-		g.set_flag("ch1.ordo_restarted")
 		g.load_room("ch1.mid", "start")
 		for t in g.triggers:
 			t.fired = true

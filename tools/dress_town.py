@@ -123,7 +123,7 @@ def glow(room, pos, size=0.25, pool=None, blackout=False):
     return l
 
 
-def lamp(room, d, pos, real=None, size=0.32, pool=2.4, floor=0.0, part=True):
+def lamp(room, d, pos, real=None, size=0.45, pool=3.0, floor=0.0, part=True):
     """停電の間だけの灯油ランプ：pos（台の上の面）に携行灯の部品（"blackout": true。当たり判定なし：台の上に置く）。
     明かりは芯の高さ（+0.25 m）。real = (届く距離 m, 明るさ) なら本物の光、None なら安い光だけ（にじみ・床の輪）。
     pool：床の明るい輪の半径（0 で無し）、floor：その床の高さ。part=False は前からある携行灯に明かりだけ足す"""
@@ -360,9 +360,9 @@ def mid(room):
 def blackout_mid(room, d):
     """停電の夜の中段：広場の集まり（町長の壇の前の両端。本物の光 2 つでバートン・町長・ミナ婆を照らす）、雑貨屋（台の西の樽の上。
     本物の光で店主）、ジャンク屋・食堂（安い光）、工房の前の作業台の携行灯（前からある油の灯に安い光）"""
-    lamp(room, d, [-3.3, 0.8, 8.0], real=(9.0, 1.5))
-    lamp(room, d, [3.3, 0.8, 8.0], real=(9.0, 1.5))
-    lamp(room, d, [19.4, 1.0, 4.4], real=(6.5, 1.3))
+    lamp(room, d, [-3.3, 0.8, 8.0], real=(10.0, 2.2))
+    lamp(room, d, [3.3, 0.8, 8.0], real=(10.0, 2.2))
+    lamp(room, d, [19.4, 1.0, 4.4], real=(7.5, 2.0))
     lamp(room, d, [33.4, 1.0, 4.4])
     lamp(room, d, [-21.6, 1.0, 0.3])
     lamp(room, d, [-39.65, 0.97, 0.8], part=False)
@@ -598,7 +598,7 @@ def lower(room):
 
 def blackout_lower(room, d):
     """停電の夜の下段：禁足扉への道。扉の北の木箱の上（ヤーナ。本物の光で扉の前とヤーナ）、来る道の木箱の山の上（安い光）"""
-    lamp(room, d, [-41.5, 0.75, 6.6], real=(9.0, 1.6))
+    lamp(room, d, [-41.5, 0.75, 6.6], real=(10.0, 2.2))
     lamp(room, d, [-27.44, 1.49, 5.55])
 
 
@@ -754,7 +754,7 @@ def upper(room):
 
 def blackout_upper(room, d):
     """停電の夜の上段：展望台の見張りの携行灯（前からある油の灯）に本物の光"""
-    lamp(room, d, [-7.51, 0.74, 20.0], real=(7.0, 1.3), part=False)
+    lamp(room, d, [-7.51, 0.74, 20.0], real=(8.0, 1.9), part=False)
 
 
 def lived_upper(d):
@@ -1000,7 +1000,7 @@ def guild(room):
     dirt(d, 10.0, -5.0, 2.6, 4.0, kind="oil_patch")    # 回収品のまわり
     # 停電の夜：受付台の携行灯（guild_set の中。油の灯）のにじみと、停電の間は受付のリタを照らす本物の光
     glow(room, [-8.4, 1.25, 7.3], 0.22)
-    room["lights"].append({"pos": [-8.2, 1.6, 6.9], "color": OIL, "range": 7.5, "energy": 1.4, "source": "oil", "blackout": True})
+    room["lights"].append({"pos": [-8.2, 1.6, 6.9], "color": OIL, "range": 8.0, "energy": 1.9, "source": "oil", "blackout": True})
     return finish(room, d)
 
 
