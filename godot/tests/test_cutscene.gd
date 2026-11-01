@@ -232,6 +232,8 @@ static func _state(g: GameSim) -> Dictionary:
 		"cutscene": g.story.cutscene, "skipping": g.story.skipping, "running": g.story.running_event(),
 		"dialogue": String(g.story.dialogue.get("id", "")), "focus": g.cam_focus != null, "eye": g.cam_eye != null,
 		"abilities": ["spark", "lock_on", "sword", "dash"].filter(func(a): return g.has_ability(a)),
+		# 町の電気（停電の夜。GameSim.powered：フラグだけから決まる）
+		"powered": g.powered(),
 	}
 
 

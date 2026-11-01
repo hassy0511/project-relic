@@ -4214,7 +4214,8 @@
       4.0
      ]
     }
-   ]
+   ],
+   "grid": "town"
   },
   "lower": {
    "name": "オルド背町・下段",
@@ -8429,6 +8430,41 @@
      "color": "#ff8a60",
      "range": 9,
      "energy": 1.6
+    },
+    {
+     "pos": [
+      -41.5,
+      1.02,
+      6.6
+     ],
+     "color": "#ffa458",
+     "range": 9.0,
+     "energy": 1.6,
+     "source": "oil",
+     "blackout": true,
+     "glow": 0.32,
+     "pool": [
+      2.4,
+      0.0
+     ]
+    },
+    {
+     "pos": [
+      -27.44,
+      1.76,
+      5.55
+     ],
+     "color": "#ffa458",
+     "range": 4.0,
+     "energy": 1.0,
+     "source": "oil",
+     "blackout": true,
+     "glow": 0.32,
+     "pool": [
+      2.4,
+      0.0
+     ],
+     "omni": false
     }
    ],
    "props": [
@@ -9934,8 +9970,27 @@
       8.0
      ],
      "shadow": true
+    },
+    {
+     "part": "town/hand_lantern",
+     "pos": [
+      -41.5,
+      0.75,
+      6.6
+     ],
+     "blackout": true
+    },
+    {
+     "part": "town/hand_lantern",
+     "pos": [
+      -27.44,
+      1.49,
+      5.55
+     ],
+     "blackout": true
     }
    ],
+   "grid": "town",
    "ordo": {
     "pos": [
      0,
@@ -18265,6 +18320,111 @@
      "color": "#ffc27a",
      "range": 14,
      "energy": 1.6
+    },
+    {
+     "pos": [
+      -3.3,
+      1.07,
+      8.0
+     ],
+     "color": "#ffa458",
+     "range": 9.0,
+     "energy": 1.5,
+     "source": "oil",
+     "blackout": true,
+     "glow": 0.32,
+     "pool": [
+      2.4,
+      0.0
+     ]
+    },
+    {
+     "pos": [
+      3.3,
+      1.07,
+      8.0
+     ],
+     "color": "#ffa458",
+     "range": 9.0,
+     "energy": 1.5,
+     "source": "oil",
+     "blackout": true,
+     "glow": 0.32,
+     "pool": [
+      2.4,
+      0.0
+     ]
+    },
+    {
+     "pos": [
+      19.4,
+      1.27,
+      4.4
+     ],
+     "color": "#ffa458",
+     "range": 6.5,
+     "energy": 1.3,
+     "source": "oil",
+     "blackout": true,
+     "glow": 0.32,
+     "pool": [
+      2.4,
+      0.0
+     ]
+    },
+    {
+     "pos": [
+      33.4,
+      1.27,
+      4.4
+     ],
+     "color": "#ffa458",
+     "range": 4.0,
+     "energy": 1.0,
+     "source": "oil",
+     "blackout": true,
+     "glow": 0.32,
+     "pool": [
+      2.4,
+      0.0
+     ],
+     "omni": false
+    },
+    {
+     "pos": [
+      -21.6,
+      1.27,
+      0.3
+     ],
+     "color": "#ffa458",
+     "range": 4.0,
+     "energy": 1.0,
+     "source": "oil",
+     "blackout": true,
+     "glow": 0.32,
+     "pool": [
+      2.4,
+      0.0
+     ],
+     "omni": false
+    },
+    {
+     "pos": [
+      -39.65,
+      1.24,
+      0.8
+     ],
+     "color": "#ffa458",
+     "range": 4.0,
+     "energy": 1.0,
+     "source": "oil",
+     "blackout": true,
+     "glow": 0.32,
+     "pool": [
+      2.4,
+      0.0
+     ],
+     "omni": false
     }
    ],
    "props": [
@@ -20742,8 +20902,54 @@
       1.0,
       2.4
      ]
+    },
+    {
+     "part": "town/hand_lantern",
+     "pos": [
+      -3.3,
+      0.8,
+      8.0
+     ],
+     "blackout": true
+    },
+    {
+     "part": "town/hand_lantern",
+     "pos": [
+      3.3,
+      0.8,
+      8.0
+     ],
+     "blackout": true
+    },
+    {
+     "part": "town/hand_lantern",
+     "pos": [
+      19.4,
+      1.0,
+      4.4
+     ],
+     "blackout": true
+    },
+    {
+     "part": "town/hand_lantern",
+     "pos": [
+      33.4,
+      1.0,
+      4.4
+     ],
+     "blackout": true
+    },
+    {
+     "part": "town/hand_lantern",
+     "pos": [
+      -21.6,
+      1.0,
+      0.3
+     ],
+     "blackout": true
     }
    ],
+   "grid": "town",
    "ordo": {
     "pos": [
      0,
@@ -24167,6 +24373,23 @@
      "color": "#ffd9a8",
      "range": 12,
      "energy": 1.6
+    },
+    {
+     "pos": [
+      -7.51,
+      1.01,
+      20.0
+     ],
+     "color": "#ffa458",
+     "range": 7.0,
+     "energy": 1.3,
+     "source": "oil",
+     "blackout": true,
+     "glow": 0.32,
+     "pool": [
+      2.4,
+      0.0
+     ]
     }
    ],
    "props": [
@@ -25498,7 +25721,8 @@
       2.4
      ]
     }
-   ]
+   ],
+   "grid": "town"
   },
   "home": {
    "name": "ハルの家",
@@ -26012,7 +26236,19 @@
      ],
      "color": "#ffb070",
      "range": 5,
-     "energy": 1.2
+     "energy": 1.2,
+     "source": "oil"
+    },
+    {
+     "pos": [
+      -4.5,
+      1.36,
+      3.5
+     ],
+     "color": "#ffa458",
+     "source": "oil",
+     "omni": false,
+     "glow": 0.24
     }
    ],
    "props": [
@@ -26219,7 +26455,8 @@
       1.4
      ]
     }
-   ]
+   ],
+   "grid": "town"
   },
   "workshop": {
    "name": "ヤーナの工房",
@@ -27309,7 +27546,30 @@
      ],
      "color": "#ff9a5a",
      "range": 8,
-     "energy": 1.6
+     "energy": 1.6,
+     "source": "oil"
+    },
+    {
+     "pos": [
+      -6.76,
+      1.15,
+      6.55
+     ],
+     "color": "#ffa458",
+     "source": "oil",
+     "omni": false,
+     "glow": 0.2
+    },
+    {
+     "pos": [
+      -4.9,
+      1.15,
+      6.55
+     ],
+     "color": "#ffa458",
+     "source": "oil",
+     "omni": false,
+     "glow": 0.2
     }
    ],
    "props": [
@@ -27705,7 +27965,8 @@
       5.0
      ]
     }
-   ]
+   ],
+   "grid": "town"
   },
   "guild": {
    "name": "回収屋ギルド",
@@ -28340,6 +28601,29 @@
      "color": "#ffc27a",
      "range": 8,
      "energy": 1.6
+    },
+    {
+     "pos": [
+      -8.4,
+      1.25,
+      7.3
+     ],
+     "color": "#ffa458",
+     "source": "oil",
+     "omni": false,
+     "glow": 0.22
+    },
+    {
+     "pos": [
+      -8.2,
+      1.6,
+      6.9
+     ],
+     "color": "#ffa458",
+     "range": 7.5,
+     "energy": 1.4,
+     "source": "oil",
+     "blackout": true
     }
    ],
    "props": [
@@ -28614,7 +28898,8 @@
       4.0
      ]
     }
-   ]
+   ],
+   "grid": "town"
   },
   "mayor": {
    "name": "町長の家",
@@ -29148,7 +29433,8 @@
      ],
      "solid": true
     }
-   ]
+   ],
+   "grid": "town"
   },
   "r01": {
    "name": "禁足扉の前室",

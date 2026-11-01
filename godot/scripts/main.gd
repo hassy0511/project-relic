@@ -37,6 +37,8 @@ var props_view: PropsView
 var fx: Fx
 ## 映画のような場面（オープニング・オルドの停止）のカメラの道筋・外の舞台・足音・砂ぼこり・風（view/cine_director.gd）
 var cine: CineDirector
+## 町の電気の見た目（停電の夜の灯・油の灯・再始動の波。view/town_power.gd。正本は GameSim.powered）
+var power: TownPower
 var sun: DirectionalLight3D
 var args := {}
 var demo: Demo = null
@@ -90,6 +92,8 @@ func _ready() -> void:
 	camera.current = true
 	cine = CineDirector.new(self)
 	add_child(cine)
+	power = TownPower.new(self)
+	add_child(power)
 	camera.position = Vector3(0, 6, -10)
 	camera.look_at(Vector3.ZERO)
 	hud = Hud.new()
@@ -122,11 +126,14 @@ func _ready() -> void:
 func _rebuild_room_views() -> void:
 	if level != null and is_instance_valid(level):
 		level.queue_free()
+	# 町の電気：停電の間は、電気の灯を消し、停電の間だけの灯油ランプを置いて作る（TownPower）
+	var dark := power.begin_room(game)
 	if arena_kind != "":
 		level = ArenaView.build(game.geometry)
 	else:
-		level = RoomView.build(game.world, game.room_id)
+		level = RoomView.build(game.world, game.room_id, dark)
 	add_child(level)
+	power.room_built(level)
 	_apply_mood()
 	_sync_ordo(true)
 	if enemy_view != null and is_instance_valid(enemy_view):
@@ -155,7 +162,8 @@ func _apply_mood() -> void:
 	# キットの遠景の空（content/kits/<id>.json の "sky"。町は bg_desert_* の砂漠）
 	if arena_kind == "" and game.room.has("kit"):
 		var kd: Dictionary = RoomKit.load_kit(String(game.room.kit)).get("data", {})
-		EnvironmentSetup.apply_sky(sun, String(kd.get("sky", {}).get(mood, "")), kd.get("light", {}).get(mood, {}))
+		# 光の上書きは、停電の夜・夜の屋内なら "<雰囲気>_blackout"・"interior_night"（TownPower.light_for）
+		EnvironmentSetup.apply_sky(sun, String(kd.get("sky", {}).get(mood, "")), power.light_for(game, mood, kd.get("light", {})))
 
 
 ## 町の下のオルド（部屋の "ordo"。RoomView が作る OrdoView）
@@ -520,6 +528,7 @@ func _handle_events() -> void:
 	for e in game.drain_events():
 		fx.handle(e)
 		cine.handle(e)
+		power.handle(e)
 		nagomi_view.handle(e)
 		match e.type:
 			"sfx":
