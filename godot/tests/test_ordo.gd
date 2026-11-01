@@ -464,6 +464,8 @@ func test_back_town() -> void:
 			if c.a > 0.002:
 				lit += 1
 		h.expect(lit > 400, "%s：光る所（窓・店・灯）の頂点がある（%d）" % [part, lit])
+		o.set_mood("night")
+		h.expect(is_zero_approx(float(mat.get_shader_parameter("power"))), "%s：既定は消えている（部屋の夜は停電の夜だけ）" % part)
 		o.set_mood("day")
 		o.set_back_lights(1.0)
 		h.expect(is_zero_approx(float(mat.get_shader_parameter("power"))), "%s：昼は窓が光らない" % part)

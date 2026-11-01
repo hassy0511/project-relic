@@ -103,8 +103,9 @@ var _mood := "day"
 ## 背の上の遠くの町（back_part が帳の部品のとき）：1 つのメッシュと、このオルドだけの材質（灯の値はオルドごと）
 var back_mesh: MeshInstance3D = null
 var _back_mat: ShaderMaterial = null
-## 町の灯の値（set_back_lights）：明るさ・ちらつき・消えた割合と、雰囲気の明るさ（昼 0・夜明け 0.6・夜 1。set_mood）
-var back_power := 1.0
+## 町の灯の値（set_back_lights）：明るさ・ちらつき・消えた割合と、雰囲気の明るさ（昼 0・夜明け 0.6・夜 1。set_mood）。
+## 明るさの既定は 0（町の部屋の夜は停電の夜だけなので、部屋のオルドの町の窓は灯さない。場面（CineDirector）と、灯したい部屋が set_back_lights で決める）
+var back_power := 0.0
 var back_flicker := 0.0
 var back_out := 0.0
 var _back_mood_k := 0.0
@@ -920,7 +921,7 @@ func _make_back() -> void:
 ## 背の上の町の灯（家の窓・店・街灯・塔の灯）：明るさ power（0〜1）、ちらつき flicker（0〜1）、消えた割合 out（0〜1。灯ごとに決まった順に
 ## 消え、消える直前は強くちらつく）。町の面の窓の光（back_mesh。雰囲気の明るさ set_mood を掛ける：昼は光らない）と、遠くの灯の点
 ## （TownLights。add_town_lights で出したときだけ）の両方に渡す。部屋のオルド（中段・下段の胸壁の向こうの ordo_back）にも使える：
-## 例 停電の夜は set_back_lights(0.0) か set_back_lights(1.0, 0.0, 1.0)。set_mood のあとでも値は残る
+## 既定は消えている（明るさ 0）。例 夜の町を灯す set_back_lights(1.0)、非常灯だけ残す set_back_lights(0.7, 0.3, 0.9)。set_mood のあとでも値は残る
 func set_back_lights(power: float, flicker := 0.0, out := 0.0) -> void:
 	back_power = maxf(power, 0.0)
 	back_flicker = clampf(flicker, 0.0, 1.0)
