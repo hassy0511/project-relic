@@ -814,11 +814,14 @@ func set_ground_rocks(k: float) -> void:
 		(ground_node.material_override as ShaderMaterial).set_shader_parameter("rock_amount", k)
 
 
-## 背の上の町の灯（TownLights。家の壁の窓・大通りの街灯・段の縁・塔の灯）を出す。体と一緒に動く骨の子に置く。描画 +1
+## 背の上の町の灯の点（TownLights。町の部品の灯の表の窓・街灯・塔の灯）を出す。体と一緒に動く骨の子に置く。値は set_back_lights と同じ（今の値で始める）。描画 +1
 func add_town_lights() -> TownLights:
 	if town_lights == null:
 		town_lights = TownLights.new()
 		town_lights.part = back_part if back_part != "" else "town/ordo_town"
+		town_lights.power = back_power
+		town_lights.flicker = back_flicker
+		town_lights.out = back_out
 		(skeleton if skeleton != null else model).add_child(town_lights)
 	return town_lights
 
@@ -866,7 +869,6 @@ func set_mood(mood: String) -> void:
 	m.set_shader_parameter("dark_color", Color(c[1]))
 	m.set_shader_parameter("far_color", Color(c[2]))
 	m.set_shader_parameter("ripple", float(c[3]))
-
 
 
 # ---------------------------------------------------------------- 背の上の遠くの町（帳の部品）
