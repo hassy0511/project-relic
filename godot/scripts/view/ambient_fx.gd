@@ -16,6 +16,10 @@ var room_id := ""
 var sources: Array = []
 var _rng := RandomNumberGenerator.new()
 var _t := 0.0
+## オルドの足音（OrdoSteps）で砂ぼこりの落ちる所：部屋の飾りの、揺れる布（日よけ・洗濯物・垂れ幕）の下の端（ワールド）
+var puffs := PackedVector3Array()
+## 足音の砂ぼこり・こぼれる砂の乱数（落砂・蒸気の並びを変えない）
+var _srng := RandomNumberGenerator.new()
 
 
 ## 部屋の出所を作り直す（部屋が変わったとき）。room_id は乱数の種にも使う（同じ部屋なら同じ並び）
@@ -24,6 +28,8 @@ func build(id: String, room: Dictionary) -> void:
 	_t = 0.0
 	_rng.seed = hash(id) & 0x7fffffff
 	sources.clear()
+	puffs = OrdoSteps.puff_points(room)
+	_srng.seed = (hash(id) + 77) & 0x7fffffff
 	if not room.has("kit") or not room.has("dress"):
 		return
 	var kit := RoomKit.load_kit(String(room.kit))
@@ -115,3 +121,63 @@ func burst_soon(delay: float) -> void:
 	for s in sources:
 		if String(s.kind) == "steam":
 			s.next = _t + delay
+
+
+# ---------------------------------------------------------------- オルドの足音（OrdoSteps が足の着くたびに呼ぶ）
+
+## 屋外：カメラ（cam）の前・25 m 以内の、揺れる布の下の端から n か所選び、砂ぼこりが少し落ちる（strength：近い脚ほど大きい 0.5〜1.6）
+func step_puffs(vfx: Vfx, cam: Vector3, fwd: Vector3, n: int, strength := 1.0) -> int:
+	if puffs.is_empty() or vfx == null:
+		return 0
+	var near: Array = []
+	for p in puffs:
+		var d := p - cam
+		var l := d.length()
+		if l < 2.0 or l > 25.0 or d.dot(fwd) < 0.35 * l:
+			continue
+		near.append(p)
+	var made := 0
+	for k in mini(n, near.size()):
+		var i := _srng.randi_range(0, near.size() - 1)
+		var at: Vector3 = near[i]
+		near.remove_at(i)
+		for j in _srng.randi_range(2, 3):
+			var a := _srng.randf() * TAU
+			var out := Vector3(sin(a), 0.0, cos(a))
+			var q := vfx.emit(Vfx.DUST, at + out * 0.15 + Vector3(0, -0.05, 0),
+				out * _srng.randf_range(0.12, 0.3) + Vector3(0, -_srng.randf_range(0.15, 0.4), 0),
+				_srng.randf_range(1.4, 2.1), 0.1, _srng.randf_range(0.45, 0.7) * clampf(strength, 0.6, 1.3),
+				Color(DUST_COLOR, _srng.randf_range(0.26, 0.38) * clampf(strength, 0.5, 1.2)))
+			q.rot = _srng.randf() * TAU
+			q.spin = _srng.randf_range(-0.4, 0.4)
+			q.drag = 1.4
+			q.fin = 0.15
+			q.fpow = 1.3
+			q.grav = 0.12
+		made += 1
+	return made
+
+
+## 屋内・遺構：ハル（at）の前・まわりの天井（高さ top）の n か所から、細い砂がこぼれる（細かい粒が数個ずつ落ちて消える）
+func step_sift(vfx: Vfx, at: Vector3, fwd: Vector3, top: float, n: int) -> int:
+	if vfx == null:
+		return 0
+	var side := Vector3(-fwd.z, 0.0, fwd.x)
+	for k in n:
+		var p := at + fwd * _srng.randf_range(1.5, 4.5) + side * _srng.randf_range(-3.0, 3.0)
+		p.y = top - 0.05
+		var grains := _srng.randi_range(5, 8)
+		for j in grains:
+			var q := vfx.emit(Vfx.DOT, p + Vector3(_srng.randf_range(-0.12, 0.12), -_srng.randf_range(0.0, 0.25), _srng.randf_range(-0.12, 0.12)),
+				Vector3(0, -_srng.randf_range(0.2, 0.6), 0), _srng.randf_range(1.6, 2.4), 0.035, 0.06,
+				Color(DUST_COLOR, _srng.randf_range(0.55, 0.8)))
+			q.grav = 2.2
+			q.drag = 0.6
+			q.fin = 0.12
+			q.fpow = 1.6
+		# 細い砂の筋のかすみ（大きくやわらかい粒 1 つ）
+		var h := vfx.emit(Vfx.DUST, p + Vector3(0, -0.3, 0), Vector3(0, -0.35, 0), 2.0, 0.08, 0.35, Color(DUST_COLOR, 0.22))
+		h.grav = 0.1
+		h.drag = 0.8
+		h.fin = 0.2
+	return n

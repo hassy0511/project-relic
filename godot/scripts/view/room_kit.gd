@@ -572,6 +572,8 @@ static func part_mesh(part: String, kit: Dictionary) -> Mesh:
 		for p in (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array):
 			lo = minf(lo, p.y)
 			hi = maxf(hi, p.y)
+	# オルドの足音（OrdoSteps）：吊り灯に揺れの重みを足し、揺れる布の下の端（砂ぼこりの出る所）を覚える。content/ordo_steps.json の部品だけ
+	OrdoSteps.part_loaded(part, surfs, kit)
 	for name in surfs:
 		var arrays: Array = surfs[name]
 		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]

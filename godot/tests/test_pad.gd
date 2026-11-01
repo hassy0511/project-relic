@@ -243,7 +243,7 @@ func test_controls_screen_assign() -> void:
 	var backed := [false]
 	menu.show_controls(func(): backed[0] = true)
 	await h.tree.process_frame
-	h.expect(menu.buttons.size() == PadConfig.ACTIONS.size() + 8, "全部の操作＋表記・遊び 2 つ・カメラの回り込み・フラッシュの強さ・PS 配置・初期に戻す・戻る の行がある")
+	h.expect(menu.buttons.size() == PadConfig.ACTIONS.size() + 9, "全部の操作＋表記・遊び 2 つ・カメラの回り込み・フラッシュの強さ・画面の揺れ・PS 配置・初期に戻す・戻る の行がある")
 	h.expect(menu.pad_info_text().contains("押したボタンの番号"), "押したボタンの番号の表示がある")
 	# 割り当て待ちでないときは、押したものを表示するだけ
 	menu.feed_event(_btn(7))
@@ -272,9 +272,13 @@ func test_controls_screen_assign() -> void:
 	menu.buttons[PadConfig.ACTIONS.size() + 4].pressed.emit()
 	await h.tree.process_frame
 	h.expect(PadConfig.flash == 0.5, "フラッシュの強さを決定で切り替える（標準 → 弱め）")
-	menu.buttons[PadConfig.ACTIONS.size() + 6].pressed.emit()
+	menu.buttons[PadConfig.ACTIONS.size() + 5].pressed.emit()
 	await h.tree.process_frame
-	h.expect(PadConfig.pad.jump == "b0" and PadConfig.cam_follow == "weak" and PadConfig.flash == 1.0, "初期に戻す（カメラの回り込みは弱い、フラッシュは標準に戻る）")
+	h.expect(PadConfig.shake == 0.5, "画面の揺れを決定で切り替える（標準 → 弱め）")
+	menu.buttons[PadConfig.ACTIONS.size() + 7].pressed.emit()
+	await h.tree.process_frame
+	h.expect(PadConfig.pad.jump == "b0" and PadConfig.cam_follow == "weak" and PadConfig.flash == 1.0 and PadConfig.shake == 1.0,
+		"初期に戻す（カメラの回り込みは弱い、フラッシュ・画面の揺れは標準に戻る）")
 	menu.queue_free()
 	_end()
 
@@ -366,6 +370,61 @@ func test_flash_setting() -> void:
 		"スマホ：選んでいない行の 1 回目のタップは選ぶだけ（右に説明。値は標準のまま）")
 	await _tap(vp, menu.buttons[row].get_global_rect().get_center())
 	h.expect(PadConfig.flash == 0.5, "スマホ：選んでいる行をもう一度タップすると切り替わる（弱め）")
+	menu.queue_free()
+	vp.queue_free()
+	PadConfig.reset_all()
+	_end()
+
+
+## 設定画面の「画面の揺れ」（20 章 22 節）：決定で 標準 1.0 → 弱め 0.5 → 切 0 と切り替わり、user://input.cfg に保存される。
+## 段階の外の値は近い段階に、読めない値は標準に。スマホ（844×390 と同じ UI の大きさ）でも行は実寸 48px 以上、選んでいる行のタップで切り替わる
+func test_shake_setting() -> void:
+	_begin()
+	PadConfig.reset_all()
+	h.expect(PadConfig.shake == 1.0 and PadConfig.shake_text() == "標準", "初めは標準（1.0）")
+	var vp := SubViewport.new()
+	vp.size = Vector2i(1477, 682)
+	h.tree.root.add_child(vp)
+	var menu := Menu.new()
+	vp.add_child(menu)
+	await h.tree.process_frame
+	menu.show_controls(func(): pass)
+	await h.tree.process_frame
+	await h.tree.process_frame
+	var row := PadConfig.ACTIONS.size() + 5
+	h.expect(menu.buttons[row].text == "画面の揺れ", "設定画面に「画面の揺れ」の行（%s）" % menu.buttons[row].text)
+	menu.buttons[row].grab_focus()
+	await h.tree.process_frame
+	await _push_pair(vp, _btn(0))
+	h.expect(PadConfig.shake == 0.5 and PadConfig.shake_text() == "弱め", "決定で 弱め（0.5）：%.1f" % PadConfig.shake)
+	await _push_pair(vp, _btn(0))
+	h.expect(PadConfig.shake == 0.0 and PadConfig.shake_text() == "切", "もう一度で 切（0）：%.1f" % PadConfig.shake)
+	h.expect(menu.buttons[row].has_focus(), "切り替えたあとも同じ行を選んでいる")
+	PadConfig.shake = 1.0
+	PadConfig.load_file()
+	h.expect(PadConfig.shake == 0.0, "保存される（読み直しても切）")
+	var cf := ConfigFile.new()
+	cf.load(TEST_CFG)
+	cf.set_value("options", "shake", 0.6)
+	cf.save(TEST_CFG)
+	PadConfig.load_file()
+	h.expect(PadConfig.shake == 0.5, "段階の外の値は近い段階にそろえる（0.6 → 弱め）")
+	cf.set_value("options", "shake", "ゆるく")
+	cf.save(TEST_CFG)
+	PadConfig.load_file()
+	h.expect(PadConfig.shake == 1.0, "読めない値は標準")
+	# スマホ：選んでいる行のタップで切り替わる
+	menu.touch_mode = true
+	PadConfig.reset_all()
+	menu.show_controls(func(): pass)
+	await h.tree.process_frame
+	await h.tree.process_frame
+	menu.buttons[row].grab_focus()
+	await h.tree.process_frame
+	var px := 390.0 / 682.0
+	h.expect(menu.buttons[row].size.y * px >= 48.0, "スマホ：行の高さが実寸 %.1fpx（48px 以上）" % (menu.buttons[row].size.y * px))
+	await _tap(vp, menu.buttons[row].get_global_rect().get_center())
+	h.expect(PadConfig.shake == 0.5, "スマホ：選んでいる行をタップすると切り替わる（弱め）")
 	menu.queue_free()
 	vp.queue_free()
 	PadConfig.reset_all()

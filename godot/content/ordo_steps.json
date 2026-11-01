@@ -1,0 +1,56 @@
+{
+ "_doc": "町で感じるオルドの歩み（OrdoSteps。docs/design/30_レベルデザイン設計.md 4.2.1）。音の大きさは dB（効果音の音量からの差）。位置はオルドの座標（原点 = 背の歩行面の真ん中、+Z が船首、+X が左舷、地面は y = -120）",
+ "restart_first_s": 2.5,
+ "shoulders": {
+  "l1": [59, -35, 140], "l2": [59, -35, 48], "l3": [59, -35, -48], "l4": [59, -35, -140],
+  "r1": [-59, -35, 140], "r2": [-59, -35, 48], "r3": [-59, -35, -48], "r4": [-59, -35, -140]
+ },
+ "places": {
+  "town": {
+   "sound": "ordo_thud", "db": -9.0, "ref_m": 100.0, "range_db": [-9.0, 5.0],
+   "camera": 0.011, "roll_deg": 0.09, "jolt": 0.055, "puffs": 4
+  },
+  "interior": {
+   "sound": "ordo_thud_in", "db": -10.0, "ref_m": 100.0, "range_db": [-8.0, 4.0],
+   "camera": 0.008, "roll_deg": 0.07, "jolt": 0.06, "sift": 3,
+   "rattle": "ordo_rattle", "rattle_db": -19.0, "rattle_chance": 0.7
+  },
+  "ruins": {
+   "sound": "ordo_thud_deep", "db": -7.0, "ref_m": 60.0, "range_db": [-7.0, 5.0],
+   "camera": 0.016, "roll_deg": 0.12, "jolt": 0.07, "sift": 4
+  }
+ },
+ "rooms": {
+  "ch1.opening": {"place": "town"},
+  "ch1.lower": {"place": "town"},
+  "ch1.mid": {"place": "town"},
+  "ch1.upper": {"place": "town", "at": [0, 12, 58]},
+  "ch1.training": {"place": "town", "at": [30, 1.5, -46]},
+  "ch1.home": {"place": "interior", "at": [-22, 1.5, -30], "ceiling": 4.4},
+  "ch1.workshop": {"place": "interior", "at": [16, 6.5, 12], "ceiling": 5.9},
+  "ch1.guild": {"place": "interior", "at": [-16, 12, 46], "ceiling": 5.9},
+  "ch1.mayor": {"place": "interior", "at": [16, 12, 52], "ceiling": 4.7},
+  "ch1.r01": {"place": "ruins", "at": [-30, -3, -56], "ceiling": 5.0}
+ },
+ "kits": {
+  "ruins_b1": {"place": "ruins", "at": [0, -8, -24], "ceiling": 5.0},
+  "ruins_b2": {"place": "ruins", "at": [0, -19, -10], "ceiling": 6.0},
+  "ruins_b3": {"place": "ruins", "at": [0, -31, 0], "ceiling": 7.0},
+  "ruins_b4": {"place": "ruins", "at": [0, -43, 10], "ceiling": 8.0}
+ },
+ "hang": {
+  "town/lamp_post": {"w": 0.35},
+  "town/lamp_tall": {"w": 0.35},
+  "town/stall": {"w": 0.4},
+  "town/tent": {"w": 0.4},
+  "town/training_set": {"w": 0.4},
+  "town/ordo_landing": {"w": 0.35},
+  "town/home_set": {"w": 0.3, "chains": [[0.0, 0.0, 4.5]]},
+  "town/workshop_set": {"w": 0.3, "chains": [[0.0, 0.0, 6.0]]},
+  "town/mayor_set": {"w": 0.3, "chains": [[0.0, 0.0, 4.8]]},
+  "town/guild_set": {"w": 0.3}
+ },
+ "puffs": ["town/stall", "town/tent", "town/ordo_landing_awning", "town/lower_set", "town/upper_set", "town/workshop_front",
+  "town/diner_front", "town/market_general", "town/market_junk", "town/training_set", "town/opening_set", "town/laundry_line",
+  "town/laundry_line_8", "town/clothesline", "town/goods_cloth", "town/goods_cloth_wall", "town/sign_cloth"]
+}

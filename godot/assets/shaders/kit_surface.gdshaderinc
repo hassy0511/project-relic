@@ -37,6 +37,10 @@ void vertex() {
 	if (sway_amp.x + sway_amp.y > 0.0) {
 		kit_sway(VERTEX, 1.0 - COLOR.a, MODEL_MATRIX, TIME);
 	}
+	// オルドの足音の揺れ（jolt。OrdoSteps が足の着いたあと数秒だけ入れる）
+	if (jolt.w > 0.0) {
+		kit_jolt(VERTEX, 1.0 - COLOR.a, MODEL_MATRIX);
+	}
 }
 
 float seam(vec2 uvm) {

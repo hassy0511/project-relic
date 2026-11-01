@@ -13,6 +13,9 @@ uniform vec4 sway_amp = vec4(0.0);
 uniform vec4 sway_wind = vec4(0.0, 0.0, -1.0, 1.0);
 // 流れ（落砂の流れの面）：x = 下へ流れる速さ（m/s）、y = 模様の縦の大きさ（m）、z = 明暗の幅（0〜1）、w = 縁のちらつき（0〜1）
 uniform vec4 flow = vec4(0.0);
+// オルドの足音の揺れ（OrdoSteps が足の着くたびに入れる。30 章 4.2.1）：xy = 揺れの向き（ワールドの水平 x・z、大きさ 1）、
+// z = 足が着いてからの秒、w = 重み 1 の頂点の揺れの幅（m）。w = 0 なら何もしない。重みは sway と同じ頂点の色のアルファ
+uniform vec4 jolt = vec4(0.0);
 
 // 格子の値の乱数（sin を使わない。入力は小さい数にして使う）
 float kit_hash(vec2 p) {
@@ -64,6 +67,23 @@ void kit_sway(inout vec3 vertex, float w, mat4 model, float time) {
 	float push = sway_amp.x * (0.25 + 0.75 * g) * (0.85 + 0.15 * sin(t * 0.9 + ph));
 	vec3 d = (W * (push + fl * 0.45 * sin(a2)) + S * (fl * sin(a1))) * w;
 	vertex += inverse(m) * d;
+}
+
+// 足音の揺れ：足が着いた衝撃で、吊った物・布が振り子のように揺れて収まる（約 0.8 Hz、4 秒ほどで消える）。
+// 場所ごとに揺れの速さと向きを少しずらす（隣の灯・布とそろわない）。重み w の頂点ほど大きく動く
+void kit_jolt(inout vec3 vertex, float w, mat4 model) {
+	if (w <= 0.002 || jolt.w <= 0.0) {
+		return;
+	}
+	vec3 wp = (model * vec4(vertex, 1.0)).xyz;
+	float ph = dot(wp.xz, vec2(0.71, 0.53)) + 0.6 * sin(wp.x * 0.37 + wp.z * 0.23);
+	float t = jolt.z;
+	float om = 5.0 * (0.85 + 0.3 * fract(ph * 0.159));
+	float a = jolt.w * (1.0 - exp(-t * 14.0)) * exp(-t * 0.9) * sin(t * om + 0.25 * sin(ph));
+	vec3 dir = vec3(jolt.x, 0.0, jolt.y);
+	vec3 side = vec3(-dir.z, 0.0, dir.x);
+	vec3 d = (dir + side * 0.45 * sin(ph * 1.7)) * a * w;
+	vertex += inverse(mat3(model)) * d;
 }
 
 // 流れ：落砂の流れの面の色に、下へ流れる明暗の筋と、縁（面が横を向く所）のちらつきを掛ける。fw = 重み、wp = ワールドの位置、

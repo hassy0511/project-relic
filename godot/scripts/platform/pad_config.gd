@@ -68,6 +68,11 @@ static var cam_follow := "weak"
 const FLASH_STEPS := [1.0, 0.5, 0.2]
 const FLASH_NAMES := ["標準", "弱め", "最小"]
 static var flash := 1.0
+## 画面の揺れ（設定画面の「画面の揺れ」。20 章 22 節）：画面の揺れ（Fx の揺れ・場面の揺れ・オルドの足音の揺れ）に掛ける倍率。
+## main が毎刻み CameraRig.shake_scale へ入れ、CameraRig・CineDirector・OrdoSteps がそれを掛ける。標準 1.0 ／ 弱め 0.5 ／ 切 0
+const SHAKE_STEPS := [1.0, 0.5, 0.0]
+const SHAKE_NAMES := ["標準", "弱め", "切"]
+static var shake := 1.0
 
 
 static func defaults() -> Dictionary:
@@ -93,6 +98,7 @@ static func reset() -> void:
 	dead_r = 0.2
 	cam_follow = "weak"
 	flash = 1.0
+	shake = 1.0
 	_loaded = true
 
 
@@ -115,6 +121,8 @@ static func load_file() -> void:
 	cam_follow = cfw if CAM_FOLLOWS.has(cfw) else "weak"
 	var fl = cf.get_value("options", "flash", 1.0)
 	flash = FLASH_STEPS[_flash_index(float(fl))] if (fl is float or fl is int) else 1.0
+	var sh = cf.get_value("options", "shake", 1.0)
+	shake = SHAKE_STEPS[_step_index(SHAKE_STEPS, float(sh))] if (sh is float or sh is int) else 1.0
 	for a in ACTIONS:
 		var id: String = a[0]
 		var p = cf.get_value("pad", id, "?")
@@ -137,6 +145,7 @@ static func save() -> void:
 	cf.set_value("options", "dead_r", dead_r)
 	cf.set_value("options", "cam_follow", cam_follow)
 	cf.set_value("options", "flash", flash)
+	cf.set_value("options", "shake", shake)
 	for a in ACTIONS:
 		var id: String = a[0]
 		cf.set_value("pad", id, pad.get(id, ""))
@@ -307,6 +316,27 @@ static func _flash_index(v: float) -> int:
 	var best := 0
 	for i in FLASH_STEPS.size():
 		if absf(FLASH_STEPS[i] - v) < absf(FLASH_STEPS[best] - v):
+			best = i
+	return best
+
+
+## 画面の揺れを次の段階へ（標準 → 弱め → 切 → 標準）
+static func cycle_shake() -> void:
+	ensure_loaded()
+	shake = SHAKE_STEPS[(_step_index(SHAKE_STEPS, shake) + 1) % SHAKE_STEPS.size()]
+	save()
+
+
+## 画面の揺れの名前（標準・弱め・切）
+static func shake_text() -> String:
+	return SHAKE_NAMES[_step_index(SHAKE_STEPS, shake)]
+
+
+## 段階の表で、値にいちばん近い段階の番号
+static func _step_index(steps: Array, v: float) -> int:
+	var best := 0
+	for i in steps.size():
+		if absf(float(steps[i]) - v) < absf(float(steps[best]) - v):
 			best = i
 	return best
 
