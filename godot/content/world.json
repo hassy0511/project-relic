@@ -21,6 +21,9 @@
   "events/ch1_town.json",
   "events/ch1_ruins.json"
  ],
+ "power": {
+  "town": {"off": {"all": ["ch1.ordo_stopped", {"not": "ch1.ordo_restarted"}]}}
+ },
  "items": "items.json",
  "economy": "economy.json"
 }

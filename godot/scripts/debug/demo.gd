@@ -149,6 +149,10 @@ func _ready() -> void:
 	if main.args.has("opening_shots"):
 		_steps.clear()
 		_steps.append_array(OpeningShots.steps(self))
+	# --blackout_shots：停電の夜の町の見た目と、再始動の歓声で灯が戻るところ（scripts/debug/blackout_shots.gd）
+	if main.args.has("blackout_shots"):
+		_steps.clear()
+		_steps.append_array(BlackoutShots.steps(self))
 	# --haru_motion_shots：ハルの髪・ポーチの揺れと足の接地の前と後（scripts/debug/haru_motion_shots.gd）
 	if main.args.has("haru_motion_shots"):
 		_steps.clear()
@@ -1289,6 +1293,8 @@ func _process(_dt: float) -> void:
 			main.args.erase("mvp")
 		if main.args.has("townsfolk_shots") or main.args.has("talk_cam_shots") or main.args.has("letterbox_shots"):
 			main.args.erase("mvp")   # 町の住人・会話のカメラ・イベントの黒帯の確認は第 1 章で
+		if main.args.has("blackout_shots"):
+			main.args.erase("mvp")   # 停電の夜の確認は第 1 章の町で
 		main.start_game(null)
 		main.game.god_mode = true
 		for i in 30:

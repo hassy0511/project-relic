@@ -43,10 +43,11 @@ def plates(p: Part, xs, ys, z, face=1):
                   else boxb(x - 0.05, x + 0.05, y - 0.09, y + 0.09, z - 0.025, z))
 
 
-def lantern(p: Part, x, y, z, s=1.0):
-    """吊り灯（小物 10）：真鍮の笠・発光の芯・4 本の格子・底。(x, y, z) は芯の中心"""
+def lantern(p: Part, x, y, z, s=1.0, core='amber'):
+    """吊り灯（小物 10）：真鍮の笠・発光の芯・4 本の格子・底。(x, y, z) は芯の中心。
+    core：芯の材質。'amber' = 電気の灯（町の電気が切れると消える）、'flame' = 油の灯（携行灯。停電でも灯る。42 章 14.8）"""
     p.add('brass', lathe((x, y + 0.13 * s, z), (x, y + 0.26 * s, z), [(0, 0.13 * s), (0.5, 0.11 * s), (1, 0.03 * s)], 10))
-    p.add('amber', cyl((x, y - 0.12 * s, z), (x, y + 0.13 * s, z), 0.075 * s, 8))
+    p.add(core, cyl((x, y - 0.12 * s, z), (x, y + 0.13 * s, z), 0.075 * s, 8))
     for k in range(4):
         a = math.pi / 4 + k * math.pi / 2
         dx, dz = 0.095 * s * math.cos(a), 0.095 * s * math.sin(a)
@@ -546,10 +547,10 @@ def sand_screen() -> Part:
 
 
 def hand_lantern() -> Part:
-    """18 携行灯 0.5 m（床置き）"""
+    """18 携行灯 0.5 m（床置き）。灯油の灯（芯は flame：町の電気が切れても灯る。停電の夜の灯油ランプ。42 章 14.8）"""
     p = Part('hand_lantern')
     p.add('graphite', boxb(-0.13, 0.13, 0, 0.06, -0.13, 0.13))
-    lantern(p, 0, 0.25, 0, 1.0)
+    lantern(p, 0, 0.25, 0, 1.0, core='flame')
     p.add('brass', tube([(-0.08, 0.6, 0), (-0.06, 0.68, 0), (0.06, 0.68, 0), (0.08, 0.6, 0)], 0.012, 5))
     return p
 

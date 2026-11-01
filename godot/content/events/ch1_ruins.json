@@ -825,6 +825,17 @@
   "cutscene": true,
   "steps": [
    {
+    "fx": "town_power_on",
+    "pos": [
+     0,
+     -6,
+     2
+    ]
+   },
+   {
+    "wait": 1.2
+   },
+   {
     "say": "ch1.cheer"
    },
    {
