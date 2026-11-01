@@ -330,9 +330,9 @@ func _ready_ordo(o: OrdoView) -> void:
 	if o.town_lights == null:
 		# 初めて出すときだけ明るさを決める（次の道筋で、消えかけた灯を点け直さない）
 		var tl := o.add_town_lights()
-		tl.power = LIGHT_POWER.get(_mood(), 1.0)
 		tl.px = LIGHT_PX.get(_mood(), 5.5)
-		tl.apply()
+		# 町の面の窓（back_mesh）と灯の点に同じ値
+		o.set_back_lights(LIGHT_POWER.get(_mood(), 1.0))
 	if not o.foot_planted.is_connected(_on_planted):
 		o.foot_planted.connect(_on_planted)
 
@@ -487,12 +487,9 @@ func _update_stop(dt: float) -> void:
 	if t >= 0.6 and not _stop_started:
 		_stop_started = true
 		o.cine_stop()
-	var tl := o.town_lights
-	if tl != null:
-		tl.flicker = clampf(t / 1.5, 0.0, 1.0) * 0.7
-		tl.out = smoothstep(5.5, 9.5, t)
-		tl.power = LIGHT_POWER.get(_mood(), 1.0) * (1.0 - 0.4 * smoothstep(8.0, 10.0, t))
-		tl.apply()
+	# 町の灯（町の面の窓と灯の点）
+	o.set_back_lights(LIGHT_POWER.get(_mood(), 1.0) * (1.0 - 0.4 * smoothstep(8.0, 10.0, t)), clampf(t / 1.5, 0.0, 1.0) * 0.7,
+		smoothstep(5.5, 9.5, t))
 	# 琥珀の灯（体の帯・梁の灯）：1/12 秒ごとにちらついてから、非常灯の明るさ（0.3）へ
 	var k := 1.0
 	if t < 4.0:

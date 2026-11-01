@@ -22,7 +22,11 @@ extends Node3D
 ##   body_fixed = true ：体（町）が止まっていて地面が動く（町の縁から見下ろす場面）。地面に ground_offset() を足す。
 ## 軽さ：毎フレーム、脚 8 本 × 関節 4 つの Transform を置くだけ（三角関数が十数回）。
 ##   描くのは、部品のメッシュを 1 つにまとめた皮つきメッシュ（merged。部品のノードを骨にした Skeleton3D で動かす）。面は頂点の色で 3 つ
-##   （flat：白磁・布・暗い芯、metal：黒鉛・真鍮、amber：灯）にまとめ、背の上の遠くの町（back_part）も同じ面に入れる。描画は 3 回（＋砂の床 1）。
+##   （flat：白磁・布・暗い芯、metal：黒鉛・真鍮、amber：灯）にまとめる。描画は 3 回（＋砂の床 1）。
+##   背の上の遠くの町（back_part。キットの部品 town/ordo_town・town/ordo_back、tools/blender/kit/town_far.py）は、町の絵の帳（town_far.png）を貼った
+##   別の 1 つのメッシュ（back_mesh。描画 1 回、シェーダー town_far.gdshader）で、体の骨と一緒に動く。夜は窓と街灯が光り、
+##   set_back_lights(明るさ, ちらつき, 消えた割合) で灯を暗くしたり順に消したりできる（停止の場面・停電の夜。雰囲気の明るさ set_mood を掛ける）。
+##   帳の無い古い形の部品（材質 flat・metal・amber）なら、前のとおり体の 3 つの面にまとめる。
 ##   GLB の部品のノード（model）は骨の姿勢を決める見えない骨組みとして残す（テスト・撮影が部品の位置を読む）。遠景では影を落とさない。
 ## 町の部屋に置く（部屋の "ordo"：docs/design/42_コンテンツの書き方.md 14.5）：body_fixed = true、ground = true（120 m 下の砂の床が
 ##   体の進みだけ後ろへ流れ、遠くは空の絵の下の帯へ溶ける）。歩く・止まるは main.gd がフラグ（ch1.ordo_stopped・ch1.ordo_restarted）から決める。
@@ -53,7 +57,7 @@ const ANKLE_SWING_MAX := 15.0    ## 浮いている足の足首の角の上限�
 @export var merged := true       ## 部品のメッシュを 1 つの皮つきメッシュにまとめて描く（描画は材質の数だけ）
 @export var cast_shadows := false  ## 影を落とすか（町の遠景では落とさない）
 @export var ground := false      ## 120 m 下の砂の床（body_fixed のとき体の進みだけ流れる。遠くは透明にして空の絵の下の帯へつなぐ）
-@export var back_part := ""      ## 背の上の遠くの町（キットの部品の名前。例 "town/ordo_back"）。体と一緒の 3 つの面で描く（merged のとき）
+@export var back_part := ""      ## 背の上の遠くの町（キットの部品の名前。例 "town/ordo_back"）。帳の部品は別の 1 つのメッシュ（back_mesh）で描く
 @export var landing := true      ## リフトの踊り場（部品 lift_landing）を描くか。部屋が同じ形の飾り town/ordo_landing を置くときは false（set_landing）
 
 var model: Node3D
@@ -96,6 +100,19 @@ var _amber_energy := 1.0
 var _amber_albedo := Color.WHITE
 ## 今の雰囲気（set_mood。あとから砂の床を出すときの色）
 var _mood := "day"
+## 背の上の遠くの町（back_part が帳の部品のとき）：1 つのメッシュと、このオルドだけの材質（灯の値はオルドごと）
+var back_mesh: MeshInstance3D = null
+var _back_mat: ShaderMaterial = null
+## 町の灯の値（set_back_lights）：明るさ・ちらつき・消えた割合と、雰囲気の明るさ（昼 0・夜明け 0.6・夜 1。set_mood）
+var back_power := 1.0
+var back_flicker := 0.0
+var back_out := 0.0
+var _back_mood_k := 0.0
+const BACK_SHADER := "res://assets/shaders/town_far.gdshader"
+const BACK_ATLAS := "res://assets/kit/tex/town_far.png"
+## 雰囲気ごとの町の窓の明るさ（set_mood）
+const BACK_MOOD := {"day": 0.0, "dawn": 0.6, "night": 1.0}
+static var _back_cache := {}     ## 部品の名前 → 帳の部品のメッシュ（無ければ null：古い形の部品）
 
 const JOINTS := ["body", "door", "lift_guide", "lift_cage", "lift_landing"]
 const GROUND_SIZE := 6000.0
@@ -125,6 +142,7 @@ func _ready() -> void:
 			legs.append(leg)
 	if merged:
 		_build_skinned()
+	_make_back()
 	set_landing(landing)
 	if ground:
 		_make_ground()
@@ -549,7 +567,7 @@ func _build_skinned() -> void:
 			skeleton.set_bone_rest(bi, _root_pose)
 		index[j] = bi
 		_bones.append(j)
-	var key := MODEL_PATH + "|" + back_part
+	var key := MODEL_PATH + "|" + (back_part if _far_mesh(back_part) == null else "")
 	if not _merged_cache.has(key):
 		_merged_cache[key] = _merge_meshes(joints, index)
 	var c: Dictionary = _merged_cache[key]
@@ -612,9 +630,9 @@ func _merge_meshes(joints: Array, index: Dictionary) -> Dictionary:
 				meshes.append(c)
 		for mi in meshes:
 			sources.append([bi, mi, _to_model(mi)])
-	# 背の上の遠くの町（キットの部品。原点 = オルドの原点 = 背の面の真ん中）：体の骨（0）へ
+	# 背の上の遠くの町（古い形のキットの部品。原点 = オルドの原点 = 背の面の真ん中）：体の骨（0）へ。帳の部品は back_mesh で別に描く
 	var extra: Node = null
-	if back_part != "":
+	if back_part != "" and _far_mesh(back_part) == null:
 		var path := "res://assets/kit/%s.glb" % back_part
 		if ResourceLoader.exists(path):
 			extra = (load(path) as PackedScene).instantiate()
@@ -799,6 +817,7 @@ func set_ground_rocks(k: float) -> void:
 func add_town_lights() -> TownLights:
 	if town_lights == null:
 		town_lights = TownLights.new()
+		town_lights.part = back_part if back_part != "" else "town/ordo_town"
 		(skeleton if skeleton != null else model).add_child(town_lights)
 	return town_lights
 
@@ -836,6 +855,8 @@ func _sync_ground() -> void:
 ## 雰囲気（day・night・dawn。main.gd の _apply_mood と同じ名前）に合わせて砂の床の色を替える
 func set_mood(mood: String) -> void:
 	_mood = mood
+	_back_mood_k = float(BACK_MOOD.get(mood, 0.0))
+	_apply_back_lights()
 	if ground_node == null:
 		return
 	var c: Array = GROUND_MOODS.get(mood, GROUND_MOODS.day)
@@ -845,3 +866,76 @@ func set_mood(mood: String) -> void:
 	m.set_shader_parameter("far_color", Color(c[2]))
 	m.set_shader_parameter("ripple", float(c[3]))
 
+
+
+# ---------------------------------------------------------------- 背の上の遠くの町（帳の部品）
+
+## 帳の部品（材質 "far"）のメッシュ。古い形の部品・無い部品は null（覚えておく）
+static func _far_mesh(part: String) -> Mesh:
+	if part == "":
+		return null
+	if _back_cache.has(part):
+		return _back_cache[part]
+	var found: Mesh = null
+	var path := "res://assets/kit/%s.glb" % part
+	if ResourceLoader.exists(path):
+		var root := (load(path) as PackedScene).instantiate()
+		for mi in root.find_children("*", "MeshInstance3D", true, false):
+			var m: Mesh = (mi as MeshInstance3D).mesh
+			if m != null and m.get_surface_count() > 0:
+				var mat := m.surface_get_material(0)
+				if mat != null and mat.resource_name == "far":
+					found = m
+					break
+		root.free()
+	_back_cache[part] = found
+	return found
+
+
+## 帳の部品を 1 つのメッシュで出す（部品の座標 = 体の座標。骨組みの子で体の元の姿勢 _root_pose に置く（前の 3 つの面にまとめたときと同じ所）。
+## 骨組みが無いときは体の部品の子）
+func _make_back() -> void:
+	var mesh := _far_mesh(back_part)
+	if mesh == null:
+		return
+	back_mesh = MeshInstance3D.new()
+	back_mesh.name = "BackTown"
+	back_mesh.mesh = mesh
+	back_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	back_mesh.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	_back_mat = ShaderMaterial.new()
+	_back_mat.shader = load(BACK_SHADER)
+	_back_mat.set_shader_parameter("atlas", load(BACK_ATLAS))
+	back_mesh.material_override = _back_mat
+	if skeleton != null:
+		skeleton.add_child(back_mesh)
+		back_mesh.transform = _root_pose
+	elif body != null:
+		body.add_child(back_mesh)
+	else:
+		add_child(back_mesh)
+	_apply_back_lights()
+
+
+## 背の上の町の灯（家の窓・店・街灯・塔の灯）：明るさ power（0〜1）、ちらつき flicker（0〜1）、消えた割合 out（0〜1。灯ごとに決まった順に
+## 消え、消える直前は強くちらつく）。町の面の窓の光（back_mesh。雰囲気の明るさ set_mood を掛ける：昼は光らない）と、遠くの灯の点
+## （TownLights。add_town_lights で出したときだけ）の両方に渡す。部屋のオルド（中段・下段の胸壁の向こうの ordo_back）にも使える：
+## 例 停電の夜は set_back_lights(0.0) か set_back_lights(1.0, 0.0, 1.0)。set_mood のあとでも値は残る
+func set_back_lights(power: float, flicker := 0.0, out := 0.0) -> void:
+	back_power = maxf(power, 0.0)
+	back_flicker = clampf(flicker, 0.0, 1.0)
+	back_out = clampf(out, 0.0, 1.0)
+	_apply_back_lights()
+	if town_lights != null:
+		town_lights.power = back_power
+		town_lights.flicker = back_flicker
+		town_lights.out = back_out
+		town_lights.apply()
+
+
+func _apply_back_lights() -> void:
+	if _back_mat == null:
+		return
+	_back_mat.set_shader_parameter("power", back_power * _back_mood_k)
+	_back_mat.set_shader_parameter("flicker", back_flicker)
+	_back_mat.set_shader_parameter("out_amount", back_out)
