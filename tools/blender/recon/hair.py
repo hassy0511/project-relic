@@ -1015,6 +1015,23 @@ def ears_field(lo, vox, shape) -> np.ndarray:
     return out
 
 
+def cap_inset_field(lo_b, vox: float, shp) -> np.ndarray | float:
+    """帽子を後ろ・横・上だけさらに内へ締める量（m、CAP.inset_back。無ければ 0）。房を部品にする（LOCKS_AS_PARTS）とき、
+    外形から作った帽子は房の先まで含んだ丸い包みなので、その上に葉の房を重ねると丸いまま大きくなる（ハル、H1）。
+    前（y < y[0]：額・ゴーグル・前髪・こめかみ）は締めず、y[0] → y[1] でなめらかに m まで。z_top より上（頭頂）は
+    前も含めて top だけ締める（つむじの葉の房が立つ）"""
+    ib = CAP.get('inset_back')
+    if not ib:
+        return 0.0
+    xs, ys, zs = _grid(lo_b, vox, shp)
+    wy = ramp(ys, ib['y'][0], ib['y'][1]).astype(np.float32)                    # (ny,)
+    m = ib['m'] * wy[None, None, :]
+    if ib.get('top'):
+        zt = ramp(zs, ib['z_top'][0], ib['z_top'][1]).astype(np.float32)        # (nz,)
+        m = np.maximum(m, ib['top'] * zt[:, None, None])
+    return np.broadcast_to(m, shp).astype(np.float32)
+
+
 def cap_cover(Cf: np.ndarray, S: np.ndarray, cut: np.ndarray, lo_b, vox: float, shp) -> np.ndarray:
     """帽子が頭の骨を必ず覆う（CAP.cover_z より上、顔の範囲の外）：頭の面の 6mm 外までを帽子に足す。
     寸法の表から作った頭（head.py）は外形から作った帽子と別なので、頭頂の前で頭の面が帽子の外へ出て肌の色の斑点になった（ヤーナ）"""
@@ -1070,7 +1087,7 @@ def build_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.ndar
     cut = face_cut(lo_b, vox, shp, 0)
     # 顔の範囲では、帽子は頭（顔）の面より外へ出ない（顔の面が見える。範囲の縁でなめらかに切り替える）
     allowed = smooth_max(S - 0.002, -cut, 0.012)
-    Cf = smooth_min(stack_field(cs, lo_b, vox, shp, 0), allowed, 0.012)
+    Cf = smooth_min(stack_field(cs, lo_b, vox, shp, 0) - cap_inset_field(lo_b, vox, shp), allowed, 0.012)
     del allowed
     Cf = cap_cover(Cf, S, cut, lo_b, vox, shp)
     # 耳のまわりは帽子を 5mm 離す（耳が髪の中にうまらず見える）

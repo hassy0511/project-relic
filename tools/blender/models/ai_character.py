@@ -628,6 +628,40 @@ def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = (),
                  'fit': dict(getattr(CO, 'FIT', {})), 'frame': frame_info}, frames
 
 
+def part_vertex_colors(body: bpy.types.Object) -> tuple[np.ndarray | None, np.ndarray | None]:
+    """部品の材質（名前が _parts で終わる。色見本の画像を UV で指す）の面の頂点の印と、その頂点の色（sRGB 0..1）。
+    部品の材質が無ければ (None, None)"""
+    me = body.data
+    pi = next((i for i, m in enumerate(me.materials) if m and m.name.endswith('_parts')), -1)
+    if pi < 0:
+        return None, None
+    mat = me.materials[pi]
+    bsdf = next((nd for nd in mat.node_tree.nodes if nd.type == 'BSDF_PRINCIPLED'), None) if mat.use_nodes else None
+    if bsdf is None or not bsdf.inputs['Base Color'].links:
+        return None, None
+    node = bsdf.inputs['Base Color'].links[0].from_node
+    if node.type != 'TEX_IMAGE' or node.image is None:
+        return None, None
+    img = node.image
+    w, h = img.size
+    px = np.array(img.pixels[:], dtype=np.float32).reshape(h, w, 4)
+    n = len(me.vertices)
+    uv = np.zeros(len(me.loops) * 2)
+    me.uv_layers.active.data.foreach_get('uv', uv)
+    uv = uv.reshape(-1, 2)
+    on = np.zeros(n, bool)
+    col = np.zeros((n, 3), np.float32)
+    for p in me.polygons:
+        if p.material_index != pi:
+            continue
+        for li in p.loop_indices:
+            vi = me.loops[li].vertex_index
+            on[vi] = True
+            u, v = uv[li]
+            col[vi] = px[min(h - 1, max(0, int(v * h))), min(w - 1, max(0, int(u * w))), :3]
+    return on, col
+
+
 def add_sway(body: bpy.types.Object, arm: bpy.types.Object, spec: dict) -> dict:
     """揺れの骨（--sway-bones、recon/sway.py）：髪のまとまりの骨（親 head）と、ポーチの骨（親 hips）を足し、髪の重みを付ける。
     ポーチの頂点は add_costume が骨の名前の重みの群に入れてある。基準の姿勢（腕を下ろしたあと）の体で、髪・ポーチは A ポーズと同じ所"""
@@ -650,9 +684,15 @@ def add_sway(body: bpy.types.Object, arm: bpy.types.Object, spec: dict) -> dict:
         elif p.material_index in face_mats:
             on_face[list(p.vertices)] = True
     vc = vertex_colors_from_texture(body)
+    # 髪の房の部品（hair.LOCKS_AS_PARTS、部品の材質 <名前>_parts の髪の色の区画）も髪の頂点にする（ハル、2026-11）。
+    # 部品の頂点の色は、部品の材質の色見本の画像を UV で引く（体のテクスチャの UV ではない）
+    on_part, pc = part_vertex_colors(body)
+    if on_part is not None:
+        vc = np.where(on_part[:, None], pc, vc)
     hc = np.asarray(spec['center'], float)
     near = np.linalg.norm(co - hc, axis=1) < spec['radius_max']
-    hair = on_body & ~on_face & near & (co[:, 2] > spec['hair_z_min']) & SW.hair_color(vc)
+    cand = (on_body | (on_part if on_part is not None else False)) & ~on_face
+    hair = cand & near & (co[:, 2] > spec['hair_z_min']) & SW.hair_color(vc)
     other = co[near & ~hair]
     res = SW.hair_weights(co, hair, other, spec)
     defs = [(nm, root, tail, 'head') for nm, root, tail in res['bones']]

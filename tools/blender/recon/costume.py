@@ -594,6 +594,7 @@ def build_all(verts: np.ndarray, tris: np.ndarray, out_npz: str | None = None, s
     from mathutils.bvhtree import BVHTree
     bvh = BVHTree.FromPolygons([tuple(v) for v in verts], [tuple(int(i) for i in t) for t in tris])
     Vs, Fs, cols, vb, pn, sw = [], [], [], [], [], []
+    pushed = []
     bones = []
     report = {}
     off = 0
@@ -626,6 +627,15 @@ def build_all(verts: np.ndarray, tris: np.ndarray, out_npz: str | None = None, s
         pn.append(np.full(len(F), len(report)))
         report[spec['name']] = len(F)
         off += len(V)
+        if spec.get('strap_push'):
+            pushed.append(len(Vs) - 1)
+    # ゴーグルのヒモの下へ押し込む部品（髪の房の部品：hair.LOCKS_AS_PARTS）。ヒモ（PUSH）は部品の表の順で作るので最後に
+    if pushed and PUSH:
+        n_push = 0
+        for i in pushed:
+            Vs[i], k = strap_push(Vs[i])
+            n_push += k
+        FIT['strap_pushed_part_verts'] = n_push
     res = {'V': np.concatenate(Vs), 'F': np.concatenate(Fs), 'color': np.concatenate(cols),
            'vbone': np.concatenate(vb), 'bones': np.array(bones), 'piece': np.concatenate(pn),
            'shin_w': np.concatenate(sw),
