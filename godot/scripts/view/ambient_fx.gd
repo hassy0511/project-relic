@@ -9,6 +9,8 @@ extends RefCounted
 ## 砂ぼこり・蒸気の色（砂は遺構の材質 sand の明るい面の色、蒸気は白っぽい灰色）
 const DUST_COLOR := Color("#d9b892")
 const STEAM_COLOR := Color("#ece6dc")
+## オルドの足音で布から落ちる砂ぼこり（蒸気と見分けがつくよう、落砂より少し濃い砂の色）
+const STEP_DUST_COLOR := Color("#c49c74")
 ## 1 部屋の出所の上限（多すぎる部屋でも粒が増えすぎないように）
 const MAX_SOURCES := 16
 
@@ -144,13 +146,13 @@ func step_puffs(vfx: Vfx, cam: Vector3, fwd: Vector3, n: int, strength := 1.0) -
 		var i := _srng.randi_range(0, near.size() - 1)
 		var at: Vector3 = near[i]
 		near.remove_at(i)
-		for j in _srng.randi_range(2, 3):
+		for j in _srng.randi_range(3, 4):
 			var a := _srng.randf() * TAU
 			var out := Vector3(sin(a), 0.0, cos(a))
-			var q := vfx.emit(Vfx.DUST, at + out * 0.15 + Vector3(0, -0.05, 0),
-				out * _srng.randf_range(0.12, 0.3) + Vector3(0, -_srng.randf_range(0.15, 0.4), 0),
-				_srng.randf_range(1.4, 2.1), 0.1, _srng.randf_range(0.45, 0.7) * clampf(strength, 0.6, 1.3),
-				Color(DUST_COLOR, _srng.randf_range(0.26, 0.38) * clampf(strength, 0.5, 1.2)))
+			var q := vfx.emit(Vfx.DUST, at + out * 0.2 + Vector3(0, -0.05, 0),
+				out * _srng.randf_range(0.15, 0.35) + Vector3(0, -_srng.randf_range(0.15, 0.4), 0),
+				_srng.randf_range(1.6, 2.3), 0.15, _srng.randf_range(0.6, 0.95) * clampf(strength, 0.6, 1.3),
+				Color(STEP_DUST_COLOR, _srng.randf_range(0.36, 0.5) * clampf(strength, 0.5, 1.2)))
 			q.rot = _srng.randf() * TAU
 			q.spin = _srng.randf_range(-0.4, 0.4)
 			q.drag = 1.4
@@ -172,7 +174,7 @@ func step_sift(vfx: Vfx, at: Vector3, fwd: Vector3, top: float, n: int) -> int:
 		var grains := _srng.randi_range(5, 8)
 		for j in grains:
 			var q := vfx.emit(Vfx.DOT, p + Vector3(_srng.randf_range(-0.12, 0.12), -_srng.randf_range(0.0, 0.25), _srng.randf_range(-0.12, 0.12)),
-				Vector3(0, -_srng.randf_range(0.2, 0.6), 0), _srng.randf_range(1.6, 2.4), 0.035, 0.06,
+				Vector3(0, -_srng.randf_range(0.2, 0.6), 0), _srng.randf_range(1.6, 2.4), 0.045, 0.08,
 				Color(DUST_COLOR, _srng.randf_range(0.55, 0.8)))
 			q.grav = 2.2
 			q.drag = 0.6

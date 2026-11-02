@@ -12,10 +12,10 @@ class_name StepsShots
 const VIEWS := [
 	["lamp", "ch1.mid", "start", [-8.0, 0, -11.5], [-12.0, 0, -7.5], "town/lamp_post", [-12.5, 0, -7.5], [0.55, 1.45, 0.0], [2.2, 0.45, -3.0], 30.0],
 	["dust", "ch1.mid", "start", [22.0, 0, -2.0], [24.0, 0, 4.0], "town/stall", [24.0, 0, 6.3], [0.0, 2.7, 2.7], [2.8, -0.9, -6.6], 50.0],
-	["home", "ch1.home", "", [-1.5, 0, -1.8], [0.0, 0, 1.5], "town/home_set", [0.0, 0, 0.0], [0.0, 3.75, 0.0], [2.4, -1.5, -2.6], 50.0],
+	["home", "ch1.home", "", [-1.2, 0, -0.6], [0.0, 0, 1.5], "town/home_set", [0.0, 0, 0.0], [0.0, 3.0, 0.3], [2.6, -0.8, -3.6], 55.0],
 ]
-## 足が着く刻みからのコマ（負は着く前）。撮るこまの前の PREROLL こまだけ描く（ほかの刻みは描かずに進める：ソフトウェアの描画でも速い）
-const FRAMES := [-12, 21, 42, 66, 96]
+## 足が着く刻みからのコマ（負は着く前。揺れの山と谷：0.3・0.6・0.95・1.6 秒）。撮るこまの前の PREROLL こまだけ描く（ほかの刻みは描かずに進める：ソフトウェアの描画でも速い）
+const FRAMES := [-12, 19, 38, 57, 94]
 const PREROLL := 3
 const LEAD_S := 1.0
 
@@ -46,10 +46,11 @@ static func steps(d) -> Array:
 		s.append({"ticks": int(LEAD_S * 60.0) + FRAMES[-1] + PREROLL + 12, "input": {}, "setup": func(): _strip(d, String(v[0]))})
 	s.append({"ticks": 2, "setup": func(): MotionShots._release(d)})
 	if want == "1" or want.split(",").has("settings"):
-		s.append({"ticks": 2, "setup": func():
+		# ポーズの間はゲームの刻みが進まないので、開く・撮る・閉じるを 1 つの手順で（Demo の _pad_steps と同じ）
+		s.append({"ticks": 1, "shot": "steps_settings", "setup": func():
 			m.pause()
-			m.menu.show_controls(func(): m.resume(), PadConfig.ACTIONS.size() + 5)})
-		s.append({"ticks": 1, "shot": "steps_settings", "after": func(): m.resume()})
+			m.menu.show_controls(func(): m.resume(), PadConfig.ACTIONS.size() + 5),
+			"after": func(): m.resume()})
 	return s
 
 
