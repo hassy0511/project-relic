@@ -25,6 +25,8 @@ const DETAIL_FACES := {"all": 0, "floor": 1, "wall": 2, "ceiling": 3}
 const DETAIL_MODES := {"paint": 0, "multiply": 1}
 ## 汚れの斑の板（材質の "blend": "decal"。町の部品 town/grime_patch・town/oil_patch。2026-10-15 の町の展開、42 章 14.2.1）
 const DECAL := preload("res://assets/shaders/kit_decal.gdshader")
+## 灯の電気の出所（材質・部屋の明かり・飾りの明かりの "source"。42 章 14.8）：electric = 町の電気（停電で消える）、oil = 油の灯・火（停電でも灯る）
+const SOURCES := {"electric": 1, "oil": 2}
 
 ## 読んだキットと部品の置き場。終了のときに一緒に消えるよう、static var ではなく木の根（root）のメタに持つ
 ##   kits：キットの id → { id, data, surf: { 面の名前: Material }, mats: { 部品の材質の名前: Material } }
@@ -105,6 +107,8 @@ static func inherit(data: Dictionary) -> Dictionary:
 ##   日よけ・柱・灯がカメラの前を塞がない）。網目は discard を使うので、軽さを優先するスマホ・ブラウザ版（gl_compatibility）では付けない
 ##   "detail": [ 層, … ]（4 つまで）：汚れ・傷みの層（_set_detail・42 章 14.2.1）。無ければ今までのシェーダーのまま（見た目は変わらない）
 ##   "sway"・"flow"：動き（風で揺れる布・垂れたケーブル、落砂の流れ。_set_motion・42 章 14.2.2）。層・near_fade のどの版とも一緒に使える
+##   "source"：発光の出所（"electric" = 町の電気の灯・窓。停電の間は消える／"oil" = 油の灯・火。いつも灯り、ゆっくり揺らぐ）、
+##   "off"：電気が切れたときに残す発光の割合（既定 0。窓の外の月明かり）。42 章 14.8・TownPower
 static func make_material(def: Dictionary) -> Material:
 	var m := ShaderMaterial.new()
 	if def.get("blend", "") == "decal":
@@ -175,7 +179,27 @@ static func make_material(def: Dictionary) -> Material:
 	if not layers.is_empty():
 		_set_detail(m, def, layers)
 	_set_motion(m, def)
+	var src := String(def.get("source", ""))
+	if SOURCES.has(src):
+		m.set_shader_parameter("power_source", float(SOURCES[src]))
+		m.set_shader_parameter("power_floor", float(def.get("off", 0.0)))
+		m.set_meta("source", src)
+	elif src != "":
+		push_warning("知らない灯の出所: %s" % src)
 	return m
+
+
+## 読んだキットの、電気の灯の材質（"source": "electric"）すべて。TownPower が町の電気の状態を入れる
+static func electric_materials() -> Array:
+	var out: Array = []
+	for kit in _cache("kits").values():
+		if kit.is_empty():
+			continue
+		for group in ["surf", "mats"]:
+			for m in kit[group].values():
+				if m is ShaderMaterial and String(m.get_meta("source", "")) == "electric":
+					out.append(m)
+	return out
 
 
 ## 動き（kit_motion.gdshaderinc。どのシェーダーの版にも入っていて、値が 0 なら何もしない。42 章 14.2.2）。動かすのは
@@ -434,14 +458,18 @@ static func _band(st: SurfaceTool, p0: Vector3, p1: Vector3, y0: float, y1: floa
 ## "dress" の部品を並べる。同じ部品が 2 つ以上なら MultiMesh。無い部品の名前は missing に足す（落とさずに飛ばす）
 ## 1 件：{ "part": "ruins/b1_pillar", "pos": [x,y,z], "yaw": 度, "rot": [x,y,z]（度、yaw より優先）, "scale": 1 か [x,y,z],
 ##        "count": 1, "step": [dx,dy,dz]（count 個をワールドの step ずつずらして並べる）, "shadow": true,
-##        "light": { "at": [x,y,z]（部品の中の位置）, "color", "range", "energy" } }
-static func dress(room: Dictionary, kit: Dictionary, missing: Array) -> Node3D:
+##        "light": { "at": [x,y,z]（部品の中の位置）, "color", "range", "energy", "source" },
+##        "blackout": true（停電の間だけ置く：人が灯した灯油ランプなど。dark が偽なら置かない。42 章 14.8） }
+## dark：部屋を作るときに町の電気が切れているか（TownPower.dark_at_build）
+static func dress(room: Dictionary, kit: Dictionary, missing: Array, dark := false) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Dress"
 	var groups := {}   # "部品|影" → [Transform3D...]
 	var kit_id := String(kit.get("id", ""))
 	var default_shadow: bool = kit.get("data", {}).get("dress_shadows", true)
 	for d in room.get("dress", []):
+		if d.get("blackout", false) and not dark:
+			continue
 		var part := String(d.get("part", ""))
 		var mesh := part_mesh(part, kit)
 		if mesh == null:
@@ -454,7 +482,7 @@ static func dress(room: Dictionary, kit: Dictionary, missing: Array) -> Node3D:
 		for xf in dress_xforms(d):
 			groups[key].append(xf)
 			if d.has("light"):
-				root.add_child(_light(d.light, xf))
+				root.add_child(_light(d.light, xf, light_source(d.light, room)))
 	for key in groups:
 		var part: String = key.split("|")[0]
 		var shadow: bool = key.split("|")[1] == "true"
@@ -519,9 +547,15 @@ static func emitters(room: Dictionary, kit: Dictionary) -> Array:
 	return out
 
 
+## 明かりの電気の出所（"source"。42 章 14.8）：書いてあればそれ、無ければ電気の網のある部屋（"grid"）なら "electric"、ほかは ""（町の電気に関係しない）
+static func light_source(l: Dictionary, room: Dictionary) -> String:
+	return String(l.get("source", "electric" if room.has("grid") else ""))
+
+
 ## 部品の明かり：{ "at": 部品の中の位置, "color", "range", "energy" }。"type": "spot" なら "dir"（部品の中の向き）・"angle"（度）・
-## "shadow"（影。重いので部屋に 1 つまで）のスポット（割れ目から差す光など）
-static func _light(l: Dictionary, xf: Transform3D) -> Light3D:
+## "shadow"（影。重いので部屋に 1 つまで）のスポット（割れ目から差す光など）。
+## src（電気の出所）があれば、メタ "source" と元の明るさ "energy" を付ける（TownPower が停電で消す・油の灯を揺らす）
+static func _light(l: Dictionary, xf: Transform3D, src := "") -> Light3D:
 	var o: Light3D
 	if l.get("type", "omni") == "spot":
 		var sp := SpotLight3D.new()
@@ -539,6 +573,9 @@ static func _light(l: Dictionary, xf: Transform3D) -> Light3D:
 	o.position = xf * RoomGeo.v3(l.get("at", [0, 1, 0]))
 	o.light_color = Color(l.get("color", "#ffbc52"))
 	o.light_energy = float(l.get("energy", 1.0))
+	if src != "":
+		o.set_meta("source", src)
+		o.set_meta("energy", o.light_energy)
 	# 影：スマホ・ブラウザ版の描き方（gl_compatibility）では付けない。影つきの光は別の回で描いて sRGB の色の上で足すので、
 	# 光の当たる床が Forward+ より明るく白っぽく出た（遺構 r02 の床で +21。EnvironmentSetup.COMPAT_SHADOW_LIGHT）。軽くもなる
 	o.shadow_enabled = bool(l.get("shadow", false)) and not EnvironmentSetup.is_compat()

@@ -26,7 +26,8 @@ MATERIALS: dict[str, dict] = {
     'cloth2':   dict(color='#93432F', rough=0.95),     # 帆布の濃い色（同じ赤が並ばないように）
     'wood':     dict(color='#594333', rough=0.85),
     'wood2':    dict(color='#7A5C43', rough=0.85),     # 明るい板（木箱・踏み台・天板）
-    'amber':    dict(color='#FFBC52', emit=3.0),       # 灯具の芯（ゲーム内で発光）
+    'amber':    dict(color='#FFBC52', emit=3.0),       # 灯具の芯（ゲーム内で発光）。電気の灯：町の電気が切れると消える（キットの "source": "electric"）
+    'flame':    dict(color='#FFB04A', emit=3.0),       # 油の灯・火の芯（携行灯・炉の熾火）。停電でも灯る（キットの "source": "oil"。42 章 14.8）
     'dark':     dict(color='#2B2824', rough=0.4),      # 窓の奥・暗い開口
     'green':    dict(color='#6E7A3C', rough=0.9),      # 鉢植え
     'rope':     dict(color='#A08A62', rough=0.95),

@@ -758,6 +758,21 @@ func flag(name: String) -> bool:
 	return bool(story.flags.get(name, false))
 
 
+## 電気が来ているか（町の電気の正本。フラグだけから決まるので、セーブから戻しても・場面をスキップしても同じ）。
+## 部屋の "grid"（電気の網の名前）を world.power の "off" の条件で見る。網の無い部屋（遺構・試しの部屋）はいつも true。
+## room_id を省くと今の部屋。見た目（TownPower）がこれを読んで、電気の灯・窓の明かりを消す（42 章 14.8）
+func powered(id := "") -> bool:
+	var r: Dictionary = room if id == "" else (world.rooms.get(id, {}) if world != null else {})
+	return grid_powered(String(r.get("grid", "")))
+
+
+## 電気の網 grid に電気が来ているか（"" や知らない網は true）
+func grid_powered(grid: String) -> bool:
+	if grid == "" or world == null or not world.power.has(grid):
+		return true
+	return not Cond.eval(world.power[grid].get("off", false), self)
+
+
 func set_flag(name: String, v := true) -> void:
 	if v:
 		if not story.flags.get(name, false):
