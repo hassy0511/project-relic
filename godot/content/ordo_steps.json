@@ -8,16 +8,16 @@
  "places": {
   "town": {
    "sound": "ordo_thud", "db": -9.0, "ref_m": 100.0, "range_db": [-9.0, 5.0],
-   "camera": 0.011, "roll_deg": 0.09, "jolt": 0.09, "puffs": 5
+   "camera": 0.011, "roll_deg": 0.09, "jolt": 0.12, "puffs": 5
   },
   "interior": {
    "sound": "ordo_thud_in", "db": -10.0, "ref_m": 100.0, "range_db": [-8.0, 4.0],
-   "camera": 0.008, "roll_deg": 0.07, "jolt": 0.1, "sift": 3,
+   "camera": 0.008, "roll_deg": 0.07, "jolt": 0.13, "sift": 3,
    "rattle": "ordo_rattle", "rattle_db": -19.0, "rattle_chance": 0.7
   },
   "ruins": {
    "sound": "ordo_thud_deep", "db": -7.0, "ref_m": 60.0, "range_db": [-7.0, 5.0],
-   "camera": 0.016, "roll_deg": 0.12, "jolt": 0.11, "sift": 4
+   "camera": 0.016, "roll_deg": 0.12, "jolt": 0.14, "sift": 4
   }
  },
  "rooms": {
