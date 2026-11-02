@@ -11,7 +11,8 @@ from mathutils import Vector, Matrix
 from parts_body import head_point
 from meshkit import Part, tube, loft, frame_from_dir
 
-CROWN = Vector((0.0, -0.015, 1.478))    # 頭頂のつむじ（真上の絵で、房が放射状に出る中心。後ろ寄り）
+CROWN = Vector((0.0, -0.015, 1.478))
+HEAD_C = Vector((0.0, -0.015, 1.330))    # 頭頂のつむじ（真上の絵で、房が放射状に出る中心。後ろ寄り）
 
 
 def cap():
@@ -51,9 +52,12 @@ def tuft(root, dirs, length, width, thick=0.016, n=6, twist_up=None):
         t = i / (m - 1)
         wv = width * max(0.06, math.sin(math.pi * (0.25 + 0.75 * t))) ** 0.9
         radii.append((wv, max(0.003, thick * (1 - 0.75 * t))))
-    up = twist_up if twist_up is not None else Vector((0, 0, 1))
-    tip = pts[-1] + (pts[-1] - pts[-2]).normalized() * seg * 0.45
-    return tube(pts, radii, n=n, col='umber', up=up, sq=1.35, tips=(None, tip))
+    # 房の幅は頭の面に沿わせる：up は頭の中心からの向き（芯の向きとほぼ直交するのでねじれない）
+    up = (Vector(root) - HEAD_C).normalized()
+    tip = pts[-1] + (pts[-1] - pts[-2]).normalized() * seg * 0.30
+    # 根元は暗く、外の真ん中は明るく（重なった房の境目が見える。stylized-style：陰は描く）
+    col = lambda i, j: 'umber_dk' if (i == 0 or j >= 3) else ('umber_lt' if j == 1 else 'umber')
+    return tube(pts, radii, n=n, col=col, up=up, sq=1.35, tips=(None, tip))
 
 
 def _o(a):
@@ -81,24 +85,76 @@ def _down_tangent(a, z0, zc=1.335, R=0.145):
     return (_o(a) * math.sin(phi) + Vector((0, 0, -math.cos(phi)))).normalized()
 
 
+def leaf(a0, z0, z1, da, width, out0, out1, thick=0.032, steps=5):
+    """頭の面に沿って流れる葉の房：角度 a0・高さ z0 の根元から、角度を da だけ回しながら高さ z1 まで。
+    面からの浮き out0 → out1（先が外へはねる）。幅は頭の面に沿い、厚みは外向き"""
+    pts = []
+    for k in range(steps + 1):
+        t = k / steps
+        pts.append(head_point(a0 + da * t, z0 + (z1 - z0) * t, out0 + (out1 - out0) * t ** 1.7))
+    m = len(pts)
+    radii = []
+    for k in range(m):
+        t = k / (m - 1)
+        wv = width * max(0.06, math.sin(math.pi * (0.22 + 0.78 * t))) ** 0.8
+        radii.append((wv, max(0.004, thick * (1 - 0.7 * t))))
+    up = (pts[0] - HEAD_C).normalized()
+    tip = pts[-1] + (pts[-1] - pts[-2]).normalized() * 0.018
+    def col(i, j):
+        # 断面の 6 面：外の真ん中（j=1）は明るい段、外の両わき（0, 2）は中の段、頭を向く側（3〜5）と根元は暗い段。
+        # 房の縁に暗い線ができ、重なった葉が 1 枚ずつ読める（絵の房の稜線と影）
+        if i == 0 or j >= 3:
+            return 'umber_dk'
+        return 'umber_lt' if j == 1 else 'umber'
+    return tube(pts, radii, n=6, col=col, up=up, sq=1.35, tips=(None, tip))
+
+
 def hair_regions():
     """地域ごとの房の Part を返す：{骨の名前: Part}。
     groom-flow-regions の順（生え際・前髪 → 頭頂 → 横 → 後ろ・えり足）に、流れの向き・房の数・長さを決める。
-    絵の髪は太い葉の形の房が瓦のように重なる：根元は頭の丸みに沿って下へ流れ、先が外へはねる。
-    頭頂のつむじ（後ろ寄り）からは上・後ろへ立つ房が数本"""
+    絵の髪は大きい葉の形の房が瓦のように重なる。真上の絵ではつむじから風車のように放射し、頭の丸みに沿って
+    流れて先が外へはねる。房の数を絞って大きく（Clumps：束で読ませる、細い毛を足さない）"""
     R = {}
 
     def add(bone, part):
         R.setdefault(bone, Part()).extend(part)
 
-    # 頭頂：上・後ろへ立つ房（頭の上の輪郭のとがり）
-    for a_deg, ln, up_k, wd in ((170, 0.125, 0.8, 0.072), (-145, 0.115, 0.7, 0.068), (135, 0.110, 0.6, 0.066),
-                                (10, 0.135, 1.30, 0.064), (-25, 0.115, 1.0, 0.060), (35, 0.110, 0.9, 0.060), (90, 0.110, 0.55, 0.064), (-95, 0.110, 0.55, 0.064)):
+    # 1 段目（頭頂の風車）：つむじから放射、先は横・後ろへはねる
+    for k in range(9):
+        a_deg = -160 + 40 * k
+        if abs(a_deg) < 25:
+            continue                        # 正面はゴーグルと前髪
+        a = math.radians(a_deg)
+        reg = 'hair.top' if abs(a_deg) > 60 else 'hair.front'
+        add(reg, leaf(a, 1.478, 1.365, math.radians(16), 0.082, 0.010, 0.085, 0.040))
+    # 頭頂の立つ房（上の輪郭のとがり）
+    for a_deg, ln, up_k, wd in ((10, 0.130, 1.30, 0.066), (-25, 0.110, 1.0, 0.060), (170, 0.115, 0.8, 0.070), (-140, 0.100, 0.7, 0.064)):
         a = math.radians(a_deg)
         o = _o(a)
         root = CROWN + o * 0.015 + Vector((0, 0, -0.016))
         dirs = [o * 0.45 + Vector((0, 0, up_k)), o + Vector((0, 0, up_k * 0.45)), o * 1.0 + Vector((0, 0, -0.10))]
-        add('hair.top', tuft(root, dirs, ln, wd, 0.030, twist_up=Vector((0, 0, 1))))
+        add('hair.top', tuft(root, dirs, ln, wd, 0.030))
+    # 2 段目：耳の上・後頭部。耳のあたり（|a| 70〜115）は短く
+    for k in range(11):
+        a_deg = -180 + 18 + 360 * k / 11
+        a_deg = ((a_deg + 180) % 360) - 180
+        if abs(a_deg) < 48:
+            continue
+        a = math.radians(a_deg)
+        near_ear = 68 < abs(a_deg) < 118
+        z1 = 1.335 if near_ear else 1.265
+        add(_region(a_deg, 1.40), leaf(a, 1.420, z1, math.radians(8), 0.080, 0.008, 0.070 if not abs(a_deg) > 130 else 0.040, 0.038))
+    # 3 段目：後ろ・えり足（下へ短く、えりに沿う）
+    for k in range(7):
+        a_deg = 180 - 30 * k + (0 if k % 2 else 0)
+        a_deg = ((a_deg + 180) % 360) - 180
+        if abs(a_deg) < 115:
+            continue
+        a = math.radians(a_deg)
+        add('hair.nape', leaf(a, 1.330, 1.228, 0.0, 0.070, 0.006, 0.026, 0.032))
+    for a_deg in (-125, 125, -150, 150, 180):
+        a = math.radians(a_deg)
+        add(_region(a_deg, 1.36), leaf(a + math.radians(12), 1.370, 1.262, 0.0, 0.074, 0.010, 0.036, 0.034))
     # 横へ張り出す房（正面の絵で、ゴーグルの高さの髪の幅 ±0.185 m）
     for side in (1, -1):
         for a_deg, z0, ln, dn in ((78, 1.440, 0.105, 0.30), (100, 1.430, 0.105, 0.42), (120, 1.425, 0.100, 0.50)):
@@ -106,32 +162,7 @@ def hair_regions():
             o = _o(a)
             root = head_point(a, z0, 0.004)
             dirs = [(o + Vector((0, 0, 0.10))), (o + Vector((0, 0, -dn))), (o + Vector((0, 0, -dn * 1.4)))]
-            add('hair.side.' + ('L' if side > 0 else 'R'), tuft(root, dirs, ln, 0.064, 0.028, twist_up=o))
-    # 重なる段：根元の高さ・数・ずらし（度）・長さ・幅・先のはね・前を空ける角度（前髪の所）
-    rows = [
-        (1.452, 9, 20, 0.130, 0.068, 0.70, 34),
-        (1.412, 12, 0, 0.140, 0.070, 0.75, 42),
-        (1.368, 14, 13, 0.140, 0.068, 0.90, 54),
-        (1.322, 12, 0, 0.122, 0.064, 0.60, 100),
-        (1.280, 10, 16, 0.085, 0.060, 0.30, 112),
-        (1.245, 8, 0, 0.065, 0.056, 0.10, 122),
-    ]
-    for z0, cnt, off, ln, wd, flick, skip in rows:
-        for j in range(cnt):
-            a_deg = -180 + off + 360 * j / cnt
-            a_deg = ((a_deg + 180) % 360) - 180
-            if abs(a_deg) < skip:
-                continue
-            a = math.radians(a_deg)
-            o = _o(a)
-            root = head_point(a, z0, 0.004)
-            t0 = _down_tangent(a, z0)
-            t1 = _down_tangent(a, z0 - ln * 0.5)
-            d0 = (t0 + o * 0.25).normalized()
-            fk = flick * (0.35 if abs(a_deg) > 125 else 1.0)  # 後ろは外へはねすぎない（真横の絵の後頭部の輪郭）
-            d1 = (t1 + o * fk * 0.6).normalized()
-            d2 = (t1 + o * fk * 1.4).normalized()        # 先が外へはねる
-            add(_region(a_deg, z0), tuft(root, [d0, d1, d2], ln, wd, 0.030, twist_up=o))
+            add('hair.side.' + ('L' if side > 0 else 'R'), tuft(root, dirs, ln, 0.066, 0.028))
     # 前髪：額の上（ゴーグルの下）から前・下へ。真ん中が目の間まで下りる
     for a_deg, z0, ln, wd in ((0, 1.440, 0.170, 0.056), (-19, 1.436, 0.145, 0.054), (19, 1.436, 0.145, 0.054),
                               (-37, 1.425, 0.135, 0.052), (37, 1.425, 0.135, 0.052)):
@@ -142,10 +173,10 @@ def hair_regions():
         add('hair.front', tuft(root, dirs, ln, wd, 0.024, twist_up=o))
     # 顔の横の房（耳の前へ下りる）
     for side in (1, -1):
-        for a_deg, z0, ln in ((56, 1.405, 0.170), (72, 1.395, 0.160)):
+        for a_deg, z0, ln in ((58, 1.405, 0.160), (70, 1.400, 0.140)):
             a = math.radians(a_deg * side)
             o = _o(a)
             root = head_point(a, z0, 0.004)
             dirs = [(o * 0.9 + Vector((0, 0, -0.2))), (o * 0.35 + Vector((0, 0, -1.0))), (o * 0.45 + Vector((0, 0, -1.0)))]
-            add('hair.side.' + ('L' if side > 0 else 'R'), tuft(root, dirs, ln, 0.052, 0.024, twist_up=o))
+            add('hair.side.' + ('L' if side > 0 else 'R'), tuft(root, dirs, ln * 0.85, 0.040, 0.022, twist_up=o))
     return R

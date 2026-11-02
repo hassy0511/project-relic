@@ -114,9 +114,8 @@ def raster(objs, size, path):
             c = mw @ poly.center
             dark = n.z < -0.55
             if hair:
-                dark = n.dot((c - HEAD_C).normalized()) < 0.2
-                if not dark and n.z > 0.30:
-                    key = 'umber_lt'
+                # 房の内側（頭を向く面）だけ暗く。根元・先の段は房の作りで塗ってある
+                dark = False
             if dark and key in DARK:
                 key = DARK[key]
             col = P.RGB[key]

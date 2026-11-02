@@ -48,24 +48,30 @@ def goggle_strap():
 
 
 # ---------------------------------------------------------------- 外装フレーム：胴の核（Frame_core）
+def _torso_at_x(x, z, grow, back):
+    """胴の面で、横の位置 x にある前（back=False）か後ろ（back=True）の点"""
+    best = None
+    for k in range(181):
+        a = (math.pi / 2 + math.pi / 2 * k / 180) if back else (math.pi / 2 * k / 180)
+        a = a if x >= 0 else -a
+        q = torso_point(a, z, grow)
+        if best is None or abs(q.x - x) < abs(best.x - x):
+            best = q
+    return best
+
+
 def shoulder_straps():
-    """2 本の暗い肩ひも：前の裾から肩を越えて背中の裾へ（背中でも平行、X にしない）"""
+    """2 本の暗い肩ひも：前の裾から肩を越えて背中の裾へ（背中でも平行、X にしない）。上着の面の外に乗せる"""
     p = Part()
     for side in (1, -1):
-        x = side * 0.092
-        path = []
-        for z in (0.925, 0.99, 1.06, 1.10):
-            q = torso_point(math.atan2(x, 0.12) * 1.0, z, 0.018)
-            path.append(Vector((x, q.y, z)))
-        # 肩の上
-        path.append(Vector((side * 0.100, -0.050, 1.142)))
-        path.append(Vector((side * 0.100, 0.010, 1.150)))
-        path.append(Vector((side * 0.098, 0.060, 1.110)))
-        for z in (1.06, 0.99, 0.925):
-            q = torso_point(math.pi - math.atan2(x, 0.06), z, 0.018)
-            path.append(Vector((x, q.y, z)))
-        rr = [(0.019, 0.005)] * len(path)
-        p.extend(tube(path, rr, n=4, col='graphite', up=Vector((side, 0, 0))))
+        x = side * 0.100
+        path = [_torso_at_x(x, z, 0.024, False) for z in (0.925, 0.99, 1.06, 1.10)]
+        path.append(Vector((side * 0.102, -0.058, 1.146)))
+        path.append(Vector((side * 0.104, -0.012, 1.160)))
+        path.append(Vector((side * 0.102, 0.034, 1.128)))
+        path += [_torso_at_x(x, z, 0.024, True) for z in (1.06, 0.99, 0.925)]
+        rr = [(0.020, 0.0055)] * len(path)
+        p.extend(tube(path, rr, n=4, col='graphite', up=Vector((0, 0, 1))))   # 幅は横（x）へ
     return p
 
 

@@ -34,7 +34,7 @@ VIEWS = {
     'side_right': dict(img='haru_3d_side_right.png', rz=-90, rx=90, full=True, cx=(1024 - P.SIDE_CX) * P.PX),
     'side_left': dict(img='haru_3d_side_left.png', rz=90, rx=90, full=True, cx=(1024 - (2048 - P.SIDE_CX)) * P.PX),
     'three_quarter': dict(img='haru_3d_three_quarter.png', rz=-30, rx=90, full=True, cx=None),
-    'front_left45': dict(img='haru_3d_front_left45.png', rz=30, rx=90, full=True, cx=None),
+    'front_left45': dict(img='haru_3d_front_left45.png', rz=45, rx=90, full=True, cx=None),
     'head_side_right': dict(img='haru_head_side_right.png', rz=-90, rx=90, full=False),
     'head_back': dict(img='haru_head_back.png', rz=180, rx=90, full=False),
     'head_front_right45': dict(img='haru_head_front_right45.png', rz=-45, rx=90, full=False),

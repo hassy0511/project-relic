@@ -108,7 +108,7 @@ def build(with_tex=True, with_glb=True):
     mk(H.cap(), 'SM_Hair_HaruBS_Cap', c_hair, 'cloth', angle=50)
     for bone, part in H.hair_regions().items():
         nm = 'SM_Hair_HaruBS_' + bone.replace('hair.', '').replace('.', '_').title().replace('_L', '_L').replace('_R', '_R')
-        ob = mk(part, nm, c_hair, 'cloth', angle=35)
+        ob = mk(part, nm, c_hair, 'cloth', angle=55)
         ob['sway_bone'] = bone
 
     # ---- 服

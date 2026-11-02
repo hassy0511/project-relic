@@ -75,8 +75,8 @@ def collar():
     for k in range(N + 1):
         a = -math.pi * 0.80 + 1.60 * math.pi * k / N    # 前の左 → 後ろ → 前の右
         a = a + math.pi
-        z = 1.150 + 0.018 * math.cos(a - math.pi) * -1
-        r = 0.082
+        z = 1.160 + 0.018 * math.cos(a - math.pi) * -1
+        r = 0.090
         x = r * math.sin(a)
         y = -0.025 - 0.075 * math.cos(a) * (0.9 if math.cos(a) > 0 else 1.0)
         path.append(Vector((x, y, z)))
@@ -84,7 +84,7 @@ def collar():
     l0 = path[0] + Vector((0.008, -0.015, -0.07))
     l1 = path[-1] + Vector((-0.008, -0.015, -0.07))
     path = [l0] + path + [l1]
-    radii = [(0.020, 0.010)] + [(0.026, 0.020)] * (len(path) - 2) + [(0.020, 0.010)]
+    radii = [(0.024, 0.012)] + [(0.034, 0.026)] * (len(path) - 2) + [(0.024, 0.012)]
     return tube(path, radii, n=6, col='umber', up=Vector((0, 0, 1)))
 
 
