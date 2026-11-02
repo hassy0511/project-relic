@@ -593,7 +593,7 @@ def build_all(verts: np.ndarray, tris: np.ndarray, out_npz: str | None = None, s
     返り値：{V, F, color（面ごとの色の番号）, bone（頂点ごとの骨の名前の番号）, bones, names}"""
     from mathutils.bvhtree import BVHTree
     bvh = BVHTree.FromPolygons([tuple(v) for v in verts], [tuple(int(i) for i in t) for t in tris])
-    Vs, Fs, cols, vb, pn, sw = [], [], [], [], [], []
+    Vs, Fs, cols, vb, pn, sw, vr = [], [], [], [], [], [], []
     pushed = []
     bones = []
     report = {}
@@ -618,6 +618,8 @@ def build_all(verts: np.ndarray, tris: np.ndarray, out_npz: str | None = None, s
         Fs.append(F + off)
         cols.append(np.full(len(F), NAMES.index(spec['color'])))
         vb.append(np.full(len(V), bones.index(spec['bone'])))
+        # 頂点の断面の番号（髪の房の部品：揺れの重みを断面ごとにそろえる。ほかの部品は -1）
+        vr.append(np.asarray(spec['rings'], np.int32) if spec.get('rings') is not None else np.full(len(V), -1, np.int32))
         if spec.get('ramp'):      # 靴：shin の重み（高さで foot からなめらかに）
             if spec['ramp'][0] not in bones:
                 bones.append(spec['ramp'][0])
@@ -638,7 +640,7 @@ def build_all(verts: np.ndarray, tris: np.ndarray, out_npz: str | None = None, s
         FIT['strap_pushed_part_verts'] = n_push
     res = {'V': np.concatenate(Vs), 'F': np.concatenate(Fs), 'color': np.concatenate(cols),
            'vbone': np.concatenate(vb), 'bones': np.array(bones), 'piece': np.concatenate(pn),
-           'shin_w': np.concatenate(sw),
+           'shin_w': np.concatenate(sw), 'vring': np.concatenate(vr),
            'names': np.array(list(report))}
     if out_npz:
         np.savez(out_npz, **res)

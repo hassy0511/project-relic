@@ -540,6 +540,13 @@ def add_costume(body: bpy.types.Object, tex_dir: str, skip: tuple = (),
     uvname = me.uv_layers.active.name if me.uv_layers.active else 'UVMap'
     uv = pm.uv_layers.new(name=uvname)
     uv.data.foreach_set('uv', np.repeat(CO.palette_uv(P['color']), 3, 0).ravel())
+    # 髪の房の部品の断面の印（LOCK_RING_ATTR。add_sway が断面ごとに揺れの重みをそろえ、書き出しの前に消す）
+    vring = P.get('vring')
+    if vring is not None and (vring >= 0).any():
+        vpiece = np.zeros(len(P['V']), np.int64)
+        vpiece[P['F'].ravel()] = np.repeat(P['piece'], 3)
+        key = np.where(vring >= 0, (vpiece + 1) * LOCK_RING_MOD + vring, 0).astype(np.int32)
+        pm.attributes.new(LOCK_RING_ATTR, 'INT', 'POINT').data.foreach_set('value', key)
     # 体の重みを写す部品（右肩の板と下の帯）：載る骨 1 本の剛体だと、腕を下ろした基準の姿勢（と動作）で肩の上の体
     # （胸・肩の骨の重みが混ざる）が板の内の縁から突き抜け、板が 2 つに割れて見えた（6 回目）。近くの体の頂点の重みを
     # なめらかにして写し、板と下の体が同じに動くようにする
@@ -662,6 +669,66 @@ def part_vertex_colors(body: bpy.types.Object) -> tuple[np.ndarray | None, np.nd
     return on, col
 
 
+LOCK_RING_ATTR = 'lock_ring'      # 頂点の属性：髪の房の部品の断面の印（(部品の番号 + 1) × LOCK_RING_MOD + 断面の番号、0 = 房でない）
+LOCK_RING_MOD = 64
+LOCK_RING_ROOT = (0, 1)           # 根の側の断面：帽子の面の重みへ（根が帽子の上ですべらない）。0 は帽子の重み、1 は半分ずつ
+
+
+def lock_ring_weights(body: bpy.types.Object, co: np.ndarray, hair: np.ndarray, weights: dict) -> dict | None:
+    """髪の房の部品の揺れの重みを、断面（6 角の輪）ごとに 1 つにそろえる（その場で weights を書き換える）。
+    sway.hair_weights は頂点ごとに（髪の土台の面からの高さ）×（髪でない面からの距離）で重みを決めるので、厚み 1.5〜2.3cm の
+    葉の房では峰と内の面の重みが 0.9 も違い、揺れると葉がつぶれる・ふくらむ・裏返った（H1 の見直し）。輪の重みは輪の平均。
+    根の側の輪（LOCK_RING_ROOT）は、根のまわりの帽子（房でない髪の頂点）の重みへ寄せる。属性は使い終わったら消す"""
+    me = body.data
+    at = me.attributes.get(LOCK_RING_ATTR)
+    if at is None:
+        return None
+    key = np.zeros(len(me.vertices), np.int32)
+    at.data.foreach_get('value', key)
+    me.attributes.remove(at)
+    on = key > 0
+    if not on.any():
+        return None
+    from scipy.spatial import cKDTree
+    names = list(weights)
+    W = np.zeros((len(co), len(names)))
+    for k, nm in enumerate(names):
+        vi, w = weights[nm]
+        W[vi, k] = w
+    lock, ring = key // LOCK_RING_MOD, key % LOCK_RING_MOD
+    cap = np.nonzero(hair & ~on)[0]
+    tree = cKDTree(co[cap]) if len(cap) else None
+    spread_before = 0.0
+    n_rings = 0
+    for L in np.unique(lock[on]):
+        mL = on & (lock == L)
+        root_w = None
+        for r in np.unique(ring[mL]):
+            m = np.nonzero(mL & (ring == r))[0]
+            spread_before = max(spread_before, float((W[m].max(0) - W[m].min(0)).max()))
+            mean = W[m].mean(0)
+            if r in LOCK_RING_ROOT and tree is not None:
+                if root_w is None:
+                    m0 = np.nonzero(mL & (ring == LOCK_RING_ROOT[0]))[0]
+                    _, nn = tree.query(co[m0].mean(0), k=min(8, len(cap)))
+                    root_w = W[cap[np.atleast_1d(nn)]].mean(0)
+                t = LOCK_RING_ROOT.index(r) / len(LOCK_RING_ROOT)
+                mean = root_w * (1.0 - t) + mean * t
+            W[m] = mean
+            n_rings += 1
+    spread_after = 0.0
+    for L in np.unique(lock[on]):
+        mL = on & (lock == L)
+        for r in np.unique(ring[mL]):
+            m = mL & (ring == r)
+            spread_after = max(spread_after, float((W[m].max(0) - W[m].min(0)).max()))
+    for k, nm in enumerate(names):
+        vi = np.nonzero(W[:, k] > 1e-3)[0]
+        weights[nm] = (vi, W[vi, k])
+    return {'locks': int(len(np.unique(lock[on]))), 'rings': n_rings, 'lock_verts': int(on.sum()),
+            'ring_spread_before': round(spread_before, 3), 'ring_spread_after': round(spread_after, 6)}
+
+
 def add_sway(body: bpy.types.Object, arm: bpy.types.Object, spec: dict) -> dict:
     """揺れの骨（--sway-bones、recon/sway.py）：髪のまとまりの骨（親 head）と、ポーチの骨（親 hips）を足し、髪の重みを付ける。
     ポーチの頂点は add_costume が骨の名前の重みの群に入れてある。基準の姿勢（腕を下ろしたあと）の体で、髪・ポーチは A ポーズと同じ所"""
@@ -695,6 +762,9 @@ def add_sway(body: bpy.types.Object, arm: bpy.types.Object, spec: dict) -> dict:
     hair = cand & near & (co[:, 2] > spec['hair_z_min']) & SW.hair_color(vc)
     other = co[near & ~hair]
     res = SW.hair_weights(co, hair, other, spec)
+    ring_rep = lock_ring_weights(body, co, hair, res['weights'])
+    if ring_rep:
+        res['report']['lock_rings'] = ring_rep
     defs = [(nm, root, tail, 'head') for nm, root, tail in res['bones']]
     pouch = {}
     for part, bone in spec['pouches'].items():
