@@ -704,6 +704,120 @@ func test_frame_parts_toggle() -> void:
 	p.free()
 
 
+## 葉の房（部品の材質 haru_parts の、揺れの骨の重みのある面）は、揺れても形を保つ（W1_ハル再構築の結果.md 9.8）：
+## 髪の揺れの骨 7 本をそれぞれの根のまわりに同時に 0.45 rad（26 度。ゲームの揺れの上限 0.62 rad に近い）、先を前後左右の同じ向きへ倒す。
+## 断面ごとに重みがそろっていないと、峰だけが動いて葉がつぶれ・裏返った（面の向きが逆になる三角が出た）。
+## 骨ごとに根の位置が違うので、まとまりの境の房では輪と輪の間が少しずれる（線形の重ねの限り。0.5% ほど裏返る）
+func test_hair_leaves_keep_shape_when_swinging() -> void:
+	var scn: Node3D = (load("res://assets/models/haru_r.glb") as PackedScene).instantiate()
+	h.tree.root.add_child(scn)
+	var st := leaf_swing_stats(scn)
+	var tris: int = st.tris
+	var flipped: int = st.flipped
+	var stretched: int = st.stretched
+	print("  揺れの面の三角 %d（4 向き）、裏返り %d、1 cm より伸びた辺 %d" % [tris, flipped, stretched])
+	h.expect(tris > 4000, "揺れる房の三角を見た（%d）" % tris)
+	# 断面ごとに重みをそろえる前（2026-11-02 のレビュー）は裏返り 1.3%・伸び 2.5%、そろえた後は 0.5%・0.2%
+	h.expect(flipped * 1000 < tris * 8, "0.45 rad 振っても、裏返る三角は 0.8%% 未満（%d / %d）" % [flipped, tris])
+	h.expect(stretched * 1000 < tris * 3 * 5, "0.45 rad 振っても、1 cm より伸びる辺は 0.5%% 未満（%d / %d）" % [stretched, tris * 3])
+	scn.queue_free()
+
+
+## 揺れの面の数え（test_hair_leaves_keep_shape_when_swinging。前後のモデルの比べにも使う）：{tris, flipped, stretched}
+func leaf_swing_stats(scn: Node3D) -> Dictionary:
+	var sk: Skeleton3D = scn.find_child("*", true, false) as Skeleton3D
+	if sk == null:
+		for n in scn.find_children("*", "Skeleton3D", true, false):
+			sk = n
+	var body: MeshInstance3D = scn.find_child("Haru", true, false)
+	h.expect(sk != null and body != null, "haru_r の骨格と体")
+	var hair_bones: Array[int] = []
+	for b in sk.get_bone_count():
+		if sk.get_bone_name(b).begins_with("hair."):
+			hair_bones.append(b)
+	h.expect(hair_bones.size() == 7, "髪の揺れの骨が 7 本（%d）" % hair_bones.size())
+	var skin: Skin = body.skin
+	var binds: Array[int] = []
+	var bind_poses: Array[Transform3D] = []
+	for i in skin.get_bind_count():
+		var bb := skin.get_bind_bone(i)
+		binds.append(bb if bb >= 0 else sk.find_bone(skin.get_bind_name(i)))
+		bind_poses.append(skin.get_bind_pose(i))
+	var arr := []
+	for s in body.mesh.get_surface_count():
+		var mat := body.mesh.surface_get_material(s)
+		if mat != null and mat.resource_name.ends_with("_parts"):
+			arr = body.mesh.surface_get_arrays(s)
+	h.expect(not arr.is_empty(), "部品の材質（_parts）の面がある")
+	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var bo: PackedInt32Array = arr[Mesh.ARRAY_BONES]
+	var we: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
+	var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+	var stride := bo.size() / verts.size()
+	var is_hair := {}
+	for b in hair_bones:
+		is_hair[b] = true
+	var sw := PackedByteArray()
+	sw.resize(verts.size())
+	for i in verts.size():
+		var hw := 0.0
+		for k in stride:
+			if is_hair.has(binds[bo[i * stride + k]]):
+				hw += we[i * stride + k]
+		sw[i] = 1 if hw >= 0.05 else 0
+	var skinned := func() -> PackedVector3Array:
+		var mats := {}
+		var out := PackedVector3Array()
+		out.resize(verts.size())
+		for i in verts.size():
+			if sw[i] == 0:
+				continue
+			var p := Vector3.ZERO
+			for k in stride:
+				var w := we[i * stride + k]
+				if w > 0.0:
+					var bi := bo[i * stride + k]
+					if not mats.has(bi):
+						mats[bi] = sk.get_bone_global_pose(binds[bi]) * bind_poses[bi]
+					p += (mats[bi] as Transform3D) * verts[i] * w
+			out[i] = p
+		return out
+	sk.reset_bone_poses()
+	var rest: PackedVector3Array = skinned.call()
+	var tris := 0
+	var flipped := 0
+	var stretched := 0
+	var rest_g := {}
+	for b in hair_bones:
+		rest_g[b] = sk.get_bone_global_pose(b)
+	for dir in [Vector3.RIGHT, Vector3.LEFT, Vector3.FORWARD, Vector3.BACK]:
+		# どの骨も先を同じ世界の向き dir へ倒す（頭が動いたときの慣性の揺れと同じ。骨ごとの軸で回すと隣の骨どうしが逆へ動く）
+		sk.reset_bone_poses()
+		for b in hair_bones:
+			var g0: Transform3D = rest_g[b]
+			var ax := g0.basis.y.normalized().cross(dir)
+			if ax.length() < 1e-4:
+				continue
+			sk.set_bone_global_pose(b, Transform3D(Basis(ax.normalized(), 0.45) * g0.basis, g0.origin))
+		var sw_p: PackedVector3Array = skinned.call()
+		for t in range(0, idx.size(), 3):
+			var a := idx[t]
+			var b2 := idx[t + 1]
+			var c := idx[t + 2]
+			if sw[a] == 0 or sw[b2] == 0 or sw[c] == 0:
+				continue
+			tris += 1
+			var n0 := (rest[b2] - rest[a]).cross(rest[c] - rest[a])
+			var n1 := (sw_p[b2] - sw_p[a]).cross(sw_p[c] - sw_p[a])
+			if n0.length() > 1e-8 and n0.dot(n1) < 0.0:
+				flipped += 1
+			for e in [[a, b2], [b2, c], [c, a]]:
+				if (sw_p[e[0]] - sw_p[e[1]]).length() - (rest[e[0]] - rest[e[1]]).length() > 0.010:
+					stretched += 1
+	sk.reset_bone_poses()
+	return {"tris": tris, "flipped": flipped, "stretched": stretched}
+
+
 ## 2 次の動き（見た目だけ。W1_ハル再構築の結果.md 8 章）：haru_r の揺れの骨（髪 7・ポーチ 2）を HaruSway が揺らし、
 ## FootIK が段・坂で足を床に置く。骨格の変形は物理の刻みで進み、描画のこまの更新（delta = 0）では揺れが進まない
 ## （刻みの速さに左右されない）。ゲームの中身（位置）は見た目の有無・入り切りで変わらない

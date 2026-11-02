@@ -19,6 +19,8 @@ ap.add_argument('--samples', type=int, default=12)
 ap.add_argument('--views', default='side_right,back,front_right45,top,front,back_left45')
 ap.add_argument('--nolocks', action='store_true')
 ap.add_argument('--inset', default='')
+ap.add_argument('--width', type=float, default=0.56, help='写す幅（m）。近写は 0.16 など')
+ap.add_argument('--cen', default='0.0,0.035,1.37', help='写す中心（世界の点 x,y,z）')
 args = ap.parse_args()
 os.makedirs(args.out, exist_ok=True)
 T0 = time.time()
@@ -117,7 +119,7 @@ ld = bpy.data.lights.new('sun', 'SUN'); ld.energy = 1.6; ld.angle = math.radians
 sun = bpy.data.objects.new('sun', ld); sc.collection.objects.link(sun)
 from mathutils import Matrix, Vector
 from recon import review as RV
-CEN = (0.0, 0.035, 1.37); W = 0.56
+CEN = tuple(float(c) for c in args.cen.split(',')); W = args.width
 VIEWS = {'side_right': (90, 0), 'back': (180, 0), 'front_right45': (45, 0), 'top': (0, 90), 'front': (0, 0),
          'back_left45': (-135, 0), 'side_left': (-90, 0), 'back_right45': (135, 0), 'top_back': (180, 50),
          'back_high': (180, 14), 'back_r30': (150, 10), 'side_left_hi': (-110, 20)}

@@ -671,7 +671,7 @@ def part_vertex_colors(body: bpy.types.Object) -> tuple[np.ndarray | None, np.nd
 
 LOCK_RING_ATTR = 'lock_ring'      # 頂点の属性：髪の房の部品の断面の印（(部品の番号 + 1) × LOCK_RING_MOD + 断面の番号、0 = 房でない）
 LOCK_RING_MOD = 64
-LOCK_RING_ROOT = (0, 1)           # 根の側の断面：帽子の面の重みへ（根が帽子の上ですべらない）。0 は帽子の重み、1 は半分ずつ
+LOCK_RING_ROOT = (0, 1, 2)        # 根の側の断面：帽子の面の重みへ（根が帽子の上ですべらない）。0 は帽子の重み、1・2 は 1/3・2/3 ずつ輪の平均へ
 
 
 def lock_ring_weights(body: bpy.types.Object, co: np.ndarray, hair: np.ndarray, weights: dict) -> dict | None:

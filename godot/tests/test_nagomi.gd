@@ -762,6 +762,9 @@ func test_nagomi_clear_of_swaying_hair() -> void:
 	await _ticks(r, 60, func(i): return {"sword": i % 8 < 2})
 	sk.skeleton_updated.disconnect(check)
 	h.expect(st[1] > 300 and st[2] > 0.4, "揺れの大きい場面を見た（更新 %d 回、揺れの角度 %.2f rad）" % [st[1], st[2]])
+	# 余裕も見えるように、揺れの最中のいちばん近い距離を毎回出す（W1_ハル再構築の結果.md 9.5。止まった姿勢の距離では余裕が分からない）
+	print("  揺れる後ろ・えり足の髪とナゴミの殻の中心のいちばん近い距離 %.4f m（下限 %.4f m、余裕 %.1f mm、揺れ %.2f rad）"
+		% [st[0], 0.1245 + 0.02, (st[0] - 0.1445) * 1000.0, st[2]])
 	h.expect(st[0] > 0.1245 + 0.02, "揺れる後ろ・えり足の髪は、付いたナゴミの殻から 2 cm より離れている（中心から %.3f m）" % st[0])
 	_free(r)
 
