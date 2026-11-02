@@ -384,6 +384,7 @@ Notes: 骨・重み・動作はまだ無い
 |----|-----------|
 | 1 | 落ちるの腕が真上（降参の形）→ 横へ。跳ぶの左腕が高すぎ → 下げた。倒れたあと腕が上を向く → 床に置いた。ダッシュの銃口が後ろを向く → 後ろ下へ流す。踏み込みの足が床を滑る → 足を上げるキーを足した |
 | 2 | 走る：体が立ちすぎ・右腕がまっすぐ前（走りながら狙っているよう）→ 前へ傾け、肘を約 90 度に、銃口は前下。空中斬り：前へ折れて頭が下がり、脚が床に着いて見える → 胸の前の折れを減らし、頭を上げ、脚を高く抱えた |
+| 3 | 2〜4 こまおきの帯（開発用）で全部の動作の流れを見た。跳ぶ：右手の銃が顔の前（狙っているよう）→ 腕を外・下へ。ほかは直さない（倒れる・被弾・3 段斬り 2・待機は流れが読めた） |
 
 ### 書き出し（godot-export・export-pipeline）
 
@@ -393,7 +394,8 @@ Notes: 骨・重み・動作はまだ無い
 | 動作 | NLA の帯ごと（`export_animation_mode='NLA_TRACKS'`）。action はスキル集どおり `AN_HaruBS_<Clip>`、帯の名前がゲームの動作の名前（idle など）。標本化 1 こまごと |
 | 皮 | 変形する骨だけ、1 頂点 4 本まで、骨格の基準の姿勢（rest）で |
 | まとめ | 体・服・髪・ゴーグルを `SM_Char_HaruBS`（材質 2 面）、フレームを群ごとに `Frame_core`・`Frame_arm`・`Frame_legs`（皮つき）、`LightBlade`（forearm.L の子）、`SM_Weapon_HaruBS_SparkGun`（hand.R の子）＋ `muzzle`（銃の子） |
-| 書き出しのあと | 一定の 1 の大きさの道を外す（`export_glb.strip_scale_tracks`。値が 1 でない道があれば止まる） |
+| 書き出しのあと | 一定の 1 の大きさの道を外す（`export_glb.strip_scale_tracks`。値が 1 でない道があれば止まる）。画像の名前から `haru_bs_` を外して `T_HaruBS_*`（スキル集の T_）に |
+| Godot の読み込みの設定 | `haru_bs.glb.import` の `animation/fps=60`（haru_r と同じ）。ほかは既定。テクスチャは読み込みで横に `haru_bs_T_HaruBS_Body_BC.png` などとして出る |
 
 ### 検証の結果（`check_glb.py`、Blender なしの glTF 読み）
 
@@ -405,7 +407,7 @@ Notes: 骨・重み・動作はまだ無い
 | 動作 | 14、名前は約束どおり。長さは haru_r とすべて同じ（air 0.300、charge 0.500、combo1 0.2833、combo2 0.300、combo3 0.450、dash 0.2333、dead 0.600、drill 0.1333、fall 0.6667、hurt 0.2667、idle 2.000、jump 0.2667、lunge 0.3333、run 0.6667 秒） |
 | 道 | 位置 406・回転 406・大きさ 0。根の位置は動かない（その場） |
 | 輪の継ぎ目 | idle・run・fall・drill の最初と最後の差は 4e-8 以下（同じ値） |
-| ゲームが探す物 | `LightBlade`（メッシュ、forearm.L の下）、`muzzle`（空、hand.R ＞ 銃の下）、`Frame_core`・`Frame_arm`・`Frame_legs`（皮つきメッシュ）。`AnimationPlayer`・`Skeleton3D` は Godot の読み込みで作られる（段 3・4 で確かめる） |
+| ゲームが探す物 | `LightBlade`（メッシュ、forearm.L の下）、`muzzle`（空、hand.R ＞ 銃の下）、`Frame_core`・`Frame_arm`・`Frame_legs`（皮つきメッシュ）。`AnimationPlayer`・`Skeleton3D` は Godot の読み込みで作られる（下の Godot の確かめで見つかった） |
 | 材質 | 5：`MAT_Cloth_HaruBS`・`MAT_face_HaruBS`（face）・`MAT_Ceramic_FrameBS`・`spark_gun_HaruBS`（spark_gun で始まる）・`MAT_Emissive_BladeBS`。透明（BLEND）なし。`blend_mul` は glTF に無い（Godot の読み込みで作る材質は不透明の標準） |
 | テクスチャ | GLB の中に 4 枚（`haru_bs_T_HaruBS_Body_BC` 2048²・`Face_BC` 2048²・`Frame_BC` 1024²・`SparkGun_BC` 512²）。Godot の読み込みで `haru_bs_*` の名前で横に出る |
 | 数 | メッシュ 6、描く面 7（体 2・フレーム 3・光刃 1・銃 1。光刃はふだん隠すので 6）、三角形 9,621、皮の頂点 9,316、GLB 1.2 MB |
@@ -413,9 +415,21 @@ Notes: 骨・重み・動作はまだ無い
 | 書き出しの正しさ | glTF の骨の変換を自分で重ねた位置と、Blender の姿勢の位置を、5 つの動作の要のこまの手・足・頭・腰で比べた：差は最大 4e-6 m |
 | 骨の基準の姿勢 | 逆の bind の行列の大きさは 1（ずれ 9e-6）。骨に大きさなし |
 
-**段 3・4 へ残すこと**：Godot での読み込み（`tools/godot.sh import`）と、`main.gd` の `--haru` の表に `"bs": "haru_bs"` を足すこと、ゲームでの確認。
+**Godot で読む確かめ**（godot-export の「一度読み込んで確かめる」）：`tools/godot.sh import` で読み込み（エラー・警告なし）、
+`tools/blender/trial_bs/godot_check.gd` でゲームの `PlayerView.load_model` をそのまま通した。
+
+| 確かめ | 結果 |
+|-------|------|
+| 骨格・動作 | `AnimationPlayer`・`Skeleton3D` が見つかる。骨 29（名前は約束どおり）。動作 14、長さは GLB と同じ、idle・run・fall・drill は PlayerView が輪にした |
+| 道 | 1 つの動作に 22 本（Godot の読み込みが、基準の姿勢のまま動かない道を外す）。走るでは首（一定で -8 度）の道も残る＝一定でも基準と違えば消えない |
+| 動作が骨に乗るか | idle・run・combo1・dead の途中で、首・左の上腕の回転、腰の位置が動作どおり変わる |
+| ゲームの部品 | `LightBlade` は BoneAttachment3D の下で隠れている。`muzzle` あり。フレームの群 core・arm・legs が見つかり、`set_frame_parts(true, false, false)` で core だけ見える |
+| 材質 | 顔の材質 1（`set_expression(1)` で uv1_offset が (0.5, 0)）、スパークの面 1（練習銃に替える面）、すべて不透明（transparency 0）。描く面 7（光刃を除く 6 物体）＋練習銃 |
+| 2 次の動き | 揺れ（HaruSway）の骨 9 本（髪 7・ポーチ 2）、足の接地（FootIK）、重ねる姿勢（HaruPose）、練習銃（hand.R）が付いた |
+
+**段 3・4 へ残すこと**：`main.gd` の `--haru` の表に `"bs": "haru_bs"` を足すこと、ゲームの画面での確認（PC・スマホの描画、攻撃・走り・揺れ・足の接地・練習銃の握り）。
 ナゴミの受け口（`nagomi_view.gd` の `SOCKET_POS`）は haru_r で測った定数で、haru_bs の背中の板の外の面は約 4 cm 前にある（段 1 の記録）。
-手で狙う姿勢（HaruPose）・足の接地（FootIK）・揺れ（HaruSway）は骨の名前と親子を約束どおりにしたので働くはずだが、まだゲームで見ていない。
+手で狙う姿勢（HaruPose）・足の接地（FootIK）・揺れ（HaruSway）・練習銃は Godot で付くことまで確かめたが、動いている画面はまだ見ていない。
 
 ### 段 2 の QA の判定（qa-review の型）
 
@@ -423,9 +437,10 @@ Notes: 骨・重み・動作はまだ無い
 QA Verdict: haru_bs（段 2、骨・重み・14 の動作・GLB）
 Result: SHIP WITH NOTES（段 3・4 の Godot での確認へ進めてよい）
 Budgets: 9,621 tris / 30k、材質 5、描く面 7、骨 29、1 頂点 4 本まで、動作 14（大きさの道 0）
-Checks: check_glb.py PASS、重みの報告（重みなし 0・合計のずれ 0）、Blender と glTF の姿勢の差 4e-6 m
+Checks: check_glb.py PASS、重みの報告（重みなし 0・合計のずれ 0）、Blender と glTF の姿勢の差 4e-6 m、
+        Godot の読み込み（エラーなし）と PlayerView.load_model の確かめ
 Blockers: なし
-Majors: まだ Godot で読んでいない（段 3・4）。ナゴミの受け口が約 4 cm ずれる（段 1 から）
+Majors: ゲームの画面ではまだ動かしていない（段 3・4）。ナゴミの受け口が約 4 cm ずれる（段 1 から）
 Minors: 肘・膝は低い面数で曲げると角ばる。走りの腕の振りは小さめ。ダッシュは移動と斬りで同じ動作（ゲームの作り）
 ```
 
@@ -446,7 +461,7 @@ Minors: 肘・膝は低い面数で曲げると角ばる。走りの腕の振り
 | get_scene_info・査察 | `validate.py`（大きさ・三角形・n 角形・開いた辺・UV の範囲・材質・名前） |
 | 骨・重みを MCP で作り、骨の数・親子・重みの群を MCP で問い合わせる（rigging の MCP Integration） | `rig.py` で骨格を作り、`rig.weight_report` で重みのない頂点・合計・影響の数を数える |
 | 試しの姿勢・動作を画面（EEVEE の再生）で見る | 姿勢ごと・要のこまごとに Cycles の静止画（`pose_sheets.py`）。動作の流れは開発用の帯（2〜4 こまおき）で見た。再生（動き）は見ていない |
-| 書き出したら Godot で読み込んで確かめる（godot-export の Verify in Godot、export-pipeline の First Import Test） | 段 2 では Blender なしの glTF 読み（`check_glb.py`）で約束を確かめ、glTF の骨の変換を自分で重ねて Blender の姿勢と比べた。Godot での読み込みは段 3・4 |
+| 書き出したら Godot で読み込んで確かめる（godot-export の Verify in Godot、export-pipeline の First Import Test） | Blender なしの glTF 読み（`check_glb.py`）で約束を確かめ、glTF の骨の変換を自分で重ねて Blender の姿勢と比べた。そのうえで頭なしの Godot で読み込み、ゲームの `PlayerView.load_model` を通した（`godot_check.gd`）。画面での確認は段 3・4 |
 
 ### ゲームの約束を優先した名前
 
@@ -559,7 +574,7 @@ Minors: 肘・膝は低い面数で曲げると角ばる。走りの腕の振り
 | animation | ブロッキング → Bezier、輪の継ぎ目、大きさのキー無し、根の動きを書く、AN_、NLA | 要のこま＝ブロッキング、Bezier と輪の Cycles、AN_ ＋ 帯の名前 | ○ 確かめの項目。具体の数は少ない |
 | walk-cycle | contact・down・passing・up、腕は脚と逆 | 走りに読み替え（宙に浮くこまを足す） | △ 言葉だけ |
 | combat-animation | 予備・振り抜き・振り切り・戻りのこま、被弾 2〜4 こま、止めた絵、足を滑らせない | 振り抜きを当たりの始まり（25%）へ、被弾は 3 こま目、角度を変えて確かめ、踏み込みに足を上げるキー | ◎ 攻撃の型 |
-| godot-export（+checklist） | GLB、+Y 上、修飾子の適用、動作は帯・AN_、一度読み込んで確かめる | そのとおり（Godot での読み込みは段 3・4） | △ 当たり前の項目だけ |
+| godot-export（+checklist） | GLB、+Y 上、修飾子の適用、動作は帯・AN_、一度読み込んで確かめる | そのとおり。読み込みはゲームの PlayerView を通して確かめた | △ 当たり前の項目だけ（「一度読み込む」は効いた：読み込みの fps を haru_r にそろえる必要に気づいた） |
 | export-pipeline（+engine-import） | 検証が先、骨格と皮を同じファイル、制約は焼く、大きさなし、寸法・軸を書く | `check_glb.py`、書き出しの表 | ○ 確かめの表の元 |
 | validation-checklist・asset-optimization | 数・材質・名前・書き出しの確かめ | 三角形・材質・描く面の数を `check_glb.py` で | ○ |
 | genre-action-combat | 戦う場所・小物の見え方 | 使わない | — |

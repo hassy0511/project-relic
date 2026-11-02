@@ -148,7 +148,7 @@ def export_rigged(arm, path):
 
 
 def strip_scale_tracks(path, eps=1e-5):
-    """書き出しの標本化（sampling）は、キーの無い骨の大きさにも一定の 1 の道を書く。値がすべて 1 なのを確かめてから
+    """（画像の名前もここで整える。下の終わり近く）書き出しの標本化（sampling）は、キーの無い骨の大きさにも一定の 1 の道を書く。値がすべて 1 なのを確かめてから
     道（channel・sampler）を外す（animation・rigging：骨の大きさのキーを持たない）。中身の数の列は残る（数 KB）"""
     import json
     import struct
@@ -182,6 +182,11 @@ def strip_scale_tracks(path, eps=1e-5):
             ch['sampler'] = remap[ch['sampler']]
             keep_ch.append(ch)
         a['channels'], a['samplers'] = keep_ch, keep_s
+    # 画像の名前はスキル集の T_[物]_[種類]（ファイルの haru_bs_ を外す）。Godot は読み込みで <GLB の名前>_<画像の名前>.png
+    # として横に出すので、haru_bs_T_HaruBS_Body_BC.png などになる（haru_bs_haru_bs_… の二重を避ける）
+    for im in js.get('images', []):
+        if im.get('name', '').startswith('haru_bs_'):
+            im['name'] = im['name'][len('haru_bs_'):]
     out = json.dumps(js, separators=(',', ':')).encode()
     out += b' ' * ((4 - len(out) % 4) % 4)
     body = struct.pack('<II', len(out), 0x4E4F534A) + out
