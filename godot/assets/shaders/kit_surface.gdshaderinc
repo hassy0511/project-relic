@@ -42,25 +42,31 @@ uniform vec2 near_fade = vec2(0.8, 1.5);
 #endif
 #include "res://assets/shaders/kit_motion.gdshaderinc"
 
+// 町の電気：2 m の升ごとの決まった乱数（灯ごとのばらつき・ちらつきの位相）。升は部品の置き場所（下の v_power_h）
+float power_hash(vec3 p) {
+	return fract(sin(dot(floor(p * 0.5), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+}
+
+// 灯ごとのばらつきの乱数は、面のかけらごとではなく部品 1 つ（MultiMesh なら 1 粒）の置き場所から決める。
+// かけらごとに決めると、2 m の升の境をまたぐ窓・灯の芯が別々の時に点き・消え、別々にちらついた。
+// 部屋の明かり（TownPower）も同じ置き場所から決めるので、灯の芯と光が一緒に点く
+varying flat float v_power_h;
+
 void vertex() {
+	// MODEL_MATRIX は vertex() では MultiMesh の 1 粒の変換も含む
+	v_power_h = power_hash(MODEL_MATRIX[3].xyz);
 	// 揺れ（材質の "sway"：風で揺れる布・垂れたケーブル。kit_motion.gdshaderinc）。重みは頂点の色のアルファ（1 - 重み）
 	if (sway_amp.x + sway_amp.y > 0.0) {
 		kit_sway(VERTEX, 1.0 - COLOR.a, MODEL_MATRIX, TIME);
 	}
 }
 
-// 町の電気：2 m の升ごとの決まった乱数（灯ごとのばらつき・ちらつきの位相）
-float power_hash(vec3 p) {
-	return fract(sin(dot(floor(p * 0.5), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
-}
-
 // 電気の灯の明るさ 0〜1（TownPower.wave_k と同じ式）。波の間は、原点からの距離 / 速さ + ばらつきの秒で点く（消える）。
-// 切り替わる前後の 0.5 秒は 1/20 秒ごとにちらつく（点く波は点いている割合が増えていき、消える波は減っていく）
-float power_k(vec3 wp) {
+// 切り替わる前後の 0.5 秒は 1/20 秒ごとにちらつく（点く波は点いている割合が増えていき、消える波は減っていく）。h は部品ごとの乱数
+float power_k(vec3 wp, float h) {
 	if (power_state.y == 0.0) {
 		return power_state.x;
 	}
-	float h = power_hash(wp);
 	float t = power_state.z - (length(wp - power_origin.xyz) / max(power_state.w, 0.01) + h * power_origin.w);
 	float on = step(0.5, t);
 	if (t >= 0.0 && t < 0.5) {
@@ -118,11 +124,11 @@ void fragment() {
 	if (power_source > 0.5) {
 		vec3 wp = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
 		if (power_source < 1.5) {
-			pk = power_k(wp);
+			pk = power_k(wp, v_power_h);
 			c *= mix(0.3, 1.0, pk);
 			pk = mix(power_floor, 1.0, pk);
 		} else {
-			float h = power_hash(wp) * 40.0;
+			float h = v_power_h * 40.0;
 			pk = 0.88 + 0.12 * sin(TIME * 6.1 + h) * sin(TIME * 2.3 + h * 0.37);
 		}
 	}

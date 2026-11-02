@@ -80,11 +80,13 @@ def sign(room, text, board, yaw, board_w):
     raise KeyError(f"看板が無い: {text}")
 
 
-def common(room, d):
-    """町の部屋に共通：キット town、町の電気の網（grid）。オルドの体は部屋ごとに ordo() で置く"""
+def common(room, d, on_grid=True):
+    """町の部屋に共通：キット town、町の電気の網（grid）。オルドの体は部屋ごとに ordo() で置く。
+    on_grid=False：電気の網に乗せない（夜明けの甲羅。始めの場面は電気があり、停電の間は来ない）"""
     room["kit"] = "town"
     room.pop("ordo", None)
-    grid(room)
+    if on_grid:
+        grid(room)
 
 
 # ---------------------------------------------------------------- 停電の夜（2026-11-01。docs/design/42_コンテンツの書き方.md 14.8）
@@ -151,11 +153,14 @@ def lamp(room, d, pos, real=None, size=0.45, pool=3.0, floor=0.0, part=True):
 ORDO_POS = {"mid": [0, -6.5, 0], "lower": [0, -1.5, 8], "opening": [0, -39.5, -176]}
 
 
-def ordo(room, d, name, back="ordo_back", ground=True):
-    """ground=False：砂の床を描かない（夜明けの甲羅：始めの場面のカメラが空から見る地平線の砂漠は空の絵のまま）"""
+def ordo(room, d, name, back="ordo_back", ground=True, phase=None):
+    """ground=False：砂の床を描かない（夜明けの甲羅：始めの場面のカメラが空から見る地平線の砂漠は空の絵のまま）。
+    phase：部屋を作ったときの歩きの周期の位置（0〜1。夜明けの甲羅は、足が着く時刻を始めの場面のカメラに合わせる）"""
     room["ordo"] = {"pos": ORDO_POS[name], "back": "town/" + back}
     if not ground:
         room["ordo"]["ground"] = False
+    if phase is not None:
+        room["ordo"]["phase"] = phase
 
 
 def ordo_landing(room, d, name, solid):
@@ -358,12 +363,13 @@ def mid(room):
 
 
 def blackout_mid(room, d):
-    """停電の夜の中段：広場の集まり（町長の壇の前の両端。本物の光 2 つでバートン・町長・ミナ婆を照らす）、雑貨屋（台の西の樽の上。
-    本物の光で店主）、ジャンク屋・食堂（安い光）、工房の前の作業台の携行灯（前からある油の灯に安い光）"""
+    """停電の夜の中段：広場の集まり（町長の壇の前の両端。本物の光 2 つでバートン・町長・ミナ婆を照らす）、雑貨屋・ジャンク屋
+    （台の上の面 y 1.1、店主の前。本物の光で店主の顔を照らす。前は台の脇の樽の上で、店主が日よけの陰のまま名前だけが浮いた）、
+    食堂（安い光）、工房の前の作業台の携行灯（前からある油の灯に安い光）"""
     lamp(room, d, [-3.3, 0.8, 8.0], real=(10.0, 2.2))
     lamp(room, d, [3.3, 0.8, 8.0], real=(10.0, 2.2))
-    lamp(room, d, [19.4, 1.0, 4.4], real=(7.5, 2.0))
-    lamp(room, d, [33.4, 1.0, 4.4])
+    lamp(room, d, [23.5, 1.13, 3.75], real=(7.5, 2.0))
+    lamp(room, d, [37.45, 1.13, 3.75], real=(4.5, 1.6))
     lamp(room, d, [-21.6, 1.0, 0.3])
     lamp(room, d, [-39.65, 0.97, 0.8], part=False)
 
@@ -1113,11 +1119,11 @@ def opening(room):
     遠くの砂漠の箱（形）は描かない（キットの夜明けの空の絵の砂漠と遺跡が見える。当たり判定は残る）。
     始めの場面のカメラ（ch1.opening：96 m 前の空から北の地平線を見る）の前に物を置かない"""
     d = Dress()
-    common(room, d)
+    common(room, d, on_grid=False)
     G = lambda pos, size: geo_index(room, pos, size)  # noqa: E731
     G([0, -2, 0], [40, 2, 40])["skin"] = {"floor": "hullplate", "wall": "stone2"}
     # 町の下のオルド：この台は船首の頭の上（ORDO_POS）。南を向くと背の町の全体（ordo_town）、北は船首の先と地平線
-    ordo(room, d, "opening", back="ordo_town", ground=False)
+    ordo(room, d, "opening", back="ordo_town", ground=False, phase=0.84)
     for pos, size in (([-80, -30, 160], [120, 34, 60]), ([70, -30, 210], [160, 38, 60]), ([0, -30, 320], [400, 44, 80])):
         G(pos, size)["hide"] = True
     # 縁の低い壁（1 m 厚、上 1.2）：手すりと角の柱（南は yaw 0、北は 180、西は 90、東は 270）
@@ -1153,15 +1159,23 @@ ROOMS = {"mid": mid, "lower": lower, "upper": upper, "training": training, "home
 
 
 def main():
-    data = json.load(open(PATH, encoding="utf-8"))
-    names = sys.argv[1:] or list(ROOMS)
+    """引数：部屋の名前（無ければ全部）。--check：書かずに、流した結果が今のファイルと同じかだけを見る（違えば 1 で終わる）"""
+    args = [a for a in sys.argv[1:] if a != "--check"]
+    check = "--check" in sys.argv[1:]
+    before = open(PATH, encoding="utf-8").read()
+    data = json.loads(before)
+    names = args or list(ROOMS)
     for n in names:
         ROOMS[n](data["rooms"][n])
         solid = sum(1 for g in data["rooms"][n]["geometry"] if "dress" in g)
         print(f"{n}: dress {len(data['rooms'][n]['dress'])} 件・当たり判定の箱 {solid} 個")
+    after = json.dumps(data, ensure_ascii=False, indent=1) + "\n"
+    if check:
+        same = after == before
+        print("同じ（流し直しても変わらない）" if same else "違う：流し直すと ch1_town.json が変わる")
+        sys.exit(0 if same else 1)
     with open(PATH, "w", encoding="utf-8") as fh:
-        json.dump(data, fh, ensure_ascii=False, indent=1)
-        fh.write("\n")
+        fh.write(after)
 
 
 if __name__ == "__main__":

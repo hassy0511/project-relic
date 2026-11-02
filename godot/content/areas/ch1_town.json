@@ -2061,6 +2061,11 @@
      ]
     }
    ],
+   "intro_fade": [
+    2.0,
+    1.6
+   ],
+   "music": "none",
    "ordo": {
     "pos": [
      0,
@@ -2070,12 +2075,7 @@
     "back": "town/ordo_town",
     "ground": false,
     "phase": 0.84
-   },
-   "intro_fade": [
-    2.0,
-    1.6
-   ],
-   "music": "none"
+   }
   },
   "training": {
    "name": "訓練場",
@@ -18357,9 +18357,9 @@
     },
     {
      "pos": [
-      19.4,
-      1.27,
-      4.4
+      23.5,
+      1.4,
+      3.75
      ],
      "color": "#ffa458",
      "range": 7.5,
@@ -18374,21 +18374,20 @@
     },
     {
      "pos": [
-      33.4,
-      1.27,
-      4.4
+      37.45,
+      1.4,
+      3.75
      ],
      "color": "#ffa458",
-     "range": 4.0,
-     "energy": 1.0,
+     "range": 4.5,
+     "energy": 1.6,
      "source": "oil",
      "blackout": true,
      "glow": 0.45,
      "pool": [
       3.0,
       0.0
-     ],
-     "omni": false
+     ]
     },
     {
      "pos": [
@@ -20924,18 +20923,18 @@
     {
      "part": "town/hand_lantern",
      "pos": [
-      19.4,
-      1.0,
-      4.4
+      23.5,
+      1.13,
+      3.75
      ],
      "blackout": true
     },
     {
      "part": "town/hand_lantern",
      "pos": [
-      33.4,
-      1.0,
-      4.4
+      37.45,
+      1.13,
+      3.75
      ],
      "blackout": true
     },

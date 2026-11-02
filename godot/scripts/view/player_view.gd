@@ -96,6 +96,8 @@ func load_model(path: String, shade: String = "soft") -> void:
 	for n in model.find_children("*", "MeshInstance3D", true, false):
 		var mi := n as MeshInstance3D
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		# 人物の層（夜の人物の照らし EnvironmentSetup.CHAR_LAYER が照らす）
+		mi.layers |= EnvironmentSetup.CHAR_LAYER
 		for s in mi.mesh.get_surface_count():
 			# 材質は体ごとに複製する（表情の UV のずれ・点滅・光刃の明るさを、ほかの体と共有しないように）。
 			# テクスチャ（下地の色・発光）は複製した材質がそのまま参照する。glTF の読み込みでは

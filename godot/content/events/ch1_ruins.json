@@ -833,10 +833,67 @@
     ]
    },
    {
-    "wait": 1.2
+    "camera": {
+     "pos": [
+      0,
+      0,
+      6
+     ],
+     "height": 0,
+     "eye": [
+      0,
+      10,
+      -8
+     ],
+     "time": 1.5,
+     "wait": false
+    }
+   },
+   {
+    "wait": 1.4
+   },
+   {
+    "camera": {
+     "pos": [
+      0,
+      -6,
+      -60
+     ],
+     "height": 0,
+     "eye": [
+      0,
+      9,
+      -10
+     ],
+     "time": 2.7,
+     "wait": false
+    }
+   },
+   {
+    "wait": 2.6
+   },
+   {
+    "camera": {
+     "pos": [
+      0,
+      0,
+      6
+     ],
+     "height": 0,
+     "eye": [
+      0,
+      10,
+      -8
+     ],
+     "time": 30.0,
+     "wait": false
+    }
    },
    {
     "say": "ch1.cheer"
+   },
+   {
+    "camera": {}
    },
    {
     "wait": 0.6
