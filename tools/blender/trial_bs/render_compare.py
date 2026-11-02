@@ -40,6 +40,7 @@ VIEWS = {
     'head_front_right45': dict(img='haru_head_front_right45.png', rz=-45, rx=90, full=False),
     'head_top': dict(img='haru_head_top.png', rz=0, rx=0, full=False),
     'face_front': dict(img='haru_face_front.png', rz=0, rx=90, full=False),
+    'gun_side': dict(img='spark_gun_side.png', rz=0, rx=90, full=False, gun=True),
     'expr0': dict(img='expr_q0.png', rz=0, rx=90, full=False, expr=0),
     'expr1': dict(img='expr_q1.png', rz=0, rx=90, full=False, expr=1),
     'expr2': dict(img='expr_q2.png', rz=0, rx=90, full=False, expr=2),
@@ -76,6 +77,11 @@ def head_verts():
     return pts
 
 
+def gun_verts():
+    ob = bpy.data.objects['SM_Weapon_HaruBS_SparkGun']
+    return [ob.matrix_world @ v.co for v in ob.data.vertices]
+
+
 def all_verts():
     dg = bpy.context.evaluated_depsgraph_get()
     pts = []
@@ -89,9 +95,16 @@ def all_verts():
     return pts
 
 
+def gun_basis():
+    g = bpy.data.objects['SM_Weapon_HaruBS_SparkGun'].matrix_world.to_3x3().normalized()
+    right, up, back = g @ Vector((1, 0, 0)), g @ Vector((0, 0, 1)), -(g @ Vector((0, 1, 0)))
+    m = Matrix((right, up, back)).transposed()
+    return m, right, up, back
+
+
 def setup_camera(view, art_alpha):
     cfg = VIEWS[view]
-    m, right, up, back = cam_basis(cfg['rz'], cfg['rx'])
+    m, right, up, back = gun_basis() if cfg.get('gun') else cam_basis(cfg['rz'], cfg['rx'])
     sc = bpy.context.scene
     cam = bpy.data.objects.get('CAM_Ref')
     if cam is None:
@@ -115,12 +128,15 @@ def setup_camera(view, art_alpha):
         center = right * cx + Vector((0, 0, FULL_CZ)) if cfg['rx'] == 90 else right * cx
         center = Vector((center.x, center.y, FULL_CZ))
     else:
-        pts = head_verts()
+        pts = gun_verts() if cfg.get('gun') else head_verts()
         sx = [p.dot(right) for p in pts]
         sy = [p.dot(up) for p in pts]
         # 頭の絵はどれも同じ大きさで描かれている（髪の先 145 px、首の切れ目 1902 px）。大きさは全身の絵の頭の幅から決めた
         # 1 つの値（画像の幅 = 0.481 m。2×2 の表情の区画は 0.473 m）。位置は髪の上の端と、影の箱の横の中心で合わせる
         scale = HEAD_SCALE_Q if cfg.get('expr') is not None else HEAD_SCALE
+        if cfg.get('gun'):
+            # 銃の絵は銃だけ：長さ（影の箱の幅）で合わせる
+            scale = (max(sx) - min(sx)) / ((x1 - x0) / W)
         top_model = max(sy)
         art_top = (W / 2 - y0) / W * scale
         mid = (min(sx) + max(sx)) / 2
@@ -280,11 +296,13 @@ def main(views, tag):
         for ob in bpy.data.objects:
             if ob.type == 'MESH':
                 ob.hide_render = (not cfg['full']) and not ob.name.startswith(HEAD_PARTS + ('SM_Char_HaruBS_Body',))
+                if cfg.get('gun'):
+                    ob.hide_render = ob.name != 'SM_Weapon_HaruBS_SparkGun'
                 # 全身の絵には銃と光刃が無い（発注書：全身では外した）
                 if cfg['full'] and ob.name in ('SM_Weapon_HaruBS_SparkGun', 'LightBlade'):
                     ob.hide_render = True
         cam, back = setup_camera(v, art_alpha)
-        m, right, up, back = cam_basis(cfg['rz'], cfg['rx'])
+        m, right, up, back = gun_basis() if cfg.get('gun') else cam_basis(cfg['rz'], cfg['rx'])
         L = (back * 0.85 + up * 0.45 - right * 0.30).normalized()
         for m in [m for m in bpy.data.materials if m.name.startswith('TOON_')]:
             bpy.data.materials.remove(m)

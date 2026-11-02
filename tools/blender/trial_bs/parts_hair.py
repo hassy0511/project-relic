@@ -23,6 +23,9 @@ def cap():
     def rim(a):
         # 生え際の高さ：正面（額）1.385、こめかみ 1.32、耳の上 1.30、後ろ 1.235
         c = math.cos(a)
+        ad = abs(math.degrees(math.atan2(math.sin(a), c)))
+        if 72 < ad < 116:
+            return 1.336                    # 耳の上で生え際を上げる（耳を出す）
         if c >= 0:
             return 1.300 + 0.085 * c ** 1.4
         return 1.300 + (1.300 - 1.235) * c
@@ -128,7 +131,7 @@ def hair_regions():
         reg = 'hair.top' if abs(a_deg) > 60 else 'hair.front'
         add(reg, leaf(a, 1.478, 1.365, math.radians(16), 0.082, 0.010, 0.085, 0.040))
     # 頭頂の立つ房（上の輪郭のとがり）
-    for a_deg, ln, up_k, wd in ((10, 0.130, 1.30, 0.066), (-25, 0.110, 1.0, 0.060), (170, 0.115, 0.8, 0.070), (-140, 0.100, 0.7, 0.064)):
+    for a_deg, ln, up_k, wd in ((10, 0.162, 1.45, 0.066), (-25, 0.110, 1.0, 0.060), (170, 0.115, 0.8, 0.070), (-140, 0.100, 0.7, 0.064)):
         a = math.radians(a_deg)
         o = _o(a)
         root = CROWN + o * 0.015 + Vector((0, 0, -0.016))
@@ -141,17 +144,17 @@ def hair_regions():
         if abs(a_deg) < 48:
             continue
         a = math.radians(a_deg)
-        near_ear = 68 < abs(a_deg) < 118
-        z1 = 1.335 if near_ear else 1.265
+        near_face = abs(a_deg) < 118      # 目・耳より前（真横の絵で、目と耳の上で止まる）
+        z1 = 1.340 if near_face else 1.265
         add(_region(a_deg, 1.40), leaf(a, 1.420, z1, math.radians(8), 0.080, 0.008, 0.070 if not abs(a_deg) > 130 else 0.040, 0.038))
     # 3 段目：後ろ・えり足（下へ短く、えりに沿う）
-    for k in range(7):
-        a_deg = 180 - 30 * k + (0 if k % 2 else 0)
+    for k in range(12):
+        a_deg = 180 - 30 * k
         a_deg = ((a_deg + 180) % 360) - 180
-        if abs(a_deg) < 115:
+        if abs(a_deg) < 100:
             continue
         a = math.radians(a_deg)
-        add('hair.nape', leaf(a, 1.330, 1.228, 0.0, 0.070, 0.006, 0.026, 0.032))
+        add('hair.nape' if abs(a_deg) > 125 else _region(a_deg, 1.30), leaf(a, 1.330, 1.228, 0.0, 0.074, 0.006, 0.026, 0.032))
     for a_deg in (-125, 125, -150, 150, 180):
         a = math.radians(a_deg)
         add(_region(a_deg, 1.36), leaf(a + math.radians(12), 1.370, 1.262, 0.0, 0.074, 0.010, 0.036, 0.034))
@@ -173,7 +176,7 @@ def hair_regions():
         add('hair.front', tuft(root, dirs, ln, wd, 0.024, twist_up=o))
     # 顔の横の房（耳の前へ下りる）
     for side in (1, -1):
-        for a_deg, z0, ln in ((58, 1.405, 0.160), (70, 1.400, 0.140)):
+        for a_deg, z0, ln in ((74, 1.400, 0.150), (84, 1.395, 0.135)):
             a = math.radians(a_deg * side)
             o = _o(a)
             root = head_point(a, z0, 0.004)

@@ -76,7 +76,7 @@ def main(tag):
     pair_sheet(pairs, os.path.join(DOC, 'model_views.jpg'), (270, 470), (0.2, 0.03, 0.8, 0.97), 2,
                '全身：Codex の絵｜haru_bs（同じ正投影のカメラ、陰は 3 段のトゥーン）')
     head = [('head_side_right', '頭・右の真横'), ('head_back', '頭・背面'), ('head_front_right45', '頭・右前 45 度'),
-            ('head_top', '頭・真上'), ('face_front', '顔・正面')]
+            ('head_top', '頭・真上'), ('face_front', '顔・正面'), ('gun_side', 'スパーク・真横')]
     pairs = [pr(v, l) for v, l in head if os.path.exists(os.path.join(cmp_dir, f'{v}_render.png'))]
     pair_sheet(pairs, os.path.join(DOC, 'model_head.jpg'), (330, 330), None, 2,
                '頭：Codex の絵｜haru_bs（絵の髪の外形の箱に合わせたカメラ）')

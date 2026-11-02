@@ -164,6 +164,8 @@ def make_all(objs, M, out):
         p = os.path.join(tex, f'haru_bs_{tname}.png')
         raster(obs, size, p)
         image_node(M[key], p, tname)
+    # 光刃：UV を 0〜1 に詰める（テクスチャは無いが、validation-checklist の「UV は 0〜1」）
+    pack([bpy.data.objects['LightBlade']])
     # 光刃：平らな琥珀（発光はゲームで別に付ける。透明は使わない）
     mb = M['blade']
     nt = mb.node_tree

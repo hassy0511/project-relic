@@ -180,18 +180,10 @@ def build(with_tex=True, with_glb=True):
 
     os.makedirs(OUT, exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, 'haru_bs.blend'))
-    if with_glb:
-        export_static(os.path.join(OUT, 'haru_bs_static.glb'))
     report(objs)
-
-
-def export_static(path):
-    bpy.ops.object.select_all(action='DESELECT')
-    for ob in bpy.data.objects:
-        if ob.type in ('MESH', 'EMPTY') and not ob.name.startswith(('CAM_', 'LGT_')):
-            ob.select_set(True)
-    bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', use_selection=True, export_apply=True,
-                              export_yup=True, export_animations=False, export_vertex_color='NONE')
+    if with_glb:
+        import export_glb
+        export_glb.export_static(os.path.join(OUT, 'haru_bs_static.glb'))
 
 
 def report(objs):

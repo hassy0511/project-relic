@@ -140,8 +140,8 @@ def trouser_leg(side):
     th, sn = J['thigh' + s], J['shin' + s]
     d = (sn - th).normalized()
     top = Vector((side * 0.060, -0.038, 0.875))
-    path = [top, Vector((side * 0.066, -0.040, 0.80)), Vector((side * 0.076, -0.036, 0.70)), Vector((side * 0.097, -0.028, 0.60)), Vector((side * 0.113, -0.016, 0.53)), Vector((side * 0.118, -0.012, 0.485))]
-    radii = [(0.086, 0.088), (0.090, 0.093), (0.092, 0.094), (0.095, 0.094), (0.097, 0.096), (0.090, 0.090)]
+    path = [top, Vector((side * 0.066, -0.040, 0.80)), Vector((side * 0.070, -0.039, 0.755)), Vector((side * 0.076, -0.036, 0.70)), Vector((side * 0.097, -0.028, 0.60)), Vector((side * 0.113, -0.016, 0.53)), Vector((side * 0.118, -0.012, 0.485))]
+    radii = [(0.086, 0.088), (0.090, 0.093), (0.091, 0.094), (0.092, 0.094), (0.095, 0.094), (0.097, 0.096), (0.090, 0.090)]
     return tube(path, radii, n=8, col='brick', start=math.pi / 8 + (0 if side > 0 else 0), caps=(False, True))
 
 
@@ -149,9 +149,10 @@ def legging(side):
     s = '.L' if side > 0 else '.R'
     kn, an = J['shin' + s], J['foot' + s]
     d = (an - kn).normalized()
-    path = [kn - d * 0.08, kn, kn + d * 0.10, kn + d * 0.20, an + Vector((0, 0, 0.04))]
-    radii = [(0.058, 0.062), (0.056, 0.062), (0.054, 0.066), (0.048, 0.058), (0.044, 0.050)]
-    path = [q + Vector((0, 0.010 if k in (2, 3) else 0.0, 0)) for k, q in enumerate(path)]
+    # 膝のまわりに 3 本の輪（character-artist：肘・膝は 3 本で曲がりを支える）
+    path = [kn - d * 0.08, kn - d * 0.025, kn, kn + d * 0.025, kn + d * 0.10, kn + d * 0.20, an + Vector((0, 0, 0.04))]
+    radii = [(0.058, 0.062), (0.057, 0.062), (0.056, 0.062), (0.056, 0.063), (0.054, 0.066), (0.048, 0.058), (0.044, 0.050)]
+    path = [q + Vector((0, 0.010 if k in (4, 5) else 0.0, 0)) for k, q in enumerate(path)]
     return tube(path, radii, n=10, col='umber', start=-math.pi / 2, caps=(False, False))
 
 

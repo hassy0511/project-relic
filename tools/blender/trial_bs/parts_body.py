@@ -84,7 +84,7 @@ def head():
 def ears():
     out = Part()
     for side in (1, -1):
-        c = Vector((side * 0.104, 0.008, 1.292))
+        c = Vector((side * 0.109, 0.008, 1.292))
         xa = Vector((0, -1, 0))
         ya = Vector((0, 0, 1))
         # 外へ少し開く
@@ -100,7 +100,7 @@ def neck():
     a = J['neck'] + Vector((0, 0.0, -0.04))
     b = J['head'] + Vector((0, 0.01, 0.06))
     path = [a, a.lerp(b, 0.5), b]
-    return tube(path, [0.050, 0.040, 0.037], n=12, col='skin', start=math.pi / 2)
+    return tube(path, [0.054, 0.047, 0.045], n=12, col='skin', start=math.pi / 2)
 
 
 # ---------------------------------------------------------------- 腕（袖の中から手首まで）

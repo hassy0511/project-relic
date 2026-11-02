@@ -176,32 +176,56 @@ def thigh_plate():
 
 
 # ---------------------------------------------------------------- スパーク（銃）。銃の座標：銃身 +X、上 +Z、原点 = 握りの中心
-MUZZLE = Vector((0.222, 0.0, 0.074))
+# 寸法は spark_gun_side.png の画素から（遊底の長さ 545 px = 0.29 m、原点は握りの中心の画素 (150, 440)）
+GUN_S = 0.29 / 545.0
+
+
+def _gp(px, py):
+    return ((px - 150) * GUN_S, (440 - py) * GUN_S)
+
+
+MUZZLE = Vector((_gp(620, 255)[0], 0.0, _gp(620, 255)[1]))
+
+
+def _gun_block(p, pts_px, y_half, col, bevel=0.003):
+    pts = [_gp(x, y) for x, y in pts_px]
+    cx = sum(x for x, _ in pts) / len(pts)
+    cz = sum(z for _, z in pts) / len(pts)
+    loc = [(x - cx, z - cz) for x, z in pts]
+    p.extend(slab(loc, Vector((cx, 0, cz)), Vector((1, 0, 0)), Vector((0, 0, 1)), y_half * 2, col, bevel=bevel))
 
 
 def spark_gun():
     p = Part()
-    X, Y, Z = Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))
-    # 後ろの高い箱（遊底の後ろ）
-    p.extend(slab(chamfer_rect(0.110, 0.060, 0.010), Vector((-0.032, 0, 0.078)), X, Z, 0.040, 'graphite', bevel=0.004))
-    # 銃身の箱（前へ）
-    p.extend(slab(chamfer_rect(0.200, 0.048, 0.008), Vector((0.115, 0, 0.074)), X, Z, 0.036, 'graphite_lt', bevel=0.004))
+    # 遊底（上の角形の箱、前は少し低い）
+    _gun_block(p, [(290, 190), (600, 190), (612, 205), (612, 300), (290, 300)], 0.016, 'graphite_lt')
+    # 後ろの高い箱（窓の付く所）
+    _gun_block(p, [(95, 175), (275, 175), (300, 205), (300, 330), (120, 330), (85, 290), (85, 200)], 0.018, 'graphite')
+    # 下の枠（真鍮のレールの付く段）
+    _gun_block(p, [(230, 290), (590, 290), (590, 330), (565, 345), (240, 345)], 0.015, 'graphite')
     # 銃口の太い先
-    p.extend(slab(chamfer_rect(0.030, 0.054, 0.008), Vector((0.205, 0, 0.074)), X, Z, 0.040, 'graphite', bevel=0.004))
+    _gun_block(p, [(548, 185), (612, 185), (624, 200), (624, 312), (612, 325), (548, 325)], 0.019, 'graphite')
     # 握り（後ろへ傾く）
-    g = Matrix.Rotation(math.radians(-14), 3, 'Y')
-    gx, gz = g @ X, g @ Z
-    p.extend(slab(chamfer_rect(0.046, 0.110, 0.010), Vector((-0.012, 0, -0.008)), gx, gz, 0.032, 'graphite', bevel=0.004))
-    # 用心金（引き金の囲い）
-    guard = [Vector((0.012, 0, 0.044)), Vector((0.058, 0, 0.040)), Vector((0.062, 0, 0.018)), Vector((0.044, 0, 0.004)), Vector((0.018, 0, 0.006))]
-    p.extend(tube(guard, [(0.004, 0.007)] * len(guard), n=4, col='graphite', up=Vector((0, 1, 0))))
-    p.extend(tube([Vector((0.030, 0, 0.044)), Vector((0.038, 0, 0.022))], [(0.004, 0.003), (0.003, 0.003)], n=4, col='graphite_lt'))
+    _gun_block(p, [(115, 325), (245, 325), (235, 360), (195, 548), (155, 552), (60, 528), (50, 505)], 0.016, 'graphite')
+    # 用心金（引き金の囲い）と引き金
+    guard = [Vector((_gp(x, y)[0], 0, _gp(x, y)[1])) for x, y in ((215, 345), (225, 425), (320, 428), (355, 380), (352, 345))]
+    p.extend(tube(guard, [(0.005, 0.008)] * len(guard), n=4, col='graphite', up=Vector((0, 1, 0))))
+    trig = [Vector((_gp(x, y)[0], 0, _gp(x, y)[1])) for x, y in ((262, 345), (255, 375), (268, 398))]
+    p.extend(tube(trig, [(0.004, 0.003)] * 3, n=4, col='graphite_lt'))
     # 後ろの白いブロック
-    p.extend(slab(chamfer_rect(0.026, 0.040, 0.006), Vector((-0.083, 0, 0.088)), X, Z, 0.042, 'ivory', bevel=0.004))
+    _gun_block(p, [(55, 222), (112, 210), (112, 292), (48, 292)], 0.020, 'ivory')
     # 琥珀の窓（両側）と真鍮のレール（両側）
     for sy in (1, -1):
-        p.extend(slab(chamfer_rect(0.036, 0.020, 0.003), Vector((-0.045, sy * 0.0205, 0.088)), X if sy < 0 else -X, Z, 0.003, 'amber'))
-        p.extend(slab(chamfer_rect(0.090, 0.008, 0.001), Vector((0.120, sy * 0.0185, 0.060)), X if sy < 0 else -X, Z, 0.003, 'brass'))
+        for pts, col, dy in (([(160, 222), (240, 222), (240, 262), (160, 262)], 'amber', 0.0185),
+                             ([(358, 292), (555, 292), (555, 318), (358, 318)], 'brass', 0.0155)):
+            q = [_gp(x, y) for x, y in pts]
+            cx = sum(x for x, _ in q) / 4
+            cz = sum(z for _, z in q) / 4
+            loc = [(x - cx, z - cz) for x, z in q]
+            xa = Vector((1, 0, 0)) if sy < 0 else Vector((-1, 0, 0))
+            if sy > 0:
+                loc = [(-x, z) for x, z in loc]
+            p.extend(slab(loc, Vector((cx, sy * dy, cz)), xa, Vector((0, 0, 1)), 0.003, col))
     # 銃口の穴（暗い円）
-    p.extend(tube([MUZZLE - Vector((0.004, 0, 0)), MUZZLE + Vector((0.0015, 0, 0))], [0.010, 0.010], n=8, col='umber_dk', up=Z))
+    p.extend(tube([MUZZLE - Vector((0.004, 0, 0)), MUZZLE + Vector((0.0015, 0, 0))], [0.011, 0.011], n=8, col='umber_dk', up=Vector((0, 0, 1))))
     return p
