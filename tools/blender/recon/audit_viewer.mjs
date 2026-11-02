@@ -71,7 +71,8 @@ for (const z of Object.values(ZONES)) {
 }
 const zones = (args.zones || 'full,head,torso,hips,legs').split(',');
 if (args.az) { const az = args.az.split(',').map(Number); for (const z of Object.values(ZONES)) z.az = az; }
-if (args.el) { const el = args.el.split(','); for (const z of Object.values(ZONES)) z.el = z.el.filter((e) => el.includes(e[0])); }
+// --el top：格子に無い真上（極角 6 度）を足す（髪の頭頂の確認。既定の格子は変えない）
+if (args.el) { const el = args.el.split(','); for (const z of Object.values(ZONES)) z.el = z.el.filter((e) => el.includes(e[0])).concat(el.includes('top') ? [['top', 6]] : []); }
 const AZ_NAME = { 0: 'front', 45: 'front-left', 90: 'left', 135: 'back-left', 180: 'back', 225: 'back-right',
   270: 'right', 315: 'front-right', 30: 'left 30', 330: 'right 30' };
 
