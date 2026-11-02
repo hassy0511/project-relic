@@ -1,6 +1,9 @@
 """haru_bs を作り直す入口（段 1：骨なしのモデル）。
 
-  .venv-blender/bin/python tools/blender/trial_bs/build_haru_bs.py [--no-tex] [--no-glb]
+  .venv-blender/bin/python tools/blender/trial_bs/build_haru_bs.py [--no-tex] [--no-glb] [--rig | --anim | --game]
+
+  --rig：段 2 の骨と重みまで（build/trial_bs/haru_bs_rig.blend）。--anim：14 の動作まで（haru_bs_anim.blend と
+  build/trial_bs/haru_bs.glb）。--game：ゲームの godot/assets/models/haru_bs.glb に書き出す。
 
 出力：build/trial_bs/haru_bs.blend、build/trial_bs/haru_bs_static.glb（骨なしの確認用）、
 テクスチャ build/trial_bs/tex/haru_bs_T_*.png。
@@ -173,6 +176,7 @@ def build(with_tex=True, with_glb=True):
     mz.parent = gun
     mz.location = K.MUZZLE
     blade = mk(K.light_blade(bstart, bdir, bside), 'LightBlade', c_props, 'blade', angle=30)
+    blade['emitter'] = list(bstart + bside * 0.012)     # 光刃の原点（段 2：籠手の射出口。ゲームはここを中心に縮める）
 
     if with_tex:
         import textures
@@ -205,6 +209,30 @@ def report(objs):
     print('TOTAL TRIS', total, 'objects', len(rows), 'materials', len([m for m in bpy.data.materials if m.users]))
 
 
+def stage2(anim=True, game=False):
+    """段 2：骨と重み（rig.py）→ 14 の動作（anim.py）→ 書き出し（export_glb.export_rigged）。
+    build/trial_bs/haru_bs_rig.blend（骨と重みまで）・haru_bs_anim.blend（動作つき）。game なら godot/assets/models/haru_bs.glb も"""
+    import rig
+    arm, rep = rig.build_rig(blade_origin=Vector(bpy.data.objects['LightBlade']['emitter']))
+    for k, v in sorted(rep.items()):
+        print('  weights', k, v)
+    for k, v in sorted(rig.weight_report(arm).items()):
+        print('  check', k, 'max influences', v[0], 'not normalised', v[1], 'no weight', v[2])
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, 'haru_bs_rig.blend'))
+    if not anim:
+        return
+    import anim as A
+    A.build_clips(arm)
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, 'haru_bs_anim.blend'))
+    import export_glb
+    path = os.path.join(ROOT, 'godot', 'assets', 'models', 'haru_bs.glb') if game else os.path.join(OUT, 'haru_bs.glb')
+    export_glb.export_rigged(arm, path)
+    print('WROTE', path)
+
+
 if __name__ == '__main__':
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else sys.argv[1:]
-    build(with_tex='--no-tex' not in argv, with_glb='--no-glb' not in argv)
+    rigging = '--rig' in argv or '--anim' in argv or '--game' in argv
+    build(with_tex='--no-tex' not in argv, with_glb='--no-glb' not in argv and not rigging)
+    if rigging:
+        stage2(anim='--anim' in argv or '--game' in argv, game='--game' in argv)
