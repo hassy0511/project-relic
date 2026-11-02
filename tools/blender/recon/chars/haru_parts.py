@@ -15,6 +15,7 @@ costume.py の道具（frame・octagon・circle・rrect・unit・jp・param_of�
 from __future__ import annotations
 
 import math
+import os
 
 import numpy as np
 
@@ -247,6 +248,7 @@ def pieces() -> list[dict]:
                                 ('pouch.L', 88.0, 0.795, (0.055, 0.030, 0.085))):
         P.append(dict(name=name, bone='hips', color='graphite', box=True, frame=fw, ang=ang, zc=zc, size=size,
                       clear=['graphite'], margin=0.012, rmax=0.25))
+    P += hair_locks()
     return P
 
 
@@ -453,7 +455,7 @@ SWAY = dict(
         ('hair.top', (0.0, 0.25, 0.97), 32.0, 1.0),
         ('hair.back.L', (0.55, 0.78, 0.30), 28.0, 1.0),
         ('hair.back.R', (-0.55, 0.78, 0.30), 28.0, 1.0),
-        ('hair.nape', (0.0, 0.75, -0.66), 30.0, 0.8),
+        ('hair.nape', (0.0, 0.75, -0.66), 30.0, 0.6),      # 0.8 → 0.6（2026-11-02：揺れの最中に付いたナゴミの殻まで 2cm の余裕が 1.3mm だった）
         ('hair.side.L', (0.96, -0.05, 0.25), 28.0, 0.8),
         ('hair.side.R', (-0.96, -0.05, 0.25), 28.0, 0.8),
     ],
@@ -493,3 +495,217 @@ HAND = dict(
     THENAR=((0.026, 0.006, 0.020), 0.012),     # 母指球（中心, 半径）
     HYPOTHENAR=((0.032, 0.004, -0.018), 0.011),  # 小指球
 )
+
+
+# ---------------------------------------------------------------- 髪の房（2026-11、H1：横から見た髪の丸さ）
+
+# 前は房を形の場に足して（hair.py の当てはめ）帽子と溶かしていたので、横・後ろ・上から丸いもじゃもじゃの塊だった。
+# 今は帽子（形の段。後ろ・横・頭頂は hair.CAP.inset_back で 1.4cm 内へ締める）の上に、葉の形の房を 1 本ずつの部品で重ねる
+# （hair.LOCKS_AS_PARTS。ヤーナ・ジャンク屋と同じ）。並びは頭の拡大の絵 haru_head_side_right・back・top・front_right45：
+#   つむじ（頭頂の少し後ろ・本人の左）から風車のように回る大きな葉 8 枚（真上の 1 枚は上・本人の右へ立つ）、
+#   その下の後ろの段（先はヒモの上で後ろへはねる）、横の段（こめかみの上から後ろへ流れ、先は外・後ろへ）、
+#   ヒモの下のえり足の段（下・後ろへ。先は首の上で外へ）、耳の後ろの房、こめかみ・ほおの横の房（前から見た横の張り）。
+# 道は頭の中心 HAIR_C から見た向き（世界の点 keys の向き）を大円でつなぎ、各点をその向きの帽子の面＋浮きに置く。
+# 浮きは根で lift0、先の (1 − tip_start) で lift1 へ（房の先が帽子から離れて外へとがる：絵の毛先のはね）。
+# 断面は峰・左右の縁・内の面の 6 角（折れ目のはっきりした平らな面）、色は髪の 1 色（umber）。前髪は形の段の殻のまま。
+# 表：(名前, keys（世界の点。最初が根、最後が先）, lift0, lift1, 幅の最大（m）, 厚み（m）, tip_start)
+HAIR_C = (0.0, 0.03, 1.37)
+HAIR_WHORL = (0.040, 0.070, 1.520)
+HAIR_LOCKS = [
+    # つむじの風車（上から見て時計回りに流れる）。幅は絵の葉（6〜8cm）
+    ('crown_up', [HAIR_WHORL, (-0.020, 0.050, 1.590), (-0.060, 0.030, 1.620)], 0.002, 0.020, 0.060, 0.016, 0.40),
+    ('top_back', [HAIR_WHORL, (0.000, 0.120, 1.505), (-0.010, 0.150, 1.478)], 0.002, 0.018, 0.080, 0.016, 0.50),
+    ('top_r', [HAIR_WHORL, (-0.070, 0.110, 1.530), (-0.170, 0.110, 1.450)], 0.002, 0.028, 0.080, 0.016, 0.50),
+    ('top_fr', [HAIR_WHORL, (-0.050, 0.020, 1.545), (-0.125, -0.030, 1.495)], 0.002, 0.018, 0.075, 0.016, 0.50),
+    ('top_f', [HAIR_WHORL, (0.010, -0.010, 1.550), (-0.005, -0.085, 1.505)], 0.002, 0.008, 0.072, 0.015, 0.60),
+    ('top_fl', [HAIR_WHORL, (0.080, 0.000, 1.535), (0.150, -0.020, 1.470)], 0.002, 0.012, 0.078, 0.016, 0.50),
+    ('top_l', [HAIR_WHORL, (0.110, 0.080, 1.520), (0.185, 0.110, 1.440)], 0.002, 0.028, 0.080, 0.016, 0.50),
+    ('top_bl', [HAIR_WHORL, (0.070, 0.140, 1.495), (0.100, 0.190, 1.440)], 0.002, 0.018, 0.075, 0.016, 0.50),
+    # 前の上で立つ房（正面の絵の頭頂の立った房、真横の絵のゴーグルの上の先）
+    ('front_up', [(0.000, 0.000, 1.530), (0.015, -0.025, 1.580), (0.035, -0.040, 1.625)], 0.002, 0.024, 0.050, 0.015, 0.45),
+    # 後ろの上の段：つむじの下から後ろ・下へ、先はヒモの上で後ろへはねる（真横の絵の後ろの先 y 0.18、背面の絵の先 z 1.38〜1.40）
+    ('ub_c', [(0.000, 0.120, 1.480), (0.000, 0.165, 1.425), (0.004, 0.172, 1.352)], 0.002, 0.016, 0.074, 0.014, 0.55),
+    ('ub_l', [(0.060, 0.110, 1.495), (0.085, 0.175, 1.430), (0.100, 0.180, 1.355)], 0.003, 0.016, 0.074, 0.015, 0.55),
+    ('ub_r', [(-0.055, 0.110, 1.495), (-0.080, 0.175, 1.430), (-0.096, 0.180, 1.350)], 0.003, 0.016, 0.074, 0.015, 0.55),
+    ('ub_l2', [(0.095, 0.075, 1.485), (0.150, 0.110, 1.455), (0.195, 0.125, 1.420)], 0.003, 0.040, 0.062, 0.016, 0.50),
+    ('ub_r2', [(-0.095, 0.075, 1.485), (-0.150, 0.110, 1.450), (-0.195, 0.125, 1.410)], 0.003, 0.040, 0.062, 0.016, 0.50),
+]
+# 左右の対の房（本人の左の値。右は x を反転）
+HAIR_LOCKS_PAIRED = [
+    # 横の上の段：こめかみの上から後ろへ流れる（先はヒモの上で外・後ろへ）
+    ('side_hi', [(0.085, -0.055, 1.510), (0.145, 0.020, 1.480), (0.190, 0.090, 1.440)], 0.003, 0.034, 0.066, 0.016, 0.50),
+    ('side_mid', [(0.120, -0.015, 1.452), (0.165, 0.050, 1.425), (0.185, 0.110, 1.398)], 0.003, 0.030, 0.066, 0.016, 0.50),
+    # 耳の後ろ・ヒモの下で外へはねる房（背面の絵の横の張り x ±0.19、z 1.36）
+    ('flare', [(0.110, 0.060, 1.358), (0.158, 0.100, 1.336), (0.182, 0.130, 1.305)], 0.002, 0.036, 0.072, 0.016, 0.45),
+    # 耳の上の房（ヒモの下から下・後ろへ。先は耳の後ろの上。真横の絵）
+    ('over_ear', [(0.128, 0.008, 1.398), (0.146, 0.040, 1.366), (0.160, 0.075, 1.338)], 0.002, 0.022, 0.060, 0.015, 0.50),
+    # 耳の後ろの房（下・後ろへ。耳は見える）
+    ('ear_back', [(0.100, 0.085, 1.345), (0.133, 0.118, 1.298), (0.148, 0.135, 1.262)], 0.002, 0.030, 0.066, 0.015, 0.50),
+    # こめかみの房（ゴーグルの枠の横から外・下へ。正面の絵の横の張り）
+    ('temple', [(0.118, -0.028, 1.408), (0.150, -0.020, 1.370), (0.166, -0.006, 1.332)], 0.002, 0.036, 0.058, 0.015, 0.50),
+    # 耳の前の房（真横の絵：耳の前を下へ、先 z 1.27）
+    ('sideburn', [(0.112, -0.024, 1.400), (0.122, -0.020, 1.345), (0.124, -0.016, 1.290)], 0.002, 0.008, 0.042, 0.013, 0.55),
+]
+# えり足の段（ヒモの下から下・後ろへ。先は首の上で外へ）。2 列：外の列（長い）と、そのすき間の下の列
+HAIR_NAPE = [
+    # 外の列：真ん中ほど長く（先 z 1.19）、外ほど短く外へはねる（背面の絵：先の高さがそろった歯の列にしない）。
+    # 先は首へ巻き込まず下へ（背面の絵で葉の先が見える。巻き込むと後ろから丸い歯の列に見えた）
+    ('nape_c', [(0.000, 0.150, 1.335), (0.000, 0.146, 1.270), (0.003, 0.118, 1.218)], 0.004, 0.032, 0.070, 0.013, 0.50),
+    ('nape_l', [(0.060, 0.140, 1.335), (0.074, 0.138, 1.272), (0.090, 0.118, 1.200)], 0.004, 0.046, 0.064, 0.013, 0.50),
+    ('nape_r', [(-0.060, 0.140, 1.335), (-0.074, 0.138, 1.272), (-0.088, 0.118, 1.196)], 0.004, 0.046, 0.064, 0.013, 0.50),
+    ('nape_l2', [(0.102, 0.110, 1.338), (0.130, 0.118, 1.290), (0.156, 0.112, 1.245)], 0.004, 0.042, 0.054, 0.013, 0.45),
+    ('nape_r2', [(-0.102, 0.110, 1.338), (-0.130, 0.118, 1.290), (-0.156, 0.112, 1.238)], 0.004, 0.042, 0.054, 0.013, 0.45),
+    # 下の列（外の列のすき間の下、短い）
+    ('napeb_l', [(0.030, 0.150, 1.312), (0.034, 0.143, 1.258), (0.038, 0.122, 1.190)], 0.000, 0.040, 0.050, 0.012, 0.50),
+    ('napeb_r', [(-0.030, 0.150, 1.312), (-0.034, 0.143, 1.258), (-0.040, 0.122, 1.195)], 0.000, 0.040, 0.050, 0.012, 0.50),
+    ('napeb_l2', [(0.085, 0.130, 1.316), (0.102, 0.130, 1.270), (0.114, 0.120, 1.236)], 0.000, 0.024, 0.046, 0.012, 0.50),
+    ('napeb_r2', [(-0.085, 0.130, 1.316), (-0.102, 0.130, 1.270), (-0.112, 0.120, 1.230)], 0.000, 0.024, 0.046, 0.012, 0.50),
+]
+# 幅の形（根 → 先）：アーモンドの葉（絵の房。先の 3 割で細る。急に細ると四角い歯の列に見えた）
+HAIR_WPROF = (np.array([0.0, 0.12, 0.40, 0.65, 0.85, 1.0]), np.array([0.35, 0.85, 1.0, 0.82, 0.42, 0.02]))
+# 下へ垂れる房（名前の頭）：一番外の半径より先は軸から離れる一方（首・えり足へ巻き込まない）。ほかの房は帽子の面に沿う
+# （横の房まで離れる一方にすると、帽子を締めた後ろで面から浮いた薄い板が横へ突き出た）
+# 後ろの上の段の真ん中（ub_c）は帽子に沿わせる（離れる一方にすると、根から後ろへ水平に棚のように出て、真横の外形の段の間のくぼみが消えた）
+# 名前の一致は「同じ名前」か「名前 + '_'」で始まる（左右の _l/_r、えり足の nape_c など）。ub_l は ub_l2 を含まない
+HAIR_HANG = ('ub_l', 'ub_r', 'top_back', 'nape', 'napeb', 'flare', 'ear_back', 'over_ear', 'sideburn')
+
+
+def hair_hangs(name: str) -> bool:
+    return any(name == h or name.startswith(h + '_') for h in HAIR_HANG)
+HAIR_EAR_CLEAR = 0.006     # 房の中心の線と耳（hair.EAR の楕円体）の間の最小の距離（m。ほかに房の半幅の半分）
+# ゴーグルのヒモの下へ押し込まない房（名前）。既定はどの房もヒモの内の面の下へ押し込む（costume.strap_push：絵ではヒモが髪の上に
+# 載り、房はヒモの下から出る）。ヒモの上に重ねる房はここに書く
+HAIR_OVER_STRAP: tuple = ('ub_c', 'ub_l', 'ub_r')
+
+
+def hair_lock_table() -> list[tuple]:
+    """房の表（左右の対は右を反転して足す）"""
+    out = list(HAIR_LOCKS) + list(HAIR_NAPE)
+    for name, keys, *rest in HAIR_LOCKS_PAIRED:
+        out.append((name + '_l', keys, *rest))
+        out.append((name + '_r', [(-k[0], k[1], k[2]) for k in keys], *rest))
+    return out
+
+
+def hair_locks(phi=None, lo=None, vox=None) -> list[dict]:
+    """髪の房の部品（hair.LOCKS_AS_PARTS のときだけ）。phi・lo・vox：帽子＋頭の場（無ければ形の段の hull.npz）"""
+    from scipy import ndimage as NDI
+
+    try:
+        from recon import hair as HR
+        from recon import views as V
+    except ImportError:
+        import hair as HR
+        import views as V
+    if not HR.LOCKS_AS_PARTS:
+        return []
+    if phi is None:
+        d = np.load(os.path.join(V.WORK, 'hull.npz'))
+        phi, lo, vox = d['phi'], d['lo'], float(d['vox'])
+    phi = np.asarray(phi, np.float32)
+    lo = np.asarray(lo, float)
+    C = np.array(HAIR_C, float)
+
+    def inside(P):
+        idx = ((P[:, [2, 0, 1]] - lo[[2, 0, 1]]) / vox - 0.5).T
+        return NDI.map_coordinates(phi, idx, order=1, mode='constant', cval=-1.0) > 0
+
+    def radial(dirs, r_max=0.24, step=0.0015):
+        rs = np.arange(r_max, 0.0, -step)
+        P = C[None, None] + rs[None, :, None] * dirs[:, None, :]
+        ins = inside(P.reshape(-1, 3)).reshape(len(dirs), len(rs))
+        k = np.argmax(ins, 1)
+        return np.where(ins.any(1), rs[k], 0.10)
+
+    def unit(v):
+        v = np.asarray(v, float)
+        return v / np.linalg.norm(v, axis=-1, keepdims=True)
+
+    n = 16
+    PX = [0.0, 1.0, 0.94, 0.0, -0.94, -1.0]
+    PY = [1.0, 0.22, -0.22, -0.45, -0.22, 0.22]
+
+    def slerp_path(dk, tt):
+        fk = np.linspace(0.0, 1.0, len(dk))
+        out = []
+        for t in tt:
+            j = min(int(np.searchsorted(fk, t, side='right')) - 1, len(dk) - 2)
+            u = (t - fk[j]) / (fk[j + 1] - fk[j])
+            a, b = dk[j], dk[j + 1]
+            om = math.acos(float(np.clip(np.dot(a, b), -1, 1)))
+            v = (math.sin((1 - u) * om) * a + math.sin(u * om) * b) / math.sin(om) if om > 1e-4 else a
+            out.append(v / np.linalg.norm(v))
+        return np.array(out)
+
+    ears = [(np.array([sx * HR.EAR['c'][0], HR.EAR['c'][1], HR.EAR['c'][2]]), np.array(HR.EAR['r'], float))
+            for sx in (1.0, -1.0)]
+
+    def bad_points(P, ww):
+        """耳に近い点・顔の範囲（生え際より下の顔の前）の点"""
+        bad = np.zeros(len(P), bool)
+        for c, r in ears:
+            q = (P - c) / (r + HAIR_EAR_CLEAR + ww[:, None] * 0.25)
+            bad |= np.sum(q * q, 1) < 1.0
+        zh = HR.hairline_z(np.abs(P[:, 0]))
+        bad |= (P[:, 1] < HR.HAIRLINE['y_face'] - 0.01) & (P[:, 2] < zh - 0.01)
+        return bad
+
+    def centre(keys, l0, l1, th, w_max, tip_start, t_end=1.0, hang=False):
+        dk = unit(np.array(keys) - C[None])
+        tt = np.linspace(0.0, 1.0, n)
+        dirs = slerp_path(dk, tt * t_end)
+        dirs = NDI.gaussian_filter1d(dirs, 1.0, axis=0, mode='nearest')
+        dirs /= np.linalg.norm(dirs, axis=1, keepdims=True)
+        r = NDI.gaussian_filter1d(radial(dirs), 1.0, mode='nearest')
+        # 一番外の半径より先は軸から離れる一方（下へ流れる房が首・えり足へ巻き込まない）
+        if hang:
+            kw = int(np.argmax(r))
+            r[kw:] = np.maximum.accumulate(r[kw:])
+        f = np.clip((tt - tip_start) / (1.0 - tip_start), 0, 1)
+        f = (f * f * (3 - 2 * f)) ** 1.2
+        lift = l0 + (l1 * t_end - l0) * f
+        th_ = th * np.interp(tt, [0, 0.12, 0.6, 1.0], [0.55, 1.0, 1.0, 0.45])
+        ww = w_max * 0.5 * np.interp(tt, *HAIR_WPROF)
+        rr = r + lift + 0.45 * th_ - 0.010 * np.clip(1 - tt / 0.12, 0, 1)
+        return dirs, C + dirs * rr[:, None], th_, ww
+
+    def ribbon(dirs, P, ww, th_):
+        T = np.gradient(P, axis=0)
+        T /= np.linalg.norm(T, axis=1, keepdims=True)
+        N = dirs - (dirs * T).sum(1, keepdims=True) * T
+        N /= np.linalg.norm(N, axis=1, keepdims=True)
+        B = np.cross(T, N)
+        k = len(PX)
+        rings = np.stack([P + B * (ww * px)[:, None] + N * (th_ * py)[:, None] for px, py in zip(PX, PY)], 1)
+        Vs = np.concatenate([rings[:-1].reshape(-1, 3), P[-1:], P[:1] - T[:1] * 0.002])
+        tip, root = (n - 1) * k, (n - 1) * k + 1
+        F = []
+        for i in range(n - 2):
+            for j in range(k):
+                a0, a1 = i * k + j, i * k + (j + 1) % k
+                F += [(a0, a0 + k, a1 + k), (a0, a1 + k, a1)]
+        last = (n - 2) * k
+        for j in range(k):
+            F.append((last + j, tip, last + (j + 1) % k))
+            F.append((root, (j + 1) % k, j))
+        F = np.array(F, np.int64)
+        vol = np.einsum('ij,ij->i', Vs[F[:, 0]], np.cross(Vs[F[:, 1]], Vs[F[:, 2]])).sum()
+        return Vs, (F[:, ::-1] if vol < 0 else F)
+
+    out = []
+    for name, keys, l0, l1, w_max, th, tip_start in hair_lock_table():
+        t_end = 1.0
+        for _ in range(12):
+            dirs, P, th_, ww = centre(keys, l0, l1, th, w_max, tip_start, t_end, hair_hangs(name))
+            if not bad_points(P, ww).any():
+                break
+            t_end -= 0.06          # 耳・顔にかかる房は先を縮める
+        else:
+            continue
+        Vm, Fm = ribbon(dirs, P, ww, th_)
+        # 頂点の断面の番号（揺れの重みを断面ごとにそろえる：ai_character.add_sway）。輪 n−1 本 × 6 角、先の点は最後の輪（n−2）、
+        # 根の点は輪 0（先の点だけ重みが違うと、先の点が最後の輪を突き抜けて先の三角が裏返った）
+        rings = np.concatenate([np.repeat(np.arange(n - 1), len(PX)), [n - 2, 0]]).astype(np.int32)
+        out.append(dict(name='hair_' + name, bone='head', color='umber', mesh=(Vm, Fm), rings=rings,
+                        strap_push=name not in HAIR_OVER_STRAP))
+    return out

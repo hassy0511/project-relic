@@ -104,6 +104,8 @@ def stages(standin: bool) -> list[Stage]:
     stats = f'{R}/{OUT_NAME}.stats.json'
     rig_args = [a.replace('{work}', R) for a in CFG.get('rig_args', [])]
     rig_inputs = [textured, joints] + [a for a in rig_args if a.endswith('.glb')]
+    if CFG.get('params', {}).get('hair.LOCKS_AS_PARTS'):
+        rig_inputs.append(f'{R}/hull.npz')     # 髪の房の部品（chars/<id>_parts.py の hair_locks）は形の段の場に沿わせる
     if abs(CFG.get('height_m', 1.55) - CFG.get('recon_height_m', 1.55)) > 1e-6:
         rig_args += ['--final-height', str(CFG['height_m'])]
     if ID != 'haru':
@@ -148,7 +150,7 @@ def stages(standin: bool) -> list[Stage]:
               + ['--stats', stats],
               outputs=[OUT_GLB, stats],
               inputs=rig_inputs,
-              deps=[f'{RECON_PY}/costume.py', f'{RECON_PY}/hand.py', f'{RECON_PY}/sway.py'] + PARTS_FILES + ['tools/blender/lib/humanoid.py', 'tools/blender/lib/mesh.py', 'tools/blender/lib/common.py',
+              deps=[f'{RECON_PY}/costume.py', f'{RECON_PY}/hand.py', f'{RECON_PY}/sway.py', f'{RECON_PY}/hair.py'] + PARTS_FILES + ['tools/blender/lib/humanoid.py', 'tools/blender/lib/mesh.py', 'tools/blender/lib/common.py',
                     'tools/blender/models/humanoid_anims.py', 'tools/blender/models/haru_a.py']
               + (['tools/blender/models/child_anims.py'] if 'child' in rig_args else [])
               + (['tools/blender/models/elder_anims.py'] if 'elder' in rig_args else []),

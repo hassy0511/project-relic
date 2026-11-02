@@ -129,6 +129,10 @@ LOCK_FIXED = tuple(CH.p('hair.LOCK_FIXED', ()))
 # 房を形の場に足さず、骨付けの段で 1 本ずつの面の部品（lock_mesh：葉の形、菱形の断面、先がとがる、髪の 1 色）にする（ヤーナ）。
 # 場に足すと房どうし・帽子となめらかな和で溶けて丸いかたまりになり、陰がまだらに見えた（2026-10-05 のユーザーの評価）
 LOCKS_AS_PARTS = CH.p('hair.LOCKS_AS_PARTS', False)
+# 形の段の房の当てはめ（外形へ合わせる房。LOCKS_AS_PARTS のキャラクターは lock_parts で部品にする）。部品の表から房を作る
+# キャラクター（ハル：chars/haru_parts.py の hair_locks）は使わないので false（当てはめに約 90 秒かかり、
+# recon_report.json に使われない房が 25 本並んでいた）
+LOCK_FIT = CH.p('hair.LOCK_FIT', True)
 # 前髪の房（部品）：(根, 先, 浮き, 幅, 名前)。根・先は世界の点（m）。LOCKS_AS_PARTS のときだけ使う
 FRINGE = CH.p('hair.FRINGE', ())
 # 耳のまわりの房を避ける範囲（耳の中心からの楕円体の半径の倍率）。房の点が入ると先を縮める
@@ -1015,6 +1019,44 @@ def ears_field(lo, vox, shape) -> np.ndarray:
     return out
 
 
+def cap_inset_field(lo_b, vox: float, shp) -> np.ndarray | float:
+    """帽子を後ろ・横・上だけさらに内へ締める量（m、CAP.inset_back。無ければ 0）。房を部品にする（LOCKS_AS_PARTS）とき、
+    外形から作った帽子は房の先まで含んだ丸い包みなので、その上に葉の房を重ねると丸いまま大きくなる（ハル、H1）。
+    前（y < y[0]：額・ゴーグル・前髪・こめかみ）は締めず、y[0] → y[1] でなめらかに m まで。z_top より上（頭頂）は
+    前も含めて top だけ締める（つむじの葉の房が立つ）"""
+    ib = CAP.get('inset_back')
+    if not ib:
+        return 0.0
+    xs, ys, zs = _grid(lo_b, vox, shp)
+    wy = ramp(ys, ib['y'][0], ib['y'][1]).astype(np.float32)                    # (ny,)
+    m = ib['m'] * wy[None, None, :]
+    # upper：後ろの上（真横の外形の中ほど、ヒモの上〜頭頂の下）だけさらに締める（H1 の見直し：真横の 1.43〜1.47m が絵より 1.5〜3.3cm 太い）。
+    #   m（m）、z：台形の高さ (z0, z1, z2, z3)（z1〜z2 で m）、y：後ろへの立ち上がり (y0, y1)
+    up = ib.get('upper')
+    if up:
+        z0, z1, z2, z3 = up['z']
+        wz = (ramp(zs, z0, z1) * (1.0 - ramp(zs, z2, z3))).astype(np.float32)
+        wyu = ramp(ys, up['y'][0], up['y'][1]).astype(np.float32)
+        m = m + up['m'] * wz[:, None, None] * wyu[None, None, :]
+    if ib.get('top'):
+        zt = ramp(zs, ib['z_top'][0], ib['z_top'][1]).astype(np.float32)        # (nz,)
+        m = np.maximum(m, ib['top'] * zt[:, None, None])
+    m = np.broadcast_to(m, shp).astype(np.float32)
+    # ear：耳のまわりは締めない（締めると耳のまわりの 5mm の溝が肌まで届き、耳たぶの下・後ろに肌の三日月と茶色の島が出て
+    # 耳飾りに見えた。H1 の見直し）。耳の楕円体の半径に pad を足した楕円の距離 s が 1 → 1+fade で 0 → 1。えり足（中央）は締めたまま
+    ea = ib.get('ear')
+    if ea:
+        r = np.asarray(EAR['r'], float) + float(ea['pad'])
+        qz = (((zs - EAR['c'][2]) / r[2]) ** 2).astype(np.float32)[:, None, None]
+        qy = (((ys - EAR['c'][1]) / r[1]) ** 2).astype(np.float32)[None, None, :]
+        w = np.ones(shp, np.float32)
+        for sx in (1.0, -1.0):
+            qx = (((xs - EAR.get('x0', 0.0) - sx * EAR['c'][0]) / r[0]) ** 2).astype(np.float32)[None, :, None]
+            w = np.minimum(w, ramp(np.sqrt(qz + qx + qy), 1.0, 1.0 + float(ea['fade'])).astype(np.float32))
+        m = m * w
+    return np.ascontiguousarray(m, np.float32)
+
+
 def cap_cover(Cf: np.ndarray, S: np.ndarray, cut: np.ndarray, lo_b, vox: float, shp) -> np.ndarray:
     """帽子が頭の骨を必ず覆う（CAP.cover_z より上、顔の範囲の外）：頭の面の 6mm 外までを帽子に足す。
     寸法の表から作った頭（head.py）は外形から作った帽子と別なので、頭頂の前で頭の面が帽子の外へ出て肌の色の斑点になった（ヤーナ）"""
@@ -1070,7 +1112,7 @@ def build_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.ndar
     cut = face_cut(lo_b, vox, shp, 0)
     # 顔の範囲では、帽子は頭（顔）の面より外へ出ない（顔の面が見える。範囲の縁でなめらかに切り替える）
     allowed = smooth_max(S - 0.002, -cut, 0.012)
-    Cf = smooth_min(stack_field(cs, lo_b, vox, shp, 0), allowed, 0.012)
+    Cf = smooth_min(stack_field(cs, lo_b, vox, shp, 0) - cap_inset_field(lo_b, vox, shp), allowed, 0.012)
     del allowed
     Cf = cap_cover(Cf, S, cut, lo_b, vox, shp)
     # 耳のまわりは帽子を 5mm 離す（耳が髪の中にうまらず見える）
@@ -1100,7 +1142,7 @@ def build_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.ndar
     iou_base = {n: round(float((base2d[n] & v2.art[n]).sum() / (base2d[n] | v2.art[n]).sum()), 4) for n in REAL}
     info['iou_head_region'] = {'cap_and_head_only': iou_base,
                                'initial_locks': {k: round(v, 4) for k, v in fit.ious().items()}}
-    if fit_sweeps:
+    if fit_sweeps and LOCK_FIT:
         fit.run(fit_sweeps, log=log)
     # 顔の範囲・ゴーグルの枠にまだ入る房は、入らなくなるまで先を縮める（最後に切ると切り口の残る短い房になる）。
     # 縮めきれない房は落とす
@@ -1127,6 +1169,9 @@ def build_head(cams: dict[str, V.Cam], masks: dict[str, np.ndarray], lo: np.ndar
     fit = fit2
     info['iou_head_region']['fitted_locks'] = {k: round(v, 4) for k, v in fit.ious().items()}
     bangs = []
+    if not LOCK_FIT:
+        locks = []           # 当てはめない：房は部品の表から（記録に使われない房を残さない）
+        info['locks_note'] = 'hair.LOCK_FIT=false：房は chars/<id>_parts.py の表から骨付けの段で作る'
     info['locks'] = [dict(asdict(L), root=[round(v, 4) for v in L.root], tip=[round(v, 4) for v in L.tip])
                      for L in locks + bangs]
     info['n_locks'] = len(locks) + len(bangs)
@@ -1283,7 +1328,8 @@ def part_fields_at(P: np.ndarray, x_half: float = 0.26, z0: float = 1.12) -> dic
     Se = smooth_max(S, ears, 0.006) if PARTS['ears'] else S
     cs, _ = cap_stack(cams, masks, p, sk)
     cut = face_cut(lo_b, vox, shp, 0)
-    Cf = smooth_min(stack_field(cs, lo_b, vox, shp, 0), smooth_max(Se - 0.002, -cut, 0.012), 0.012)
+    Cf = smooth_min(stack_field(cs, lo_b, vox, shp, 0) - cap_inset_field(lo_b, vox, shp), smooth_max(Se - 0.002, -cut, 0.012),
+                    0.012)
     Cf = cap_cover(Cf, S, cut, lo_b, vox, shp)
     Cf = smooth_min(Cf, -(ears + 0.005), 0.004)
     base = smooth_max(Se, Cf, p['union_k'])

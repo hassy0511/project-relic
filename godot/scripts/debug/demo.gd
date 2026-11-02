@@ -1545,6 +1545,10 @@ func _talk_zoom(id: String, on: bool) -> void:
 
 ## 会話を送り終える（会話の続きのイベントの会話も）
 func _talk_skip() -> void:
+	# 黒帯の場面（第 1 章のオープニングなど）も長押しのスキップと同じに飛ばす（会話のカメラは黒帯の場面では使わない。
+	# 飛ばさないと、オープニングが続く間に部屋を移って、どの住人でも会話のカメラが寄らなかった）
+	if main.game.skippable():
+		main.game.story.begin_skip()
 	for i in 40:
 		if main.game.story.blocking():
 			main.game.story.confirm()
