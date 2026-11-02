@@ -106,12 +106,13 @@ def clips():
 
     # 走る（40 こま = 2 歩、輪）：walk-cycle の contact → down → passing → up を走りに（flight を入れる）。
     # 左足の接地が 0、右足が 20。腕は脚と逆。体は前へ 12 度
-    run_base = P(BASE, hips=(10, 0, 0), spine=(5, 0, 0), chest=(3, 0, 0), neck=(-6, 0, 0), head=(-8, 0, 0))
+    run_base = P(BASE, hips=(14, 0, 0), spine=(8, 0, 0), chest=(4, 0, 0), neck=(-8, 0, 0), head=(-12, 0, 0))
     lf = {0: (-0.30, 0.115, -15), 4: (-0.02, 0.105, 0), 9: (0.28, 0.16, 35), 14: (0.34, 0.42, 55),
           22: (0.04, 0.37, 25), 30: (-0.36, 0.27, -5), 36: (-0.35, 0.15, -15)}
     hz = {0: -0.075, 4: -0.090, 9: -0.055, 14: -0.030}
-    arm_fw = (D(0.18, -0.55, -0.8), D(0.15, -0.95, 0.25))      # 腕が前（上腕・前腕）
-    arm_bk = (D(0.18, 0.65, -0.75), D(0.15, -0.30, -0.95))      # 腕が後ろ
+    arm_fw = (D(0.15, -0.40, -0.90), D(0.12, -0.85, 0.45))     # 腕が前（上腕・前腕。肘は約 90 度）
+    arm_bk = (D(0.15, 0.60, -0.80), D(0.10, -0.45, -0.90))      # 腕が後ろ
+    gun_fw, gun_bk = D(-0.10, -0.85, -0.45), D(-0.10, -0.30, -0.95)   # 銃口は前下（走りながら狙わない）
     keys = []
 
     def foot_at(tbl, f):
@@ -140,8 +141,9 @@ def clips():
         uL = lerp_d(arm_bk[0], arm_fw[0], 1.0 - a)
         fL = lerp_d(arm_bk[1], arm_fw[1], 1.0 - a)
         uR, fR = D(-uR.d.x, uR.d.y, uR.d.z), D(-fR.d.x, fR.d.y, fR.d.z)
-        pose = P(run_base, hips_loc=(0, 0, zz), hips=(10, 0, twist * 0.8), chest=(3, 0, -twist * 1.2), head=(-8, 0, twist * 0.4),
-                 upper_arm_L=uL, forearm_L=fL, upper_arm_R=uR, forearm_R=fR, hand_R=GUN(fR.d.x, fR.d.y - 0.2, fR.d.z),
+        pose = P(run_base, hips_loc=(0, 0, zz), hips=(14, 0, twist * 0.8), chest=(4, 0, -twist * 1.2), head=(-12, 0, twist * 0.4),
+                 upper_arm_L=uL, forearm_L=fL, upper_arm_R=uR, forearm_R=fR,
+                 hand_R=GUN(*lerp_d(gun_bk, gun_fw, a).d),
                  foot_L=F(0.135, yl, zl, pl, 4), foot_R=F(-0.135, yr, zr, pr, -4))
         keys.append((f, pose))
     C['run'] = dict(length=40, loop=True, keys=keys)
@@ -177,17 +179,17 @@ def clips():
     C['jump'] = dict(length=16, loop=False, keys=[(0, j0), (8, j1), (16, j2)])
 
     # 空中斬り（18、振り抜き 4.5）：左上から右下への袈裟。脚は抱える
-    air_leg = dict(foot_L=F(0.15, -0.12, 0.32, 30, 4), foot_R=F(-0.15, 0.12, 0.24, 40, -4))
+    air_leg = dict(foot_L=F(0.15, -0.18, 0.42, 25, 4), foot_R=F(-0.15, 0.16, 0.32, 45, -4))
     a0 = P(BASE, hips_loc=(0, 0, 0.0), chest=(-10, 0, 22), head=(-6, 0, -12), spine=(-4, 0, 6),
            upper_arm_L=D(0.40, 0.15, 0.90), forearm_L=D(0.10, 0.45, 0.90),
            upper_arm_R=D(-0.45, 0.25, -0.85), forearm_R=D(-0.30, -0.60, -0.70), hand_R=GUN(-0.2, -0.8, -0.6), **air_leg)
-    a1 = P(a0, chest=(18, 0, -10), spine=(8, 0, -4), head=(4, 0, 6),
+    a1 = P(a0, chest=(10, 0, -10), spine=(5, 0, -4), head=(-8, 0, 6),
            upper_arm_L=D(0.10, -0.95, 0.15), forearm_L=D(-0.35, -0.80, -0.45))
-    a2 = P(a1, chest=(24, 0, -24), spine=(10, 0, -8), upper_arm_L=D(-0.40, -0.55, -0.65), forearm_L=D(-0.70, -0.15, -0.70))
-    a3 = P(a2, chest=(14, 0, -16))
+    a2 = P(a1, chest=(14, 0, -24), spine=(6, 0, -8), head=(-10, 0, 14), upper_arm_L=D(-0.40, -0.55, -0.65), forearm_L=D(-0.70, -0.15, -0.70))
+    a3 = P(a2, chest=(8, 0, -16))
     a4 = P(BASE, hips_loc=(0, 0, 0.0), chest=(2, 0, 0), upper_arm_L=D(0.55, -0.10, -0.6), forearm_L=D(0.45, -0.60, -0.4),
            upper_arm_R=D(-0.50, 0.10, -0.6), forearm_R=D(-0.4, -0.6, -0.4), hand_R=GUN(-0.3, -0.8, -0.3),
-           foot_L=F(0.14, -0.08, 0.24, 30, 4), foot_R=F(-0.15, 0.08, 0.18, 40, -4))
+           foot_L=F(0.14, -0.10, 0.30, 30, 4), foot_R=F(-0.15, 0.10, 0.22, 40, -4))
     C['air'] = dict(length=18, loop=False, keys=[(0, a0), (2, P(a0, chest=(-14, 0, 28))), (4.5, a1), (8, a2), (12, a3), (18, a4)])
 
     # 3 段斬り 1（17、振り抜き 4.25）：右肩に構えた刃を左へ横に払う（裏の払い）。左足で踏み込む

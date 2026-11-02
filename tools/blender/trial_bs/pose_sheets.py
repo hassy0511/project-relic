@@ -103,12 +103,13 @@ def rig_poses(arm):
         show_blade(False)
         cells.append(row)
     # 首の極端は頭の寄り
-    sheet = Image.new('RGB', (W * 4, H * 4), (214, 214, 210))
+    sheet = Image.new('RGB', (W * 4, H * 4 + 30), (214, 214, 210))
     for i, row in enumerate(cells):
         for j, c in enumerate(row):
             sheet.paste(c, ((i % 2) * 2 * W + j * W, (i // 2) * H))
     d = ImageDraw.Draw(sheet)
-    d.text((W * 4 - 560, H * 4 - 26), 'haru_bs 骨と重みの試しの姿勢（rigging の Deformation Test Poses）', fill=(40, 40, 40), font=RC.font(16))
+    d.text((8, H * 4 + 6), 'haru_bs 骨と重みの試しの姿勢（rigging の Deformation Test Poses ＋ 走りの一歩・剣の振り）。左：右前から、右：曲がる所の寄り',
+           fill=(40, 40, 40), font=RC.font(16))
     os.makedirs(DOC, exist_ok=True)
     p = os.path.join(DOC, 'rig_poses.jpg')
     sheet.save(p, quality=84)

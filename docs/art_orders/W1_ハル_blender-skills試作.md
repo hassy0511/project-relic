@@ -5,8 +5,9 @@
 主人公ハルを、外部のスキル集 [arjun988/blender-skills](https://github.com/arjun988/blender-skills)（MIT、コミット 8f778d2）の手順を主な作り方にして、**別のモデル `haru_bs`** として作り直してみる。
 これまでのハル（`haru_r`）はそのまま残し、上書きしない。ゲームでは `--haru=bs` で切り替えて遊べるところまで持っていく（4 段に分ける）。
 
-- 段 1：モデル（骨なし）。絵との比べ、検証、比べの画像。←この文書の今の範囲
-- 段 2：骨と重み。段 3：14 の動作。段 4：Godot への書き出しと、ゲームでの確認。
+- 段 1：モデル（骨なし）。絵との比べ、検証、比べの画像。
+- 段 2：骨と重み、14 の動作、ゲーム用の GLB（`godot/assets/models/haru_bs.glb`）の書き出しと確かめ。←この文書の今の範囲
+- 段 3・4：Godot での読み込み、`--haru=bs` での切り替え、ゲームでの確認。
 
 確かめたいのは「スキル集の手順に沿うと、どういう作り方になり、何が良くなって何が足りないか」。
 きれいに比べるため、プロジェクトの人物の作り方（`.claude/skills/model-from-art/SKILL.md`、`tools/blender/recon/`、以前のハルの記録）と、
@@ -24,6 +25,7 @@ bpy のスクリプトを頭なし（画面なし）の Blender で走らせて�
 | 形 | character-artist（body-proportions、facial-topology）、anime-style（anime-proportion、cel-shader-setup）、chibi-style、stylized-style、hair-groom（groom-flow-regions、hair-card-atlas、cinematic-vs-game）、blender-modeler、retopology、sculpting、cloth-sim（流れの確認だけ） |
 | UV・色 | uv-workflow（texel-density、trim-sheets）、materials、texture-workflow |
 | 検証 | validation-checklist、visual-match-checklist |
+| 骨・動作・書き出し（段 2） | rigging（references/humanoid-rig）、animation（references/walk-cycle、combat-animation）、godot-export（references/godot-checklist）、export-pipeline（references/engine-import）、asset-optimization（書き出しの前の関門）、genre-action-combat（頭だけ。人物の動きの記述は無い） |
 
 スキルごとに「何をしろと書いてあったか・実際にしたこと・役に立ったか」は 「試してわかったこと」 にまとめる。
 
@@ -290,11 +292,144 @@ Minors: 肌の色の明るさ、ズボン・袖・襟の量感、耳
 Notes: 骨・重み・動作はまだ無い
 ```
 
-## 段 2・3（骨・動作）
+## 段 2 の結果（骨・重み・動作・書き出し）
 
-（あとの段で書く）
+2026-11-02、07:54〜08:40 UTC ごろ（読む 5 分、骨と重み 20 分、動作 25 分、書き出しと確かめ・文書 15 分。ほかの作業と重なる）。
+`build_haru_bs.py --game` で、モデル → 骨と重み（`rig.py`）→ 14 の動作（`anim.py`）→ `godot/assets/models/haru_bs.glb`
+（`export_glb.export_rigged`）まで作り直せる（約 15 秒）。`--rig` は骨と重みまで（`build/trial_bs/haru_bs_rig.blend`）、
+`--anim` は動作まで（`haru_bs_anim.blend` と `build/trial_bs/haru_bs.glb`）。確かめは `check_glb.py`（Blender なしの Python）と
+`pose_sheets.py`（絵）。
 
-## 段 4（書き出し・ゲームでの確認）
+### 骨（rigging：Skeleton Design → Bone Placement → Hierarchy）
+
+| 項目 | したこと |
+|------|---------|
+| 骨の名前 | ゲームが名前で探す 29 本（root・hips・spine・chest・neck・head・hair.* 7・shoulder/upper_arm/forearm/hand ×2・thigh/shin/foot ×2・pouch ×2）。スキル集の `L_arm_upper`・`spine_01` の形は使えない（ゲームの約束が勝つ）。骨格の物体はスキル集どおり `ARM_HaruBS`（ゲームは Skeleton3D を型で探す） |
+| 骨の位置 | 段 1 の関節 `proportions.J`（絵の画素から測り、体の輪もこの関節のまわりに置いた）。肘・膝の 3 本の輪がそのまま骨の継ぎ目に乗る。髪の骨は地域（groom region）ごとの塊の上の端 → 先、ポーチの骨は上 → 下 |
+| 親子 | root ＞ hips ＞ spine ＞ chest ＞ neck ＞ head ＞ hair.*。chest ＞ shoulder ＞ upper_arm ＞ forearm ＞ hand。hips ＞ thigh ＞ shin ＞ foot、hips ＞ pouch.*（ゲームの揺れ・足の接地・ナゴミの受け口が読む親子） |
+| humanoid-rig との違い | スキル集の最小は背骨 3 本（spine_01〜03）とつま先の骨。約束は背骨 2 本（spine・chest）でつま先なし → 約束に従った。ねじれの骨（twist）も約束に無いので作らない |
+| IK（Constraints/IK） | humanoid-rig の「脚は IK、膝の極（pole）つき」：足首の目標 `IK_foot.L/R` と膝の極 `IK_knee.L/R`（空の物体）、shin に 2 本の IK。極の角度は、基準の姿勢で脚が動かない角度を数で探した（90.8 度・89.2 度、ずれ 0）。動作では足の置き場を目標で決め、こまごとに IK を解いて thigh・shin・foot の回転のキーに焼き、書き出しの前に外す（export-pipeline：Bake constraints before export）。腕は FK だけ（スキル集の「腕は IK/FK の切り替え」は作らない。狙いはゲームの HaruPose が重ねる） |
+| 骨の向き（roll） | 曲がる骨の Z を前（-Y）。足と根は Z を上 |
+| 持ち物 | スパークは `hand.R` の子、光刃は `forearm.L` の子（ゲームでは BoneAttachment3D の下）。光刃の原点は籠手の射出口へ移した（ゲームは溜めの間、光刃を 0.6 倍に縮める。原点が射出口でないと刃が浮く）。銃と拳の置き場は段 1 で `hand_gun_frame` と同じ式にしてあり、`hand.R` の骨はその式の元（手首 → 指先）と同じ向き |
+
+### 重み（rigging：Weight Painting 1〜5）
+
+| 物 | 重み |
+|----|------|
+| 体（首・腕・左手）、シャツ、上着、襟、袖、ズボン、すね、足首のカフ、手袋、肩ひも（10 物体） | Blender の自動の重み（熱の拡散）から始め → 物ごとに使ってよい骨に絞る（例：ズボンは hips・thigh・shin だけ）→ 左右の島で反対側の手足の骨を消す → 熱が届かない頂点は近い骨（襟の 3 点だけ）→ 辺でつながる隣と 2 回ならす（曲がる所の真ん中で 1.0/0.0 にしない）→ 1 頂点 4 本まで・合計 1 |
+| 硬い物 | 1 本の骨に 1.0：頭・ゴーグルと帯・髪の殻（head）、ベルト・バックル（hips）、ポーチ（pouch.*）、靴・底（foot、左右の島で）、背中の板（chest）、右肩の板（upper_arm.R）、籠手（forearm.L）、膝当て・すね当て（shin）。右太ももの板は thigh.R 0.7 ＋ hips 0.3（発注書の「腰と太ももの間に付いて動く」） |
+| 髪の地域（7） | 根元は head、先へ向かってなめらかに（smoothstep）hair.* へ。ゲームの揺れ（HaruSway）は先ほど大きく、生え際・ゴーグルのまわりは動かない |
+| 手 | 拳（銃を握る右手）と開いた左手の島は手の骨に 1.0（約束に指の骨は無い） |
+
+確かめ（`rig.weight_report`）：重みの無い頂点 0、合計が 1 でない頂点 0、1 頂点の影響は最大 4（体・上着）、ほかは 1〜3。
+書き出した GLB でも JOINTS_0 だけ（4 本まで）、逆の bind の行列に大きさの変化なし（ずれ 9e-6）。
+
+**やってみて見つかったこと**：自動の重みの命令（parent_set の ARMATURE_AUTO）は物体の親を骨格に変える。肩ひもが `Frame_core` の群から外れ、
+書き出しで落ちていた（Frame_core が 304 → 152 三角形）。自動の重みのあとで群の親に戻すようにした。
+
+### 骨と重みの確かめの姿勢（rigging：Deformation Test Poses）
+
+[`haru_bs_trial/rig_poses.jpg`](haru_bs_trial/rig_poses.jpg)：A ポーズ（基準）、腕を上げきる、深くしゃがむ、首の極端（右・上／左・下）、
+走りの一歩、剣の振り（溜め斬り）、剣の構え（3 段斬り 1）。どれも全身（右前）と、曲がる所の寄り。
+（スキル集の「あごを大きく開ける」は、表情がテクスチャの切り替えで顎の骨が約束に無いので省いた。）
+
+結果：肩・肘・腰・膝・首で、つぶれ・裂け・突き抜けは見えなかった。深くしゃがむとズボンの膝の裏が寄るが、平らな色の絵柄では気にならない。
+重みは 1 回目のまま直さずに済んだ。体を関節の輪のある管で作り、服を別のメッシュにしてあったので、自動の重み ＋ 絞り込みで足りた
+（ただし低い面数なので、曲げると肘・膝の外側が角ばって見える。輪を足すなら段 1 の作りから）。
+
+### 14 の動作（animation：Blocking → Splining → 輪の確かめ → NLA）
+
+**決めたこと**
+
+- **こまの速さ**：60 こま/秒。スキル集の既定は 30 だが「プロジェクトの決まりを確かめる」とある。ゲームは 60 刻みで動き、haru_r の長さも 60 こまの刻み。
+- **長さ**：haru_r と同じ（ゲームの状態の流れ・PlayerView の速さの合わせ方に合う）。攻撃の動作は PlayerView が攻撃時間に合わせて流す（長さ ÷ 攻撃時間の速さ）ので、
+  攻撃の当たり（攻撃時間の 25%〜70%）に合わせて、**振り抜きを長さの 25% に置いた**。
+- **その場（in place）**：根（root）は動かさない（キーなし）。腰（hips）が上下・前後に動く。ゲームは根の動きを使わない（haru_r は根を上下に動かすが、結果は同じ）。
+- **骨の大きさのキーは無し**。書き出しの標本化（sampling）が全部の骨に一定の 1 の大きさの道を書くので、値がすべて 1 なのを確かめてから GLB から外した（406 本）。
+- **髪・ポーチはキーなし**（ゲームの揺れ HaruSway が動作の上に重ねる。キーを打つと揺れと二重になる）。
+- **姿勢の書き方**（スキル集には無い。ここで決めた）：胴・頭は骨格の軸のまわりの角度、腕は胸の座標での骨の向き（右手は銃の上が上を向くようにひねる）、
+  足は IK の目標の置き場と足の向き。自前の FK でキーの姿勢を数で出し、脚だけ Blender の IK で解いて焼く。
+- **補間**：キー（＝ブロッキングの姿勢）を Bezier の自動の取っ手でつなぐ。輪の動作は最初と最後のキーを同じにし、F カーブに Cycles の修飾子
+  （継ぎ目でも取っ手がなめらか）。スキル集の「まず段（Constant）で確かめる」は、要のこまの絵（下の表の絵）＝段の姿勢そのものなので、別には描いていない。
+- **足を滑らせない**（combat-animation）：その場の攻撃で床に着いた足がキーの間で 4 cm より動くときは、間に足を 5 cm 上げたキーを足した（踏み込み・下がりが「滑り」でなく「一歩」になる）。
+  走るは除く（その場の走りは接地の間、足が後ろへ滑るのが正しい）。
+
+| 動作 | こま（秒） | 輪 | キー | 振り抜き | 中身 |
+|------|-----------|----|-----|---------|------|
+| idle | 120（2.000） | ○ | 5 | — | 息（胸と肩の上下）と体重の移し（腰の横）。控えめ（animation：Over-animate idle しない）。右手は銃口を前下 |
+| run | 40（0.667） | ○ | 9 | — | walk-cycle の contact → down → passing → up を走りに（宙に浮くこまあり）。左の接地 0、右 20。腕は脚と逆、骨盤と胸は逆にひねる。前へ約 26 度。銃口は前下 |
+| fall | 40（0.667） | ○ | 3 | — | 腕を横へ広げ、脚は片膝を曲げて下がる。ゆるく揺れる |
+| drill | 8（0.133） | ○ | 5 | — | 右腕を前へまっすぐ（スパークの先にドリル）、左手で前腕を支える。小さく震える（7.5 回/秒） |
+| jump | 16（0.267） | — | 3 | — | 踏み切りで伸びきる → 前の膝を上げる → 上がる姿勢（最後のまま、上がりきるまで保つ） |
+| air | 18（0.300） | — | 6 | 4.5 | 空中で左上から右下への袈裟。脚は抱える |
+| combo1 | 17（0.283） | — | 6＋足 1 | 4.25 | 右肩に構えた刃を左へ横に払う（裏の払い）。左足で踏み込む |
+| combo2 | 18（0.300） | — | 6＋足 1 | 4.5 | 左から右への返し。右足で踏み込む |
+| combo3 | 27（0.450） | — | 6 | 6.75 | しゃがんでから下から上へ斬り上げる（敵を浮かせる 3 段目）。つま先立ちまで伸びる |
+| lunge | 20（0.333） | — | 5＋足 2 | 5 | 左腕を引いてから前へまっすぐ突く（刃が槍のように前）。深い踏み込み |
+| charge | 30（0.500） | — | 6 | 7.5 | 右へ大きく溜めて、160 度の大振り（衝撃波） |
+| dash | 14（0.233） | — | 5 | 3.5 | 低く前へ倒れて滑る。腕は後ろへ流れ、左腕が外から前へ払う（ダッシュ斬りも同じ動作を 0.35 秒に伸ばして流れる） |
+| hurt | 16（0.267） | — | 4＋足 2 | — | 3 こま目に打たれた形（combat-animation の Hit Reaction：2〜4 こま）→ よろけ → 構え直し（重い被弾は最後のまま 1 秒） |
+| dead | 36（0.600） | — | 7＋足 4 | — | 打たれ → 膝が崩れる → 後ろへ尻もち → あお向け（最後のまま）。床を突き抜けない（腰の高さ 0.14 m） |
+
+（「＋足」は足を上げる間のキー。こまは 60 こま/秒。attack の「振り抜き」は長さの 25%＝当たりの始まり。）
+
+要のこまの絵：[`haru_bs_trial/anim_clips_move.jpg`](haru_bs_trial/anim_clips_move.jpg)（idle・run・jump・fall・dash・drill・hurt・dead）、
+[`haru_bs_trial/anim_clips_combat.jpg`](haru_bs_trial/anim_clips_combat.jpg)（combo1〜3・air・lunge・charge）。
+攻撃は札に「予備動作・振り抜き（25%）・振り切り・戻り」。止めた絵で攻撃の向きが読めるか（combat-animation の Freeze-frame test）を見て、
+読めない動作は角度を変えた（走る・ダッシュ・ドリルは横から、突きは左前から）。
+
+**動作の直し（要のこまの絵を見て）**
+
+| 回 | 直したこと |
+|----|-----------|
+| 1 | 落ちるの腕が真上（降参の形）→ 横へ。跳ぶの左腕が高すぎ → 下げた。倒れたあと腕が上を向く → 床に置いた。ダッシュの銃口が後ろを向く → 後ろ下へ流す。踏み込みの足が床を滑る → 足を上げるキーを足した |
+| 2 | 走る：体が立ちすぎ・右腕がまっすぐ前（走りながら狙っているよう）→ 前へ傾け、肘を約 90 度に、銃口は前下。空中斬り：前へ折れて頭が下がり、脚が床に着いて見える → 胸の前の折れを減らし、頭を上げ、脚を高く抱えた |
+
+### 書き出し（godot-export・export-pipeline）
+
+| 設定 | 値 |
+|------|----|
+| 形式 | GLB、+Y 上、修飾子を適用（Solidify は重みの前に適用済み。骨格の修飾子は皮として残る） |
+| 動作 | NLA の帯ごと（`export_animation_mode='NLA_TRACKS'`）。action はスキル集どおり `AN_HaruBS_<Clip>`、帯の名前がゲームの動作の名前（idle など）。標本化 1 こまごと |
+| 皮 | 変形する骨だけ、1 頂点 4 本まで、骨格の基準の姿勢（rest）で |
+| まとめ | 体・服・髪・ゴーグルを `SM_Char_HaruBS`（材質 2 面）、フレームを群ごとに `Frame_core`・`Frame_arm`・`Frame_legs`（皮つき）、`LightBlade`（forearm.L の子）、`SM_Weapon_HaruBS_SparkGun`（hand.R の子）＋ `muzzle`（銃の子） |
+| 書き出しのあと | 一定の 1 の大きさの道を外す（`export_glb.strip_scale_tracks`。値が 1 でない道があれば止まる） |
+
+### 検証の結果（`check_glb.py`、Blender なしの glTF 読み）
+
+`python3 tools/blender/trial_bs/check_glb.py godot/assets/models/haru_bs.glb --ref godot/assets/models/haru_r.glb` → **PASS**
+
+| 確かめ | 結果 |
+|-------|------|
+| 骨 | 皮 1 つ、29 本、名前は約束どおり |
+| 動作 | 14、名前は約束どおり。長さは haru_r とすべて同じ（air 0.300、charge 0.500、combo1 0.2833、combo2 0.300、combo3 0.450、dash 0.2333、dead 0.600、drill 0.1333、fall 0.6667、hurt 0.2667、idle 2.000、jump 0.2667、lunge 0.3333、run 0.6667 秒） |
+| 道 | 位置 406・回転 406・大きさ 0。根の位置は動かない（その場） |
+| 輪の継ぎ目 | idle・run・fall・drill の最初と最後の差は 4e-8 以下（同じ値） |
+| ゲームが探す物 | `LightBlade`（メッシュ、forearm.L の下）、`muzzle`（空、hand.R ＞ 銃の下）、`Frame_core`・`Frame_arm`・`Frame_legs`（皮つきメッシュ）。`AnimationPlayer`・`Skeleton3D` は Godot の読み込みで作られる（段 3・4 で確かめる） |
+| 材質 | 5：`MAT_Cloth_HaruBS`・`MAT_face_HaruBS`（face）・`MAT_Ceramic_FrameBS`・`spark_gun_HaruBS`（spark_gun で始まる）・`MAT_Emissive_BladeBS`。透明（BLEND）なし。`blend_mul` は glTF に無い（Godot の読み込みで作る材質は不透明の標準） |
+| テクスチャ | GLB の中に 4 枚（`haru_bs_T_HaruBS_Body_BC` 2048²・`Face_BC` 2048²・`Frame_BC` 1024²・`SparkGun_BC` 512²）。Godot の読み込みで `haru_bs_*` の名前で横に出る |
+| 数 | メッシュ 6、描く面 7（体 2・フレーム 3・光刃 1・銃 1。光刃はふだん隠すので 6）、三角形 9,621、皮の頂点 9,316、GLB 1.2 MB |
+| 身長・原点・正面 | 基準の姿勢の範囲 y 0.000〜1.555 m（haru_r 0.000〜1.556）、原点は床、正面は glTF の +Z（haru_r と同じ）。横幅は A ポーズの腕が開いているぶん haru_r より広い（±0.44 m、haru_r ±0.30 m） |
+| 書き出しの正しさ | glTF の骨の変換を自分で重ねた位置と、Blender の姿勢の位置を、5 つの動作の要のこまの手・足・頭・腰で比べた：差は最大 4e-6 m |
+| 骨の基準の姿勢 | 逆の bind の行列の大きさは 1（ずれ 9e-6）。骨に大きさなし |
+
+**段 3・4 へ残すこと**：Godot での読み込み（`tools/godot.sh import`）と、`main.gd` の `--haru` の表に `"bs": "haru_bs"` を足すこと、ゲームでの確認。
+ナゴミの受け口（`nagomi_view.gd` の `SOCKET_POS`）は haru_r で測った定数で、haru_bs の背中の板の外の面は約 4 cm 前にある（段 1 の記録）。
+手で狙う姿勢（HaruPose）・足の接地（FootIK）・揺れ（HaruSway）は骨の名前と親子を約束どおりにしたので働くはずだが、まだゲームで見ていない。
+
+### 段 2 の QA の判定（qa-review の型）
+
+```
+QA Verdict: haru_bs（段 2、骨・重み・14 の動作・GLB）
+Result: SHIP WITH NOTES（段 3・4 の Godot での確認へ進めてよい）
+Budgets: 9,621 tris / 30k、材質 5、描く面 7、骨 29、1 頂点 4 本まで、動作 14（大きさの道 0）
+Checks: check_glb.py PASS、重みの報告（重みなし 0・合計のずれ 0）、Blender と glTF の姿勢の差 4e-6 m
+Blockers: なし
+Majors: まだ Godot で読んでいない（段 3・4）。ナゴミの受け口が約 4 cm ずれる（段 1 から）
+Minors: 肘・膝は低い面数で曲げると角ばる。走りの腕の振りは小さめ。ダッシュは移動と斬りで同じ動作（ゲームの作り）
+```
+
+## 段 3・4（Godot での読み込み・ゲームでの確認）
 
 （あとの段で書く）
 
@@ -309,6 +444,9 @@ Notes: 骨・重み・動作はまだ無い
 | トゥーンの確認（Shader to RGB → ColorRamp） | Shader to RGB は EEVEE だけなので、法線と光の向きの内積 → 段の ColorRamp → 発光、で同じ 3 段を作った |
 | 絵と見比べる | 横に並べるほか、影（アルファ）の重なりを色で出し、IoU（重なりの割合）を数にした |
 | get_scene_info・査察 | `validate.py`（大きさ・三角形・n 角形・開いた辺・UV の範囲・材質・名前） |
+| 骨・重みを MCP で作り、骨の数・親子・重みの群を MCP で問い合わせる（rigging の MCP Integration） | `rig.py` で骨格を作り、`rig.weight_report` で重みのない頂点・合計・影響の数を数える |
+| 試しの姿勢・動作を画面（EEVEE の再生）で見る | 姿勢ごと・要のこまごとに Cycles の静止画（`pose_sheets.py`）。動作の流れは開発用の帯（2〜4 こまおき）で見た。再生（動き）は見ていない |
+| 書き出したら Godot で読み込んで確かめる（godot-export の Verify in Godot、export-pipeline の First Import Test） | 段 2 では Blender なしの glTF 読み（`check_glb.py`）で約束を確かめ、glTF の骨の変換を自分で重ねて Blender の姿勢と比べた。Godot での読み込みは段 3・4 |
 
 ### ゲームの約束を優先した名前
 
@@ -318,6 +456,8 @@ Notes: 骨・重み・動作はまだ無い
 | 同上 | 銃の材質は `spark_gun` で始まる | `spark_gun_HaruBS` |
 | メッシュは `SM_` | ゲームが探す物体 | `Frame_core`・`Frame_arm`・`Frame_legs`（空の物体で部品をまとめる）、`LightBlade`、`muzzle` |
 | テクスチャは `T_[物]_[種類]` | 横に置くファイルは `haru_bs_*` | `haru_bs_T_HaruBS_Body_BC.png` など |
+| 骨は `[side]_[region]_[name]`（`L_arm_upper`、`spine_01`） | ゲームが名前で探す 29 本 | `upper_arm.L`・`spine`・`hair.front` など（約束のまま）。骨格の物体だけ `ARM_HaruBS` |
+| 動作は `AN_[Char]_[Action]`、godot-export は `AN_[Clip]` | ゲームは `idle`・`combo1` などの名前で動作を探す | action は `AN_HaruBS_Idle` など、NLA の帯の名前を `idle` などにして、帯の名前で書き出した（両方を満たす） |
 
 ### スキル集の手順を変えたところ（理由つき）
 
@@ -328,6 +468,12 @@ Notes: 骨・重み・動作はまだ無い
 - **焼き（bake）・ORM を使わない**（texture-workflow）：高い面数の元が無く、色は平ら。陰の 2 段目は「描いた陰」（stylized-style：AO は描く、焼かない）。
 - **光・色の調整（AgX、露出、リム）**（reference-image-match の 4・5 段）：宇宙船などの写実の場面向け。絵は一様な正面の光なので、Standard の色で 3 段のトゥーンにした。
 - **chibi-style**：2〜4 頭身の決まり。ハルは 4.4 頭身なので当てはまらない。
+- **背骨 3 本・つま先・ねじれの骨・顎・目の骨**（humanoid-rig）：約束の 29 本に無い（背骨は spine・chest の 2 本、表情はテクスチャ）。足す骨は Godot の骨格の数・名前を変えるので足さない。
+- **腕の IK/FK の切り替え**（rigging）：作らない。腕は FK で姿勢を決め、狙いはゲームの HaruPose が重ねる。脚の IK は使って焼いた。
+- **30 こま/秒の既定**（animation）：60 こま/秒（ゲームの刻みと haru_r の長さ）。combat-animation の段のこま数（30 こま/秒）は 2 倍で読んだ。
+- **コンボの長さ（Light 1 20〜24 こま、Heavy 30〜40）・取り消しは 60%**（combat-animation）：ゲームの攻撃時間（0.28・0.30・0.45 秒）と当たりの始まり 25% に合わせた。動作は攻撃時間に合わせて流れるので、こま数は姿勢の密度だけを決める。
+- **FBX で書き出す**（humanoid-rig の Export）：Godot なので GLB（godot-export・export-pipeline の Godot の行）。
+- **段（Constant）の補間で別に描いて確かめる**（animation の Graph Editor 1）：要のこまの絵がそのままブロッキングの姿勢なので、段の曲線では別に描いていない。
 
 ## 試してわかったこと
 
@@ -379,3 +525,45 @@ Notes: 骨・重み・動作はまだ無い
 
 **次にするなら**（段 1 の残り）：髪を真上の絵から 1 枚ずつ置き直す（約 30 枚の大きい葉）、顔の横向き用に頭の UV を
 円筒＋正面に分けて目を横から描く、肌を絵の明るさへ寄せるか確認、ズボン・袖・襟の量感、耳の内側の陰。
+
+### 段 2（骨・重み・動作・書き出し）
+
+**役に立ったこと**
+
+- **rigging の順番と「自動の重みは始まりだけ、きれいにしてから」**：自動の重み → 骨を絞る → ならす → 4 本・合計 1、の順をそのまま `rig.py` にした。
+  1 回目で試しの姿勢が崩れなかった。物ごとに骨を絞る段が効いた（ズボンが腕の骨を拾う・左の脚が右の骨を拾う、を作る前に止めた）。
+- **脚は IK と膝の極、焼いてから書き出す**（humanoid-rig・export-pipeline）：足の置き場で姿勢を書けたので、待機・攻撃で足が床に止まり、踏み込みは一歩になった。
+  IK の焼き残りのずれは最大 3 mm（倒れる途中）。
+- **試しの姿勢の一覧**（rigging の Deformation Test Poses）：腕を上げきる・しゃがむ・首の極端を最初に描いたので、肩ひもが書き出しから落ちていたのを
+  （三角形の数と合わせて）早く見つけられた。
+- **攻撃の段（予備 → 振り抜き → 振り切り → 戻り）と「振り抜きがいちばん短い」・「止めた絵で向きが読める」**（combat-animation）：攻撃 6 つの姿勢の決め方と、
+  絵の確かめ方の型になった。読めなかった動作（突き・走る）は角度を変えて確かめ、走りは直した。
+- **輪の確かめ・骨の大きさのキー無し・根の動きを書く**（animation の Game-Ready Requirements）：`check_glb.py` の確かめの項目になった。
+  書き出しの標本化が大きさの道を全部の骨に書くことに、この項目のおかげで気づいた。
+- **action は AN_、NLA の帯で書き出す**（animation・godot-export）：帯の名前をゲームの名前にすれば、スキル集の名前とゲームの名前の両方を満たせた。
+
+**役に立たなかった・合わなかったこと**
+
+- **数・寸法が少ない**：rigging・animation は 1 画面ほどの要点。骨を置く場所、重みの具体、姿勢の角度、走りの足の運び（どこへ何 m）、攻撃の形は無い。
+  walk-cycle は歩きの 4 つの形の言葉だけで、走り（宙に浮く）・その場の走りの足の滑らせ方は自分で決めた。
+- **ゲームの約束と合わない既定**：骨の名前の決まり、背骨 3 本・つま先、30 こま/秒、FBX、コンボのこま数。どれもゲームの約束が勝った。
+- **MCP と画面の前提**：重みの確かめ・動作の再生は MCP と EEVEE の画面が前提。ここでは数と静止画で代えた（動きの再生は見ていない）。
+- **アクションゲームのスキル（genre-action-combat）** は場所・小物の話で、人物の動作には使えなかった。
+
+**スキルごとの記録（段 2）**
+
+| スキル・参照 | 言っていたこと | したこと | 効いたか |
+|------------|--------------|---------|---------|
+| rigging | 骨の設計 → 置く → 親子 → IK → 重み → 試しの姿勢 → 書き出しの準備。自動の重みはきれいにしてから。4 本まで。極の付いた IK | この順の `rig.py`。名前は約束 | ◎ 順番と重みの直し方。名前の決まりは使えず |
+| humanoid-rig | 最小の骨、脚の IK と膝の極、重みの順、大きさのキー無し | 脚の IK ＋ 極（角度を数で探す）、焼いて外す。背骨 3 本・つま先は約束に無い | ○ IK の作り方。骨の一覧は約束と違う |
+| animation | ブロッキング → Bezier、輪の継ぎ目、大きさのキー無し、根の動きを書く、AN_、NLA | 要のこま＝ブロッキング、Bezier と輪の Cycles、AN_ ＋ 帯の名前 | ○ 確かめの項目。具体の数は少ない |
+| walk-cycle | contact・down・passing・up、腕は脚と逆 | 走りに読み替え（宙に浮くこまを足す） | △ 言葉だけ |
+| combat-animation | 予備・振り抜き・振り切り・戻りのこま、被弾 2〜4 こま、止めた絵、足を滑らせない | 振り抜きを当たりの始まり（25%）へ、被弾は 3 こま目、角度を変えて確かめ、踏み込みに足を上げるキー | ◎ 攻撃の型 |
+| godot-export（+checklist） | GLB、+Y 上、修飾子の適用、動作は帯・AN_、一度読み込んで確かめる | そのとおり（Godot での読み込みは段 3・4） | △ 当たり前の項目だけ |
+| export-pipeline（+engine-import） | 検証が先、骨格と皮を同じファイル、制約は焼く、大きさなし、寸法・軸を書く | `check_glb.py`、書き出しの表 | ○ 確かめの表の元 |
+| validation-checklist・asset-optimization | 数・材質・名前・書き出しの確かめ | 三角形・材質・描く面の数を `check_glb.py` で | ○ |
+| genre-action-combat | 戦う場所・小物の見え方 | 使わない | — |
+
+**数で見た経過（段 2）**：骨 29、重みの直し 0 回（1 回目で試しの姿勢が通った）、動作の直し 2 回、書き出しの不具合 2 つ（肩ひもの脱落、大きさの道）を
+確かめの中で見つけて直した。GLB は約束の確かめ PASS。
+
