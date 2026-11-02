@@ -176,6 +176,7 @@ func test_ordo_in_town_rooms() -> void:
 		h.expect(surfaces <= 6, "%s：描くのは 1 つのメッシュ（面 %d）" % [rid, surfaces])
 		h.expect(o.skin_mesh != null and o.skin_mesh.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "%s：影を落とさない" % rid)
 		h.expect(not o.model.visible, "%s：部品のメッシュは描かない（骨組みだけ）" % rid)
+		h.expect(o.back_mesh != null and o.back_mesh.mesh.get_surface_count() == 1, "%s：背の上の遠くの町は帳の部品の 1 つのメッシュ" % rid)
 		var ank := o.leg_angles("r2")
 		h.expect(not ank.is_empty(), "%s：脚が動く" % rid)
 		if rid == "ch1.opening":
@@ -426,3 +427,60 @@ func test_town_lights() -> void:
 	h.expect(o.add_town_lights() == tl, "2 回呼んでも 1 つ")
 	o.free()
 
+
+## 背の上の遠くの町（帳の部品 ordo_town・ordo_back。tools/blender/kit/town_far.py）：体の骨組みの子の別の 1 つのメッシュ（面 1 つ・影なし・
+## 帳のシェーダー）で、体の 3 つの面には入れない。町の中に収まり、ordo_back は中段の部屋の下の段の家並み（z -54 まで）に重ならない。
+## 灯の値（set_back_lights）は雰囲気の明るさ（昼 0・夜 1）を掛けてシェーダーへ渡し、雰囲気を替えても残る。灯の点（TownLights）にも同じ値。
+## 材質はオルドごと（ほかの部屋のオルドの町の灯は変わらない）
+func test_back_town() -> void:
+	var made: Array = []
+	for part in ["town/ordo_town", "town/ordo_back"]:
+		var o := OrdoView.new()
+		o.body_fixed = true
+		o.back_part = part
+		h.tree.root.add_child(o)
+		made.append(o)
+		var bm := o.back_mesh
+		h.expect(bm != null and bm.mesh.get_surface_count() == 1 and bm.get_parent() == o.skeleton, "%s：骨組みの子の 1 つのメッシュ" % part)
+		if bm == null:
+			continue
+		h.expect(bm.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "%s：影を落とさない" % part)
+		var mat := bm.material_override as ShaderMaterial
+		h.expect(mat != null and mat.shader.resource_path.ends_with("town_far.gdshader") and mat.get_shader_parameter("atlas") != null,
+			"%s：帳のシェーダーと帳の絵" % part)
+		h.expect(o.skin_mesh != null and o.skin_mesh.mesh.get_surface_count() <= 3, "%s：体の面は 3 つのまま（町は入れない）" % part)
+		var arr := bm.mesh.surface_get_arrays(0)
+		var tris := (arr[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
+		var budget := 34000 if part == "town/ordo_town" else 12000
+		h.expect(tris > 2000 and tris <= budget, "%s：三角形 %d（上限 %d）" % [part, tris, budget])
+		var ab := bm.get_aabb()
+		h.expect(ab.position.x > -56.0 and ab.end.x < 56.0 and ab.position.z > -118.0 and ab.end.z < 100.0 and ab.position.y > -0.5 and ab.end.y < 60.0,
+			"%s：背の面の上の町の中（%s）" % [part, ab])
+		if part == "town/ordo_back":
+			h.expect(ab.end.z < -55.0, "ordo_back は中段の部屋の下の段の家並み（z -54 まで）に重ならない（北の端 %.1f）" % ab.end.z)
+		var cols: PackedColorArray = arr[Mesh.ARRAY_COLOR]
+		var lit := 0
+		for c in cols:
+			if c.a > 0.002:
+				lit += 1
+		h.expect(lit > 400, "%s：光る所（窓・店・灯）の頂点がある（%d）" % [part, lit])
+		o.set_mood("night")
+		h.expect(is_zero_approx(float(mat.get_shader_parameter("power"))), "%s：既定は消えている（部屋の夜は停電の夜だけ）" % part)
+		o.set_mood("day")
+		o.set_back_lights(1.0)
+		h.expect(is_zero_approx(float(mat.get_shader_parameter("power"))), "%s：昼は窓が光らない" % part)
+		o.set_mood("night")
+		h.expect(is_equal_approx(float(mat.get_shader_parameter("power")), 1.0), "%s：夜は窓が光る" % part)
+		o.set_back_lights(0.5, 0.2, 0.7)
+		o.set_mood("day")
+		o.set_mood("night")
+		h.expect(is_equal_approx(float(mat.get_shader_parameter("power")), 0.5) and is_equal_approx(float(mat.get_shader_parameter("flicker")), 0.2)
+			and is_equal_approx(float(mat.get_shader_parameter("out_amount")), 0.7), "%s：明るさ・ちらつき・消えた割合を渡し、雰囲気を替えても残る" % part)
+		var tl := o.add_town_lights()
+		o.set_back_lights(0.8, 0.1, 0.3)
+		h.expect(is_equal_approx(tl.power, 0.8) and is_equal_approx(tl.flicker, 0.1) and is_equal_approx(tl.out, 0.3), "%s：灯の点にも同じ値" % part)
+		h.expect(TownLights.points(part).size() >= 60, "%s：灯の点の表（%d）" % [part, TownLights.points(part).size()])
+	if made.size() == 2 and made[0].back_mesh != null and made[1].back_mesh != null:
+		h.expect(made[0].back_mesh.material_override != made[1].back_mesh.material_override, "材質はオルドごと")
+	for o in made:
+		o.free()

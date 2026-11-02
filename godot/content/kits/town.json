@@ -12,7 +12,10 @@
  "light": {
   "day": {"ambient_color": "#b9c2d0", "ambient_energy": 0.36, "sun_energy": 1.75, "saturation": 1.2},
   "night": {"sky_energy": 0.4, "sun_energy": 0.18, "ambient_color": "#2e3a62", "ambient_energy": 0.42, "fog_color": "#121830", "saturation": 1.1},
-  "dawn": {"ambient_color": "#9c90bc", "ambient_energy": 0.42, "sun_energy": 1.8, "fog_color": "#e6ae90", "saturation": 1.12}
+  "dawn": {"ambient_color": "#9c90bc", "ambient_energy": 0.42, "sun_energy": 1.8, "fog_color": "#e6ae90", "saturation": 1.12},
+  "night_blackout": {"sky_energy": 0.3, "sun_energy": 0.22, "sun_color": "#a4b8ff", "ambient_color": "#283666", "ambient_energy": 0.46, "fog_color": "#0d1330", "saturation": 1.0},
+  "interior_night": {"sun_energy": 0.2, "sun_color": "#8fa6ff", "ambient_color": "#4a4050", "ambient_energy": 0.5, "fog_color": "#1e1a22", "saturation": 1.05},
+  "interior_blackout": {"sun_energy": 0.2, "sun_color": "#8fa6ff", "ambient_color": "#34406c", "ambient_energy": 0.95, "fog_color": "#12141f", "saturation": 0.95}
  },
  "surfaces": {
   "floor": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 6.0, "color": "#ebe3d6", "roughness": 0.82, "macro": 0.3,
@@ -110,7 +113,8 @@
             {"mask": "grime", "uv_m": 1.6, "cover": 0.3, "color": "#8a6a50", "mode": "multiply", "amount": 0.5},
             {"mask": "mottle", "uv_m": 6.0, "cover": 0.45, "color": "#6e533e", "amount": 0.3, "edge": 0.08},
             {"mask": "grime", "uv_m": 3.0, "cover": 0.12, "color": "#97775a", "amount": 0.28, "edge": 0.04, "gate": {"cover": 0.45, "uv_m": 10.0}}]},
-  "amber": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 3.0}, "near_fade": [0.8, 1.5]},
+  "amber": {"color": "#ffbc52", "roughness": 0.4, "emission": {"color": "#ffbc52", "energy": 3.0}, "near_fade": [0.8, 1.5], "source": "electric"},
+  "flame": {"color": "#ffb04a", "roughness": 0.4, "emission": {"color": "#ffa040", "energy": 3.2}, "near_fade": [0.8, 1.5], "source": "oil"},
   "dark": {"color": "#2b2824", "roughness": 0.4},
   "green": {"color": "#6e7a3c", "roughness": 0.9},
   "rope": {"color": "#a08a62", "roughness": 0.95},
@@ -118,7 +122,7 @@
             "detail": [
              {"mask": "grime", "uv_m": 1.8, "cover": 0.3, "color": "#b49c7c", "mode": "multiply", "amount": 0.5}]},
   "desert": {"color": "#bc5636", "roughness": 1.0},
-  "skyglass": {"color": "#f2e6cf", "roughness": 0.3, "emission": {"color": "#f4e4c8", "energy": 0.8}},
+  "skyglass": {"color": "#f2e6cf", "roughness": 0.3, "emission": {"color": "#f4e4c8", "energy": 0.8}, "source": "electric", "off": 0.12},
   "grime_decal": {"blend": "decal", "color": "#93775c", "amount": 0.72, "cover": 0.92, "edge": 0.05, "uv_m": 4.6, "falloff": [0.25, 1.0]},
   "oil_decal": {"blend": "decal", "color": "#4f463f", "amount": 0.68, "cover": 0.82, "edge": 0.04, "uv_m": 2.8, "falloff": [0.25, 1.0], "roughness": 0.5},
   "hull": {"albedo": "res://assets/kit/tex/town_shell_soft.jpg", "uv_m": 24.0, "color": "#ece2cf", "roughness": 0.85},

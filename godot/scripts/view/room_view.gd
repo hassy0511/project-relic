@@ -3,7 +3,8 @@ extends RefCounted
 ## 部屋の地形の見た目。GLB の部屋はそのまま、データから作った灰色の部屋は面を色ごとにまとめて 1 つのメッシュにする。
 
 
-static func build(world: World, room_id: String) -> Node3D:
+## dark：町の電気が切れた姿で作るか（TownPower.begin_room。停電の間だけの明かり・飾り "blackout": true を置く。42 章 14.8）
+static func build(world: World, room_id: String, dark := false) -> Node3D:
 	var r := world.room(room_id)
 	# キット（"kit"）・飾り（"dress"）・形ごとの "skin" / "hide"：RoomKit（docs/design/42_コンテンツの書き方.md 14 章）
 	var kit := RoomKit.load_kit(String(r.get("kit", "")))
@@ -21,7 +22,7 @@ static func build(world: World, room_id: String) -> Node3D:
 		root.add_child(RoomKit.surfaces(r, kit) if custom else mesh_node(world.geometry(room_id)))
 	if r.has("dress"):
 		var missing: Array = []
-		root.add_child(RoomKit.dress(r, kit, missing))
+		root.add_child(RoomKit.dress(r, kit, missing, dark))
 		root.set_meta("missing_parts", missing)
 	if r.has("kit") and kit.is_empty():
 		root.set_meta("missing_kit", String(r.kit))
@@ -41,14 +42,31 @@ static func build(world: World, room_id: String) -> Node3D:
 		o.position = RoomGeo.v3(r.ordo.get("pos", [0, 0, 0]))
 		root.add_child(o)
 	root.name = "Room"
-	# 部屋の明かり（街灯・窓・室内灯）：{ "lights": [ { "pos": [x,y,z], "color": "#ffb060", "range": 10, "energy": 1.5 } ] }
+	# 部屋の明かり（街灯・窓・室内灯）：{ "lights": [ { "pos": [x,y,z], "color": "#ffb060", "range": 10, "energy": 1.5 } ] }。
+	# 町の電気（42 章 14.8）："source"（"electric" = 停電で消える。電気の網 "grid" のある部屋の既定／"oil" = 油の灯・火）、
+	# "blackout": true（停電の間だけ）、"omni": false（本物の光を置かない）、"glow"（灯のまわりのにじみの半径 m）・
+	# "pool": [半径 m, 床の高さ]（床の明るい輪）：油の灯の安い光（TownPower.make_glows。部屋の全部で描画 1 回）
+	var glows: Array = []
 	for l in r.get("lights", []):
+		if l.get("blackout", false) and not dark:
+			continue
+		if l.has("glow") or l.has("pool"):
+			glows.append(l)
+		if not l.get("omni", true):
+			continue
 		var o := OmniLight3D.new()
 		o.position = RoomGeo.v3(l.pos)
 		o.light_color = Color(l.get("color", "#ffc87a"))
 		o.light_energy = float(l.get("energy", 1.5))
 		o.omni_range = float(l.get("range", 10.0))
+		var src := RoomKit.light_source(l, r)
+		if src != "":
+			o.set_meta("source", src)
+			o.set_meta("energy", o.light_energy)
 		root.add_child(o)
+	var gm := TownPower.make_glows(glows)
+	if gm != null:
+		root.add_child(gm)
 	return root
 
 

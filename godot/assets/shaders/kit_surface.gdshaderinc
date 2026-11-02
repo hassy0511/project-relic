@@ -23,6 +23,16 @@ uniform float seam_width = 0.04;
 uniform vec4 seam_color : source_color = vec4(0.27, 0.27, 0.25, 1.0);
 uniform vec4 emission_color : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform float emission_energy = 0.0;
+// 町の電気（材質の "source"。RoomKit・TownPower。docs/design/42_コンテンツの書き方.md 14.8）：0 = 電気に関係しない（いつも同じ）、
+// 1 = 電気の灯・窓の明かり（町の電気が切れると消える。消えた灯のガラスは暗く）、2 = 油の灯・火（停電でも灯り、ゆっくり揺らぐ）
+uniform float power_source = 0.0;
+// 電気の灯の今の状態（TownPower が電気の材質のすべてに入れる。同じ式を TownPower.wave_k が部屋の明かりに使う）：
+// x = 明るさ 0〜1（波の無いとき）、y = 波の向き（0 なし・1 点いていく・-1 消えていく）、z = 波を始めてからの秒、w = 波の進む速さ（m/秒）
+uniform vec4 power_state = vec4(1.0, 0.0, 0.0, 14.0);
+// 波の原点（ワールドの位置）と、灯ごとのばらつき（秒）
+uniform vec4 power_origin = vec4(0.0, 0.0, 0.0, 0.8);
+// 消えたときに残す発光の割合（窓の外の月明かり）
+uniform float power_floor = 0.0;
 #ifdef NEAR_FADE
 // カメラのすぐ近くを網目に消す距離（m）：x より近いと全部消え、y より遠いと全部見える（kit_surface_fade.gdshader）
 uniform vec2 near_fade = vec2(0.8, 1.5);
@@ -41,6 +51,27 @@ void vertex() {
 	if (jolt.w > 0.0) {
 		kit_jolt(VERTEX, 1.0 - COLOR.a, MODEL_MATRIX);
 	}
+}
+
+// 町の電気：2 m の升ごとの決まった乱数（灯ごとのばらつき・ちらつきの位相）
+float power_hash(vec3 p) {
+	return fract(sin(dot(floor(p * 0.5), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+}
+
+// 電気の灯の明るさ 0〜1（TownPower.wave_k と同じ式）。波の間は、原点からの距離 / 速さ + ばらつきの秒で点く（消える）。
+// 切り替わる前後の 0.5 秒は 1/20 秒ごとにちらつく（点く波は点いている割合が増えていき、消える波は減っていく）
+float power_k(vec3 wp) {
+	if (power_state.y == 0.0) {
+		return power_state.x;
+	}
+	float h = power_hash(wp);
+	float t = power_state.z - (length(wp - power_origin.xyz) / max(power_state.w, 0.01) + h * power_origin.w);
+	float on = step(0.5, t);
+	if (t >= 0.0 && t < 0.5) {
+		float r = fract(sin((floor(power_state.z * 20.0) + h * 97.0) * 12.9898) * 43758.5453);
+		on = step(r, 0.25 + t * 1.3);
+	}
+	return power_state.y > 0.0 ? on : 1.0 - on;
 }
 
 float seam(vec2 uvm) {
@@ -86,8 +117,21 @@ void fragment() {
 	if (flow.x > 0.0) {
 		c = kit_flow(c, 1.0 - COLOR.a, (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz, MODEL_MATRIX[3].xyz, NORMAL, VIEW, TIME);
 	}
+	// 町の電気（"source"）：電気の灯は町の電気（power_state）で点き・消え、油の灯は揺らぐ
+	float pk = 1.0;
+	if (power_source > 0.5) {
+		vec3 wp = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
+		if (power_source < 1.5) {
+			pk = power_k(wp);
+			c *= mix(0.3, 1.0, pk);
+			pk = mix(power_floor, 1.0, pk);
+		} else {
+			float h = power_hash(wp) * 40.0;
+			pk = 0.88 + 0.12 * sin(TIME * 6.1 + h) * sin(TIME * 2.3 + h * 0.37);
+		}
+	}
 	ALBEDO = c;
 	ROUGHNESS = roughness_value;
 	METALLIC = metallic_value;
-	EMISSION = emission_color.rgb * emission_energy;
+	EMISSION = emission_color.rgb * emission_energy * pk;
 }

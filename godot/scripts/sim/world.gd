@@ -10,6 +10,9 @@ var events := {}
 var items := {}
 var economy := {}
 var start := {"room": "", "spawn": "start"}
+## 電気の網（content/world.json の "power"）：網の名前 → { "off": 条件（Cond。真の間は電気が来ない） }。部屋の "grid" で網を選ぶ
+## （第 1 章の町 "town"：オルドの停止 ch1.ordo_stopped から再始動 ch1.ordo_restarted まで止まる。42 章 14.8）
+var power := {}
 var _geo_cache := {}
 
 
@@ -19,6 +22,7 @@ static func load_manifest(path: String) -> World:
 	var base := path.get_base_dir()
 	var w := World.new()
 	w.start = m.get("start", w.start)
+	w.power = m.get("power", {})
 	for f in m.get("areas", []):
 		w.add_area(U.load_json("%s/%s" % [base, f]))
 	for f in m.get("dialogue", []):
@@ -32,7 +36,7 @@ static func load_manifest(path: String) -> World:
 	return w
 
 
-## 辞書から作る（テスト用）：{ start?, areas: [エリア...], dialogues?, events?, items?, economy? }
+## 辞書から作る（テスト用）：{ start?, areas: [エリア...], dialogues?, events?, items?, economy?, power? }
 static func from_dict(d: Dictionary) -> World:
 	var w := World.new()
 	w.start = d.get("start", w.start)
@@ -42,6 +46,7 @@ static func from_dict(d: Dictionary) -> World:
 	w.events = d.get("events", {})
 	w.items = d.get("items", {})
 	w.economy = d.get("economy", {})
+	w.power = d.get("power", {})
 	if w.start.room == "" and not w.rooms.is_empty():
 		w.start.room = w.rooms.keys()[0]
 	return w

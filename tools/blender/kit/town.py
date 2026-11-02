@@ -14,7 +14,8 @@
   build/kit_town/                    確認の画像
 
 部品の中身は town_parts.py（キットと小物）と town_sets.py（広場・市場などの組み合わせ）、
-town_terrace.py（北の段々の家の塊・北の階段の門・南の階段の両側の棟。部屋の座標のまま）、遠景は town_backdrop.py。絵は origin/art/w2-town（W2-05）、寸法は spec_town_3d.md。
+town_terrace.py（北の段々の家の塊・北の階段の門・南の階段の両側の棟。部屋の座標のまま）、空の絵は town_backdrop.py。
+背の上の遠くの町（ordo_town・ordo_back と灯の表、絵の帳 town_far.png）は別の入口 town_far.py で作る（Blender を使わない。--only ordo_town でも同じ）。絵は origin/art/w2-town（W2-05）、寸法は spec_town_3d.md。
 """
 from __future__ import annotations
 
@@ -140,6 +141,11 @@ def main():
         return
     import town_geo as geo
     names = [n for n in a.only.split(',') if n] or list(cat)
+    # 背の上の遠くの町は town_far.py（全部を作るとき・--only で名前を挙げたとき）
+    if not a.only or any(n in ('ordo_town', 'ordo_back') for n in names):
+        import town_far
+        town_far.build_all()
+        names = [n for n in names if n not in ('ordo_town', 'ordo_back')]
     t0 = time.time()
     index_path = os.path.join(OUT, 'parts.json')
     index = json.load(open(index_path)) if os.path.exists(index_path) else {}

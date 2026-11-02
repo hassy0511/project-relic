@@ -81,9 +81,63 @@ def sign(room, text, board, yaw, board_w):
 
 
 def common(room, d):
-    """町の部屋に共通：キット town。オルドの体は部屋ごとに ordo() で置く"""
+    """町の部屋に共通：キット town、町の電気の網（grid）。オルドの体は部屋ごとに ordo() で置く"""
     room["kit"] = "town"
     room.pop("ordo", None)
+    grid(room)
+
+
+# ---------------------------------------------------------------- 停電の夜（2026-11-01。docs/design/42_コンテンツの書き方.md 14.8）
+# 町の部屋は町の電気の網 "town" に乗る（部屋の "grid"。world.json の "power"：オルドの停止 ch1.ordo_stopped から再始動 ch1.ordo_restarted まで
+# 電気が来ない）。部屋の明かりは既定で電気の灯（停電の間は消える）。火・油の灯（炉の口・ベッドの携行灯）は "source": "oil"。
+# 停電の間だけ、人のいる所に灯油ランプ（携行灯の部品。芯は油の灯 flame）を置く。本物の光は数個だけ（スマホの描き方では、光ごとに
+# 照らす物の描画が 1 回ずつ増える）、ほかは安い光（灯のまわりのにじみ "glow"・床の明るい輪 "pool"。部屋の全部で描画 1 回）
+OIL = "#ffa458"
+
+
+def grid(room):
+    """町の電気の網に乗せ、前にここで足した明かり（停電の間だけの明かり・安い光だけの明かり）を消す（何度流しても同じ）"""
+    room["grid"] = "town"
+    room["lights"] = [l for l in room.get("lights", []) if not l.get("blackout") and l.get("omni", True)]
+
+
+def oil(room, pos, glow=None):
+    """部屋の明かり（pos の位置のもの）を油の灯・火にする（停電でも灯り、揺らぐ）。glow：灯のまわりのにじみの半径 m"""
+    for l in room.get("lights", []):
+        if all(abs(a - b) < 1e-3 for a, b in zip(l["pos"], pos)):
+            l["source"] = "oil"
+            if glow:
+                l["glow"] = glow
+            return l
+    raise KeyError(f"明かりが無い: {pos}")
+
+
+def glow(room, pos, size=0.25, pool=None, blackout=False):
+    """油の灯の安い光だけ（本物の光なし）：灯の芯 pos のまわりのにじみ（半径 size m）、pool = [半径 m, 床の高さ] で床の明るい輪"""
+    l = {"pos": r3(pos), "color": OIL, "source": "oil", "omni": False, "glow": size}
+    if pool:
+        l["pool"] = r3(pool)
+    if blackout:
+        l["blackout"] = True
+    room["lights"].append(l)
+    return l
+
+
+def lamp(room, d, pos, real=None, size=0.45, pool=3.0, floor=0.0, part=True):
+    """停電の間だけの灯油ランプ：pos（台の上の面）に携行灯の部品（"blackout": true。当たり判定なし：台の上に置く）。
+    明かりは芯の高さ（+0.25 m）。real = (届く距離 m, 明るさ) なら本物の光、None なら安い光だけ（にじみ・床の輪）。
+    pool：床の明るい輪の半径（0 で無し）、floor：その床の高さ。part=False は前からある携行灯に明かりだけ足す"""
+    x, y, z = pos
+    if part:
+        d.put("hand_lantern", pos, blackout=True, solid=False)
+    l = {"pos": r3([x, y + 0.27, z]), "color": OIL, "range": real[0] if real else 4.0, "energy": real[1] if real else 1.0,
+         "source": "oil", "blackout": True, "glow": size}
+    if pool:
+        l["pool"] = r3([pool, floor])
+    if not real:
+        l["omni"] = False
+    room["lights"].append(l)
+    return l
 
 
 # 町の下の巡礼機オルド（2026-10-16。旧遠景 ordo_far の入れ替え）。部屋の "ordo"：{"pos": 部屋の座標でのオルドの原点（背の歩行面の真ん中）}。
@@ -299,7 +353,19 @@ def mid(room):
 
     lived_mid(d)
     grime_mid(d)
+    blackout_mid(room, d)
     return finish(room, d)
+
+
+def blackout_mid(room, d):
+    """停電の夜の中段：広場の集まり（町長の壇の前の両端。本物の光 2 つでバートン・町長・ミナ婆を照らす）、雑貨屋（台の西の樽の上。
+    本物の光で店主）、ジャンク屋・食堂（安い光）、工房の前の作業台の携行灯（前からある油の灯に安い光）"""
+    lamp(room, d, [-3.3, 0.8, 8.0], real=(10.0, 2.2))
+    lamp(room, d, [3.3, 0.8, 8.0], real=(10.0, 2.2))
+    lamp(room, d, [19.4, 1.0, 4.4], real=(7.5, 2.0))
+    lamp(room, d, [33.4, 1.0, 4.4])
+    lamp(room, d, [-21.6, 1.0, 0.3])
+    lamp(room, d, [-39.65, 0.97, 0.8], part=False)
 
 
 def finish(room, d):
@@ -526,7 +592,14 @@ def lower(room):
     lived_lower(d)
     grime_lower(d)
     ordo_landing(room, d, "lower", solid=True)
+    blackout_lower(room, d)
     return finish(room, d)
+
+
+def blackout_lower(room, d):
+    """停電の夜の下段：禁足扉への道。扉の北の木箱の上（ヤーナ。本物の光で扉の前とヤーナ）、来る道の木箱の山の上（安い光）"""
+    lamp(room, d, [-41.5, 0.75, 6.6], real=(10.0, 2.2))
+    lamp(room, d, [-27.44, 1.49, 5.55])
 
 
 def flags(d, a, b, y, sag=None):
@@ -675,7 +748,13 @@ def upper(room):
     light(room, [0, 3, 22], [-5.9, 2.13, 17.4])
     lived_upper(d)
     grime_upper(d)
+    blackout_upper(room, d)
     return finish(room, d)
+
+
+def blackout_upper(room, d):
+    """停電の夜の上段：展望台の見張りの携行灯（前からある油の灯）に本物の光"""
+    lamp(room, d, [-7.51, 0.74, 20.0], real=(8.0, 1.9), part=False)
 
 
 def lived_upper(d):
@@ -844,6 +923,9 @@ def home(room):
     dirt(d, 0.0, -4.6, 3.6, 2.2)            # 入口
     dirt(d, 5.6, 4.6, 2.6, 2.6, kind="oil_patch")   # ガラクタの山のまわり
     dirt(d, 3.5, -0.9, 2.4, 1.4)            # 机の前
+    # 停電の夜：ベッドの横の携行灯（home_set の中。芯は油の灯）の明かりは油の灯（停電でも灯る。目覚めの家の灯）。天井の灯は電気
+    oil(room, [-4.5, 1.6, 3.5])
+    glow(room, [-4.5, 1.36, 3.5], 0.24)
     return finish(room, d)
 
 
@@ -859,6 +941,9 @@ def workshop(room):
         dress_solid.B(8.75, 10.0, 0.0, 1.75, 2.55, 4.45)])
     sign(room, "ヤーナの工房", "sign_wall_3", 0, 3.0)
     light(room, [-6, 3, 4], [8.3, 1.0, 3.5])           # 橙の明かりは炉の口へ
+    oil(room, [8.3, 1.0, 3.5])                          # 炉の火（停電でも灯る）
+    for x in (-6.76, -4.9):
+        glow(room, [x, 1.15, 6.55], 0.2)                # 作業台の上の携行灯（workshop_set の中。油の灯）
     # 壁ぎわの道具と材料：樽・タンク・曲がり管・木箱・麻袋・ガラクタ
     d.snug("barrel", 0, x0=-9.98, z1=6.98)
     d.snug("tank", 90, x1=9.98, z0=-6.98)
@@ -913,6 +998,9 @@ def guild(room):
     dirt(d, -4.0, 4.6, 9.0, 2.0)            # 受付の前
     dirt(d, 7.0, 5.6, 3.0, 2.0)             # 依頼板の前
     dirt(d, 10.0, -5.0, 2.6, 4.0, kind="oil_patch")    # 回収品のまわり
+    # 停電の夜：受付台の携行灯（guild_set の中。油の灯）のにじみと、停電の間は受付のリタを照らす本物の光
+    glow(room, [-8.4, 1.25, 7.3], 0.22)
+    room["lights"].append({"pos": [-8.2, 1.6, 6.9], "color": OIL, "range": 8.0, "energy": 1.9, "source": "oil", "blackout": True})
     return finish(room, d)
 
 
