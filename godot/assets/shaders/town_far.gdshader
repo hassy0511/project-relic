@@ -3,7 +3,7 @@ shader_type spatial;
 // 色 = 絵の帳 town_far.png（1024 × 1024、128 画素の升目 × 64：家の正面の 1 間 × 1 階・屋根・布・材）× 頂点の色（家ごとの色と足元の陰。線形）。
 // 夜の灯：帳の A（窓のガラス・扉の上の明かり取り・店の中・灯の芯）× 頂点の色の A（灯の順。0 = 光らない）。
 //   power：明るさ（OrdoView が雰囲気の明るさ（昼 0・夜明け 0.6・夜 1）× set_back_lights の明るさを渡す）、
-//   flicker：ちらつき（0〜1）、out_amount：消えた割合（0〜1。灯の順が out_amount 以下の灯は消え、その手前の 0.15 は強くちらつく）。
+//   flicker：ちらつき（0〜1）、out_amount：消えた割合（0〜1。灯の順が out_amount 以下の灯は消え、消えていく間はその手前の 0.15 が強くちらつく）。
 //   灯の点 TownLights（town_lights.gdshader）と同じ決まりなので、同じ灯の順の窓と点が一緒に消える。
 // blend_mul は使わない（スマホ・ブラウザ版の描き方で黒くなる：設計 42 の決まり）
 render_mode cull_back, diffuse_lambert, specular_schlick_ggx;
@@ -25,10 +25,12 @@ void fragment() {
 	ALBEDO = t.rgb * COLOR.rgb;
 	ROUGHNESS = 0.86;
 	SPECULAR = 0.3;
-	float order = COLOR.a;
+	// 灯の順は頂点の色の A（8 ビット）。補間で家の中の値が揺れないよう 1/255 に丸める（窓が縞にちらつかない）
+	float order = floor(COLOR.a * 255.0 + 0.5) / 255.0;
 	if (power > 0.001 && order > 0.002 && t.a > 0.01) {
 		float lit = order > out_amount ? 1.0 : 0.0;
-		float edge = clamp((order - out_amount) / 0.15, 0.0, 1.0);
+		// 消える直前の帯（0.15）は、消えていく間（out_amount > 0）だけ。全部点いているときは、順の小さな家もちらつかない
+		float edge = out_amount > 0.0 ? clamp((order - out_amount) / 0.15, 0.0, 1.0) : 1.0;
 		float fl = max(flicker, 1.0 - edge) * lit;
 		float n = hash(floor(TIME * 13.0 + order * 97.0) + order * 311.0);
 		float on = n < fl * 0.75 ? 0.12 : 1.0;

@@ -833,7 +833,27 @@
     ]
    },
    {
-    "wait": 1.2
+    "camera": {
+     "pos": [
+      0,
+      -6,
+      -60
+     ],
+     "height": 0,
+     "eye": [
+      0,
+      9,
+      -10
+     ],
+     "time": 3.4,
+     "wait": false
+    }
+   },
+   {
+    "wait": 3.4
+   },
+   {
+    "camera": {}
    },
    {
     "say": "ch1.cheer"

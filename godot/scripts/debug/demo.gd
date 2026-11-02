@@ -636,9 +636,6 @@ func _audit_steps() -> Array:
 			else:
 				_stand(RoomGeo.v3(v.at), RoomGeo.v3(v.look))
 				g.cam.pitch = float(v.get("pitch", 12.0)) * U.DEG
-			var bl: Array = v.get("back_lights", [])
-			if bl.size() == 3 and main._ordo() != null:
-				main._ordo().set_back_lights(float(bl[0]), float(bl[1]), float(bl[2]))
 			main.snap_views()})
 		var walk: bool = v.get("walk", false)
 		var jump := int(v.get("jump", 0))
@@ -651,11 +648,16 @@ func _audit_steps() -> Array:
 				RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
 				RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
 				RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])}
-		if v.has("eye"):
+		# 遠景の窓（back_lights）は撮る直前に入れる（部屋を替えた直後は、次の刻みに部屋を作る TownPower.room_built が町の電気の値で上書きする）
+		var bl: Array = v.get("back_lights", [])
+		if v.has("eye") or bl.size() == 3:
 			shot["cam"] = func():
-				main.camera.global_position = RoomGeo.v3(v.eye)
-				main.camera.look_at(RoomGeo.v3(v.target), Vector3.UP)
-				main.camera.reset_physics_interpolation()
+				if bl.size() == 3 and main._ordo() != null:
+					main._ordo().set_back_lights(float(bl[0]), float(bl[1]), float(bl[2]))
+				if v.has("eye"):
+					main.camera.global_position = RoomGeo.v3(v.eye)
+					main.camera.look_at(RoomGeo.v3(v.target), Vector3.UP)
+					main.camera.reset_physics_interpolation()
 		steps.append(shot)
 	return steps
 
@@ -706,6 +708,9 @@ func _ch1b_steps() -> Array:
 				g.set_flag(String(f).substr(1), false)
 			else:
 				g.set_flag(f)
+		# 歓声（ch1.cheer）を通らずに町へ戻る確かめ：町の電気の「戻ったのをまだ見せていない」を忘れる（朝の町を停電の姿で作らない）
+		if main.get("power") != null:
+			main.power.pending.clear()
 		g.load_room(room, spawn)
 		for t in g.triggers:
 			t.fired = true

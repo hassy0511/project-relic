@@ -337,7 +337,122 @@ func test_town_power_back_windows() -> void:
 	tp.begin_room(g)
 	tp.room_built(null)
 	h.expect(is_equal_approx(m.o.back_out, 0.9) and is_equal_approx(m.o.back_power, 0.7), "場面の途中は場面の値のまま")
+	# 場面が終わったら、町の電気の値に戻す（場面の値のまま残さない）
+	tp._process(1.0 / 60.0)
+	m.cine.on = false
+	tp._process(1.0 / 60.0)
+	h.expect(is_equal_approx(m.o.back_out, 0.0) and is_equal_approx(m.o.back_power, 1.0) and is_equal_approx(m.o.back_flicker, 0.0),
+		"場面が終わると、遠景の窓は町の電気の値に戻る（out %.2f）" % m.o.back_out)
 	tp.free()
 	m.o.free()
 	m.free()
+	h.free_game(g)
+
+
+## 停止の場面の終わり（家の中で電気が切れる）：空と光は、波の間に夜の屋内（interior_night）から停電の屋内（interior_blackout）へ
+## 少しずつ移る（波の終わりに 1 こまで青く跳ねない）。歓声の波は逆（停電の夜 → 夜）
+func test_town_power_light_blends_over_wave() -> void:
+	var g := _game(["ch1.night"], "ch1.home")
+	await h.settle()
+	var tp := TownPower.new()
+	tp.begin_room(g)
+	var root := RoomView.build(g.world, g.room_id, false)
+	h.tree.root.add_child(root)
+	tp.room_built(root)
+	var table: Dictionary = RoomKit.load_kit("town").data.light
+	var lit: Dictionary = EnvironmentSetup.resolve_light(table.interior_night)
+	var dark: Dictionary = EnvironmentSetup.resolve_light(table.interior_blackout)
+	h.near(float(tp.light_for(g, "interior", table).ambient_energy), float(lit.ambient_energy), 0.001, "切れる前は夜の屋内の光")
+	g.set_flag("ch1.ordo_stopped")
+	for e in g.drain_events():
+		tp.handle(e)
+	h.expect(tp.wave_dir == -1, "家の中で電気が切れる（消えていく波）")
+	var prev := float(tp.light_for(g, "interior", table).ambient_energy)
+	h.near(prev, float(lit.ambient_energy), 0.02, "波の始めは夜の屋内の光のまま")
+	var mids := 0
+	var max_jump := 0.0
+	var steps := 0
+	while tp.wave_dir != 0 and steps < 400:
+		tp._process(1.0 / 60.0)
+		steps += 1
+		var a := float(tp.light_for(g, "interior", table).ambient_energy)
+		max_jump = maxf(max_jump, absf(a - prev))
+		prev = a
+		if a > float(lit.ambient_energy) + 0.05 and a < float(dark.ambient_energy) - 0.05:
+			mids += 1
+	h.expect(mids > 20, "波の間は環境光が 2 つの間を移る（間の値のこま %d）" % mids)
+	h.near(prev, float(dark.ambient_energy), 0.001, "波のあとは停電の屋内の光")
+	h.expect(max_jump < 0.05, "1 こまで跳ねない（いちばん大きな変わり %.3f）" % max_jump)
+	var c: Color = Color(tp.light_for(g, "interior", table).ambient_color)
+	h.expect(c.is_equal_approx(Color(dark.ambient_color)), "色も停電の屋内の色で終わる")
+	root.queue_free()
+	tp.free()
+	h.free_game(g)
+
+
+## 光の上書きの混ぜ方と、スマホ・ブラウザ版の描き方だけの値（"compat"）
+func test_light_blend_and_compat() -> void:
+	var b := TownPower.blend_light({"ambient_energy": 0.5, "ambient_color": "#000000", "only_a": 1.0},
+		{"ambient_energy": 1.0, "ambient_color": Color.WHITE, "only_b": 2.0}, 0.5)
+	h.near(float(b.ambient_energy), 0.75, 0.001, "数は直線で混ぜる")
+	h.near((b.ambient_color as Color).r, 0.5, 0.01, "色は色で混ぜる（\"#…\" と Color のどちらでも）")
+	h.expect(b.only_a == 1.0 and b.only_b == 2.0, "片方にしか無い項目はそのまま")
+	var l := {"ambient_energy": 0.5, "compat": {"ambient_energy": 0.9, "char_fill": 0.6}}
+	var r := EnvironmentSetup.resolve_light(l)
+	h.expect(not r.has("compat") and l.has("compat"), "compat は外して返す（元は変えない）")
+	if EnvironmentSetup.is_compat():
+		h.near(float(r.ambient_energy), 0.9, 0.001, "スマホ・ブラウザ版の描き方では compat の値")
+	else:
+		h.expect(is_equal_approx(float(r.ambient_energy), 0.5) and not r.has("char_fill"), "ほかの描き方では元の値（compat の値を使わない）")
+	var kl: Dictionary = RoomKit.load_kit("town").data.light
+	for k in ["night", "night_blackout", "interior_night", "interior_blackout"]:
+		h.expect(kl[k].has("compat") and kl[k].compat.has("char_fill"), "夜の光（%s）にはスマホ版の環境光と人物の照らしがある" % k)
+	for pair in [["night", "night_blackout"], ["interior_night", "interior_blackout"]]:
+		var ka: Array = EnvironmentSetup.resolve_light(kl[pair[0]]).keys()
+		var kb: Array = EnvironmentSetup.resolve_light(kl[pair[1]]).keys()
+		ka.sort()
+		kb.sort()
+		h.expect(ka == kb, "%s と %s は同じ項目を持つ（波の間に混ぜて、終わりに跳ねない）" % pair)
+
+
+## 灯ごとのばらつきは部品の置き場所から：家の天井の灯の光は家の部品（home_set、原点）と同じ乱数、飾りの部品の明かりはその部品の置き場所。
+## 波は電気の材質の窓（明かりの無い窓）まで届く
+func test_town_power_seeds_and_reach() -> void:
+	var g := _game(["ch1.night"], "ch1.home")
+	await h.settle()
+	var tp := TownPower.new()
+	tp.begin_room(g)
+	var root := RoomView.build(g.world, g.room_id, false)
+	h.tree.root.add_child(root)
+	tp.room_built(root)
+	var ceiling: Array = tp._lights.filter(func(l): return l[2] == "electric")
+	h.expect(not ceiling.is_empty(), "家に電気の明かりがある")
+	h.near(float(ceiling[0][3]), TownPower.seed_hash(Vector3.ZERO), 0.0001, "天井の灯の光は家の部品の置き場所の乱数（灯の芯と一緒に消える）")
+	h.expect(not is_equal_approx(TownPower.seed_hash(Vector3.ZERO), TownPower.seed_hash((ceiling[0][0] as Node3D).position)),
+		"（自分の位置の升の乱数とは違う）")
+	root.queue_free()
+	tp.free()
+	h.free_game(g)
+	g = _game(["ch1.night"], "ch1.mid")
+	await h.settle()
+	tp = TownPower.new()
+	tp.begin_room(g)
+	root = RoomView.build(g.world, g.room_id, false)
+	h.tree.root.add_child(root)
+	tp.room_built(root)
+	var tagged := 0
+	for l in tp._lights:
+		if l[2] == "electric" and (l[0] as Node).has_meta("power_at"):
+			tagged += 1
+			var at: Vector3 = TownPower._xform(l[0].get_parent()) * (l[0].get_meta("power_at") as Vector3)
+			h.near(float(l[3]), TownPower.seed_hash(at), 0.0001, "飾りの明かりは部品の置き場所の乱数")
+	h.expect(tagged > 0, "中段に飾りの部品の電気の明かりがある（%d）" % tagged)
+	var origin := Vector3(0, -6, 2)
+	var far_lights := 0.0
+	for l in tp._lights:
+		if l[2] == "electric":
+			far_lights = maxf(far_lights, (l[0] as Node3D).global_position.distance_to(origin))
+	h.expect(tp.far_from(origin) > far_lights + 5.0, "波は明かりの無い電気の窓まで届く（明かり %.1f m、窓まで %.1f m）" % [far_lights, tp.far_from(origin)])
+	root.queue_free()
+	tp.free()
 	h.free_game(g)

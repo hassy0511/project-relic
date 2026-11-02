@@ -90,6 +90,7 @@ func _ready() -> void:
 	camera = CameraRig.new()
 	add_child(camera)
 	camera.current = true
+	EnvironmentSetup.add_char_fill(sun, camera)
 	cine = CineDirector.new(self)
 	add_child(cine)
 	power = TownPower.new(self)
@@ -149,21 +150,35 @@ func _rebuild_room_views() -> void:
 
 ## 空と光の雰囲気：屋内の部屋は interior、屋外の部屋の mood（dawn など）、停電の夜（フラグ ch1.night）は night
 func _apply_mood() -> void:
+	var mood := _mood_name()
+	EnvironmentSetup.apply_mood(sun, mood)
+	var ordo := _ordo()
+	if ordo != null:
+		ordo.set_mood(mood)
+	_apply_light(mood)
+
+
+## 今の部屋の雰囲気の名前（_apply_mood）
+func _mood_name() -> String:
 	var mood := "day"
 	if arena_kind == "":
 		var r: Dictionary = game.room
 		mood = String(r.get("mood", "day"))
 		if mood == "outdoor" or mood == "day":
 			mood = "night" if game.flag("ch1.night") else "day"
-	EnvironmentSetup.apply_mood(sun, mood)
-	var ordo := _ordo()
-	if ordo != null:
-		ordo.set_mood(mood)
-	# キットの遠景の空（content/kits/<id>.json の "sky"。町は bg_desert_* の砂漠）
-	if arena_kind == "" and game.room.has("kit"):
-		var kd: Dictionary = RoomKit.load_kit(String(game.room.kit)).get("data", {})
-		# 光の上書きは、停電の夜・夜の屋内なら "<雰囲気>_blackout"・"interior_night"（TownPower.light_for）
-		EnvironmentSetup.apply_sky(sun, String(kd.get("sky", {}).get(mood, "")), power.light_for(game, mood, kd.get("light", {})))
+	return mood
+
+
+## キットの遠景の空（content/kits/<id>.json の "sky"。町は bg_desert_* の砂漠）と光の上書き（_apply_mood の後半）。
+## 光の上書きは、停電の夜・夜の屋内なら "<雰囲気>_blackout"・"interior_night"（TownPower.light_for）。
+## 町の電気の波の間は TownPower が毎こま呼んで、電気のある光と停電の光の間を少しずつ移す
+func _apply_light(mood := "") -> void:
+	if arena_kind != "" or game == null or not game.room.has("kit"):
+		return
+	if mood == "":
+		mood = _mood_name()
+	var kd: Dictionary = RoomKit.load_kit(String(game.room.kit)).get("data", {})
+	EnvironmentSetup.apply_sky(sun, String(kd.get("sky", {}).get(mood, "")), power.light_for(game, mood, kd.get("light", {})))
 
 
 ## 町の下のオルド（部屋の "ordo"。RoomView が作る OrdoView）

@@ -8,6 +8,8 @@ class_name EnvironmentSetup
 ## 太陽を弱めて、光の当たる所の明るさを Forward+ に合わせる（0.35 で昼の床が合い、壁は少し暗くなる。間を取って 0.4）。
 ## 部品の影つきの光（遺構の割れ目のスポット）は、この描き方では影を付けない（RoomKit._light。影なしなら同じ明るさになる）
 const COMPAT_SHADOW_LIGHT := 0.4
+## 人物（ハル・住人）だけを照らす光の層（MeshInstance3D.layers の 11 番目）。夜の人物の照らし（char_fill）が使う
+const CHAR_LAYER := 1 << 10
 
 
 ## 影を落とす光の強さに掛ける割合（gl_compatibility だけ COMPAT_SHADOW_LIGHT、ほかは 1）
@@ -92,7 +94,36 @@ static func build(parent: Node) -> DirectionalLight3D:
 	parent.add_child(sun)
 	sun.set_meta("env", env)
 	sun.set_meta("proc_sky", sky_mat)
+	# 夜の人物の照らし（光の上書きの "char_fill"）：カメラの所に置いた影のない点の光で、人物の層（CHAR_LAYER）だけを照らす
+	# （カメラから見える側 = 月を背にした背中）。カメラの子にする（add_char_fill）。
+	# 平行光にしないのは、スマホ・ブラウザ版の描き方では平行光の照らす層の指定（light_cull_mask）が効かず、町の全部が明るくなったため。
+	# 点の光の層の指定は効く（光と物の組を作るときに見る）。この描き方では、届く人物の面ごとに描画が 1 回増える
+	var fill := OmniLight3D.new()
+	fill.name = "CharFill"
+	fill.shadow_enabled = false
+	fill.light_cull_mask = CHAR_LAYER
+	fill.light_specular = 0.0
+	fill.omni_range = 14.0
+	fill.omni_attenuation = 0.4
+	fill.visible = false
+	sun.set_meta("char_fill", fill)
 	return sun
+
+
+## 夜の人物の照らしを、カメラの子に置く（カメラの向きから人物を照らす。main がカメラを作ったあとに呼ぶ）
+static func add_char_fill(sun: DirectionalLight3D, camera: Node3D) -> void:
+	if sun.has_meta("char_fill") and camera != null:
+		camera.add_child(sun.get_meta("char_fill"))
+
+
+## 人物の照らしの強さと色（0 なら描かない）
+static func set_char_fill(sun: DirectionalLight3D, energy: float, color := Color.WHITE) -> void:
+	if not sun.has_meta("char_fill"):
+		return
+	var fill: OmniLight3D = sun.get_meta("char_fill")
+	fill.light_energy = energy
+	fill.light_color = color
+	fill.visible = energy > 0.001
 
 
 ## 時間帯・場所の雰囲気：day（既定）| dawn（夜明け）| night（停電の夜）| interior（屋内）
@@ -103,6 +134,9 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 	env.adjustment_saturation = 1.05
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.fog_sky_affect = 1.0
+	env.adjustment_contrast = 1.0
+	env.adjustment_brightness = 1.0
+	set_char_fill(sun, 0.0)
 	match mood:
 		"title":
 			# タイトルの後ろの夜明けの空（霞を空にかけない）
@@ -184,10 +218,14 @@ static func apply_mood(sun: DirectionalLight3D, mood: String) -> void:
 ## apply_mood のあとに呼ぶ。path が "" なら作った空のまま。絵は正距円筒（tools/blender/kit/town_backdrop.py が bg_desert_* から作る）。
 ## 霞は空にかけない（絵の地平線の霞をそのまま見せる）。light の項目（どれも省略可）：
 ##   sky_energy（空の絵の明るさ）, sun_energy, sun_color, ambient_color（指定すると環境光をこの色に）, ambient_energy, fog_color,
-##   saturation（色の鮮やかさ）。どれも apply_mood が毎回戻す項目だけ
+##   saturation（色の鮮やかさ）。どれも apply_mood が毎回戻す項目だけ。色は "#…" か Color。
+##   char_fill（人物だけをカメラの所から照らす影のない光の強さ。夜に月を背にした人物が黒い影絵にならないように）・char_fill_color、
+##   contrast・brightness（画面の仕上げの明暗。contrast を 1 より下げると暗い端が持ち上がる：スマホ版の夜の真っ黒な所）、
+##   "compat"：スマホ・ブラウザ版の描き方（gl_compatibility）だけで上の項目を置き換える値（resolve_light）
 ## 空の絵が無い（path が ""）ときも、light の上書きは当てる（屋内の遺構のキットは "light" だけを書く）。
 static func apply_sky(sun: DirectionalLight3D, path: String, light: Dictionary = {}) -> void:
 	var env: Environment = sun.get_meta("env")
+	light = resolve_light(light)
 	if path != "" and ResourceLoader.exists(path):
 		var cache: Dictionary = sun.get_meta("sky_cache", {})
 		if not cache.has(path):
@@ -213,3 +251,22 @@ static func apply_sky(sun: DirectionalLight3D, path: String, light: Dictionary =
 		env.fog_light_color = Color(light.fog_color)
 	if light.has("saturation"):
 		env.adjustment_saturation = float(light.saturation)
+	if light.has("contrast"):
+		env.adjustment_contrast = float(light.contrast)
+	if light.has("brightness"):
+		env.adjustment_brightness = float(light.brightness)
+	if light.has("char_fill"):
+		set_char_fill(sun, float(light.char_fill), Color(light.get("char_fill_color", "#ffffff")))
+
+
+## 光の上書きの "compat"（スマホ・ブラウザ版の描き方だけの値）を、その描き方なら重ねて外す（ほかの描き方なら外すだけ）。
+## この描き方は、影を落とす月（太陽）を弱めて（COMPAT_SHADOW_LIGHT）トーンマップのあとに足すので、夜の月の当たらない面は
+## 環境光だけになり、AgX の暗い端で真っ黒に詰まる（停電の夜の家の中・扉・月を背にしたハル）。夜の項目は環境光をこの描き方だけ上げる
+static func resolve_light(light: Dictionary) -> Dictionary:
+	if not light.has("compat"):
+		return light
+	var out := light.duplicate()
+	out.erase("compat")
+	if is_compat():
+		out.merge(light.compat, true)
+	return out

@@ -33,8 +33,8 @@ void vertex() {
 	VERTEX = origin + vec3(VERTEX.xy * s, 0.0);
 	NORMAL = vec3(0.0, 0.0, 1.0);
 	v_uv = UV;
-	// 消える順：out_amount を超えた灯から消え、その手前（幅 0.15）の灯は強くちらつく
-	float edge = clamp((c.z - out_amount) / 0.15, 0.0, 1.0);
+	// 消える順：out_amount を超えた灯から消え、消えていく間（out_amount > 0）はその手前（幅 0.15）の灯が強くちらつく
+	float edge = out_amount > 0.0 ? clamp((c.z - out_amount) / 0.15, 0.0, 1.0) : 1.0;
 	float lit = c.z > out_amount ? 1.0 : 0.0;
 	float fl = max(flicker, 1.0 - edge) * lit;
 	// ちらつき：1/13 秒ごとに灯ごとの乱数で、強いほど暗い刻みが増える

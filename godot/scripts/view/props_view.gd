@@ -277,6 +277,8 @@ func _add_npc_model(root: Node3D, path: String) -> Dictionary:
 	for node in model.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		# 人物の層（夜の人物の照らし EnvironmentSetup.CHAR_LAYER が照らす）
+		mi.layers |= EnvironmentSetup.CHAR_LAYER
 		for s in mi.mesh.get_surface_count():
 			var src := mi.mesh.surface_get_material(s)
 			if src is BaseMaterial3D:

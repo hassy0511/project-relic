@@ -482,7 +482,10 @@ static func dress(room: Dictionary, kit: Dictionary, missing: Array, dark := fal
 		for xf in dress_xforms(d):
 			groups[key].append(xf)
 			if d.has("light"):
-				root.add_child(_light(d.light, xf, light_source(d.light, room)))
+				var lt := _light(d.light, xf, light_source(d.light, room))
+				# 部品の置き場所（TownPower が灯の芯の材質と同じ乱数で点け・消す。kit_surface.gdshaderinc の v_power_h）
+				lt.set_meta("power_at", xf.origin)
+				root.add_child(lt)
 	for key in groups:
 		var part: String = key.split("|")[0]
 		var shadow: bool = key.split("|")[1] == "true"
