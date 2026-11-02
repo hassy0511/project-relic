@@ -620,7 +620,8 @@ static func part_mesh(part: String, kit: Dictionary) -> Mesh:
 			uv2[i] = Vector2(verts[i].y - lo, hi - verts[i].y)
 		arrays[Mesh.ARRAY_TEX_UV2] = uv2
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		mesh.surface_set_material(mesh.get_surface_count() - 1, mats.get(name, by_mat[name][1]))
+		# 材質の名前は OrdoSteps が替えることがある（足音の揺れを弱めた写し "flat~jolt30"。キットの材質に足してある）
+		mesh.surface_set_material(mesh.get_surface_count() - 1, mats[name] if mats.has(name) else by_mat[name][1])
 	_parts[key] = mesh
 	return mesh
 

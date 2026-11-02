@@ -568,13 +568,13 @@ func show_controls(back: Callable, focus := 0, note := "") -> void:
 			show_controls(back, PadConfig.ACTIONS.size() + 3, "カメラの自動回り込み：%s" % PadConfig.CAM_FOLLOW_TEXT[PadConfig.cam_follow])})
 	# フラッシュの抑制（20 章 22 節）：大きな光・被弾の画面の赤・番機の被弾の光の強さ（PadConfig.flash。main が Fx・Vfx・EnemyView・Hud へ入れる）
 	rows.append({"label": "フラッシュの強さ", "right": PadConfig.flash_text(),
-		"detail": "弱点・撃破・壁や腕の破壊などの大きな光、被弾したときの画面の赤、攻撃を受けた番機が光る強さ。\n標準：見本どおり。\n弱め：半分。\n最小：2 割（光る場所と向きは分かる）。\n光や点滅がつらいときは、弱め・最小にする。決定で切り替える。",
+		"detail": "大きな光（弱点・撃破・壁や腕の破壊）、被弾の画面の赤、攻撃を受けた番機の光の強さ。\n標準：見本どおり。弱め：半分。最小：2 割（光る場所と向きは分かる）。\n光や点滅がつらいときは、弱め・最小に。決定で切り替える。",
 		"cb": func():
 			PadConfig.cycle_flash()
 			show_controls(back, PadConfig.ACTIONS.size() + 4, "フラッシュの強さ：%s" % PadConfig.flash_text())})
 	# 画面の揺れ（20 章 22 節）：着地・大技・場面の揺れ・オルドの足音の小さな揺れ（PadConfig.shake。main が CameraRig.shake_scale へ入れる）
 	rows.append({"label": "画面の揺れ", "right": PadConfig.shake_text(),
-		"detail": "着地・大技・ボスの叩きつけ・場面の揺れと、オルドの足音で画面が小さく揺れる強さ。\n標準：見本どおり。\n弱め：半分。\n切：画面は揺らさない（足音・揺れる灯や布はそのまま）。\n揺れで酔いやすいときは、弱め・切にする。決定で切り替える。",
+		"detail": "着地・大技・ボスの叩きつけ・場面の揺れと、オルドの足音で画面が小さく揺れる強さ。\n標準：見本どおり。弱め：半分。切：揺らさない（足音・灯や布の揺れはそのまま）。\n揺れで酔いやすいときは、弱め・切に。決定で切り替える。",
 		"cb": func():
 			PadConfig.cycle_shake()
 			show_controls(back, PadConfig.ACTIONS.size() + 5, "画面の揺れ：%s" % PadConfig.shake_text())})

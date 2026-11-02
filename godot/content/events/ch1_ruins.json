@@ -753,10 +753,13 @@
     "shake": 0.9
    },
    {
+    "say": "ch1.restart.b"
+   },
+   {
     "flag": "ch1.ordo_restarted"
    },
    {
-    "say": "ch1.restart.b"
+    "say": "ch1.restart.c"
    },
    {
     "message": "オルドが再び歩き出した！"

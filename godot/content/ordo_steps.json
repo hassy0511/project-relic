@@ -1,23 +1,23 @@
 {
- "_doc": "町で感じるオルドの歩み（OrdoSteps。docs/design/30_レベルデザイン設計.md 4.2.1）。音の大きさは dB（効果音の音量からの差）。「ceiling」は天井から砂がこぼれ始める高さ（ハルの足元から m）。「at」は部屋の原点のオルドの座標（部屋にオルドがいないとき、近い脚を決める）。「hang」は揺れの重みを足す灯の部品（w = 端の重み、chains = 鎖ごと天井から揺らす灯 [x, z, 天井の高さ]、stand = 台に置いた携行灯：底から上へ重くなる）。位置はオルドの座標（原点 = 背の歩行面の真ん中、+Z が船首、+X が左舷、地面は y = -120）",
- "restart_first_s": 2.5,
+ "_doc": "町で感じるオルドの歩み（OrdoSteps。docs/design/30_レベルデザイン設計.md 4.2.1）。音の大きさは dB（効果音の音量からの差）。「ceiling」は天井から砂がこぼれ始める高さ（ハルの足元から m）。「at」は部屋の原点のオルドの座標（部屋にオルドがいないとき、近い脚を決める）。「hang」は揺れの重みを足す灯の部品（w = 端の重み、chains = 鎖ごと天井から揺らす灯 [x, z, 天井の高さ]（4 つ目に半径があれば、その筒の中の吊り具ごと 1 つの振り子）、stand = 台に置いた携行灯：底から上へ重くなる、stands = 吊り灯の部品の中に置いた携行灯 [x, z]）。「soft」は足音の揺れを弱める部品（倍率。壁に掛けた垂れ幕が前の梁を突き抜けない）。「restart_first_s」は再始動のフラグ（ch1.restart の最後の行「巨大な足が、地を踏みしめる」の直前に立つ）から重い最初の 1 歩までの秒。「rattle」はいくつかの鳴り方から 1 つ。位置はオルドの座標（原点 = 背の歩行面の真ん中、+Z が船首、+X が左舷、地面は y = -120）",
+ "restart_first_s": 0.4,
  "shoulders": {
   "l1": [59, -35, 140], "l2": [59, -35, 48], "l3": [59, -35, -48], "l4": [59, -35, -140],
   "r1": [-59, -35, 140], "r2": [-59, -35, 48], "r3": [-59, -35, -48], "r4": [-59, -35, -140]
  },
  "places": {
   "town": {
-   "sound": "ordo_thud", "db": -9.0, "ref_m": 100.0, "range_db": [-9.0, 5.0],
-   "camera": 0.011, "roll_deg": 0.09, "jolt": 0.12, "puffs": 5
+   "sound": "ordo_thud", "db": -7.0, "ref_m": 100.0, "range_db": [-9.0, 5.0],
+   "camera": 0.022, "roll_deg": 0.16, "jolt": 0.12, "puffs": 5
   },
   "interior": {
-   "sound": "ordo_thud_in", "db": -10.0, "ref_m": 100.0, "range_db": [-8.0, 4.0],
-   "camera": 0.008, "roll_deg": 0.07, "jolt": 0.13, "sift": 3,
-   "rattle": "ordo_rattle", "rattle_db": -19.0, "rattle_chance": 0.7
+   "sound": "ordo_thud_in", "db": -8.0, "ref_m": 100.0, "range_db": [-8.0, 4.0],
+   "camera": 0.016, "roll_deg": 0.13, "jolt": 0.13, "sift": 3,
+   "rattle": ["ordo_rattle", "ordo_rattle_2", "ordo_rattle_3"], "rattle_db": -19.0, "rattle_chance": 0.7
   },
   "ruins": {
-   "sound": "ordo_thud_deep", "db": -7.0, "ref_m": 60.0, "range_db": [-7.0, 5.0],
-   "camera": 0.016, "roll_deg": 0.12, "jolt": 0.14, "sift": 4
+   "sound": "ordo_thud_deep", "db": -6.0, "ref_m": 60.0, "range_db": [-7.0, 5.0],
+   "camera": 0.03, "roll_deg": 0.2, "jolt": 0.14, "sift": 4
   }
  },
  "rooms": {
@@ -44,13 +44,14 @@
   "town/stall": {"w": 0.6},
   "town/tent": {"w": 0.6},
   "town/training_set": {"w": 0.6},
-  "town/ordo_landing": {"w": 0.6},
+  "town/ordo_landing": {"w": 0.6, "stands": [[57.52, -19.8]]},
   "town/home_set": {"w": 0.5, "chains": [[0.0, 0.0, 4.5]]},
   "town/workshop_set": {"w": 0.5, "chains": [[0.0, 0.0, 6.0]]},
   "town/mayor_set": {"w": 0.5, "chains": [[0.0, 0.0, 4.8]]},
-  "town/guild_set": {"w": 0.5},
+  "town/guild_set": {"w": 0.5, "chains": [[-5.0, 0.0, 6.0, 0.8], [5.0, 0.0, 6.0, 0.8]]},
   "town/hand_lantern": {"w": 0.2, "stand": true}
  },
+ "soft": {"town/goods_cloth_wall": 0.3},
  "puffs": ["town/stall", "town/tent", "town/ordo_landing_awning", "town/lower_set", "town/upper_set", "town/workshop_front",
   "town/diner_front", "town/market_general", "town/market_junk", "town/training_set", "town/opening_set", "town/laundry_line",
   "town/laundry_line_8", "town/clothesline", "town/goods_cloth", "town/goods_cloth_wall", "town/sign_cloth"]

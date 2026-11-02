@@ -28,6 +28,8 @@ const JOLT_S := 6.0
 const CAMERA_S := 4.0
 ## 灯の芯の材質（電気の灯 amber・油の灯 flame）。芯の形で灯を見つける
 const CORES := ["amber", "flame"]
+## 吊り灯の部品の中に置いた携行灯（"stands"）の、提げ手の重みの既定（town/hand_lantern と同じ）
+const STAND_W := 0.2
 
 var main
 ## 歩きの周期の位置（0〜1）と、歩いているか（フラグから）
@@ -199,6 +201,8 @@ func _enter_room(g) -> void:
 	_mats = jolt_materials(g.room)
 	_pending.clear()
 	_held.clear()
+	# 前の部屋の足音のあとに遅れて出すもの（天井の砂・器の音・日よけの砂ぼこり）は、移った部屋では出さない
+	_later.clear()
 	_bound = null
 	_cam_t = 99.0
 
@@ -309,9 +313,11 @@ func _step(tags: Array) -> void:
 	var sound := String(_place.get("sound", "ordo_thud"))
 	if main.audio != null:
 		main.audio.play_gain(sound, db, 0.84 if heavy else _rng.randf_range(0.95, 1.04))
-	# 器・道具が小さく鳴る（家の中。少し遅れて、ときどき）
+	# 器・道具が小さく鳴る（家の中。少し遅れて、ときどき。いくつかの鳴り方から 1 つ）
 	if _place.has("rattle") and _rng.randf() < float(_place.get("rattle_chance", 0.7)):
-		_later.append([_rng.randf_range(0.3, 0.55), "sound", [String(_place.rattle), float(_place.get("rattle_db", -19.0)) + (db - float(_place.get("db", -9.0))), _rng.randf_range(0.92, 1.08)]])
+		var rs = _place.rattle
+		var rattle := String(rs[_rng.randi_range(0, rs.size() - 1)]) if rs is Array else String(rs)
+		_later.append([_rng.randf_range(0.3, 0.55), "sound", [rattle, float(_place.get("rattle_db", -19.0)) + (db - float(_place.get("db", -9.0))), _rng.randf_range(0.92, 1.08)]])
 	# 画面：ごく小さな沈みと揺れ。材質：布・吊り灯が近い脚の側から押されて揺れる（前へよろめく向きを少し混ぜる）
 	_cam_t = 0.0
 	_cam_amp = float(_place.get("camera", 0.01)) * k * (1.6 if heavy else 1.0)
@@ -326,7 +332,8 @@ func _step(tags: Array) -> void:
 	if int(_place.get("puffs", 0)) > 0:
 		_later.append([0.12, "puffs", int(_place.puffs)])
 	if int(_place.get("sift", 0)) > 0:
-		_later.append([0.18, "sift", int(_place.sift)])
+		# 重い 1 歩（再始動）は砂も多く（炉心の部屋 r20 で、揺れの入る布・灯が無くても見える）
+		_later.append([0.18, "sift", int(_place.sift) * (2 if heavy else 1)])
 	steps_heard += 1
 	last = {"tags": tags, "db": db, "sound": sound, "place": place_name, "heavy": heavy, "time": time, "near": best, "k": k}
 	_log("足音 %s %s %.1f dB%s" % [sound, ",".join(PackedStringArray(tags)), db, "（重い 1 歩）" if heavy else ""])
@@ -366,7 +373,8 @@ func _view_cam() -> Camera3D:
 	return c
 
 
-## 屋外：カメラの前の近く（25 m 以内、近いものから）の、揺れる布の下の端から、砂ぼこりを少し
+## 屋外：カメラの前の近く（25 m 以内、近いものから）の、揺れる布の下の端から、砂ぼこりを少し。
+## 強さ = この場所の揺れの何倍か（近い脚の組ほど、重い 1 歩ほど大きい。1 = 場所の "jolt" どおり）。明るさは夜・停電で落とす
 func _puffs(n: int) -> void:
 	var cam := _view_cam()
 	if main.fx == null or main.fx.vfx == null or cam == null:
@@ -374,7 +382,19 @@ func _puffs(n: int) -> void:
 	var amb: AmbientFx = main.fx.ambient
 	if amb == null:
 		return
-	amb.step_puffs(main.fx.vfx, cam.global_position, -cam.global_transform.basis.z, n, clampf(_jolt_amp / 0.07, 0.5, 1.6))
+	var strength := _jolt_amp / maxf(float(_place.get("jolt", 0.12)), 0.001)
+	amb.step_puffs(main.fx.vfx, cam.global_position, -cam.global_transform.basis.z, n, strength, light_level())
+
+
+## 砂ぼこりの明るさ（粒は光を受けない描き方なので、ここで暗くする）：昼 1、夜 0.45、町の電気が消えている間 0.3
+func light_level() -> float:
+	if _game == null:
+		return 1.0
+	var mood := String(_game.room.get("mood", "day"))
+	var night: bool = mood == "night" or ((mood == "outdoor" or mood == "day") and _game.flag("ch1.night"))
+	if main != null and ("power" in main) and main.power != null and main.power.has_method("dark") and main.power.dark():
+		return 0.3
+	return 0.45 if night else 1.0
 
 
 ## 屋内・遺構：ハルの前・まわりの天井から、細い砂がこぼれる。高さは部屋の "ceiling"（ハルの足元からの高さ m。遺構の縦坑のような
@@ -404,7 +424,8 @@ func _apply_jolt(dt: float) -> void:
 	if _jolt_t < JOLT_S and _jolt_amp > 0.0:
 		var v := Vector4(_jolt_dir.x, _jolt_dir.y, _jolt_t, _jolt_amp)
 		for m in _mats:
-			(m as ShaderMaterial).set_shader_parameter("jolt", v)
+			var sc := float(m.get_meta("jolt_scale")) if (m as ShaderMaterial).has_meta("jolt_scale") else 1.0
+			(m as ShaderMaterial).set_shader_parameter("jolt", Vector4(v.x, v.y, v.z, v.w * sc))
 		_jolt_live = true
 	elif _jolt_live:
 		_clear_jolt()
@@ -461,21 +482,48 @@ func _apply_camera(dt: float) -> void:
 
 # ---------------------------------------------------------------- 部品を読むとき（RoomKit.part_mesh から）
 
-## 部品の面（材質の名前 → 配列）を読んだときに 1 回：灯に揺れの重みを足し（"hang"）、揺れる布の下の端を覚える（"puffs"）
+## 部品の面（材質の名前 → 配列）を読んだときに 1 回：灯に揺れの重みを足し（"hang"）、揺れる布の下の端を覚え（"puffs"）、
+## 足音の揺れを弱める部品は弱めた材質の写しに替える（"soft"）
 static func part_loaded(part: String, surfs: Dictionary, kit: Dictionary) -> void:
 	var c := config()
 	var key := "%s|%s" % [kit.get("id", ""), part]
 	if c.get("puffs", []).has(part):
 		_puff_cache[key] = _cloth_edges(surfs)
+	var soft := float(c.get("soft", {}).get(part, 1.0))
 	var h: Dictionary = c.get("hang", {}).get(part, {})
-	if h.is_empty():
-		return
+	if not h.is_empty():
+		_weight_hang(surfs, kit, h)
+	if soft < 1.0:
+		_soften(surfs, kit, soft)
+
+
+## 足音の揺れを弱める部品（"soft"：壁に掛けた垂れ幕。前の梁を突き抜けない）：揺れの重みを使う材質を、揺れの倍率 jolt_scale を
+## 付けた写しに替える（写しはキットの材質に足して共有。風の揺れは同じ。重み = 頂点の色は風の揺れと同じなので、重みは変えない）
+static func _soften(surfs: Dictionary, kit: Dictionary, scale: float) -> void:
+	var mats: Dictionary = kit.get("mats", {})
+	for name in surfs.keys():
+		var src = mats.get(name)
+		if not (src is ShaderMaterial) or (src as ShaderMaterial).has_meta("source"):
+			continue
+		var a = (src as ShaderMaterial).get_shader_parameter("sway_amp")
+		if not (a is Vector4 and (a as Vector4).x + (a as Vector4).y > 0.0):
+			continue
+		var key := "%s~jolt%d" % [name, int(round(scale * 100.0))]
+		if not mats.has(key):
+			var m2 := (src as ShaderMaterial).duplicate() as ShaderMaterial
+			m2.set_meta("jolt_scale", scale)
+			mats[key] = m2
+		surfs[key] = surfs[name]
+		surfs.erase(name)
+
+
+static func _weight_hang(surfs: Dictionary, kit: Dictionary, h: Dictionary) -> void:
 	var mats: Dictionary = kit.get("mats", {})
 	var src = mats.get("metal", mats.get("flat"))
 	for core in CORES:
 		if not surfs.has(core):
 			continue
-		if weight_lanterns(surfs, core, float(h.get("w", 0.35)), h.get("chains", []), bool(h.get("stand", false))) == 0:
+		if weight_lanterns(surfs, core, float(h.get("w", 0.35)), h.get("chains", []), bool(h.get("stand", false)), h.get("stands", [])) == 0:
 			continue
 		# 芯にも布・金物と同じ風の揺れを入れる（重みの無い芯は動かない。重みを足した灯の芯だけ、籠と一緒に動く）。
 		# これで芯の材質も揺れの重みを使う材質になり、足音の揺れ（jolt_materials）が入る
@@ -486,9 +534,11 @@ static func part_loaded(part: String, surfs: Dictionary, kit: Dictionary) -> voi
 
 
 ## 灯（P.lantern：芯の筒・真鍮の籠・笠・吊り金具。芯の材質 core = amber か flame）を芯の形で見つけ、揺れの重みを足す（端で w）。
-## 吊り灯：上の吊り金具から下へ重くなる（振り子）。chains：[x, z, 天井の高さ] の灯は、鎖ごと天井から揺らす。
-## stand（置いた携行灯）：台に着いた底から上へ重くなる（足が着くと小さく傾いで戻る）。返り値：見つけた灯の数
-static func weight_lanterns(surfs: Dictionary, core: String, w: float, chains: Array, stand := false) -> int:
+## 吊り灯：上の吊り金具から下へ重くなる（振り子）。chains：[x, z, 天井の高さ] の灯は、鎖ごと天井から揺らす。4 つ目に半径があれば、
+## その筒の中の吊り具ごと（ギルドの十字の吊り灯：腕・鎖・4 つの灯）を 1 つの振り子にする。
+## stand（置いた携行灯）：台に着いた底から上へ重くなる（足が着くと小さく傾いで戻る）。stands：吊り灯の部品の中に置いた携行灯
+## [x, z, 重み（既定 STAND_W）]（船着き場の木箱の上の灯油ランプ）。返り値：見つけた灯の数
+static func weight_lanterns(surfs: Dictionary, core: String, w: float, chains: Array, stand := false, stands: Array = []) -> int:
 	var cv: PackedVector3Array = (surfs[core] as Array)[Mesh.ARRAY_VERTEX]
 	# 芯の頂点を、近いもの同士（最初の点から 0.45 m 以内）でまとめる
 	var groups: Array = []   # [最初の点, AABB]
@@ -501,7 +551,8 @@ static func weight_lanterns(surfs: Dictionary, core: String, w: float, chains: A
 				break
 		if not found:
 			groups.append([v, AABB(v, Vector3.ZERO)])
-	var lamps := []   # [軸の x, 軸の z, 上の端の y, 下の端の y, 半径]
+	var lamps := []   # [軸の x, 軸の z, 上の端の y, 下の端の y, 半径, 置いた灯か, 端の重み]
+	var frames := {}  # chains の番号 → 吊り具ごと揺らす筒（lamps の中の同じ配列）
 	for gr in groups:
 		var b: AABB = gr[1]
 		var sx := b.size.x
@@ -514,15 +565,35 @@ static func weight_lanterns(surfs: Dictionary, core: String, w: float, chains: A
 			continue
 		var s := sy / 0.25
 		var cpos := b.get_center()
-		if stand:
+		var on_stand := stand
+		var lw := w
+		for st in stands:
+			if Vector2(float(st[0]) - cpos.x, float(st[1]) - cpos.z).length() < 0.1:
+				on_stand = true
+				lw = float(st[2]) if (st as Array).size() > 2 else STAND_W
+		if on_stand:
 			# 台の上の底（携行灯の黒鉛の台の下の面）から、提げ手の上まで
-			lamps.append([cpos.x, cpos.z, cpos.y + 0.45 * s, cpos.y - 0.26 * s, 0.155 * s])
+			lamps.append([cpos.x, cpos.z, cpos.y + 0.45 * s, cpos.y - 0.26 * s, 0.155 * s, true, lw])
 			continue
 		var pivot := cpos.y + 0.34 * s
-		for ch in chains:
-			if Vector2(float(ch[0]) - cpos.x, float(ch[1]) - cpos.z).length() < 0.1:
+		var whole := -1
+		for ci in chains.size():
+			var ch: Array = chains[ci]
+			if Vector2(float(ch[0]) - cpos.x, float(ch[1]) - cpos.z).length() < (float(ch[3]) if ch.size() > 3 else 0.1):
 				pivot = float(ch[2])
-		lamps.append([cpos.x, cpos.z, pivot, cpos.y - 0.2 * s, 0.155 * s])
+				whole = ci if ch.size() > 3 else -1
+		if whole < 0:
+			lamps.append([cpos.x, cpos.z, pivot, cpos.y - 0.2 * s, 0.155 * s, false, lw])
+			continue
+		# 吊り具ごと（chains の 4 つ目 = 半径）：鎖の真下の筒の中（十字の腕・鎖・どの灯も）を、天井からの 1 つの振り子に
+		var ch: Array = chains[whole]
+		var lo := cpos.y - 0.2 * s
+		var rec = frames.get(whole)
+		if rec == null:
+			frames[whole] = [float(ch[0]), float(ch[1]), pivot, lo, float(ch[3]), false, lw]
+			lamps.append(frames[whole])
+		else:
+			rec[3] = minf(float(rec[3]), lo)
 	if lamps.is_empty():
 		return 0
 	# 灯のまわりの箱（ここに入らない頂点はすぐ飛ばす：大きな部屋の部品でも速い）
@@ -551,14 +622,15 @@ static func weight_lanterns(surfs: Dictionary, core: String, w: float, chains: A
 			for l in lamps:
 				var hi := float(l[2])
 				var lo := float(l[3])
-				if v.y > hi + (0.02 if stand else 0.0) or v.y < lo - 0.02:
+				var on_stand: bool = l[5]
+				if v.y > hi + (0.02 if on_stand else 0.0) or v.y < lo - 0.02:
 					continue
 				var dx := v.x - float(l[0])
 				var dz := v.z - float(l[1])
 				if dx * dx + dz * dz > float(l[4]) * float(l[4]):
 					continue
-				var f := (v.y - lo) if stand else (hi - v.y)
-				var k := clampf(f / maxf(hi - lo, 0.05), 0.0, 1.0) * w
+				var f := (v.y - lo) if on_stand else (hi - v.y)
+				var k := clampf(f / maxf(hi - lo, 0.05), 0.0, 1.0) * float(l[6])
 				var c := col[i]
 				if 1.0 - c.a < k:
 					c.a = 1.0 - k

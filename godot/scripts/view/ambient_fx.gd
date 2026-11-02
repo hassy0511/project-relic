@@ -9,8 +9,9 @@ extends RefCounted
 ## 砂ぼこり・蒸気の色（砂は遺構の材質 sand の明るい面の色、蒸気は白っぽい灰色）
 const DUST_COLOR := Color("#d9b892")
 const STEAM_COLOR := Color("#ece6dc")
-## オルドの足音で布から落ちる砂ぼこり（蒸気と見分けがつくよう、落砂より少し濃い砂の色）
-const STEP_DUST_COLOR := Color("#c49c74")
+## オルドの足音で布から落ちる砂ぼこり（蒸気と見分けがつくよう、落砂より濃く赤みのある砂の色。粒の層は光を受けず、色をそのまま
+## 線形の値として描くので、sRGB から直して渡す：直さないと白っぽい湯気の色に見えた）
+const STEP_DUST_COLOR := Color("#a87a4e")
 ## 1 部屋の出所の上限（多すぎる部屋でも粒が増えすぎないように）
 const MAX_SOURCES := 16
 
@@ -127,9 +128,12 @@ func burst_soon(delay: float) -> void:
 
 # ---------------------------------------------------------------- オルドの足音（OrdoSteps が足の着くたびに呼ぶ）
 
-## 屋外：カメラ（cam）の前・25 m 以内の、揺れる布の下の端から n か所選び、砂ぼこりが少し落ちる（strength：近い脚ほど大きい 0.5〜1.6）。
-## 選ぶのは近いもの 2n か所の中から（遠くの小さな砂ぼこりは見えないので、見える近くに出す）
-func step_puffs(vfx: Vfx, cam: Vector3, fwd: Vector3, n: int, strength := 1.0) -> int:
+## 屋外：カメラ（cam）の前・25 m 以内の、揺れる布の下の端から n か所選び、砂が落ちる：細かい砂粒が筋になって落ち、
+## 小さな砂ぼこりが少し広がりながら下へ流れて消える（湯気・煙のように漂って上がらない）。
+## strength：場所の揺れの何倍か（近い脚の組・重い 1 歩ほど大きい。1 が場所のふだん）。light：明るさ（昼 1。夜・停電は暗く）。
+## 選ぶのは近いもの 2n か所の中から（遠くの小さな砂ぼこりは見えないので、見える近くに出す）。粒の大きさはカメラまでの距離の 1/4 まで
+## （すぐ近くで画面を覆わない。スマホの描く量も増やさない）
+func step_puffs(vfx: Vfx, cam: Vector3, fwd: Vector3, n: int, strength := 1.0, light := 1.0) -> int:
 	if puffs.is_empty() or vfx == null:
 		return 0
 	var near: Array = []
@@ -140,25 +144,40 @@ func step_puffs(vfx: Vfx, cam: Vector3, fwd: Vector3, n: int, strength := 1.0) -
 			continue
 		near.append([l, p])
 	near.sort_custom(func(a, b): return a[0] < b[0])
-	near = near.slice(0, 2 * n).map(func(e): return e[1])
+	near = near.slice(0, 2 * n)
+	var big := clampf(0.55 + 0.45 * strength, 0.75, 1.5)
+	var dense := clampf(0.75 + 0.25 * strength, 0.8, 1.25)
+	var col := STEP_DUST_COLOR.srgb_to_linear()
+	col = Color(col.r * light, col.g * light, col.b * light)
 	var made := 0
 	for k in mini(n, near.size()):
 		var i := _srng.randi_range(0, near.size() - 1)
-		var at: Vector3 = near[i]
+		var cap := float(near[i][0]) * 0.25
+		var at: Vector3 = near[i][1]
 		near.remove_at(i)
-		for j in _srng.randi_range(4, 5):
+		# 砂粒の筋（布の縁から細かい粒が落ちる）
+		for j in int(round(_srng.randi_range(5, 7) * dense)):
+			var g := vfx.emit(Vfx.DOT, at + Vector3(_srng.randf_range(-0.25, 0.25), -_srng.randf_range(0.0, 0.1), _srng.randf_range(-0.25, 0.25)),
+				Vector3(0, -_srng.randf_range(0.3, 0.8), 0), _srng.randf_range(1.0, 1.5), 0.04, 0.06,
+				Color(col, _srng.randf_range(0.6, 0.85)))
+			g.grav = 2.4
+			g.drag = 0.5
+			g.fin = 0.1
+			g.fpow = 1.6
+		# 小さな砂ぼこり（下へ流れながら少し広がる）
+		for j in _srng.randi_range(2, 3):
 			var a := _srng.randf() * TAU
 			var out := Vector3(sin(a), 0.0, cos(a))
-			var q := vfx.emit(Vfx.DUST, at + out * 0.2 + Vector3(0, -0.05, 0),
-				out * _srng.randf_range(0.15, 0.35) + Vector3(0, -_srng.randf_range(0.2, 0.5), 0),
-				_srng.randf_range(1.7, 2.4), 0.18, _srng.randf_range(0.75, 1.1) * clampf(strength, 0.6, 1.3),
-				Color(STEP_DUST_COLOR, _srng.randf_range(0.42, 0.58) * clampf(strength, 0.5, 1.2)))
+			var q := vfx.emit(Vfx.DUST, at + out * 0.12 + Vector3(0, -0.1, 0),
+				out * _srng.randf_range(0.08, 0.2) + Vector3(0, -_srng.randf_range(0.45, 0.8), 0),
+				_srng.randf_range(1.1, 1.5), 0.1, minf(_srng.randf_range(0.32, 0.45) * big, cap),
+				Color(col, _srng.randf_range(0.4, 0.55) * dense))
 			q.rot = _srng.randf() * TAU
 			q.spin = _srng.randf_range(-0.4, 0.4)
-			q.drag = 1.4
+			q.drag = 1.0
 			q.fin = 0.15
 			q.fpow = 1.3
-			q.grav = 0.12
+			q.grav = 0.9
 		made += 1
 	return made
 

@@ -70,7 +70,8 @@ void kit_sway(inout vec3 vertex, float w, mat4 model, float time) {
 }
 
 // 足音の揺れ：足が着いた衝撃で、吊った物・布が振り子のように揺れて収まる（約 0.8 Hz、4 秒ほどで消える）。
-// 場所ごとに揺れの速さと向きを少しずらす（隣の灯・布とそろわない）。重み w の頂点ほど大きく動く
+// 場所ごとに揺れの速さと向きを少しずらす（隣の灯・布とそろわない）。重み w の頂点ほど大きく動く。
+// 速さは場所でなめらかに変える（fract で折り返すと、折り返しの線の両側で速さが飛び、そこを通る灯が伸び縮みした：家の灯は x = z = 0）
 void kit_jolt(inout vec3 vertex, float w, mat4 model) {
 	if (w <= 0.002 || jolt.w <= 0.0) {
 		return;
@@ -78,7 +79,7 @@ void kit_jolt(inout vec3 vertex, float w, mat4 model) {
 	vec3 wp = (model * vec4(vertex, 1.0)).xyz;
 	float ph = dot(wp.xz, vec2(0.71, 0.53)) + 0.6 * sin(wp.x * 0.37 + wp.z * 0.23);
 	float t = jolt.z;
-	float om = 5.0 * (0.85 + 0.3 * fract(ph * 0.159));
+	float om = 5.0 * (1.0 + 0.15 * sin(ph * 0.37));
 	float a = jolt.w * (1.0 - exp(-t * 14.0)) * exp(-t * 0.9) * sin(t * om + 0.25 * sin(ph));
 	vec3 dir = vec3(jolt.x, 0.0, jolt.y);
 	vec3 side = vec3(-dir.z, 0.0, dir.x);

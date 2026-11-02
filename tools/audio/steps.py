@@ -8,13 +8,20 @@ ID：
   ordo_thud_in    家の中で聞く足音：ordo_thud をもっとこもらせ（壁ごしの低い音）、家の骨組みが小さく鳴る音（板の「ごとん」）を足す。約 2.6 秒
   ordo_thud_deep  遺構（オルドの体の中）で聞く足音：重い地響きに、大きな鉄の胴が鳴る倍音でない響き（52〜241 Hz）と低いうなりを足す。約 4 秒
   ordo_rattle     棚の器・道具が小さく鳴る音（家の中で、足音のあと少し遅れて）。高い音の小さな粒が 0.5 秒ほど。約 0.8 秒
+  ordo_rattle_2, ordo_rattle_3  同じ器の音の別の鳴り方（粒の数・間・高さが違う。ゲームは 3 つから 1 つを選ぶ）
 長い時間遊んでも気にならないよう、どれも打ち始めは鋭くしない。大きさはゲームの側（OrdoSteps）が脚までの距離で決める。
+スマホの小さなスピーカー（300 Hz より下はほとんど鳴らない）でも足音と分かるよう、どの足音にも骨組みの「ごとっ」という中くらいの
+高さの響き（250〜800 Hz。_mid_knock）を、低い地響きの下に小さく重ねる。
 """
 from __future__ import annotations
 
 import numpy as np
 
 from synth import SR, env, highpass, lowpass, noise, osc, pad_to, sweep, t_axis
+
+
+# 骨組みの「ごとっ」（_mid_knock）の大きさ：スマホのスピーカーの帯（300 Hz より上）で、町の曲の中くらいの大きさに届く程度
+KNOCK = 0.5
 
 
 def _lp(x: np.ndarray, cutoff, poles: int = 3) -> np.ndarray:
@@ -49,14 +56,24 @@ def _thud_core(d: float, seed: int) -> np.ndarray:
     return sub * 0.8 + body * 0.5 + knock * 0.36 + frame * 0.55 + tail * 0.55
 
 
+def _mid_knock(d: float, seed: int, f0: float, dec: float = 0.22, at: float = 0.02) -> np.ndarray:
+    """骨組みの「ごとっ」：倍音でない 3 つの音（f0・1.47 f0・2.09 f0。高いものほど早く消える）と、250〜800 Hz の短い雑音。
+    打ち始めは 12 ms で丸く立ち上げる（鋭くしない）。スマホのスピーカーで足音と分かる高さ"""
+    tone = np.zeros(int(SR * d))
+    for k, (m, a) in enumerate(((1.0, 0.6), (1.47, 0.35), (2.09, 0.2))):
+        tone += osc(f0 * m * (1.0 - 0.02 * t_axis(d) / d), d, 'sine') * a * _soft_env(d, 0.012, dec / (1.0 + 0.5 * k), 0.0, 0.05)
+    grit = highpass(_lp(noise(d, seed), 800, 2), 250) * _soft_env(d, 0.01, dec * 0.6, 0.0, 0.05) * 2.5
+    return _later(_lp(tone + grit * 0.5, 1100, 2), at, d)
+
+
 def ordo_thud() -> np.ndarray:
     d = 3.0
     x = _thud_core(d, 61)
     # 遠くの骨組みの低いうなり（倍音でない 3 つの音。少し遅れて、ゆっくり消える）
     groan = (osc(63, d, 'sine') * 0.5 + osc(97, d, 'sine') * 0.3 + osc(151, d, 'sine') * 0.18) * _soft_env(d, 0.25, 1.4, 0.0, 0.3)
     x = x + _later(groan[: int(SR * (d - 0.12))], 0.12, d) * 0.12
-    # 高い音は落とす（遠く・体で感じる音）
-    return _lp(x, 650, 2)
+    # 高い音は落とす（遠く・体で感じる音）。スマホ用の骨組みの「ごとっ」はそのあとに小さく
+    return _lp(x, 650, 2) + _mid_knock(d, 64, 330.0) * KNOCK
 
 
 def ordo_thud_in() -> np.ndarray:
@@ -67,7 +84,7 @@ def ordo_thud_in() -> np.ndarray:
     cd = 0.55
     creak = highpass(_lp(osc(sweep(290, 215, cd), cd, 'saw') * (0.6 + 0.4 * _lp(noise(cd, 72), 30) * 8), 900, 2), 150)
     creak = creak * _soft_env(cd, 0.06, 0.4, 0.0, 0.1)
-    return x + _later(box, 0.03, d) * 0.22 + _later(creak, 0.35, d) * 0.05
+    return x + _later(box, 0.03, d) * 0.22 + _later(creak, 0.35, d) * 0.05 + _mid_knock(d, 74, 280.0, 0.18) * KNOCK * 1.8
 
 
 def ordo_thud_deep() -> np.ndarray:
@@ -82,30 +99,30 @@ def ordo_thud_deep() -> np.ndarray:
     # 低いうなり（押しつぶされた骨組みが鳴る。少し遅れて、ゆっくり上がって消える）
     groan = _lp(osc(sweep(72, 54, d, 0.7), d, 'saw'), 260, 2) * _soft_env(d, 0.35, 1.8, 0.0, 0.5)
     y = x * 0.8 + sub * 0.6 + _later(hull, 0.04, d) * 0.45 + _later(groan, 0.2, d) * 0.3
-    return _lp(y, 700, 2)
+    # 鉄の胴の「ごーん」（中くらいの高さ。長めに響く）
+    return _lp(y, 700, 2) + _mid_knock(d, 84, 360.0, 0.45, 0.04) * KNOCK * 0.6
 
 
-def ordo_rattle() -> np.ndarray:
+def ordo_rattle(seed: int = 91, n_hits: int = 11, shelf_f: float = 410.0) -> np.ndarray:
     """器・道具が小さく鳴る：短い高い粒（陶器の 2 つの響き＋かすかな雑音）を 0.5 秒にばらまき、だんだん弱く"""
     d = 0.8
-    rng = np.random.default_rng(91)
+    rng = np.random.default_rng(seed)
     out = np.zeros(int(SR * d))
-    n_hits = 11
     for k in range(n_hits):
         at = 0.02 + rng.uniform(0.0, 0.5) * (k / n_hits) ** 0.7
         hd = 0.07
         f1 = rng.uniform(2100, 2900)
         f2 = f1 * rng.uniform(1.48, 1.62)
         tick = (osc(f1, hd, 'sine') * 0.6 + osc(f2, hd, 'sine') * 0.35) * env(hd, 0.0015, 0.03, 0.0, 0.01)
-        tick += highpass(noise(hd, 92 + k), 3000) * env(hd, 0.0005, 0.006) * 0.4
+        tick += highpass(noise(hd, seed + 1 + k), 3000) * env(hd, 0.0005, 0.006) * 0.4
         g = (1.0 - 0.6 * k / n_hits) * rng.uniform(0.5, 1.0)
         i = int(SR * at)
         out[i:i + len(tick)] += tick[: len(out) - i] * g
     # 棚の板が小さく鳴る低めの響き（最初に）
-    shelf = osc(410, d, 'sine') * env(d, 0.003, 0.08) * 0.25
+    shelf = osc(shelf_f, d, 'sine') * env(d, 0.003, 0.08) * 0.25
     return out + shelf
 
 
 def steps_sfx() -> dict[str, np.ndarray]:
     return {'ordo_thud': ordo_thud(), 'ordo_thud_in': ordo_thud_in(), 'ordo_thud_deep': ordo_thud_deep(),
-            'ordo_rattle': ordo_rattle()}
+            'ordo_rattle': ordo_rattle(), 'ordo_rattle_2': ordo_rattle(57, 8, 372.0), 'ordo_rattle_3': ordo_rattle(133, 14, 455.0)}

@@ -15,13 +15,13 @@ func _init(helpers: TestHelpers) -> void:
 	h = helpers
 
 
-## 鳴らした音を覚える GameAudio
+## 鳴らした音を覚える GameAudio。本当には鳴らさない（[id, dB, 高さ, 音の素材がある]）：鳴ったまま次のテスト・終わりへ進むと、
+## 音の側（AudioServer）が止めた再生を外すのが間に合わず、終わりに「resources still in use at exit」が出ることがあった（16 回に 3 回）
 class RecAudio extends GameAudio:
 	var log: Array = []
 
 	func play_gain(id: String, gain_db := 0.0, pitch := 1.0) -> void:
-		log.append([id, gain_db, pitch])
-		super(id, gain_db, pitch)
+		log.append([id, gain_db, pitch, ResourceLoader.exists("res://assets/audio/%s.ogg" % id)])
 
 
 ## main.gd の代わり（OrdoSteps が使う物だけ）
@@ -111,8 +111,8 @@ func _go(m: FakeMain, st: OrdoSteps, room: String) -> void:
 	m.game.drain_events()
 
 
-## 片付け：鳴っている音（足音・器の音は 1〜3 秒）を先に止め、止めた再生を音の側（AudioServer。混ぜる回は約 12 ms ごと）が外すのを
-## 待ってから消す（main.quit と同じ。鳴ったまま消してすぐテストが終わると、終わりに「resources still in use at exit」が出た）
+## 片付け：鳴っている音（足音は RecAudio が鳴らさない。ほかの音があれば）を先に止め、止めた再生を音の側（AudioServer。混ぜる回は
+## 約 12 ms ごと）が外すのを待ってから消す（main.quit と同じ）
 func _free(vp: SubViewport) -> void:
 	for n in vp.get_children():
 		if n is FakeMain and (n as FakeMain).audio != null:
@@ -170,11 +170,13 @@ func test_steps_walking_interior() -> void:
 	if at.size() >= 2:
 		h.near(at[1] - at[0], 20.0, 0.05, "足音の間は 20 秒")
 	var thuds := m.audio.log.filter(func(e): return e[0] == "ordo_thud_in")
-	var rattles := m.audio.log.filter(func(e): return e[0] == "ordo_rattle")
 	h.expect(thuds.size() == at.size(), "家の中の足音はこもった音 ordo_thud_in（%d）" % thuds.size())
+	var rattles := m.audio.log.filter(func(e): return String(e[0]).begins_with("ordo_rattle"))
 	h.expect(rattles.size() >= 1 and rattles.size() <= thuds.size(), "器が小さく鳴る（%d 回）" % rattles.size())
+	var missing := m.audio.log.filter(func(e): return not e[3]).map(func(e): return e[0])
+	h.expect(missing.is_empty(), "鳴らす音の素材がどれもある（無い：%s）" % str(missing))
 	for e in thuds:
-		h.between(float(e[1]), -20.0, -4.0, "足音の大きさ（%.1f dB）" % float(e[1]))
+		h.between(float(e[1]), -20.0, -2.0, "足音の大きさ（%.1f dB）" % float(e[1]))
 	# 次の足音の直後：画面のずれ、材質の揺れ、天井からの砂
 	st.phase = OrdoSteps.plant_phase("l4") - 0.5 / OrdoSteps.CYCLE_S
 	_run(m, st, 29)
@@ -190,7 +192,7 @@ func test_steps_walking_interior() -> void:
 			jolt_w = maxf(jolt_w, (mt.get_shader_parameter("jolt") as Vector4).w)
 		m.fx.vfx.step(DT)
 	h.expect(st.steps_heard == 4, "4 歩目が鳴った（%d）" % st.steps_heard)
-	h.between(moved, 0.0005, 0.03, "画面のずれはごく小さい（最大 %.1f mm。場面の揺れより小さい）" % (moved * 1000.0))
+	h.between(moved, 0.002, 0.06, "画面のずれは小さい（最大 %.1f mm。場面の揺れ（Fx の揺れ 0.6 で 9 cm）より小さい）" % (moved * 1000.0))
 	h.expect(not mats.is_empty() and jolt_w > 0.0, "揺れの重みを使う材質に足音の揺れが入る（%d 材質、幅 %.3f m）" % [mats.size(), jolt_w])
 	h.expect(m.fx.vfx.count() > 0, "天井から砂がこぼれる（粒 %d）" % m.fx.vfx.count())
 	# 揺れは数秒で収まり、材質は 0 に戻る
@@ -390,6 +392,146 @@ func test_steps_lantern_weights() -> void:
 	h.expect(blackout >= lit + 4, "停電の夜の中段の灯油ランプも、揺れの重みのある携行灯（%d → %d）" % [lit, blackout])
 	var pts := OrdoSteps.puff_points(room)
 	h.expect(pts.size() >= 10, "中段の日よけ・洗濯物の下の端から砂ぼこりを出せる（%d か所）" % pts.size())
+	# 船着き場（下段）：吊り灯の部品の中で、木箱の上に置いた灯油ランプは置いた灯（底は動かない）。吊った灯は吊り灯のまま
+	var land := RoomKit.part_mesh("town/ordo_landing", kit)
+	var lw := {"bottom": 0.0, "top": 0.0, "hung": 0.0}   # ラムダの中から書けるように辞書で
+	_each_vertex(land, func(v: Vector3, w: float):
+		if Vector2(v.x - 57.52, v.z + 19.8).length() < 0.2:
+			if v.y < 3.087 - 0.2:
+				lw.bottom = maxf(lw.bottom, w)
+			elif v.y > 3.087 + 0.3:
+				lw.top = maxf(lw.top, w)
+		elif Vector2(v.x - 57.75, v.z + 14.68).length() < 0.2 and v.y < 6.916 - 0.12:
+			lw.hung = maxf(lw.hung, w))
+	h.expect(lw.bottom < 0.03 and lw.top > 0.12 and lw.top <= 0.25,
+		"船着き場の木箱の上の灯油ランプは底が動かず、上ほど重い（底 %.2f・提げ手 %.2f）" % [lw.bottom, lw.top])
+	h.expect(lw.hung > 0.4, "船着き場の吊り灯は下の端が重い振り子のまま（%.2f）" % lw.hung)
+	# ギルドの十字の吊り灯：天井からの 1 つの振り子（十字の腕の端・鎖にも重み。4 つの灯の下の端は同じ重み）
+	var guild := RoomKit.part_mesh("town/guild_set", kit)
+	var gw := {"bar": [], "chain": 0.0, "lamps": [0.0, 0.0, 0.0, 0.0]}
+	var offs := [Vector2(-0.6, 0.0), Vector2(0.6, 0.0), Vector2(0.0, -0.6), Vector2(0.0, 0.6)]
+	_each_vertex(guild, func(v: Vector3, w: float):
+		var rel := Vector2(v.x - signf(v.x) * 5.0, v.z)
+		if absf(absf(v.x) - 5.0) > 0.9 or absf(v.z) > 0.9:
+			return
+		if absf(v.y - 4.95) < 0.04 and absf(rel.length() - 0.6) < 0.02 and minf(absf(rel.x), absf(rel.y)) < 0.04:
+			gw.bar.append(w)
+		elif rel.length() < 0.05 and v.y > 5.3 and v.y < 5.7:
+			gw.chain = maxf(gw.chain, w)
+		elif v.y < 4.68 and v.x > 0.0:
+			for k in 4:
+				if (rel - offs[k]).length() < 0.15:
+					gw.lamps[k] = maxf(gw.lamps[k], w))
+	var bar: Array = gw.bar
+	bar.sort()
+	var lamps: Array = gw.lamps
+	h.expect(not bar.is_empty() and bar[0] > 0.2 and bar[-1] - bar[0] < 0.03 and gw.chain > 0.05 and gw.chain < bar[0],
+		"ギルドの吊り灯：十字の腕の端はどれも同じ重み（腕の太さの分だけ違う：%.2f〜%.2f）、鎖（%.2f）も揺れる" % [
+			bar[0] if not bar.is_empty() else 0.0, bar[-1] if not bar.is_empty() else 0.0, gw.chain])
+	h.expect(lamps.min() > 0.4 and lamps.max() - lamps.min() < 0.02, "4 つの灯の下の端は同じ重み（%s）" % str(lamps))
+	# 壁に掛けた垂れ幕（食堂の壁）：足音の揺れを弱めた材質の写し（風の揺れは同じ）。足音の揺れの材質に入り、幅は 0.3 倍
+	var wall := RoomKit.part_mesh("town/goods_cloth_wall", kit)
+	var soft = null
+	for i in wall.get_surface_count():
+		var mt := wall.surface_get_material(i)
+		if mt != null and mt.has_meta("jolt_scale"):
+			soft = mt
+	h.expect(soft != null and is_equal_approx(float(soft.get_meta("jolt_scale")), 0.3)
+		and soft.get_shader_parameter("sway_amp") == mats.flat.get_shader_parameter("sway_amp"),
+		"壁の垂れ幕は足音の揺れを 0.3 倍にした材質の写し（風の揺れは同じ）")
+	h.expect(soft != null and OrdoSteps.jolt_materials(room).has(soft), "弱めた写しも足音の揺れの材質に入る")
+
+
+## 部品の頂点ごとに f(位置, 揺れの重み)
+func _each_vertex(mesh: Mesh, f: Callable) -> void:
+	if mesh == null:
+		return
+	for s in mesh.get_surface_count():
+		var arr := mesh.surface_get_arrays(s)
+		var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var col = arr[Mesh.ARRAY_COLOR]
+		var has_col: bool = col is PackedColorArray and (col as PackedColorArray).size() == vs.size()
+		for i in vs.size():
+			f.call(vs[i], 1.0 - (col as PackedColorArray)[i].a if has_col else 0.0)
+
+
+## 部屋を出る直前の足音のあとに遅れて出すもの（天井の砂・器の音）は、移った部屋では出さない
+func test_steps_delayed_stay_in_room() -> void:
+	var made: Array = await _setup("ch1.home")
+	var m: FakeMain = made[1]
+	var st: OrdoSteps = made[2]
+	_tick(m, st)
+	st.phase = OrdoSteps.plant_phase("l2") - 0.1 / OrdoSteps.CYCLE_S
+	var guard := 0
+	while st.steps_heard == 0 and guard < 30:
+		_tick(m, st)
+		guard += 1
+	h.expect(st.steps_heard == 1 and not st._later.is_empty(), "家で 1 歩：天井の砂（と器の音）が少し遅れて出る予定（%d 件）" % st._later.size())
+	_go(m, st, "ch1.mid")
+	var n := m.audio.log.size()
+	_run(m, st, 60)
+	var rattles := m.audio.log.slice(n).filter(func(e): return String(e[0]).begins_with("ordo_rattle"))
+	h.expect(rattles.is_empty() and m.fx.vfx.count() == 0, "中段へ出たら、家の天井の砂・器の音は出ない（器 %d・粒 %d）" % [rattles.size(), m.fx.vfx.count()])
+	await _free(made[0])
+
+
+## 再始動の重い最初の 1 歩は、炉心の場面の最後の行「巨大な足が、地を踏みしめる。」と一緒に来る：フラグはその行の直前に立ち、
+## restart_first_s（行の文字が出始めてすぐ）で鳴る
+func test_steps_restart_on_last_line() -> void:
+	var ev: Dictionary = U.load_json("res://content/events/ch1_ruins.json")
+	var steps: Array = ev.get("ch1.restart", {}).get("steps", [])
+	var at := -1
+	for i in steps.size():
+		if String(steps[i].get("flag", "")) == "ch1.ordo_restarted":
+			at = i
+	var next: Dictionary = steps[at + 1] if at >= 0 and at + 1 < steps.size() else {}
+	var dlg: Dictionary = U.load_json("res://content/dialogue/ch1_ruins.json")
+	var lines: Array = dlg.get(String(next.get("say", "")), {}).get("lines", [])
+	h.expect(at > 0 and String(steps[at - 1].get("say", "")) == "ch1.restart.b" and lines.size() == 1
+		and String(lines[0].text).begins_with("巨大な足が、地を踏みしめる"),
+		"再始動のフラグは「巨大な足が、地を踏みしめる。」の行の直前（%s）" % str(next))
+	var first := float(OrdoSteps.config().get("restart_first_s", 2.5))
+	h.between(first, 0.2, 1.0, "フラグから重い 1 歩まで %.1f 秒（行の文字が出始めてすぐ）" % first)
+
+
+## 足音の砂ぼこり：布の縁から砂粒が落ち、小さな砂ぼこりが下へ流れる（上がらない）。近い脚・重い 1 歩ほど大きく、夜・停電は暗い。
+## 粒はカメラまでの距離の 1/4 より大きくならない
+func test_steps_dust_falls() -> void:
+	var made: Array = await _setup("ch1.home")
+	var m: FakeMain = made[1]
+	var amb: AmbientFx = m.fx.ambient
+	var vfx: Vfx = m.fx.vfx
+	var spots := PackedVector3Array()
+	for i in 8:
+		spots.append(Vector3(-2.0 + 0.5 * i, 3, 6 + i))
+	# [粒の大きさの平均 m, 最大, 色の赤の最大, 上がる粒の数, 砂粒の数, 砂ぼこりの数]
+	var measure := func(strength: float, light: float, pts: PackedVector3Array, n: int) -> Array:
+		for l in vfx._layers:
+			l.parts.clear()
+		amb.puffs = pts
+		amb.step_puffs(vfx, Vector3.ZERO, Vector3(0, 0, 1), n, strength, light)
+		var sum := 0.0
+		var most := 0.0
+		var lum := 0.0
+		var rising := 0
+		var dust: Array = vfx._layers[Vfx.DUST].parts
+		for q in dust:
+			sum += q.s1
+			most = maxf(most, q.s1)
+			lum = maxf(lum, q.col.r)
+			if q.vel.y > 0.0 or q.grav <= 0.0:
+				rising += 1
+		return [sum / maxf(1.0, dust.size()), most, lum, rising, vfx._layers[Vfx.DOT].parts.size(), dust.size()]
+	var far: Array = measure.call(0.95, 1.0, spots, 8)
+	var near: Array = measure.call(1.85, 1.0, spots, 8)
+	var night: Array = measure.call(1.0, 0.45, spots, 8)
+	var close: Array = measure.call(1.85, 1.0, PackedVector3Array([Vector3(0, 0.5, 2.4)]), 1)
+	h.expect(far[5] >= 16 and far[4] >= 32 and far[3] == 0, "砂粒 %d と小さな砂ぼこり %d が落ちる（上がる粒 %d）" % [far[4], far[5], far[3]])
+	h.expect(near[0] > far[0] * 1.2, "近い脚の組ほど砂ぼこりが大きい（平均 %.2f m と %.2f m）" % [near[0], far[0]])
+	h.between(far[1], 0.2, 0.6, "砂ぼこりは小さい（最大 %.2f m）" % far[1])
+	h.expect(night[2] < far[2] * 0.6, "夜は暗い（赤 %.3f と %.3f）" % [night[2], far[2]])
+	h.expect(close[5] > 0 and close[1] <= 2.45 * 0.25 + 1e-4, "カメラのすぐ近くでは大きくしない（2.45 m で %.2f m）" % close[1])
+	await _free(made[0])
 
 
 ## 設定の「画面の揺れ」：Fx の揺れ（CameraRig）・場面の揺れ（CineDirector）・足音の揺れ（OrdoSteps）に掛かる。切なら動かない
