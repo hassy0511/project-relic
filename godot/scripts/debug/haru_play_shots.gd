@@ -70,13 +70,20 @@ static func _reset(d, keep_hidden := true) -> Dictionary:
 
 ## 撮る刻み：動作の名前と、攻撃なら攻撃の中の時間を表に出す
 static func _shot(d, name: String, inp: Dictionary, expect: String) -> Dictionary:
-	return {"ticks": 1, "shot": "hp_play_%s" % name, "input": inp, "check": func():
+	var check := func():
 		var p: Player = d.main.game.player
 		var a := p.anim()
 		var t := ("　攻撃の %.3f / %.3f 秒" % [p.attack.time, p.attack.duration]) if p.attack != null else ""
 		print("ハルの動作 %s：%s%s　動作の再生 %s %.3f 秒" % [name, a, t, d.main.player_view.current,
 			d.main.player_view.anim.current_animation_position if d.main.player_view.anim and d.main.player_view.anim.is_playing() else -1.0])
-		return d._check(a == expect, "ハルの比べ %s：動作 %s（%s）" % [name, expect, a])}
+		return d._check(a == expect, "ハルの比べ %s：動作 %s（%s）" % [name, expect, a])
+	# 撮ったこまの描画の回数（同じ場面を別のモデルで撮って差を見る）
+	var after := func():
+		print("描画 %s：描く回数 %d、物 %d、三角形 %d" % [name,
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])
+	return {"ticks": 1, "shot": "hp_play_%s" % name, "input": inp, "check": check, "after": after}
 
 
 static func _play_steps(d) -> Array:
