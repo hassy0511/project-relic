@@ -115,6 +115,8 @@ def raster(objs, size, path):
             dark = n.z < -0.55
             if hair:
                 dark = n.dot((c - HEAD_C).normalized()) < 0.2
+                if not dark and n.z > 0.30:
+                    key = 'umber_lt'
             if dark and key in DARK:
                 key = DARK[key]
             col = P.RGB[key]

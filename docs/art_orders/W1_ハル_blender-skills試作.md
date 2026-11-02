@@ -175,7 +175,34 @@ blender-director → reference-image-match → character-artist → anime-style�
 
 ## スキル集との食い違い
 
-（作業後に書く）
+### ここで置き換えたこと（MCP が無い・画面が無い）
+
+| スキル集の言うこと | ここでしたこと |
+|------------------|--------------|
+| Blender MCP で操作する（execute_blender_code・get_scene_info） | bpy のスクリプト（`tools/blender/trial_bs/`）を頭なしの Blender で走らせる。毎回 .blend を作り直す（「既存の .blend を上書きで直す」の代わりに、スクリプトを直して作り直す＝同じ結果を何度でも作れる） |
+| get_viewport_screenshot で絵と比べる | 絵と同じ正投影のカメラで Cycles の静止画を描く（`render_compare.py`）。EEVEE と Workbench は EGL が無くて動かない |
+| トゥーンの確認（Shader to RGB → ColorRamp） | Shader to RGB は EEVEE だけなので、法線と光の向きの内積 → 段の ColorRamp → 発光、で同じ 3 段を作った |
+| 絵と見比べる | 横に並べるほか、影（アルファ）の重なりを色で出し、IoU（重なりの割合）を数にした |
+| get_scene_info・査察 | `validate.py`（大きさ・三角形・n 角形・開いた辺・UV の範囲・材質・名前） |
+
+### ゲームの約束を優先した名前
+
+| スキル集の名前の決まり | 約束 | 使った名前 |
+|---------------------|------|-----------|
+| 材質は `MAT_[種類]_[説明]`、PascalCase | 顔の材質は名前に小文字の `face` を含む（`contains` は大文字小文字を区別） | `MAT_face_HaruBS` |
+| 同上 | 銃の材質は `spark_gun` で始まる | `spark_gun_HaruBS` |
+| メッシュは `SM_` | ゲームが探す物体 | `Frame_core`・`Frame_arm`・`Frame_legs`（空の物体で部品をまとめる）、`LightBlade`、`muzzle` |
+| テクスチャは `T_[物]_[種類]` | 横に置くファイルは `haru_bs_*` | `haru_bs_T_HaruBS_Body_BC.png` など |
+
+### スキル集の手順を変えたところ（理由つき）
+
+- **sculpting → retopology を飛ばした**（Game Character の流れ）：平らな色のアニメ調で、細かい凹凸を作らない（anime-style：細かい形は避ける）。形は最初から四角の面の輪で作るので、作り直す元（高い面数の像）が無い。
+- **cloth-sim を使わない**：絵の服は折れた平らな面の塊で、しわを描かない。揺れはゲームの骨（髪・ポーチ）で付ける。
+- **髪のカード（アルファ）を使わない**（hair-groom の Game の道）：スマホの描画では透明がうまく描けない（gl_compatibility）。絵の髪も不透明の葉の形の房なので、厚みのある房の塊にした。地域の分け方・流れ・房の数・地肌の殻はスキル集のとおり。
+- **顔の目・口の輪を作らない**（facial-topology）：表情は 2×2 のテクスチャの切り替え（ゲームの約束）なので、まぶたや口を曲げない。retopology の game-cinematic-topo の「台詞が無ければ少なくてよい」に当たる。
+- **焼き（bake）・ORM を使わない**（texture-workflow）：高い面数の元が無く、色は平ら。陰の 2 段目は「描いた陰」（stylized-style：AO は描く、焼かない）。
+- **光・色の調整（AgX、露出、リム）**（reference-image-match の 4・5 段）：宇宙船などの写実の場面向け。絵は一様な正面の光なので、Standard の色で 3 段のトゥーンにした。
+- **chibi-style**：2〜4 頭身の決まり。ハルは 4.4 頭身なので当てはまらない。
 
 ## 試してわかったこと
 

@@ -142,13 +142,21 @@ def _face_normal(p, f):
     return n
 
 
-def _orient(p, cents):
+def _orient(p, cents, m=None):
+    """外向きにそろえる：輪の間の面ごとに、法線が芯（両側の輪の中心の中点）から外を向くかを数え、多い方へ"""
     if not p.f:
         return
-    f = p.f[0]
-    fc = sum((p.v[k] for k in f), Vector()) / len(f)
-    c = (cents[0] + cents[1]) / 2 if len(cents) > 1 else cents[0]
-    if _face_normal(p, f).dot(fc - c) < 0:
+    n_ring = len(cents)
+    per = len(p.f) // max(1, n_ring - 1)
+    vote = 0.0
+    for k, f in enumerate(p.f):
+        i = min(k // max(1, per), n_ring - 2) if n_ring > 1 else 0
+        c = (cents[i] + cents[i + 1]) / 2 if n_ring > 1 else cents[0]
+        fc = sum((p.v[q] for q in f), Vector()) / len(f)
+        nn = _face_normal(p, f)
+        if nn.length > 1e-12:
+            vote += 1.0 if nn.dot(fc - c) > 0 else -1.0
+    if vote < 0:
         for i in range(len(p.f)):
             p.f[i] = p.f[i][::-1]
             p.uv[i] = p.uv[i][::-1]

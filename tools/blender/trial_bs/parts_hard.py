@@ -16,19 +16,18 @@ def goggles():
     p = Part()
     tilt = math.radians(18)            # レンズは前・少し上を向く
     for side in (1, -1):
-        c = Vector((side * 0.060, -0.140, 1.446))
+        c = Vector((side * 0.066, -0.148, 1.440))
         xa = Vector((1, 0, 0))
         ya = Matrix.Rotation(-tilt, 3, 'X') @ Vector((0, 0, 1))
         # 外へ少し回す（額の丸みに沿う）
-        rz = Matrix.Rotation(side * math.radians(30), 3, 'Z')
+        rz = Matrix.Rotation(side * math.radians(26), 3, 'Z')
         xa, ya = rz @ xa, rz @ ya
-        nrm = xa.cross(ya)            # 後ろ向き → 前へは -nrm
-        nrm = -nrm                     # 前（外）向き
-        fr = slab(chamfer_rect(0.104, 0.062, 0.016), c, xa, ya, 0.034, 'graphite', bevel=0.005)
-        lens = slab(chamfer_rect(0.078, 0.040, 0.011), c + nrm * 0.0145, xa, ya, 0.010, 'amber', bevel=0.003)
+        nrm = xa.cross(ya)            # 前（外・少し上）向き
+        fr = slab(chamfer_rect(0.118, 0.070, 0.018), c, xa, ya, 0.036, 'graphite', bevel=0.005)
+        lens = slab(chamfer_rect(0.092, 0.048, 0.013), c + nrm * 0.0155, xa, ya, 0.010, 'amber', bevel=0.003)
         p.extend(fr).extend(lens)
     # 鼻の上の橋
-    br = slab(chamfer_rect(0.034, 0.036, 0.006), Vector((0, -0.158, 1.446)), Vector((1, 0, 0)), Matrix.Rotation(-tilt, 3, 'X') @ Vector((0, 0, 1)), 0.026, 'graphite', bevel=0.004)
+    br = slab(chamfer_rect(0.034, 0.036, 0.006), Vector((0, -0.168, 1.438)), Vector((1, 0, 0)), Matrix.Rotation(-tilt, 3, 'X') @ Vector((0, 0, 1)), 0.026, 'graphite', bevel=0.004)
     p.extend(br)
     return p
 
@@ -41,10 +40,10 @@ def goggle_strap():
         a = math.radians(-118) + math.radians(236) * k / N     # 左のレンズの脇 → 後ろ → 右のレンズの脇
         a = math.pi + a
         c = math.cos(a)
-        z = 1.385 + 0.040 * max(0.0, c) ** 1.2 + 0.012 * c
-        path.append(head_point(a, z, 0.030 + 0.006 * (1 - abs(c))))
+        z = 1.372 + 0.050 * max(0.0, c) ** 1.2 + 0.010 * c
+        path.append(head_point(a, z, 0.036 + 0.012 * (1 - max(0.0, c))))
     xs = []
-    rr = [(0.0035, 0.016)] * len(path)
+    rr = [(0.004, 0.018)] * len(path)
     return tube(path, rr, n=4, col='graphite', up=Vector((0, 0, 1)), sq=2.0)
 
 
@@ -73,10 +72,10 @@ def shoulder_straps():
 def back_panel():
     """背中の白い板（帯の間、上背部）。ナゴミの受け口"""
     z = 1.074
-    q = torso_point(math.pi, z, 0.022)
-    c = Vector((0, q.y + 0.010, z))
+    q = torso_point(math.pi, z, 0.020)
+    c = Vector((0, q.y + 0.006, z))
     xa, ya = Vector((-1, 0, 0)), Vector((0, 0.06, 1)).normalized()
-    return slab(chamfer_rect(0.118, 0.082, 0.016), c, xa, ya, 0.020, 'ivory', bevel=0.005)
+    return slab(chamfer_rect(0.118, 0.082, 0.016), c, xa, ya, 0.014, 'ivory', bevel=0.004)
 
 
 def shoulder_plate():
@@ -84,7 +83,7 @@ def shoulder_plate():
     sh, el = J['upper_arm.R'], J['forearm.R']
     d = (el - sh).normalized()
     out = Vector((-0.86, 0, 0.5)).normalized()          # 肩の外・上
-    c = sh + d * 0.035 + out * 0.064 + Vector((0, 0.008, 0.010))
+    c = sh + d * 0.030 + out * 0.047 + Vector((0, 0.008, 0.012))
     xa = Vector((0, -1, 0))                              # 板の幅は前後
     ya = (-d).normalized()                               # 板の長さは腕に沿う
     ya = (ya - xa * ya.dot(xa)).normalized()
@@ -130,17 +129,17 @@ def knee_parts(side):
     kn = J['shin' + s]
     p = Part()
     # 暗い固定帯（膝のまわり、後ろも暗い）
-    p.extend(tube([kn + Vector((0, 0, -0.030)), kn + Vector((0, 0, 0.030))], [(0.064, 0.064), (0.066, 0.066)], n=10, col='graphite', start=-math.pi / 2))
+    p.extend(tube([kn + Vector((0, 0, -0.032)), kn + Vector((0, 0, 0.032))], [(0.072, 0.066), (0.074, 0.068)], n=10, col='graphite', start=-math.pi / 2))
     # 前の白い膝当て（厚い盾の形）
     c = kn + Vector((0, -0.066, 0.005))
-    cap = slab([(0.048, 0.040), (0.0, 0.070), (-0.048, 0.040), (-0.053, -0.034), (-0.030, -0.076), (0.030, -0.076), (0.053, -0.034)],
+    cap = slab([(0.056, 0.044), (0.0, 0.074), (-0.056, 0.044), (-0.062, -0.036), (-0.034, -0.080), (0.034, -0.080), (0.062, -0.036)],
                c, Vector((1, 0, 0)), Vector((0, -0.12, 1)).normalized(), 0.030, 'ivory', bevel=0.010)
     p.extend(cap)
     # 横の琥珀の丸い継ぎ目（内と外）
     for sx in (1, -1):
-        hc = kn + Vector((sx * 0.066, -0.004, 0.006))
-        p.extend(tube([hc - Vector((sx * 0.008, 0, 0)), hc + Vector((sx * 0.008, 0, 0))], [0.022, 0.022], n=10, col='graphite'))
-        p.extend(tube([hc + Vector((sx * 0.008, 0, 0)), hc + Vector((sx * 0.011, 0, 0))], [0.014, 0.012], n=10, col='amber'))
+        hc = kn + Vector((sx * 0.074, -0.006, 0.006))
+        p.extend(tube([hc - Vector((sx * 0.008, 0, 0)), hc + Vector((sx * 0.009, 0, 0))], [0.027, 0.027], n=10, col='graphite'))
+        p.extend(tube([hc + Vector((sx * 0.009, 0, 0)), hc + Vector((sx * 0.012, 0, 0))], [0.018, 0.016], n=10, col='amber'))
     return p
 
 
@@ -160,12 +159,12 @@ def shin_plates(side):
 
 def thigh_plate():
     """本人右の太ももの外の大きい白い板（前・外向き、少し斜め）と、腰帯からの短い支え"""
-    nrm = Vector((-0.57, -0.82, 0.0)).normalized()
-    c = Vector((-0.100, -0.034, 0.672)) + nrm * 0.112
+    nrm = Vector((-0.30, -0.95, 0.0)).normalized()
+    c = Vector((-0.082, -0.036, 0.672)) + nrm * 0.094
     ya = Vector((0.10, 0.0, 1.0)).normalized()       # 上がわずかに内へ
     xa = ya.cross(nrm).normalized()
     ya = nrm.cross(xa).normalized()
-    plate = slab(chamfer_rect(0.125, 0.205, 0.012), c, xa, ya, 0.020, 'ivory', bevel=0.006)
+    plate = slab(chamfer_rect(0.110, 0.200, 0.012), c, xa, ya, 0.018, 'ivory', bevel=0.006)
     sup = slab(chamfer_rect(0.026, 0.060, 0.004), c + ya * 0.120 - nrm * 0.008, xa, ya, 0.012, 'graphite')
     return plate.extend(sup)
 
