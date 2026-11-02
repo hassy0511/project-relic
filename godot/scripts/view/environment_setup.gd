@@ -106,6 +106,8 @@ static func build(parent: Node) -> DirectionalLight3D:
 	fill.omni_range = 14.0
 	fill.omni_attenuation = 0.4
 	fill.visible = false
+	# カメラへ移すまでは太陽の子にしておく（カメラの無い使い方でも、太陽と一緒に消える）
+	sun.add_child(fill)
 	sun.set_meta("char_fill", fill)
 	return sun
 
@@ -113,7 +115,10 @@ static func build(parent: Node) -> DirectionalLight3D:
 ## 夜の人物の照らしを、カメラの子に置く（カメラの向きから人物を照らす。main がカメラを作ったあとに呼ぶ）
 static func add_char_fill(sun: DirectionalLight3D, camera: Node3D) -> void:
 	if sun.has_meta("char_fill") and camera != null:
-		camera.add_child(sun.get_meta("char_fill"))
+		var fill: Node = sun.get_meta("char_fill")
+		if fill.get_parent() != null:
+			fill.get_parent().remove_child(fill)
+		camera.add_child(fill)
 
 
 ## 人物の照らしの強さと色（0 なら描かない）
