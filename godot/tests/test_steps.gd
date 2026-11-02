@@ -33,6 +33,7 @@ class FakeMain extends Node3D:
 	var fx: Fx
 	var audio: RecAudio
 	var cine = null
+	var power = null
 	var state := "playing"
 
 	func _ordo() -> OrdoView:
@@ -224,6 +225,40 @@ func test_steps_stop_and_restart() -> void:
 	await _free(made[0])
 
 
+## 再始動のあとの歓声：町の電気が戻る波（TownPower）の間に足が着いたら、波が終わってから鳴る（灯が戻る → いつもの揺れ、の順。
+## 重ねない）。次の足は時計どおり
+func test_steps_wait_for_power_wave() -> void:
+	var made: Array = await _setup("ch1.home", ["ch1.night", "ch1.ordo_stopped", "ch1.ordo_restarted"])
+	var m: FakeMain = made[1]
+	var st: OrdoSteps = made[2]
+	var tp := TownPower.new(m)
+	m.add_child(tp)
+	tp.set_process(false)
+	m.power = tp
+	tp.begin_room(m.game)
+	tp.room_built(m.level)
+	_tick(m, st)
+	# 歓声の前：町の電気はまだ消えたまま。足が着く 0.5 秒前に、戻る波を始める
+	tp.level = 0.0
+	st.phase = OrdoSteps.plant_phase("l2") - 0.5 / OrdoSteps.CYCLE_S
+	tp.power_on(Vector3(0, -6, 2))
+	var end := tp.wave_end
+	h.expect(tp.wave_dir > 0 and end > 1.0, "電気が戻る波が始まる（%.1f 秒）" % end)
+	var t0 := st.time
+	var at := []
+	for i in int((end + 21.0) / DT):
+		var n := st.steps_heard
+		tp._process(DT)
+		_tick(m, st)
+		if st.steps_heard > n:
+			at.append(snappedf(st.time - t0, 0.01))
+	h.expect(at.size() == 2, "波の間に着いた足は 1 歩、そのあと時計どおりにもう 1 歩（%s 秒）" % str(at))
+	if at.size() == 2:
+		h.between(float(at[0]), end - 0.02, end + 0.05, "波の間は鳴らさず、波が終わってから鳴る（%.2f 秒。波は %.2f 秒）" % [at[0], end])
+		h.near(float(at[1]), 20.5, 0.05, "次の足は着いた刻みから 20 秒（%.2f 秒）" % at[1])
+	await _free(made[0])
+
+
 ## 部屋を移っても同じリズム：家（時計）→ 中段（部屋のオルドの足の知らせ）→ 家。どの足音も最初の足音から 20 秒の倍数
 func test_steps_continuous_across_rooms() -> void:
 	var made: Array = await _setup("ch1.home")
@@ -282,7 +317,8 @@ func test_steps_ruins() -> void:
 	await _free(made[0])
 
 
-## 吊り灯の揺れの重み：外灯の灯（芯と籠）だけに重みが入り、柱・腕は動かない。芯の材質にも布と同じ風の揺れが入る。中段の布の下の端
+## 灯の揺れの重み：外灯の灯（芯と籠）だけに重みが入り、柱・腕は動かない。置いた携行灯（停電の夜の灯油ランプも）は底から上へ。
+## 芯の材質（amber・flame）にも布と同じ風の揺れが入り、足音の揺れの材質に入る。中段の布の下の端
 func test_steps_lantern_weights() -> void:
 	var kit := RoomKit.load_kit("town")
 	var mesh := RoomKit.part_mesh("town/lamp_post", kit)
@@ -309,8 +345,42 @@ func test_steps_lantern_weights() -> void:
 	h.between(max_w, 0.3, 0.75, "灯の下の端の重み")
 	var mats: Dictionary = kit.mats
 	h.expect(mats.amber.get_shader_parameter("sway_amp") == mats.metal.get_shader_parameter("sway_amp"), "芯（amber）にも籠と同じ風の揺れ")
-	var room: Dictionary = World.load_manifest("res://content/world.json").rooms.get("ch1.mid", {})
-	RoomView.build(World.load_manifest("res://content/world.json"), "ch1.mid").free()
+	# 置いた携行灯（芯は油の灯 flame。停電の夜だけ置く灯油ランプも同じ部品）：台の底は動かず、上ほど重い（小さく傾ぐ）
+	var hand := RoomKit.part_mesh("town/hand_lantern", kit)
+	var base_w := 0.0
+	var top_w := 0.0
+	for s in hand.get_surface_count():
+		var arr := hand.surface_get_arrays(s)
+		var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var col = arr[Mesh.ARRAY_COLOR]
+		if not (col is PackedColorArray) or (col as PackedColorArray).is_empty():
+			continue
+		for i in vs.size():
+			var w := 1.0 - (col as PackedColorArray)[i].a
+			if vs[i].y < 0.05:
+				base_w = maxf(base_w, w)
+			elif vs[i].y > 0.55:
+				top_w = maxf(top_w, w)
+	h.expect(base_w < 0.02 and top_w > 0.12 and top_w <= 0.25, "携行灯は底が動かず、上ほど重い（底 %.2f・提げ手 %.2f）" % [base_w, top_w])
+	h.expect(mats.flame.get_shader_parameter("sway_amp") == mats.metal.get_shader_parameter("sway_amp"), "芯（flame）にも籠と同じ風の揺れ")
+	var world := World.load_manifest("res://content/world.json")
+	var room: Dictionary = world.rooms.get("ch1.mid", {})
+	var jm := OrdoSteps.jolt_materials(room)
+	h.expect(jm.has(mats.amber) and jm.has(mats.flame) and jm.has(mats.metal), "足音の揺れが入る材質に、灯の芯（amber・flame）と金物がある（%d 材質）" % jm.size())
+	# 停電の夜の中段：停電の間だけの灯油ランプが増え、どれも重みを足した携行灯の部品で描く
+	var count_hand := func(dark: bool) -> int:
+		var root := RoomView.build(world, "ch1.mid", dark)
+		var n := 0
+		for g in root.find_children("*", "GeometryInstance3D", true, false):
+			if g is MultiMeshInstance3D and (g as MultiMeshInstance3D).multimesh.mesh == hand:
+				n += (g as MultiMeshInstance3D).multimesh.instance_count
+			elif g is MeshInstance3D and (g as MeshInstance3D).mesh == hand:
+				n += 1
+		root.free()
+		return n
+	var lit: int = count_hand.call(false)
+	var blackout: int = count_hand.call(true)
+	h.expect(blackout >= lit + 4, "停電の夜の中段の灯油ランプも、揺れの重みのある携行灯（%d → %d）" % [lit, blackout])
 	var pts := OrdoSteps.puff_points(room)
 	h.expect(pts.size() >= 10, "中段の日よけ・洗濯物の下の端から砂ぼこりを出せる（%d か所）" % pts.size())
 

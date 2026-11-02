@@ -3,7 +3,8 @@ extends Node
 ## 町で感じる巡礼機オルドの歩み（30 章 4.2「町の中では歩行の揺れを周期的な振動と音で感じさせる」。結果は 30 章 4.2.1）。見た目と音だけ。
 ## オルドの足が 120 m 下の砂に着くたびに（2 本ずつ、20 秒ごと）、町のどの部屋でも：
 ##   遠い低い地響き（耳より体で感じる音。近い脚ほど大きい）・画面のごく小さな沈みと揺れ（場面の揺れよりずっと小さい）・
-##   布・旗・吊り札・吊り灯が少し揺れる（キットの材質の "jolt"。揺れの重み = 頂点の色のアルファ。吊り灯には部品を読むときに重みを足す）・
+##   布・旗・吊り札・吊り灯が少し揺れる（キットの材質の "jolt"。揺れの重み = 頂点の色のアルファ。灯には部品を読むときに重みを足す：
+##   吊り灯は吊り金具から振り子のように、置いた携行灯（停電の夜の灯油ランプも）は台の上で小さく傾ぐ）・
 ##   日よけ・洗濯物から砂ぼこりが少し落ちる（屋外）／天井から砂がこぼれ、器が小さく鳴る（屋内）／鉄の胴の重い響き（遺構）。
 ## 止まる：停止の夜（ch1.ordo_stopped。場面の「動力が切れる」合図 fx: ordo_stop から）から再始動（ch1.ordo_restarted）までは足音が無い
 ##   （いつもの足音がしない静けさ）。
@@ -13,6 +14,7 @@ extends Node
 ##   （見える脚と音がそろう）。部屋を作ったとき、その部屋のオルドに今の位置を渡す（部屋の "ordo" に "phase" があれば、それを使う）。
 ##   オルドのいない部屋（家の中・上段・訓練場・遺構）は、ここが決まった刻み（main の 1/60 秒）で時計を進め、同じ時刻に鳴らす。
 ## 決まり：ゲームの中身（GameSim）は読むだけ。時刻はゲームの刻みの dt の和（描画の速さに関係しない）。乱数は自分の種。
+## 町の電気が戻る波（TownPower。再始動のあとの歓声）の間に足が着いたら、波が終わるまで待たせて鳴らす（灯が戻る → いつもの揺れ、の順）。
 ## 映画のような場面の間（CineDirector.active()）は鳴らさない（場面が自分で ordo_step を鳴らす）。画面の揺れは設定の「画面の揺れ」
 ## （CameraRig.shake_scale）を掛ける。部屋ごとの音・強さ・場所は content/ordo_steps.json。
 
@@ -23,6 +25,8 @@ const SWING_FRAC := 0.24
 ## 揺れの続く秒数（これより後は材質・カメラに 0 を入れて止める）
 const JOLT_S := 6.0
 const CAMERA_S := 4.0
+## 灯の芯の材質（電気の灯 amber・油の灯 flame）。芯の形で灯を見つける
+const CORES := ["amber", "flame"]
 
 var main
 ## 歩きの周期の位置（0〜1）と、歩いているか（フラグから）
@@ -40,6 +44,8 @@ var _place := {}
 var _room_cfg := {}
 var _bound: OrdoView = null
 var _pending: Array = []
+## 電気が戻る波の間に着いた足（波が終わったら鳴らす）
+var _held: Array = []
 var _heavy_next := false
 ## 停止の場面の「動力が切れる」合図（fx: ordo_stop）を受けた：フラグ ch1.ordo_stopped が立つ前（場面の外の舞台が消えてから数秒）も鳴らさない
 var _cue_stop := false
@@ -135,16 +141,22 @@ func sync(dt: float) -> void:
 		phase = o.phase
 		tags = _pending
 		_pending = []
-	elif walking and not _place.is_empty():
+	elif walking:
 		var p1 := phase + dt / CYCLE_S
 		tags = plants_between(phase, p1)
 		phase = fposmod(p1, 1.0)
-	elif walking:
-		phase = fposmod(phase + dt / CYCLE_S, 1.0)
-	if not walking:
-		tags = []
-	if not tags.is_empty() and not _place.is_empty() and not _cine_active():
-		_step(tags)
+	if walking and not tags.is_empty() and not _place.is_empty() and not _cine_active():
+		if _power_rising():
+			for t in tags:
+				if not _held.has(t):
+					_held.append(t)
+		else:
+			_step(tags)
+	if not _held.is_empty() and not _power_rising():
+		var held := _held
+		_held = []
+		if walking and not _cine_active():
+			_step(held)
 	_run_later(dt)
 	_apply_jolt(dt)
 	_apply_camera(dt)
@@ -164,6 +176,7 @@ func _reset(g) -> void:
 	walking = walk_flag(g)
 	_room_id = ""
 	_pending.clear()
+	_held.clear()
 	_later.clear()
 	_heavy_next = false
 	_cam_t = 99.0
@@ -179,6 +192,7 @@ func _enter_room(g) -> void:
 	_place = config().get("places", {}).get(place_name, {})
 	_mats = jolt_materials(g.room)
 	_pending.clear()
+	_held.clear()
 	_bound = null
 	_cam_t = 99.0
 
@@ -209,9 +223,7 @@ func _bind(o: OrdoView) -> void:
 	if r.get("ordo", {}).has("phase"):
 		phase = o.phase
 	elif walking and o.walking and o.speed >= 0.999:
-		o.phase = phase
-		o._init_gait()
-		o._apply()
+		o.set_phase(phase)
 
 
 func _on_planted(tag: String, _at: Vector3) -> void:
@@ -228,10 +240,18 @@ func _cine_active() -> bool:
 	return main.cine.active()
 
 
+## 町の電気が戻っていく波の途中か（TownPower.wave_dir。歓声の合図 fx: town_power_on から 4 秒ほど）
+func _power_rising() -> bool:
+	if main == null or not ("power" in main) or main.power == null:
+		return false
+	return int(main.power.wave_dir) > 0
+
+
 ## 止まる・歩き出す。歩き出したときオルドのいない部屋なら、restart_first_s 秒後に重い最初の 1 歩が来るよう時計を合わせる
 func _walk_changed(w: bool) -> void:
 	walking = w
 	_pending.clear()
+	_held.clear()
 	if not w:
 		return
 	_heavy_next = true
@@ -383,7 +403,7 @@ func _clear_jolt() -> void:
 	_jolt_live = false
 
 
-## 部屋のキットの材質のうち、揺れの重みを使うもの（"sway" のある材質と、重みを足した吊り灯の芯 amber）
+## 部屋のキットの材質のうち、揺れの重みを使うもの（"sway" のある材質と、重みを足した灯の芯 amber・flame）
 static func jolt_materials(room: Dictionary) -> Array:
 	var out := []
 	if not room.has("kit"):
@@ -427,32 +447,38 @@ func _apply_camera(dt: float) -> void:
 
 # ---------------------------------------------------------------- 部品を読むとき（RoomKit.part_mesh から）
 
-## 部品の面（材質の名前 → 配列）を読んだときに 1 回：吊り灯に揺れの重みを足し（"hang"）、揺れる布の下の端を覚える（"puffs"）
+## 部品の面（材質の名前 → 配列）を読んだときに 1 回：灯に揺れの重みを足し（"hang"）、揺れる布の下の端を覚える（"puffs"）
 static func part_loaded(part: String, surfs: Dictionary, kit: Dictionary) -> void:
 	var c := config()
 	var key := "%s|%s" % [kit.get("id", ""), part]
 	if c.get("puffs", []).has(part):
 		_puff_cache[key] = _cloth_edges(surfs)
 	var h: Dictionary = c.get("hang", {}).get(part, {})
-	if not h.is_empty() and surfs.has("amber"):
-		if weight_lanterns(surfs, float(h.get("w", 0.35)), h.get("chains", [])) > 0:
-			# 芯（amber）にも布・金物と同じ風の揺れを入れる（重みの無い芯は動かない。吊り灯の芯だけ、籠と一緒に動く）
-			var mats: Dictionary = kit.get("mats", {})
-			var src = mats.get("metal", mats.get("flat"))
-			var dst = mats.get("amber")
-			if src is ShaderMaterial and dst is ShaderMaterial:
-				dst.set_shader_parameter("sway_amp", src.get_shader_parameter("sway_amp"))
-				dst.set_shader_parameter("sway_wind", src.get_shader_parameter("sway_wind"))
+	if h.is_empty():
+		return
+	var mats: Dictionary = kit.get("mats", {})
+	var src = mats.get("metal", mats.get("flat"))
+	for core in CORES:
+		if not surfs.has(core):
+			continue
+		if weight_lanterns(surfs, core, float(h.get("w", 0.35)), h.get("chains", []), bool(h.get("stand", false))) == 0:
+			continue
+		# 芯にも布・金物と同じ風の揺れを入れる（重みの無い芯は動かない。重みを足した灯の芯だけ、籠と一緒に動く）。
+		# これで芯の材質も揺れの重みを使う材質になり、足音の揺れ（jolt_materials）が入る
+		var dst = mats.get(core)
+		if src is ShaderMaterial and dst is ShaderMaterial:
+			dst.set_shader_parameter("sway_amp", src.get_shader_parameter("sway_amp"))
+			dst.set_shader_parameter("sway_wind", src.get_shader_parameter("sway_wind"))
 
 
-## 吊り灯（P.lantern：琥珀の芯の筒・真鍮の籠・笠・吊り金具）を芯の形で見つけ、上の吊り金具から下へ揺れの重み（下の端で w）を足す。
-## chains：[x, z, 天井の高さ] の灯は、鎖ごと天井から揺らす。返り値：見つけた灯の数
-static func weight_lanterns(surfs: Dictionary, w: float, chains: Array) -> int:
-	var amber: Array = surfs.amber
-	var av: PackedVector3Array = amber[Mesh.ARRAY_VERTEX]
+## 灯（P.lantern：芯の筒・真鍮の籠・笠・吊り金具。芯の材質 core = amber か flame）を芯の形で見つけ、揺れの重みを足す（端で w）。
+## 吊り灯：上の吊り金具から下へ重くなる（振り子）。chains：[x, z, 天井の高さ] の灯は、鎖ごと天井から揺らす。
+## stand（置いた携行灯）：台に着いた底から上へ重くなる（足が着くと小さく傾いで戻る）。返り値：見つけた灯の数
+static func weight_lanterns(surfs: Dictionary, core: String, w: float, chains: Array, stand := false) -> int:
+	var cv: PackedVector3Array = (surfs[core] as Array)[Mesh.ARRAY_VERTEX]
 	# 芯の頂点を、近いもの同士（最初の点から 0.45 m 以内）でまとめる
 	var groups: Array = []   # [最初の点, AABB]
-	for v in av:
+	for v in cv:
 		var found := false
 		for gr in groups:
 			if (gr[0] as Vector3).distance_to(v) < 0.45:
@@ -461,19 +487,23 @@ static func weight_lanterns(surfs: Dictionary, w: float, chains: Array) -> int:
 				break
 		if not found:
 			groups.append([v, AABB(v, Vector3.ZERO)])
-	var lamps := []   # [軸の x, 軸の z, 吊る点の y, 下の端の y, 半径]
+	var lamps := []   # [軸の x, 軸の z, 上の端の y, 下の端の y, 半径]
 	for gr in groups:
 		var b: AABB = gr[1]
 		var sx := b.size.x
 		var sz := b.size.z
 		var sy := b.size.y
-		# 芯の筒：半径 0.075 s・高さ 0.25 s（s = 0.72〜1.4。小さな携行灯は置いてあるので外す）。上から見て丸い（壁の平たい灯 _sconce は外す）
+		# 芯の筒：半径 0.075 s・高さ 0.25 s（s = 0.72〜1.4。小さく縮めた灯は外す）。上から見て丸い（壁の平たい灯 _sconce・炉の熾火は外す）
 		if sx < 0.08 or sx > 0.3 or sz < 0.08 or sz > 0.3 or sy < 0.18 or sy > 0.4 or sy < 1.2 * maxf(sx, sz):
 			continue
 		if maxf(sx, sz) > 1.25 * minf(sx, sz):
 			continue
 		var s := sy / 0.25
 		var cpos := b.get_center()
+		if stand:
+			# 台の上の底（携行灯の黒鉛の台の下の面）から、提げ手の上まで
+			lamps.append([cpos.x, cpos.z, cpos.y + 0.45 * s, cpos.y - 0.26 * s, 0.155 * s])
+			continue
 		var pivot := cpos.y + 0.34 * s
 		for ch in chains:
 			if Vector2(float(ch[0]) - cpos.x, float(ch[1]) - cpos.z).length() < 0.1:
@@ -486,10 +516,10 @@ static func weight_lanterns(surfs: Dictionary, w: float, chains: Array) -> int:
 	for i in lamps.size():
 		var l: Array = lamps[i]
 		var lb := AABB(Vector3(float(l[0]) - float(l[4]), float(l[3]) - 0.02, float(l[1]) - float(l[4])),
-			Vector3(2.0 * float(l[4]), float(l[2]) - float(l[3]) + 0.02, 2.0 * float(l[4])))
+			Vector3(2.0 * float(l[4]), float(l[2]) - float(l[3]) + 0.04, 2.0 * float(l[4])))
 		box = lb if i == 0 else box.merge(lb)
 	box = box.grow(0.01)
-	for name in ["flat", "metal", "amber"]:
+	for name in ["flat", "metal"] + CORES:
 		if not surfs.has(name):
 			continue
 		var arr: Array = surfs[name]
@@ -505,13 +535,16 @@ static func weight_lanterns(surfs: Dictionary, w: float, chains: Array) -> int:
 			if not box.has_point(v):
 				continue
 			for l in lamps:
-				if v.y > float(l[2]) or v.y < float(l[3]) - 0.02:
+				var hi := float(l[2])
+				var lo := float(l[3])
+				if v.y > hi + (0.02 if stand else 0.0) or v.y < lo - 0.02:
 					continue
 				var dx := v.x - float(l[0])
 				var dz := v.z - float(l[1])
 				if dx * dx + dz * dz > float(l[4]) * float(l[4]):
 					continue
-				var k := clampf((float(l[2]) - v.y) / maxf(float(l[2]) - float(l[3]), 0.05), 0.0, 1.0) * w
+				var f := (v.y - lo) if stand else (hi - v.y)
+				var k := clampf(f / maxf(hi - lo, 0.05), 0.0, 1.0) * w
 				var c := col[i]
 				if 1.0 - c.a < k:
 					c.a = 1.0 - k

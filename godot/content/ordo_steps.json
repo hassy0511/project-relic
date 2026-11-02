@@ -1,5 +1,5 @@
 {
- "_doc": "町で感じるオルドの歩み（OrdoSteps。docs/design/30_レベルデザイン設計.md 4.2.1）。音の大きさは dB（効果音の音量からの差）。「ceiling」は天井から砂がこぼれ始める高さ（ハルの足元から m）。「at」は部屋の原点のオルドの座標（部屋にオルドがいないとき、近い脚を決める）。位置はオルドの座標（原点 = 背の歩行面の真ん中、+Z が船首、+X が左舷、地面は y = -120）",
+ "_doc": "町で感じるオルドの歩み（OrdoSteps。docs/design/30_レベルデザイン設計.md 4.2.1）。音の大きさは dB（効果音の音量からの差）。「ceiling」は天井から砂がこぼれ始める高さ（ハルの足元から m）。「at」は部屋の原点のオルドの座標（部屋にオルドがいないとき、近い脚を決める）。「hang」は揺れの重みを足す灯の部品（w = 端の重み、chains = 鎖ごと天井から揺らす灯 [x, z, 天井の高さ]、stand = 台に置いた携行灯：底から上へ重くなる）。位置はオルドの座標（原点 = 背の歩行面の真ん中、+Z が船首、+X が左舷、地面は y = -120）",
  "restart_first_s": 2.5,
  "shoulders": {
   "l1": [59, -35, 140], "l2": [59, -35, 48], "l3": [59, -35, -48], "l4": [59, -35, -140],
@@ -48,7 +48,8 @@
   "town/home_set": {"w": 0.5, "chains": [[0.0, 0.0, 4.5]]},
   "town/workshop_set": {"w": 0.5, "chains": [[0.0, 0.0, 6.0]]},
   "town/mayor_set": {"w": 0.5, "chains": [[0.0, 0.0, 4.8]]},
-  "town/guild_set": {"w": 0.5}
+  "town/guild_set": {"w": 0.5},
+  "town/hand_lantern": {"w": 0.2, "stand": true}
  },
  "puffs": ["town/stall", "town/tent", "town/ordo_landing_awning", "town/lower_set", "town/upper_set", "town/workshop_front",
   "town/diner_front", "town/market_general", "town/market_junk", "town/training_set", "town/opening_set", "town/laundry_line",

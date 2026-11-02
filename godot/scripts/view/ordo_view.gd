@@ -154,6 +154,13 @@ func _ready() -> void:
 	_apply()
 
 
+## 歩きの周期の位置を p にして、各脚をその位置の定常の歩きの姿勢に置く（町の部屋に入ったとき、町の足音の時計に合わせる。OrdoSteps）
+func set_phase(p: float) -> void:
+	phase = fposmod(p, 1.0)
+	_init_gait()
+	_apply()
+
+
 ## 歩いている途中の姿勢から始める：各脚を、周期の今の位置の定常の歩きの位置に置く（振り出し中なら後ろ → 前の途中）
 func _init_gait() -> void:
 	speed = 1.0

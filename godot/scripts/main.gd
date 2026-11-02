@@ -183,7 +183,7 @@ func _sync_ordo(immediate: bool) -> void:
 	var ordo := _ordo()
 	if ordo == null or game == null:
 		return
-	var walk := not game.flag("ch1.ordo_stopped") or game.flag("ch1.ordo_restarted")
+	var walk := OrdoSteps.walk_flag(game)
 	if immediate and not walk:
 		ordo.set_walking(false, true)
 	elif ordo.walking != walk:
