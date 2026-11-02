@@ -121,7 +121,7 @@ def clip_frames(name, cl):
     if name == 'idle':
         return [0, 30, 60, 90, 120]
     if name == 'run':
-        return [0, 4, 9, 14, 20, 29]
+        return [0, 2.5, 5, 12, 20, 28]
     if name == 'drill':
         return [0, 2, 4, 6]
     fr = [f for f in ks]
