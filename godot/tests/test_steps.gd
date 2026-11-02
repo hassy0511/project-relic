@@ -524,13 +524,14 @@ func test_steps_dust_falls() -> void:
 		return [sum / maxf(1.0, dust.size()), most, lum, rising, vfx._layers[Vfx.DOT].parts.size(), dust.size()]
 	var far: Array = measure.call(0.95, 1.0, spots, 8)
 	var near: Array = measure.call(1.85, 1.0, spots, 8)
-	var night: Array = measure.call(1.0, 0.45, spots, 8)
+	var night: Array = measure.call(1.0, 0.35, spots, 8)
 	var close: Array = measure.call(1.85, 1.0, PackedVector3Array([Vector3(0, 0.5, 2.4)]), 1)
 	h.expect(far[5] >= 16 and far[4] >= 32 and far[3] == 0, "砂粒 %d と小さな砂ぼこり %d が落ちる（上がる粒 %d）" % [far[4], far[5], far[3]])
 	h.expect(near[0] > far[0] * 1.2, "近い脚の組ほど砂ぼこりが大きい（平均 %.2f m と %.2f m）" % [near[0], far[0]])
 	h.between(far[1], 0.2, 0.6, "砂ぼこりは小さい（最大 %.2f m）" % far[1])
 	h.expect(night[2] < far[2] * 0.6, "夜は暗い（赤 %.3f と %.3f）" % [night[2], far[2]])
-	h.expect(close[5] > 0 and close[1] <= 2.45 * 0.25 + 1e-4, "カメラのすぐ近くでは大きくしない（2.45 m で %.2f m）" % close[1])
+	var close_d := Vector3(0, 0.5, 2.4).length()
+	h.expect(close[5] > 0 and close[1] <= close_d * 0.25 + 1e-4, "カメラのすぐ近くでは大きくしない（%.2f m で %.3f m）" % [close_d, close[1]])
 	await _free(made[0])
 
 

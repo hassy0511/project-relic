@@ -386,15 +386,15 @@ func _puffs(n: int) -> void:
 	amb.step_puffs(main.fx.vfx, cam.global_position, -cam.global_transform.basis.z, n, strength, light_level())
 
 
-## 砂ぼこりの明るさ（粒は光を受けない描き方なので、ここで暗くする）：昼 1、夜 0.45、町の電気が消えている間 0.3
+## 砂ぼこりの明るさ（粒は光を受けない描き方なので、ここで暗くする）：昼 1、夜 0.35、町の電気が消えている間 0.22
 func light_level() -> float:
 	if _game == null:
 		return 1.0
 	var mood := String(_game.room.get("mood", "day"))
 	var night: bool = mood == "night" or ((mood == "outdoor" or mood == "day") and _game.flag("ch1.night"))
 	if main != null and ("power" in main) and main.power != null and main.power.has_method("dark") and main.power.dark():
-		return 0.3
-	return 0.45 if night else 1.0
+		return 0.22
+	return 0.35 if night else 1.0
 
 
 ## 屋内・遺構：ハルの前・まわりの天井から、細い砂がこぼれる。高さは部屋の "ceiling"（ハルの足元からの高さ m。遺構の縦坑のような
