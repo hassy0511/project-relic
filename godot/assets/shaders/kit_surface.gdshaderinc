@@ -59,6 +59,10 @@ void vertex() {
 	if (sway_amp.x + sway_amp.y > 0.0) {
 		kit_sway(VERTEX, 1.0 - COLOR.a, MODEL_MATRIX, TIME);
 	}
+	// オルドの足音の揺れ（jolt。OrdoSteps が足の着いたあと数秒だけ入れる）
+	if (jolt.w > 0.0) {
+		kit_jolt(VERTEX, 1.0 - COLOR.a, MODEL_MATRIX);
+	}
 }
 
 // 電気の灯の明るさ 0〜1（TownPower.wave_k と同じ式）。波の間は、原点からの距離 / 速さ + ばらつきの秒で点く（消える）。

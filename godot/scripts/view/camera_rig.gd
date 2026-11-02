@@ -41,6 +41,9 @@ var _talk_next := {}              ## 次に使う構図（前の構図から戻�
 var _talk_pending := false
 var _talk_id := ""                ## 構図を選んだ話し相手の住人の id（会話が終わると ""）
 var _talk_last := {}              ## 最後に選んだ構図（同じ相手・同じ立ち位置なら選び直さずに使う：会話の途中の台本の注視のあとなど）
+## 画面の揺れの倍率（設定の「画面の揺れ」PadConfig.shake を main が毎刻み入れる。1 = 見本どおり、弱め 0.5、切 0）。
+## ここの揺れ（Fx の shake）に掛け、場面の揺れ（CineDirector）・オルドの足音の揺れ（OrdoSteps）もこの値を読んで掛ける
+var shake_scale := 1.0
 
 
 func _ready() -> void:
@@ -118,9 +121,10 @@ func sync(game: GameSim, player_pos: Vector3, dt: float, shake: float) -> void:
 		p = _talk_path(game, p, tw)
 		look = _pivot.lerp(_talk.look, tw)
 		view_fov = lerpf(c.fov, float(_talk.fov), tw)
-	if shake > 0.0:
-		p.x += sin(_time * 73.0) * shake * 0.15
-		p.y += sin(_time * 91.0) * shake * 0.15
+	var sk := shake * shake_scale
+	if sk > 0.0:
+		p.x += sin(_time * 73.0) * sk * 0.15
+		p.y += sin(_time * 91.0) * sk * 0.15
 	# 台本のカメラの置き場所（"camera" の "eye"）：1 秒かけてその場所へ移り、注視点を見る（終わると 0.6 秒で戻る）
 	if game.cam_eye != null and game.cam_focus != null:
 		_eye = game.cam_eye

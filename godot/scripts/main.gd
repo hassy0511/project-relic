@@ -37,6 +37,8 @@ var props_view: PropsView
 var fx: Fx
 ## 映画のような場面（オープニング・オルドの停止）のカメラの道筋・外の舞台・足音・砂ぼこり・風（view/cine_director.gd）
 var cine: CineDirector
+## 町で感じるオルドの歩み（足音・画面のごく小さな揺れ・揺れる灯と布・砂ぼこり。view/ordo_steps.gd）
+var steps: OrdoSteps
 ## 町の電気の見た目（停電の夜の灯・油の灯・再始動の波。view/town_power.gd。正本は GameSim.powered）
 var power: TownPower
 var sun: DirectionalLight3D
@@ -93,6 +95,8 @@ func _ready() -> void:
 	EnvironmentSetup.add_char_fill(sun, camera)
 	cine = CineDirector.new(self)
 	add_child(cine)
+	steps = OrdoSteps.new(self)
+	add_child(steps)
 	power = TownPower.new(self)
 	add_child(power)
 	camera.position = Vector3(0, 6, -10)
@@ -194,7 +198,7 @@ func _sync_ordo(immediate: bool) -> void:
 	var ordo := _ordo()
 	if ordo == null or game == null:
 		return
-	var walk := not game.flag("ch1.ordo_stopped") or game.flag("ch1.ordo_restarted")
+	var walk := OrdoSteps.walk_flag(game)
 	if immediate and not walk:
 		ordo.set_walking(false, true)
 	elif ordo.walking != walk:
@@ -445,6 +449,7 @@ func _physics_process(dt: float) -> void:
 	var f: InputFrame = demo.next_input() if demo else input.sample(dt)
 	game.cam.follow = PadConfig.cam_follow
 	apply_flash()
+	apply_shake()
 	game.step(f)
 	_handle_events()
 	_update_audio()
@@ -462,6 +467,8 @@ func _physics_process(dt: float) -> void:
 	camera.sync(game, game.player.pos, dt, fx.shake)
 	# 映画のような場面：遊びのカメラが決めた姿を、台本の道筋（shot）で上書きする
 	cine.sync(dt)
+	# オルドの歩み（場面のカメラのあと：場面の間は画面を揺らさず、足音も場面に任せる）
+	steps.sync(dt)
 	props_view.fade_labels(camera.talk_weight())
 
 
@@ -473,6 +480,12 @@ func apply_flash() -> void:
 	if enemy_view != null:
 		enemy_view.flash_scale = fl
 	hud.flash_scale = fl
+
+
+## 設定画面の「画面の揺れ」（PadConfig.shake）を、カメラの揺れの倍率へ入れる（CameraRig・CineDirector・OrdoSteps が掛ける）
+func apply_shake() -> void:
+	if camera != null:
+		camera.shake_scale = PadConfig.shake
 
 
 func _process(dt: float) -> void:
@@ -543,6 +556,7 @@ func _handle_events() -> void:
 	for e in game.drain_events():
 		fx.handle(e)
 		cine.handle(e)
+		steps.handle(e)
 		power.handle(e)
 		nagomi_view.handle(e)
 		match e.type:

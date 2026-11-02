@@ -539,7 +539,11 @@
     "who": "",
     "face": "normal",
     "text": "低い唸りが、体の奥から湧き上がる。——オルドが、咆哮した。"
-   },
+   }
+  ]
+ },
+ "ch1.restart.c": {
+  "lines": [
    {
     "who": "",
     "face": "normal",

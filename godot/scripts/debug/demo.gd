@@ -161,6 +161,10 @@ func _ready() -> void:
 	if main.args.has("haru_secondary_bench"):
 		_steps.clear()
 		_steps.append_array(HaruMotionShots.bench_steps(self))
+	# --steps_shots：オルドの足音で揺れる灯・布・砂ぼこりのコマと、設定の「画面の揺れ」（scripts/debug/steps_shots.gd）
+	if main.args.has("steps_shots"):
+		_steps.clear()
+		_steps.append_array(StepsShots.steps(self))
 	if not main.args.has("ch1_full"):
 		_steps.append({"ticks": 1, "done": true})
 	# --bk_kit・--bk_props：BlenderKit の素材の比べ（scripts/debug/bk_test.gd）。引数が無ければ何もしない
@@ -1134,7 +1138,7 @@ func _pad_steps() -> Array:
 		{"ticks": 1, "shot": "01_controls", "setup": func():
 			open_controls.call()
 			press.call(7),
-			"check": func(): return _check(main.menu.buttons.size() == PadConfig.ACTIONS.size() + 8 and main.menu.pad_info_text().contains("ボタン 7"), "操作の設定の画面が開き、押したボタンの番号が出る"),
+			"check": func(): return _check(main.menu.buttons.size() == PadConfig.ACTIONS.size() + 9 and main.menu.pad_info_text().contains("ボタン 7"), "操作の設定の画面が開き、押したボタンの番号が出る"),
 			"after": func(): main.resume()},
 		{"ticks": 1, "shot": "02_listening", "setup": func():
 			open_controls.call()
@@ -1149,7 +1153,7 @@ func _pad_steps() -> Array:
 			"after": func(): main.resume()},
 		{"ticks": 1, "shot": "04_ps_preset", "setup": func():
 			open_controls.call()
-			main.menu.buttons[PadConfig.ACTIONS.size() + 5].pressed.emit(),
+			main.menu.buttons[PadConfig.ACTIONS.size() + 6].pressed.emit(),
 			"check": func(): return _check(PadConfig.pad.jump == "b1" and PadConfig.code_short("b1") == "×", "PS 配置にすると × がジャンプ・決定になる"),
 			"after": func(): main.resume()},
 		{"ticks": 2, "setup": func():

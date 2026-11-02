@@ -158,10 +158,11 @@ def main() -> None:
     --only=a,b：その ID の効果音だけ書き出す（ほかのファイルを書き直さない。例：--only=ordo_step,ordo_powerdown,amb_wind）"""
     import cinema
     import music
+    import steps
     only = [a.split('=', 1)[1].split(',') for a in sys.argv if a.startswith('--only=')]
     if only:
         want = set(only[0])
-        made = {**music.extra_sfx(), **cinema.cinema_sfx()}
+        made = {**music.extra_sfx(), **cinema.cinema_sfx(), **steps.steps_sfx()}
         for name in sorted(want):
             if name not in made:
                 raise SystemExit(f'知らない効果音の ID: {name}')
@@ -176,6 +177,8 @@ def main() -> None:
         save(name, x)
     for name, x in cinema.cinema_sfx().items():
         save(name, x, 0.9 if name == 'amb_wind' else 0.8)
+    for name, x in steps.steps_sfx().items():
+        save(name, x)
     for name, fn in [('bgm_town_day', music.town_day), ('bgm_town_night', music.town_night), ('bgm_ruins', music.ruins),
                      ('bgm_boss', music.boss), ('bgm_end', music.fanfare)]:
         save(name, fn(), 0.7)

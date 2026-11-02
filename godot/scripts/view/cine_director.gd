@@ -182,6 +182,9 @@ func _sync_camera(dt: float) -> void:
 	var amp := _num(shot.get("shake", 0.0), u) + _kick
 	if main.fx != null:
 		amp += float(main.fx.shake) * 0.5
+	# 設定の「画面の揺れ」（CameraRig.shake_scale：標準 1・弱め 0.5・切 0）
+	if main.camera != null and "shake_scale" in main.camera:
+		amp *= float(main.camera.shake_scale)
 	if amp > 0.001:
 		var fwd := (look - eye).normalized()
 		var right := fwd.cross(Vector3.UP).normalized()
