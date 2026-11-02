@@ -17,6 +17,7 @@ extends Node
 ## 町の電気が戻る波（TownPower。再始動のあとの歓声）の間に足が着いたら、波が終わるまで待たせて鳴らす（灯が戻る → いつもの揺れ、の順）。
 ## 映画のような場面の間（CineDirector.active()）は鳴らさない（場面が自分で ordo_step を鳴らす）。画面の揺れは設定の「画面の揺れ」
 ## （CameraRig.shake_scale）を掛ける。部屋ごとの音・強さ・場所は content/ordo_steps.json。
+## 起動の引数 --steps_log で、足音・止まる・歩き出す・灯が戻る波の時刻を出す（見本の通しで、再始動と歓声の順を確かめる）
 
 const CONFIG_PATH := "res://content/ordo_steps.json"
 ## OrdoView の既定（cycle_s・swing_frac）と同じ（tests/test_steps.gd が確かめる）
@@ -46,6 +47,7 @@ var _bound: OrdoView = null
 var _pending: Array = []
 ## 電気が戻る波の間に着いた足（波が終わったら鳴らす）
 var _held: Array = []
+var _was_rising := false
 var _heavy_next := false
 ## 停止の場面の「動力が切れる」合図（fx: ordo_stop）を受けた：フラグ ch1.ordo_stopped が立つ前（場面の外の舞台が消えてから数秒）も鳴らさない
 var _cue_stop := false
@@ -145,14 +147,18 @@ func sync(dt: float) -> void:
 		var p1 := phase + dt / CYCLE_S
 		tags = plants_between(phase, p1)
 		phase = fposmod(p1, 1.0)
+	var rising := _power_rising()
+	if rising != _was_rising:
+		_was_rising = rising
+		_log("灯が戻る波 %s" % ("始まり" if rising else "終わり"))
 	if walking and not tags.is_empty() and not _place.is_empty() and not _cine_active():
-		if _power_rising():
+		if rising:
 			for t in tags:
 				if not _held.has(t):
 					_held.append(t)
 		else:
 			_step(tags)
-	if not _held.is_empty() and not _power_rising():
+	if not _held.is_empty() and not rising:
 		var held := _held
 		_held = []
 		if walking and not _cine_active():
@@ -252,6 +258,7 @@ func _walk_changed(w: bool) -> void:
 	walking = w
 	_pending.clear()
 	_held.clear()
+	_log("歩き出す" if w else "止まる")
 	if not w:
 		return
 	_heavy_next = true
@@ -322,6 +329,13 @@ func _step(tags: Array) -> void:
 		_later.append([0.18, "sift", int(_place.sift)])
 	steps_heard += 1
 	last = {"tags": tags, "db": db, "sound": sound, "place": place_name, "heavy": heavy, "time": time, "near": best, "k": k}
+	_log("足音 %s %s %.1f dB%s" % [sound, ",".join(PackedStringArray(tags)), db, "（重い 1 歩）" if heavy else ""])
+
+
+## --steps_log のときだけ、時刻（ゲームの刻みの和）と部屋つきで 1 行出す
+func _log(what: String) -> void:
+	if main != null and "args" in main and main.args.has("steps_log"):
+		print("［足音］%.2f 秒 %s：%s" % [time, _room_id, what])
 
 
 func _run_later(dt: float) -> void:

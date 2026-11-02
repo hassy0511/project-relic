@@ -146,13 +146,13 @@ func step_puffs(vfx: Vfx, cam: Vector3, fwd: Vector3, n: int, strength := 1.0) -
 		var i := _srng.randi_range(0, near.size() - 1)
 		var at: Vector3 = near[i]
 		near.remove_at(i)
-		for j in _srng.randi_range(3, 4):
+		for j in _srng.randi_range(4, 5):
 			var a := _srng.randf() * TAU
 			var out := Vector3(sin(a), 0.0, cos(a))
 			var q := vfx.emit(Vfx.DUST, at + out * 0.2 + Vector3(0, -0.05, 0),
-				out * _srng.randf_range(0.15, 0.35) + Vector3(0, -_srng.randf_range(0.15, 0.4), 0),
-				_srng.randf_range(1.6, 2.3), 0.15, _srng.randf_range(0.6, 0.95) * clampf(strength, 0.6, 1.3),
-				Color(STEP_DUST_COLOR, _srng.randf_range(0.36, 0.5) * clampf(strength, 0.5, 1.2)))
+				out * _srng.randf_range(0.15, 0.35) + Vector3(0, -_srng.randf_range(0.2, 0.5), 0),
+				_srng.randf_range(1.7, 2.4), 0.18, _srng.randf_range(0.75, 1.1) * clampf(strength, 0.6, 1.3),
+				Color(STEP_DUST_COLOR, _srng.randf_range(0.42, 0.58) * clampf(strength, 0.5, 1.2)))
 			q.rot = _srng.randf() * TAU
 			q.spin = _srng.randf_range(-0.4, 0.4)
 			q.drag = 1.4

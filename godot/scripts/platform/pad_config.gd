@@ -120,7 +120,7 @@ static func load_file() -> void:
 	var cfw := String(cf.get_value("options", "cam_follow", "weak"))
 	cam_follow = cfw if CAM_FOLLOWS.has(cfw) else "weak"
 	var fl = cf.get_value("options", "flash", 1.0)
-	flash = FLASH_STEPS[_flash_index(float(fl))] if (fl is float or fl is int) else 1.0
+	flash = FLASH_STEPS[_step_index(FLASH_STEPS, float(fl))] if (fl is float or fl is int) else 1.0
 	var sh = cf.get_value("options", "shake", 1.0)
 	shake = SHAKE_STEPS[_step_index(SHAKE_STEPS, float(sh))] if (sh is float or sh is int) else 1.0
 	for a in ACTIONS:
@@ -302,22 +302,13 @@ static func cycle_cam_follow() -> void:
 ## フラッシュの強さを次の段階へ（標準 → 弱め → 最小 → 標準）
 static func cycle_flash() -> void:
 	ensure_loaded()
-	flash = FLASH_STEPS[(_flash_index(flash) + 1) % FLASH_STEPS.size()]
+	flash = FLASH_STEPS[(_step_index(FLASH_STEPS, flash) + 1) % FLASH_STEPS.size()]
 	save()
 
 
 ## フラッシュの強さの名前（標準・弱め・最小）
 static func flash_text() -> String:
-	return FLASH_NAMES[_flash_index(flash)]
-
-
-## 値にいちばん近い段階（保存の値がずれていても段階のどれかにそろえる）
-static func _flash_index(v: float) -> int:
-	var best := 0
-	for i in FLASH_STEPS.size():
-		if absf(FLASH_STEPS[i] - v) < absf(FLASH_STEPS[best] - v):
-			best = i
-	return best
+	return FLASH_NAMES[_step_index(FLASH_STEPS, flash)]
 
 
 ## 画面の揺れを次の段階へ（標準 → 弱め → 切 → 標準）
@@ -332,7 +323,7 @@ static func shake_text() -> String:
 	return SHAKE_NAMES[_step_index(SHAKE_STEPS, shake)]
 
 
-## 段階の表で、値にいちばん近い段階の番号
+## 段階の表（FLASH_STEPS・SHAKE_STEPS）で、値にいちばん近い段階の番号（保存の値がずれていても段階のどれかにそろえる）
 static func _step_index(steps: Array, v: float) -> int:
 	var best := 0
 	for i in steps.size():

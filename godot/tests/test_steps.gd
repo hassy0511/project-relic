@@ -111,7 +111,14 @@ func _go(m: FakeMain, st: OrdoSteps, room: String) -> void:
 	m.game.drain_events()
 
 
+## 片付け：鳴っている音（足音・器の音は 1〜3 秒）を先に止め、止めた再生を音の側（AudioServer。混ぜる回は約 12 ms ごと）が外すのを
+## 待ってから消す（main.quit と同じ。鳴ったまま消してすぐテストが終わると、終わりに「resources still in use at exit」が出た）
 func _free(vp: SubViewport) -> void:
+	for n in vp.get_children():
+		if n is FakeMain and (n as FakeMain).audio != null:
+			(n as FakeMain).audio.stop_all()
+	OS.delay_msec(20)
+	await h.tree.process_frame
 	vp.queue_free()
 	await h.tree.process_frame
 
