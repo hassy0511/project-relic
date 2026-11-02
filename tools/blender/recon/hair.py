@@ -1300,7 +1300,8 @@ def part_fields_at(P: np.ndarray, x_half: float = 0.26, z0: float = 1.12) -> dic
     Se = smooth_max(S, ears, 0.006) if PARTS['ears'] else S
     cs, _ = cap_stack(cams, masks, p, sk)
     cut = face_cut(lo_b, vox, shp, 0)
-    Cf = smooth_min(stack_field(cs, lo_b, vox, shp, 0), smooth_max(Se - 0.002, -cut, 0.012), 0.012)
+    Cf = smooth_min(stack_field(cs, lo_b, vox, shp, 0) - cap_inset_field(lo_b, vox, shp), smooth_max(Se - 0.002, -cut, 0.012),
+                    0.012)
     Cf = cap_cover(Cf, S, cut, lo_b, vox, shp)
     Cf = smooth_min(Cf, -(ears + 0.005), 0.004)
     base = smooth_max(Se, Cf, p['union_k'])

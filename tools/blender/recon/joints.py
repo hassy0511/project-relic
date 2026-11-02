@@ -47,6 +47,9 @@ ART_XZ = CH.p('joints.ART_XZ', {
     'foot': ((0.150, 0.090), 'shaft'),      # 足首（y は靴の筒の高さで測る。足首の高さではつま先の塊が混ざる）
 })
 SHAFT_Z = CH.p('joints.SHAFT_Z', 0.16)  # 靴の筒（爪先の塊より上）の高さ
+# 決めた関節の位置（名前 → [x, y, z]、m）。測った値の代わりに使う。形の段を作り直すと、体の間引きの違いで前後（y）の測りが
+# 数 mm 動き（ハルの髪の作り直しで上腕 7mm）、骨・動作・銃を握る手が少し変わるので、仕上げた人物は骨の位置を固定する
+FIXED = CH.p('joints.FIXED', {})
 
 # 左の籠手のレール（射出口）の手首側の端（x, z）
 BLADE_XZ = CH.p('joints.BLADE_XZ', (0.398, 0.755))   # null：光刃の無いキャラクター
@@ -108,6 +111,8 @@ def main() -> None:
         J['_blade_anchor'] = [bx, round(y_mid(pts, bx, bz, 'mid'), 4), bz]
     J['root'] = [0.0, 0.0, 0.0]
     J['head_end'] = [0.0, J['head'][1], round(float(pts[:, 2].max()), 4)]
+    for name, v in FIXED.items():
+        J[name] = [float(c) for c in v]
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, 'w') as f:
         json.dump(J, f, indent=2)
