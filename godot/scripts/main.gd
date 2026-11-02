@@ -1,7 +1,8 @@
 extends Node
 ## ゲーム全体：タイトル → プレイ ⇔ ポーズ。1/60 秒ごとにゲームの中身を進め、見た目・音・UI に反映する。
 ## 引数：-- --demo=<出力フォルダ>  自動の見本（起動 → 会話 → 戦闘 → 斬撃 → ドリル）を進めて各場面を撮り、終了する
-##       -- --haru=a                ハルを以前の試作にする（既定は絵から起こした haru_r。proxy で MVP の仮、b で AI 変換）。F2 で切り替え
+##       -- --haru=a                ハルを以前の試作にする（既定は絵から起こした haru_r。proxy で MVP の仮、b で AI 変換、
+##                                 bs で外部の Blender スキル集で作った試作）。F2 で切り替え
 ##       -- --shade=toon            3 段の塗り分け
 ##       -- --touch                 スマホの画面の操作を出す（スマホのブラウザでは自動で出る）
 ##       -- --arena=<型>            試しの部屋（直径 32 m の円形）から始める。型：mini（子番機）| shield（盾型）| floater（浮遊型）|
@@ -321,9 +322,10 @@ func start_game(save) -> void:
 		hud.fade_in(float(f[0]), float(f[1]))
 
 
-## ハルのモデル：r = 絵から起こしたもの（既定）、a = 箱の組み合わせの試作、proxy = MVP の仮、b = AI 変換
+## ハルのモデル：r = 絵から起こしたもの（既定）、a = 箱の組み合わせの試作、proxy = MVP の仮、b = AI 変換、
+## bs = 外部の Blender スキル集（arjun988/blender-skills）の手順で別に作った試作
 func _haru_path(key: String) -> String:
-	var model: String = {"a": "haru_a", "proxy": "haru_proxy", "b": "haru_b"}.get(key, "haru_r")
+	var model: String = {"a": "haru_a", "proxy": "haru_proxy", "b": "haru_b", "bs": "haru_bs"}.get(key, "haru_r")
 	var path := "res://assets/models/%s.glb" % model
 	if not ResourceLoader.exists(path):
 		path = "res://assets/models/haru_a.glb"
