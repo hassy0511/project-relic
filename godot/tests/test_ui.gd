@@ -717,7 +717,7 @@ func test_hair_leaves_keep_shape_when_swinging() -> void:
 	var stretched: int = st.stretched
 	print("  揺れの面の三角 %d（4 向き）、裏返り %d、1 cm より伸びた辺 %d" % [tris, flipped, stretched])
 	h.expect(tris > 4000, "揺れる房の三角を見た（%d）" % tris)
-	# 断面ごとに重みをそろえる前（2026-11-02 のレビュー）は裏返り 1.3%・伸び 2.5%、そろえた後は 0.5%・0.2%
+	# 断面ごとに重みをそろえる前（2026-11-02 のレビュー）は裏返り 1.3%・伸び 2.5%、そろえた後は 0.4%・0.2%
 	h.expect(flipped * 1000 < tris * 8, "0.45 rad 振っても、裏返る三角は 0.8%% 未満（%d / %d）" % [flipped, tris])
 	h.expect(stretched * 1000 < tris * 3 * 5, "0.45 rad 振っても、1 cm より伸びる辺は 0.5%% 未満（%d / %d）" % [stretched, tris * 3])
 	scn.queue_free()
