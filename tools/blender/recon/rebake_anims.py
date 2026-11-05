@@ -43,7 +43,7 @@ from recon.splice_anims import pick_base  # noqa: E402
 REPO = C.REPO
 DEFAULT_MODEL = 'godot/assets/models/haru_r.glb'
 # 骨・形・塗りを最後に作り直した版（2026-11-02 髪を房の部品で作り直し、耳の近くのかぶりを縮めない版。
-# 今の haru_r.glb と形・材質・画像・節・スキンが同じ。動作は違う：2026-11-05 に combo1〜3 を入れ替えた）。
+# 今の haru_r.glb と形・材質・画像・節・スキンが同じ。動作は違う：2026-11-05 に combo1〜3 を入れ替え、dead・hurt・jump・fall・dash・lunge・charge を床に合わせた）。
 # 前は 2026-10-20 揺れの骨（髪 7・ポーチ 2）を足した f2516e2、その前は 2026-10-07 外装フレームを群に分けた c9faf94。
 # 形の手本に使う（元の GLB の形がこれと同じか確かめる）。動作の元は今の haru_r.glb（splice_anims.pick_base）
 BASE_REV = '06ea887'
