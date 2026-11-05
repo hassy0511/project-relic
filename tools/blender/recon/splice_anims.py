@@ -1,15 +1,22 @@
 """焼き直した動作だけを、元の GLB に差し込む（GLB の中身を直接書き換える。Blender は使わない）。
 
   python3 tools/blender/recon/splice_anims.py --clips combo1,combo2,combo3
-      [--from godot/assets/models/haru_r.glb] [--base <GLB のパス か git の版>] [--out godot/assets/models/haru_r.glb]
-      [--model godot/assets/models/haru_r.glb（git の版から元を取るときのパス）]
+      [--from build/rebake/haru_r.glb] [--base <GLB のパス か git の版>] [--out godot/assets/models/haru_r.glb]
+      [--model godot/assets/models/haru_r.glb（元を探すときの、リポジトリの中のパス）]
 
 rebake_anims.py は元の GLB を Blender で読み込んで書き出すので、動作を 1 本直しただけでも、形（法線・UV の境で頂点が
 分かれて増える：haru 21354 → 22051）、節の数値（1e-7 の誤差）、ほかの動作（標本の数：dead 37 → 19、run 41 → 21）まで
-少しずつ変わる。この道具は、元の GLB（既定は rebake_anims.py の BASE_REV の版）をそのまま使い、--clips の動作だけを
---from の GLB（rebake_anims.py が書き出した物）から差し替える。形・材質・画像・節・スキン・ほかの動作は元のバイトのまま。
+少しずつ変わる。この道具は、元の GLB をそのまま使い、--clips の動作だけを --from の GLB（rebake_anims.py が書き出した物）
+から差し替える。形・材質・画像・節・スキン・ほかの動作は元のバイトのまま。
 
-使い方（動作を直したら）：
+元の GLB（既定）は「形が BASE_REV（rebake_anims.py。最後の完全な再構築）と同じ物のうち、いちばん新しい物」：
+  1) 作業中の --model のファイル（前に差し込んだ物。まだコミットしていなくてもよい）
+  2) 無理なら（焼き直しで上書きされていれば）git HEAD の --model
+ほかの動作は今の物のまま残る（BASE_REV の版の GLB をそのまま元にすると、そのあとに直した動作が古い物に戻る）。
+どちらも形が BASE_REV と違えば止まる（Blender で書き出した物をそのままコミットした、または完全な再構築をして
+BASE_REV を直していない）。
+
+使い方（動作を直したら。差し込んだらコミットする）：
   .venv-blender/bin/python tools/blender/recon/rebake_anims.py --only combo1,combo2,combo3
   python3 tools/blender/recon/splice_anims.py --clips combo1,combo2,combo3
 --from の動作の対象の節は、名前で元の GLB の節に合わせる（無い名前があれば止まる）。
@@ -257,23 +264,64 @@ def compare(a_js: dict, a_bin: bytes, b_js: dict, b_bin: bytes) -> list[str]:
     return out
 
 
+def shape_diff(a_js: dict, a_bin: bytes, b_js: dict, b_bin: bytes) -> list[str]:
+    """動作のほか（形・材質・画像・節・スキン）で違う所の一覧"""
+    out = [d for d in compare(a_js, a_bin, b_js, b_bin) if not d.startswith('anim ')]
+    for key in ('meshes', 'skins', 'images'):
+        if len(a_js.get(key, [])) != len(b_js.get(key, [])):
+            out.append(f'{key} の数')
+    return out
+
+
+def git_file(rev: str, rel: str) -> bytes | None:
+    r = subprocess.run(['git', 'show', f'{rev}:{rel}'], cwd=REPO, capture_output=True)
+    return r.stdout if r.returncode == 0 else None
+
+
+def pick_base(model_rel: str) -> tuple[bytes, str]:
+    """元の GLB：形が BASE_REV と同じ物のうち、いちばん新しい物（作業中のファイル → git HEAD）。無ければ止まる"""
+    rev = base_rev()
+    ref = git_file(rev, model_rel)
+    if ref is None:
+        sys.exit(f'git {rev}:{model_rel} が読めない（BASE_REV の版に無いモデル）。--base で元を指定する')
+    ref_js, ref_bin = read_glb(ref)
+    tried = []
+    path = os.path.join(REPO, model_rel)
+    cands = [(open(path, 'rb').read() if os.path.exists(path) else None, f'作業中の {model_rel}'),
+             (git_file('HEAD', model_rel), f'git HEAD:{model_rel}')]
+    for data, label in cands:
+        if data is None:
+            continue
+        js, bin_ = read_glb(data)
+        diff = shape_diff(ref_js, ref_bin, js, bin_)
+        if not diff:
+            return data, f'{label}（形は BASE_REV {rev} と同じ。動作は今の物）'
+        tried.append(f'{label}：{", ".join(diff[:4])}')
+    sys.exit('形が BASE_REV と同じ元の GLB が無い（Blender で書き出した物をそのままコミットしたか、'
+             f'完全な再構築をして BASE_REV を直していない）：{tried}')
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument('--clips', required=True, help='差し替える動作（, 区切り）')
-    ap.add_argument('--from', dest='src', default=DEFAULT, help='新しい動作の入った GLB（rebake_anims.py の書き出し）')
-    ap.add_argument('--base', default=None, help='元の GLB（ファイル か git の版。既定は rebake_anims.py の BASE_REV の --out）')
+    ap.add_argument('--from', dest='src', default=None,
+                    help='新しい動作の入った GLB（rebake_anims.py の書き出し。既定は build/rebake/<--model の名前>）')
+    ap.add_argument('--base', default=None,
+                    help='元の GLB（ファイル か git の版）。既定は形が BASE_REV と同じ物のうちいちばん新しい物（作業中 → HEAD）')
     ap.add_argument('--out', default=DEFAULT)
-    ap.add_argument('--model', default=DEFAULT, help='git の版から元を取るときの、リポジトリの中のパス')
+    ap.add_argument('--model', default=DEFAULT, help='元を探すときの、リポジトリの中のパス')
     args = ap.parse_args()
     clips = [c for c in args.clips.split(',') if c]
-    out_rel = args.model
+    args.src = args.src or os.path.join(REPO, 'build', 'rebake', os.path.basename(args.model))
     if args.base and os.path.exists(args.base):
         base_data = open(args.base, 'rb').read()
         print(f'元の GLB：{args.base}')
+    elif args.base:
+        base_data = subprocess.run(['git', 'show', f'{args.base}:{args.model}'], cwd=REPO, capture_output=True, check=True).stdout
+        print(f'元の GLB：git {args.base}:{args.model}')
     else:
-        rev = args.base or base_rev()
-        base_data = subprocess.run(['git', 'show', f'{rev}:{out_rel}'], cwd=REPO, capture_output=True, check=True).stdout
-        print(f'元の GLB：git {rev}:{out_rel}')
+        base_data, label = pick_base(args.model)
+        print(f'元の GLB：{label}')
     src_js, src_bin = read_glb(open(args.src, 'rb').read())
     base_js, base_bin = read_glb(base_data)
     js, bin_ = splice(base_js, base_bin, src_js, src_bin, clips)
