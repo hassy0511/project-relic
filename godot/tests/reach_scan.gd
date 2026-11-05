@@ -45,11 +45,11 @@ const CH1_STATES := {
 	"ch1.r11": {"early": ["ch1.frame_fitted", "ch1.blade_online"]},
 	"ch1.r12": {"early": ["ch1.first_beacon"], "powered": ["ch1.drive_powered"], "late": CH1_LATE},
 	"ch1.r13": {"early": ["ch1.drive_powered"]},
-	"ch1.r14": {"early": ["ch1.drive_developed"]},
+	"ch1.r14": {"early": ["ch1.drill_developed"]},
 	"ch1.r15": {"early": ["ch1.drive_powered"]},
 	"ch1.r16": {"early": ["ch1.drive_powered"]},
 	"ch1.r17": {"early": ["ch1.drive_powered"], "late": CH1_LATE},
-	"ch1.r18": {"early": ["ch1.shortcut_open"], "diag": ["ch1.diagnosis"]},
+	"ch1.r18": {"early": ["ch1.shortcut_open"], "diag": ["ch1.diagnosis"], "late": CH1_LATE},
 	"ch1.r19": {"early": ["ch1.diagnosis"], "late": CH1_LATE},
 	"ch1.r20": {"early": ["ch1.boss_defeated"]},
 }
