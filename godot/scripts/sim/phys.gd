@@ -114,7 +114,7 @@ func move_character(body: CharacterBody3D, delta: Vector3, mask: int, on_ground:
 		var rem := col.get_remainder()
 		if n.y >= FLOOR_MIN_Y:
 			hit_floor = true
-		elif on_ground and absf(n.y) < 0.3 and _try_step(body, rem):
+		elif on_ground and (absf(n.y) < 0.3 or _rounded_edge(col, n)) and _try_step(body, rem):
 			hit_floor = true
 			motion = Vector3.ZERO
 			break
@@ -141,7 +141,19 @@ func move_character(body: CharacterBody3D, delta: Vector3, mask: int, on_ground:
 	return {"moved": body.position - start, "grounded": grounded}
 
 
-## 段差の自動乗り越え：上へ持ち上げ、前へ進め、下ろして床に乗れたら成功
+## 体の丸い底が低い段（約 0.1〜0.25 m）の角に当たった：法線が上を向いているが床とみなすより傾いている（y が 0.3〜0.71）。
+## 壁とみなす向き（y が 0.3 未満）と同じく、段差の自動乗り越えを試す。前はどちらにもならず、角に押し当てたまま止まった（N13、2026-11-05）。
+## 45 度より急な坂も同じ向きになるが、乗り越えは下ろした先が床（45 度まで）のときだけ成功するので、急な坂は今までどおり上れない。
+## 敵の体の丸い頭には乗らない
+func _rounded_edge(col: KinematicCollision3D, n: Vector3) -> bool:
+	if n.y < 0.3 or n.y >= FLOOR_MIN_Y:
+		return false
+	var o := col.get_collider() as CollisionObject3D
+	return o != null and (o.collision_layer & ENEMY) == 0
+
+
+## 段差の自動乗り越え：上へ持ち上げ、前へ進め、下ろして床に乗れたら成功。
+## 上がる高さ（下ろして当たった段の上の面か角の高さ）は STEP_HEIGHT（＋1 cm）まで
 func _try_step(body: CharacterBody3D, rem: Vector3) -> bool:
 	var fwd := Vector3(rem.x, 0.0, rem.z)
 	if fwd.length() < 1e-4:
@@ -163,8 +175,20 @@ func _try_step(body: CharacterBody3D, rem: Vector3) -> bool:
 	var landed := ahead.translated(res.get_travel())
 	if landed.origin.y - t.origin.y < 0.02:
 		return false
-	# 実際には求められた分だけ前へ（確かめに使った 0.2m ではなく）
-	body.position = Vector3(t.origin.x + fwd.x, landed.origin.y, t.origin.z + fwd.z)
+	# 段の高さは、下ろして当たった所で測る。前は足元の高さで測っていて、0.2m 先では体の丸い底が角の上に載って
+	# 足元が角より低く出るので、0.38m ほどの段まで歩いて上れた
+	if res.get_position().y - t.origin.y > STEP_HEIGHT + 0.01:
+		return false
+	# 実際には求められた分だけ前へ（確かめに使った 0.2m ではなく）進め、そこで下ろす。
+	# 前は 0.2m 先の高さのまま置いたので、角の手前では体が角から浮き、次の刻みで角まで沈んで、上下に揺れた
+	# （斜めにゆっくり当たると、浮いては沈むのを繰り返して上れなかった）
+	var y := landed.origin.y
+	if fwd.length() < probe_fwd.length() - 1e-4:
+		var here := up.translated(fwd)
+		var res2 := KinematicCollision3D.new()
+		if body.test_move(here, Vector3(0, -STEP_HEIGHT - 0.05, 0), res2):
+			y = here.origin.y + res2.get_travel().y
+	body.position = Vector3(t.origin.x + fwd.x, y, t.origin.z + fwd.z)
 	if body.test_move(body.global_transform, Vector3.ZERO):
 		body.global_transform = t
 		return false
