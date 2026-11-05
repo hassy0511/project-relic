@@ -8,7 +8,9 @@
 骨の回転の向きは humanoid_anims.py の頭の説明と同じ（腕・脚は X が負で前へ、すねは X が正で膝が曲がる、前腕は X が負で肘が
 曲がる、上腕を横へ上げるのは右が Z 正・左が Z 負、背骨・胸・首・頭は X が正で前へ倒れ、Y が正で本人の左へひねる）。
 作り方は SKILL 7b：姿勢を少し置いて等速でつながず、緩急（つなぎの interp・ease）と全身の追いかけ（腰 → 胸 → 腕の順に遅れる）で動かす。
-足の裏は ground=True で床に着ける（接地点は ai_character.py --foot-contacts の値）。
+足の裏は ground=True で床に着ける（接地点は ai_character.py --foot-contacts の値）。接地点は靴の形の目安なので、
+靴のつま先・かかとが接地点より外へ出ている人物では、足を傾けたこまで靴が床に沈む（ジャンク屋の歩き 3.0 cm、トビのしゃがみ 2.7 cm）。
+そこで全部の動作に floor='above'（体のメッシュの一番低い点を測り、床の下へ出たこまだけ体を上げる）を付ける。
 """
 from __future__ import annotations
 
@@ -42,7 +44,7 @@ def idle() -> Clip:
     d = merge(STAND, {'spine': (2, -3, 1.5), 'chest': (-3, -2, 1), 'head': (-1, 4, -3),
                       'upper_arm.L': (4, 0, -4), 'upper_arm.R': (-2, 0, 5), 'forearm.R': (-20, 0, 0)})
     keys = [(1, a, EASE), (46, b, EASE), (91, c, EASE), (136, d, EASE), (181, a, EASE)]
-    return Clip('idle', 180, keys, fps=FPS, ground=True)
+    return Clip('idle', 180, keys, fps=FPS, ground=True, floor='above')
 
 
 def walk() -> Clip:
@@ -63,7 +65,7 @@ def walk() -> Clip:
     }
     c2, p2 = mirror(contact), mirror(passing)
     keys = [(1, contact, EASE), (16, passing, EASE), (31, c2, EASE), (46, p2, EASE), (61, contact, EASE)]
-    return Clip('walk', 60, keys, fps=FPS, ground=True, bob=[(1, 0.0), (16, 0.014), (31, 0.0), (46, 0.014), (61, 0.0)])
+    return Clip('walk', 60, keys, fps=FPS, ground=True, floor='above', bob=[(1, 0.0), (16, 0.014), (31, 0.0), (46, 0.014), (61, 0.0)])
 
 
 def run() -> Clip:
@@ -85,7 +87,7 @@ def run() -> Clip:
     lift = {'lifted': ('foot.R',)}
     lift2 = {'lifted': ('foot.L',)}
     keys = [(1, contact), (9, passing, lift), (17, c2), (25, p2, lift2), (33, contact)]
-    return Clip('run', 32, keys, fps=FPS, ground=True,
+    return Clip('run', 32, keys, fps=FPS, ground=True, floor='above',
                 bob=[(1, 0.0), (9, 0.045), (17, 0.0), (25, 0.045), (33, 0.0)])
 
 
@@ -111,7 +113,7 @@ def cower() -> Clip:
         keys.append((f, p, {'interp': 'SINE', 'ease': 'EASE_IN_OUT'}))
         f += 4
     keys.append((f, keys[0][1], {'interp': 'SINE', 'ease': 'EASE_IN_OUT'}))
-    return Clip('cower', f - 1, keys, fps=FPS, ground=True)
+    return Clip('cower', f - 1, keys, fps=FPS, ground=True, floor='above')
 
 
 def all_clips() -> list[Clip]:

@@ -64,7 +64,8 @@ def jump() -> Clip:
         'spine': (5, 0, 0), 'thigh.L': (-65, 0, 0), 'shin.L': (85, 0, 0), 'thigh.R': (-10, 0, 0), 'shin.R': (35, 0, 0),
         'upper_arm.L': (-50, 0, -25), 'forearm.L': (-30, 0, 0),
     }, GUN_HOLD)
-    return Clip('jump', 8, [(1, p), (9, p)], loop=False)
+    # 後ろの足はつま先が下を向く（すねが 25 度後ろ）。踏み切りのこまでつま先が床に沈まないよう、体を上げる（floor）
+    return Clip('jump', 8, [(1, p), (9, p)], loop=False, floor='above')
 
 
 def fall() -> Clip:
@@ -73,7 +74,8 @@ def fall() -> Clip:
         'upper_arm.L': (-10, 0, -50), 'forearm.L': (-20, 0, 0), 'upper_arm.R': (-15, 0, 45), 'forearm.R': (-30, 0, 0),
     })
     b = merge(a, {'upper_arm.L': (-10, 0, -58), 'upper_arm.R': (-15, 0, 52)})
-    return Clip('fall', 20, [(1, a), (11, b), (21, a)])
+    # 両足ともつま先が下を向く（すねが 20・40 度後ろ）。崖から歩いて落ち始めるこまで沈まないよう、体を上げる
+    return Clip('fall', 20, [(1, a), (11, b), (21, a)], floor='above')
 
 
 def dash() -> Clip:
@@ -82,24 +84,71 @@ def dash() -> Clip:
         'thigh.R': (40, 0, 0), 'shin.R': (50, 0, 0),
         'upper_arm.L': (55, 0, -15), 'forearm.L': (-20, 0, 0), 'upper_arm.R': (50, 0, 15), 'forearm.R': (-30, 0, 0),
     }
-    return Clip('dash', 7, [(1, p), (8, p)], loop=False)
+    # 地上でだけ出す（player.gd）。足の裏の低いほうを床に着ける（ground。前は両足とも 6 cm 浮いたままだった）。
+    # 足首は描いたまま（lifted）：前へ出した足のつま先を床へ向けない
+    both = ('foot.L', 'foot.R')
+    return Clip('dash', 7, [(1, p, {'lifted': both}), (8, p, {'lifted': both})], loop=False, ground=True, floor='above')
 
 
 def hurt() -> Clip:
+    # 左足は少し浮かせる。足首はすねの傾き（-15 + 25 = 10 度後ろ）を打ち消して足の裏を平らに（つま先が床に沈まない）
     p = {
         'spine': (-20, 0, 0), 'head': (-20, 0, 0), 'upper_arm.L': (-20, 0, -40), 'upper_arm.R': (-20, 0, 40),
-        'thigh.L': (-15, 0, 0), 'shin.L': (25, 0, 0),
+        'thigh.L': (-15, 0, 0), 'shin.L': (25, 0, 0), 'foot.L': (-10, 0, 0),
     }
-    return Clip('hurt', 8, [(1, p), (9, p)], loop=False)
+    return Clip('hurt', 8, [(1, p), (9, p)], loop=False, floor='above')
 
 
 def dead() -> Clip:
+    """倒れる：のけぞり → 膝が折れる → 膝が床に着く → 左手を床へ伸ばして前へ倒れる → うつぶせに寝る
+    （顔は左へ向けて右の側頭（髪）を床に、左腕は頭の先へ伸ばして床に、右腕（銃）は体の横に寝かせる）。0.6 秒。
+    膝・足が床の同じ所に残るよう、倒れながら体を前へ運ぶ（slide）。腰の高さは、どのこまでも体のメッシュの一番低い点が
+    床に着く高さ（floor='contact'：足 → 膝 → つま先 → 左の前腕と替わっていく。最後のこまで胸・腰は床から 1〜2 cm）。前の版は腰を中心に回って脚が床の下 34 cm まで沈み、
+    その次の版は銃口が先に床に着いて体が板のように持ち上がり、最後も左の前腕だけで浮いていた。
+    腰の前傾（hips X）は脚ごと回すので、太ももは「世界での角度 − 腰の前傾」で書く"""
+    both = ('foot.L', 'foot.R')
     a = {'spine': (-20, 0, 0), 'upper_arm.L': (-20, 0, -40), 'upper_arm.R': (-20, 0, 40)}
-    b = {
-        'spine': (45, 0, 0), 'head': (30, 0, 0), 'thigh.L': (-80, 0, 0), 'shin.L': (120, 0, 0),
-        'thigh.R': (-70, 0, 0), 'shin.R': (125, 0, 0), 'upper_arm.L': (-30, 0, -20), 'upper_arm.R': (-30, 0, 20),
+    # 膝が折れる：腰が落ち、頭は遅れて後ろへ、腕は力が抜ける
+    buckle = {
+        'hips': (10, 0, 0), 'spine': (5, 0, 0), 'chest': (5, 0, 0), 'head': (-15, 10, 0),
+        'thigh.L': (-50, 0, 0), 'shin.L': (85, 0, 0), 'foot.L': (-45, 0, 0),
+        'thigh.R': (-45, 0, 0), 'shin.R': (75, 0, 0), 'foot.R': (-40, 0, 0),
+        'upper_arm.L': (-10, 0, -25), 'forearm.L': (-15, 0, 0), 'upper_arm.R': (-10, 0, 25), 'forearm.R': (-20, 0, 0),
     }
-    return Clip('dead', 18, [(1, a), (19, b)], loop=False, bob=[(1, 0.0), (19, -0.55)])
+    # 膝が床に着く：太ももはほぼ縦、すねは後ろへ寝て、足の甲が床に。体は前へ倒れ始め、左腕は前へ、右腕（銃）は体の横に残る
+    kneel = {
+        'hips': (25, 0, 0), 'spine': (10, 0, 0), 'chest': (5, 0, 0), 'head': (0, 25, 0),
+        'thigh.L': (-30, 0, 0), 'shin.L': (97, 0, 0), 'foot.L': (60, 0, 0),
+        'thigh.R': (-28, 0, 0), 'shin.R': (93, 0, 0), 'foot.R': (60, 0, 0),
+        'upper_arm.L': (-70, 0, -15), 'forearm.L': (-20, 0, 0), 'upper_arm.R': (-15, 40, 30), 'forearm.R': (-15, 0, 0),
+    }
+    # 前へ倒れる途中：腰が膝の前へ出て、脚が伸び始める。左手は床へ伸びる。銃は体の横で寝かせたまま（先に床に着かない）
+    fall_fwd = {
+        'hips': (60, 0, 0), 'spine': (10, 0, 0), 'chest': (5, 0, 0), 'neck': (0, 15, 0), 'head': (-10, 35, 0),
+        'thigh.L': (-40, 0, -4), 'shin.L': (70, 0, 0), 'foot.L': (65, 0, 0),
+        'thigh.R': (-38, 0, 4), 'shin.R': (72, 0, 0), 'foot.R': (65, 0, 0),
+        'upper_arm.L': (-130, 0, 20), 'forearm.L': (-15, 0, 0), 'upper_arm.R': (-10, 70, 35), 'forearm.R': (-10, 0, 0),
+    }
+    # うつぶせ：体は水平で胸・腰が床に（最後のこまで床から 1〜2 cm）。脚は伸ばし、足首を伸ばして足の甲を床に近く。
+    # 顔は左へ向けて右の側頭（髪）が床に触れる。首は少し反らす（反らさないと頭が先に床に着いて胴が浮く）。
+    # 足首は 50 度ほど（伸ばしすぎると足が上へ逃げ、浅いとつま先が床に立って脚が浮く）
+    lie = {
+        'hips': (90, 0, 0), 'spine': (6, 0, 0), 'chest': (2, 0, 0), 'neck': (-20, 30, 0), 'head': (-25, 45, 0),
+        'thigh.L': (-3, 0, -6), 'shin.L': (2, 0, 0), 'foot.L': (50, 0, 0),
+        'thigh.R': (-3, 0, 6), 'shin.R': (0, 0, 0), 'foot.R': (52, 0, 0),
+        # 左腕は頭の先へ伸ばして床に（肘はほぼ伸ばす。曲げると前腕が床へ刺さって体を持ち上げる）。
+        # 右腕は体の横へ下ろし、上腕をひねって銃を横へ寝かせる（銃口が床へ刺さって体を持ち上げない）
+        'upper_arm.L': (-184, 0, 25), 'forearm.L': (0, 0, 0), 'upper_arm.R': (-8, 80, 30), 'forearm.R': (-5, 0, 0),
+    }
+    keys = [
+        (1, a),
+        (6, buckle, {'lifted': both}),
+        (10, kneel, {'lifted': both}),
+        (14, fall_fwd, {'lifted': both}),
+        (19, lie, {'lifted': both}),
+    ]
+    return Clip('dead', 18, keys, loop=False, ground=True, floor='contact',
+                slide=[(1, 0.0), (10, 0.0), (14, 0.15), (19, 0.32)])
 
 
 def drill() -> Clip:
@@ -338,7 +387,10 @@ def lunge() -> Clip:
                     'thigh.L': (-50, 0, 0), 'shin.L': (40, 0, 0), 'thigh.R': (45, 0, 0), 'shin.R': (30, 0, 0)})
     end = stance({'spine': (25, 20, 0), 'upper_arm.L': (-95, 0, 0), 'forearm.L': (0, 0, 0),
                   'thigh.L': (-55, 0, 0), 'shin.L': (40, 0, 0), 'thigh.R': (40, 0, 0), 'shin.R': (10, 0, 0)})
-    return Clip('lunge', 10, [(1, start), (5, end), (11, end)], loop=False)
+    # 地上でだけ出す（player.gd）。足の裏の低いほうを床に着ける（前は両足とも 8 cm 浮いたままだった）。足首は描いたまま
+    both = ('foot.L', 'foot.R')
+    return Clip('lunge', 10, [(1, start, {'lifted': both}), (5, end, {'lifted': both}), (11, end, {'lifted': both})],
+                loop=False, ground=True, floor='above')
 
 
 def charge() -> Clip:
@@ -346,7 +398,10 @@ def charge() -> Clip:
     start = stance({'spine': (5, -60, 0), 'chest': (0, -30, 0), 'upper_arm.L': (-60, 0, 70), 'forearm.L': (-50, 0, 0)})
     mid = stance({'spine': (10, 0, 0), 'chest': (0, 0, 0), 'upper_arm.L': (-80, 0, -20), 'forearm.L': (0, 0, 0)})
     end = stance({'spine': (10, 60, 0), 'chest': (0, 30, 0), 'upper_arm.L': (-70, 0, -80), 'forearm.L': (0, 0, 0)})
-    return Clip('charge', 15, [(1, start), (5, start), (9, mid), (12, end), (16, end)], loop=False)
+    # 地上でだけ出す（player.gd）。足の裏の低いほうを床に着ける（前は両足とも 1.8 cm 浮いたままだった）。足首は描いたまま
+    both = {'lifted': ('foot.L', 'foot.R')}
+    return Clip('charge', 15, [(1, start, both), (5, start, both), (9, mid, both), (12, end, both), (16, end, both)],
+                loop=False, ground=True, floor='above')
 
 
 def all_clips() -> list[Clip]:

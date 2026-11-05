@@ -146,6 +146,13 @@ class Clip:
     # True：各こまで、低いほうの足の裏が床（z=0）に着くように root を下げる（しゃがみ・踏み込みの上下は脚の曲げから決まる）。
     # bob があれば、それをさらに足す
     ground: bool = False
+    # 床の下へ行かない（書き出しの標本ごとに、体のメッシュの一番低い頂点を測って root を上げる。glb_audit.py の床の決まりと同じ物を見る）。
+    # 'above'：沈むこまだけ上げる（足を下へ向けた跳び・落ちの姿勢など）。
+    # 'contact'：どのこまでも一番低い頂点をちょうど床に置く（床へ倒れる動作。立つ・膝をつく・手をつく・寝るのどのこまでも
+    # 体のどこかが床に着いていて、浮きも沈みも無い。一番低い所が足 → 膝 → 手 → 胸と替わっても高さは続いて動く）
+    floor: str = ''
+    # root の前への移動（こま, m。正で本人の前へ。こまの間は直線）。前へ倒れて伸びるとき、膝と足を床の同じ所に残すため
+    slide: list[tuple[int, float]] = field(default_factory=list)
 
 
 def mirror(pose: Pose) -> Pose:
@@ -178,6 +185,78 @@ def ground_offset(arm: bpy.types.Object, contacts: dict[str, list]) -> float:
     root_z = arm.pose.bones['root'].matrix.translation.z
     lowest = min((arm.pose.bones[bn].matrix @ c).z for bn, cs in contacts.items() for c in cs)
     return root_z - lowest
+
+
+# 床の測りで見ない物（ゲームが攻撃の間だけ出す光刃）。glb_audit.py の TOGGLED と同じ
+FLOOR_SKIP = ('LightBlade',)
+
+
+def _floor_objects(arm: bpy.types.Object) -> list:
+    """骨で動くメッシュ（骨の変形の付いた皮と、骨の子の硬い物）。光刃は除く"""
+    out = []
+    for ob in bpy.data.objects:
+        if ob.type != 'MESH' or ob.name.startswith(FLOOR_SKIP):
+            continue
+        skinned = any(m.type == 'ARMATURE' and m.object == arm for m in ob.modifiers)
+        if skinned or ob.parent == arm:
+            out.append(ob)
+    return out
+
+
+def _lowest_z(objs: list) -> float:
+    """今の姿勢（評価済み）で、メッシュの一番低い頂点の世界の z"""
+    import numpy as np
+    dg = bpy.context.evaluated_depsgraph_get()
+    low = math.inf
+    for ob in objs:
+        oe = ob.evaluated_get(dg)
+        me = oe.to_mesh()
+        n = len(me.vertices)
+        if n:
+            co = np.empty(n * 3)
+            me.vertices.foreach_get('co', co)
+            mw = np.array(oe.matrix_world)
+            z = co.reshape(-1, 3) @ mw[2, :3] + mw[2, 3]
+            low = min(low, float(z.min()))
+        oe.to_mesh_clear()
+    return low
+
+
+def _lerp_track(keys: list[tuple[float, float]], f: float) -> float:
+    if not keys:
+        return 0.0
+    if f <= keys[0][0]:
+        return keys[0][1]
+    for (f0, v0), (f1, v1) in zip(keys, keys[1:]):
+        if f0 <= f <= f1:
+            return v0 + (v1 - v0) * (f - f0) / max(1e-6, f1 - f0)
+    return keys[-1][1]
+
+
+def _floor_pass(arm: bpy.types.Object, clip: Clip, first: int, last: int, slide: list) -> dict:
+    """書き出しの標本ごとに root を置き直す：前への移動（slide）と、床の下へ行かない高さ（floor）"""
+    scene = bpy.context.scene
+    root = arm.pose.bones['root']
+    objs = _floor_objects(arm) if clip.floor else []
+    if clip.floor and not objs:
+        print(f'  {clip.name}：床を測るメッシュが無い（floor を見ない）')
+    zs, lows = [], []
+    for f in range(first, last + 1):
+        scene.frame_set(f)
+        zs.append(root.location.z)
+        lows.append(_lowest_z(objs) if objs else 0.0)
+    # メッシュの z は世界（骨の物体の大きさ込み）、root の位置は骨の物体の中の値。焼き直しで読み込んだ人物は骨の物体が
+    # 拡大してある（身長を合わせた NPC）ので、その割合で割る
+    sz = arm.matrix_world.to_scale().z or 1.0
+    lows = [lw / sz for lw in lows]
+    adds = []
+    for i, f in enumerate(range(first, last + 1)):
+        add = -lows[i] if clip.floor == 'contact' else max(0.0, -lows[i])
+        adds.append(add)
+        root.location = (0.0, -_lerp_track(slide, f), zs[i] + add)
+        root.keyframe_insert('location', frame=f)
+    root.location = (0.0, 0.0, 0.0)
+    return {'low_before': min(lows) if lows else 0.0, 'raised': max([0.0] + adds), 'lowered': max([0.0] + [-a for a in adds])}
 
 
 def bake_clips(arm: bpy.types.Object, clips: list[Clip], foot_contacts=None) -> None:
@@ -270,6 +349,12 @@ def bake_clips(arm: bpy.types.Object, clips: list[Clip], foot_contacts=None) -> 
                 root.location = (0.0, 0.0, ground_offset(arm, contacts) + bob_at(f))
                 root.keyframe_insert('location', frame=f)
             root.location = (0.0, 0.0, 0.0)
+        if clip.floor or clip.slide:
+            # 前への移動と床：書き出しの標本ごとに root を測り直して置く（root の位置の道は Z のほかに Y も持つ）
+            first, last = int(round(sf(clip.keys[0][0]))), int(round(sf(clip.keys[-1][0])))
+            r = _floor_pass(arm, clip, first, last, [(sf(f), v) for f, v in clip.slide])
+            print(f'  {clip.name}：床 {clip.floor or "-"}、測った最も低い点 {r["low_before"] * 100:+.1f} cm、'
+                  f'上げた最大 {r["raised"] * 100:.1f} cm、下げた最大 {r["lowered"] * 100:.1f} cm')
         track = arm.animation_data.nla_tracks.new()
         track.name = clip.name
         strip = track.strips.new(clip.name, 1, action)

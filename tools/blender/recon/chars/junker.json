@@ -99,7 +99,7 @@
     "--costume",
     "--clips",
     "child",
-    "--foot-contacts=-0.17,0.13,-0.09"
+    "--foot-contacts=-0.22,0.13,-0.09"
   ],
   "costume": true,
   "stages_skip": [

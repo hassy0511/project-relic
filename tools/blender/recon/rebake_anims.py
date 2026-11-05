@@ -14,6 +14,14 @@ BASE_REV の版をそのまま元にすると、そのあとに直した動作�
 使えない（idle 2.0 → 1.0 秒、2026-11-05 に確かめた）。形・節も少しずつ変わる。
 なので書き出しは既定で build/rebake/ に置き、ゲームの GLB は上書きしない。続けて splice_anims.py で直した動作だけを
 ゲームの GLB に差し込む（splice_anims.py の --from の既定は build/rebake/<モデルの名前>）。
+
+ほかの人物（recon で作った NPC）：動作の組と足の裏の接地点を chars/<id>.json の rig_args と同じにする。元の GLB は
+作業中の --model（無ければ git HEAD）。BASE_REV はハルの版なので、差し込むときは --base に同じファイルを渡す：
+  .venv-blender/bin/python tools/blender/recon/rebake_anims.py --model godot/assets/models/junker.glb --clips child \
+      --foot-contacts=-0.22,0.13,-0.09
+  python3 tools/blender/recon/splice_anims.py --model godot/assets/models/junker.glb --out godot/assets/models/junker.glb \
+      --base godot/assets/models/junker.glb --clips walk,cower,run,idle
+（杖の老人（--clips elder）は骨付けの段の手の測りが要るので、ここでは焼けない）
 """
 from __future__ import annotations
 
@@ -43,9 +51,15 @@ BASE_REV = '06ea887'
 
 def base_glb(base: str | None, model_rel: str) -> str:
     """--base がファイルならそれ、git の版ならその GLB、無ければ形が BASE_REV と同じ物のうちいちばん新しい物を
-    一時ファイルに出す"""
+    一時ファイルに出す（ハルの外の人物は BASE_REV を持たないので、作業中のファイル → git HEAD）"""
     if base and os.path.exists(base):
         return os.path.abspath(base)
+    if not base and model_rel != DEFAULT_MODEL:
+        path = os.path.join(REPO, model_rel)
+        if os.path.exists(path):
+            print(f'元の GLB：作業中の {model_rel}')
+            return path
+        base = 'HEAD'
     if base:
         data = subprocess.run(['git', 'show', f'{base}:{model_rel}'], cwd=REPO, capture_output=True, check=True).stdout
         label = f'git {base}:{model_rel}'
@@ -76,7 +90,12 @@ def main() -> None:
                     help='元の GLB（ファイル か git の版）。既定は形が BASE_REV と同じ物のうちいちばん新しい物（作業中 → HEAD）')
     ap.add_argument('--only', default=None, help='新しくする動作の名前（, 区切り）。省略時は全部')
     ap.add_argument('--model', default=DEFAULT_MODEL, help='元を探すときの、リポジトリの中のパス')
+    ap.add_argument('--clips', dest='clip_set', default='standard', choices=('standard', 'child'),
+                    help='動作の組（ai_character.py --clips と同じ。standard = humanoid_anims、child = child_anims）')
+    ap.add_argument('--foot-contacts', default=None,
+                    help='足の裏の接地点「つま先 y,かかと y,下 z」（ai_character.py --foot-contacts と同じ。省略時はハルの値）')
     args = ap.parse_args([a for a in sys.argv[1:] if a != '--'])
+    args.model = os.path.relpath(os.path.abspath(os.path.join(REPO, args.model)), REPO)
     args.out = args.out or os.path.join(REPO, 'build', 'rebake', os.path.basename(args.model))
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     src = base_glb(args.base, args.model)
@@ -85,7 +104,15 @@ def main() -> None:
     bpy.ops.import_scene.gltf(filepath=src)
     summary('元')
     arm = next(o for o in bpy.data.objects if o.type == 'ARMATURE')
-    clips = A.all_clips()
+    if args.clip_set == 'child':
+        from models import child_anims
+        clips = child_anims.all_clips()
+    else:
+        clips = A.all_clips()
+    contacts = None
+    if args.foot_contacts:
+        ty, hy, dz = (float(v) for v in args.foot_contacts.split(','))
+        contacts = ((0.0, ty, dz), (0.0, hy, dz))
     only = set(args.only.split(',')) if args.only else None
     if only:
         clips = [c for c in clips if c.name in only]
@@ -103,12 +130,14 @@ def main() -> None:
     for a in list(bpy.data.actions):
         if a.name in names:
             bpy.data.actions.remove(a)
-    H.bake_clips(arm, clips)
+    H.bake_clips(arm, clips, contacts)
     bpy.ops.object.select_all(action='SELECT')
     out = os.path.abspath(args.out)
     C.export_glb(out)
     print(f'書き出し：{out}（{os.path.getsize(out) / 1e6:.2f} MB）')
-    print(f'次：python3 tools/blender/recon/splice_anims.py --clips {",".join(c.name for c in clips)} --from {args.out}'
+    nb = args.base or (args.model if os.path.exists(os.path.join(REPO, args.model)) else 'HEAD')
+    more = '' if args.model == DEFAULT_MODEL else f' --model {args.model} --out {args.model} --base {nb}'
+    print(f'次：python3 tools/blender/recon/splice_anims.py --clips {",".join(c.name for c in clips)} --from {args.out}{more}'
           '（この GLB はそのまま使わない）')
 
     # 読み直して、同じ物が残っているか

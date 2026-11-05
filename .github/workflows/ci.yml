@@ -37,6 +37,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: ゲームで動く人物の GLB の確かめ（全部の頂点の床の接地・原点・重み。test_models は骨と目印の点だけを見る）
+        # yana・burton（ゲームでは idle だけ）と、前の版・試作のハルは今わかっている失敗があるので外す（test_models の KNOWN）
+        run: |
+          python -m pip install --quiet numpy
+          python tools/blender/recon/glb_audit.py --strict godot/assets/models/haru_r.glb godot/assets/models/junker.glb \
+            godot/assets/models/nico.glb godot/assets/models/shopkeeper.glb godot/assets/models/trude.glb \
+            godot/assets/models/tf_*.glb
       - name: Godot を用意
         run: bash tools/setup_godot.sh
       - name: 素材の取り込み

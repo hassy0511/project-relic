@@ -1,7 +1,13 @@
 extends SceneTree
 ## ハル（haru_r）の動作のこまを、Godot の中（ゲームと同じ PlayerView と光）で撮って 1 枚にまとめる。
 ##   tools/godot.sh shot --script /abs/tools/blender/recon/godot_motion_sheet.gd -- <出力の PNG> [動作=combo1] [こま間隔=1] [モデルの res:// パス]
-## 上の段：ゲームのカメラに近い真後ろ（仰角 12 度）。下の段：左前 45 度。横に時間（60fps のこま）。1 行は最大 10 こま。
+##       [方向=180:12,45:10] [見る高さ:写す幅=0.85:2.1]
+## 既定の上の段：ゲームのカメラに近い真後ろ（仰角 12 度）。下の段：左前 45 度。横に時間（60fps のこま）。1 行は最大 10 こま。
+## 方向は「方位角:仰角」の並び（90:2 = 本人の右の真横から床すれすれ。床の接地を見る）。足もとの近写は 0.15:0.7 など。
+## 光刃は攻撃の動作（dash の斬りを含む）でだけ出す（ゲームは長押しの間ほかの動作でも 0.6 倍で出すが、ここでは出さない）。
+## 前の版の GLB と並べるとき：<名前>.glb.import も一緒に写して同じ設定で取り込む（既定の取り込みは 30 こま/秒。60 こま/秒で
+## 焼いた速い振りのこまが違って見えることがある：2026-11-05 の見た目のレビューで、中身が同じ combo2 の 9 こま目が違って見えた）。
+## 違いは数でも確かめる（glb_shape_diff.py・splice_anims.py の compare）。
 ## 座標は glTF（Godot）：キャラクターの正面 +Z、本人の左 +X、上 +Y。
 
 const TILE := Vector2i(220, 260)
@@ -12,6 +18,10 @@ var out_path := ""
 var clip := "combo1"
 var every := 1
 var model_path := "res://assets/models/haru_r.glb"
+var views := [[180.0, 12.0], [45.0, 10.0]]
+var look_y := 0.85
+var span := 2.1
+const ATTACKS := ["combo1", "combo2", "combo3", "lunge", "charge", "air", "dash"]   # 光刃を出す動作（dash はダッシュ斬り。glb_audit.py の ATTACK_CLIPS と同じ）
 var pv: PlayerView
 var cam: Camera3D
 
@@ -25,6 +35,13 @@ func _initialize() -> void:
 		every = maxi(1, int(args[2]))
 	if args.size() > 3:
 		model_path = args[3]
+	if args.size() > 4:
+		views = []
+		for v in args[4].split(","):
+			views.append([float(v.get_slice(":", 0)), float(v.get_slice(":", 1))])
+	if args.size() > 5:
+		look_y = float(args[5].get_slice(":", 0))
+		span = float(args[5].get_slice(":", 1))
 	_run.call_deferred()
 
 
@@ -58,13 +75,12 @@ func _run() -> void:
 	var frames: Array[int] = []
 	for f in range(0, n + 1, every):
 		frames.append(f)
-	var views := [[180.0, 12.0], [45.0, 10.0]]
 	var rows: Array = []
 	for v in views:
 		var tiles: Array[Image] = []
 		for f in frames:
-			_pose(clip, minf(length - 0.001, f / FPS), true)
-			tiles.append(await _shot(v[0], Vector3(0, 0.85, 0), 2.1, v[1]))
+			_pose(clip, minf(length - 0.001, f / FPS), ATTACKS.has(clip))
+			tiles.append(await _shot(v[0], Vector3(0, look_y, 0), span, v[1]))
 		rows.append(tiles)
 	# 並べる：方向ごとに、1 行 COLS こま
 	var per_view := int(ceil(frames.size() / float(COLS)))
