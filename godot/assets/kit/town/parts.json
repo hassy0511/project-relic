@@ -1700,9 +1700,9 @@
   "lights": 414
  },
  "ordo_back_mid": {
-  "tris": 13792,
+  "tris": 13833,
   "mats": 1,
-  "verts": 29642,
+  "verts": 29765,
   "min": [
    -48.59,
    0.0,
@@ -1718,7 +1718,7 @@
  "ordo_back_up": {
   "tris": 20210,
   "mats": 1,
-  "verts": 42948,
+  "verts": 43006,
   "min": [
    -56.0,
    -14.0,

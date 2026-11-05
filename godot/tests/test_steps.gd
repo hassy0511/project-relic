@@ -532,6 +532,31 @@ func test_steps_dust_falls() -> void:
 	h.expect(night[2] < far[2] * 0.6, "夜は暗い（赤 %.3f と %.3f）" % [night[2], far[2]])
 	var close_d := Vector3(0, 0.5, 2.4).length()
 	h.expect(close[5] > 0 and close[1] <= close_d * 0.25 + 1e-4, "カメラのすぐ近くでは大きくしない（%.2f m で %.3f m）" % [close_d, close[1]])
+	# スマホ・ブラウザ版の描き方（gl_compatibility）だけの整え（残課題 T10）：砂の色を sRGB のまま・砂粒が多く・砂ぼこりが大きい。PC は変えない
+	var runs := {}
+	for mode in [0, 1]:
+		amb.dust_compat = mode
+		var sum := [0.0, 0.0, 0.0, 0.0]   # [砂ぼこりの大きさの平均, 砂粒の数, 砂粒の濃さの平均, 色の赤の最大]
+		for r in 6:
+			amb._srng.seed = 900 + r
+			var q: Array = measure.call(1.0, 1.0, spots, 8)
+			var dots: Array = vfx._layers[Vfx.DOT].parts
+			var al := 0.0
+			for g in dots:
+				al += g.col.a
+			sum[0] += q[0]
+			sum[1] += q[4]
+			sum[2] += al / maxf(1.0, dots.size())
+			sum[3] = maxf(sum[3], q[2])
+		runs[mode] = sum
+	amb.dust_compat = -1
+	var pc: Array = runs[0]
+	var ph: Array = runs[1]
+	h.expect(ph[1] > pc[1] * 1.25 and ph[1] < pc[1] * 1.55, "スマホは砂粒が約 1.4 倍（%d と %d）" % [ph[1], pc[1]])
+	h.expect(ph[0] > pc[0] * 1.15 and ph[0] < pc[0] * 1.35, "スマホは砂ぼこりが約 1.25 倍の大きさ（平均 %.3f m と %.3f m）" % [ph[0] / 6.0, pc[0] / 6.0])
+	h.expect(ph[2] > pc[2] * 1.1, "スマホは砂粒が濃い（%.2f と %.2f）" % [ph[2] / 6.0, pc[2] / 6.0])
+	h.near(ph[3], AmbientFx.STEP_DUST_COLOR.r, 0.01, "スマホは砂の色を sRGB のまま渡す（赤 %.3f）" % ph[3])
+	h.expect(pc[3] < AmbientFx.STEP_DUST_COLOR.r * 0.8, "PC は線形の値に直す（赤 %.3f）" % pc[3])
 	await _free(made[0])
 
 

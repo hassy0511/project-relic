@@ -20,6 +20,9 @@ const MAX_SOURCES := 16
 
 var room_id := ""
 var sources: Array = []
+## 足音の砂ぼこりの描き方：-1 = 今の描き方に従う、0 = PC（Forward+）、1 = スマホ・ブラウザ版（gl_compatibility）。
+## 確かめ（headless は Forward+ の扱い）でスマホの側の整えを確かめるためのもの
+var dust_compat := -1
 var _rng := RandomNumberGenerator.new()
 var _t := 0.0
 ## オルドの足音（OrdoSteps）で砂ぼこりの落ちる所：部屋の飾りの、揺れる布（日よけ・洗濯物・垂れ幕）の下の端（ワールド）
@@ -150,7 +153,7 @@ func step_puffs(vfx: Vfx, cam: Vector3, fwd: Vector3, n: int, strength := 1.0, l
 	near = near.slice(0, 2 * n)
 	var big := clampf(0.55 + 0.45 * strength, 0.75, 1.5)
 	var dense := clampf(0.75 + 0.25 * strength, 0.8, 1.25)
-	var compat := EnvironmentSetup.is_compat()
+	var compat := EnvironmentSetup.is_compat() if dust_compat < 0 else dust_compat == 1
 	var col := STEP_DUST_COLOR if compat else STEP_DUST_COLOR.srgb_to_linear()
 	col = Color(col.r * light, col.g * light, col.b * light)
 	var ka: float = COMPAT_STEP_DUST.alpha if compat else 1.0

@@ -105,12 +105,19 @@ class Mesh:
     def tris(self) -> int:
         return len(self.I) // 3
 
-    def cut(self, pred) -> int:
-        """三角形のうち、重心 (x, y, z) で pred が真のものを消す（部屋の形と重なる所をあける）。消した数を返す"""
+    def cut(self, pred, spare=None, touch=False) -> int:
+        """三角形のうち、重心 (x, y, z) で pred が真のものを消す（部屋の形と重なる所をあける）。touch：角の 1 つでも pred が真なら
+        消す（日よけのように縁をまたぐ物を半分の三角形で残さない）。spare（三角形ごとの真偽）の三角形は残す（床は clip_out で
+        縁から正しく切る）。消した数を返す"""
         P = np.asarray(self.P, float)
         I = np.asarray(self.I, np.int64).reshape(-1, 3)
         c = P[I].mean(axis=1)
         keep = np.array([not pred(*q) for q in c], bool)
+        if touch:
+            corner = np.array([pred(*q) for q in P], bool)
+            keep &= ~corner[I].any(axis=1)
+        if spare is not None:
+            keep |= spare
         I = I[keep]
         used = np.unique(I)
         remap = np.full(len(P), -1, np.int64)
@@ -120,6 +127,72 @@ class Mesh:
             setattr(self, k, [arr[i] for i in used])
         self.I = remap[I].reshape(-1).tolist()
         return int((~keep).sum())
+
+    def flat_at(self, y, tol=1e-4) -> np.ndarray:
+        """三角形ごとに、高さ y の上向きの水平の面（段の床）なら真"""
+        P = np.asarray(self.P, float)
+        I = np.asarray(self.I, np.int64).reshape(-1, 3)
+        N = np.asarray(self.N, float)[I[:, 0]]
+        return np.all(np.abs(P[I][:, :, 1] - y) < tol, axis=1) & (N[:, 1] > 0.99)
+
+    def clip_out(self, xh, zmin, sel) -> int:
+        """sel（三角形ごとの真偽）の三角形から、|x| < xh・z > zmin の内を縁で正しく切り取る（縁をまたぐ三角形は縁で切って外の部分を
+        残す。位置・UV・色・法線は内分）。重心で三角形ごと消す cut では、縁をまたぐ床の升目が丸ごと消えて、縁の外に床の無い帯が
+        残った（42 章 14.9）。切った三角形の数を返す"""
+        P = np.asarray(self.P, float)
+        I = np.asarray(self.I, np.int64).reshape(-1, 3)
+        V = np.concatenate([P, np.asarray(self.UV, float), np.asarray(self.C, float), np.asarray(self.N, float)], axis=1)
+        # 外の 3 つの区域（東・西・南）。各区域は半平面 a x + b z + c >= 0 の重なり
+        regions = (((1.0, 0.0, -xh),), ((-1.0, 0.0, -xh),), ((1.0, 0.0, xh), (-1.0, 0.0, xh), (0.0, -1.0, zmin)))
+
+        def clip(poly, a, b, c):
+            out = []
+            for i in range(len(poly)):
+                p, q = poly[i], poly[(i + 1) % len(poly)]
+                dp, dq = a * p[0] + b * p[2] + c, a * q[0] + b * q[2] + c
+                if dp >= 0.0:
+                    out.append(p)
+                if (dp >= 0.0) != (dq >= 0.0):
+                    out.append(p + (q - p) * (dp / (dp - dq)))
+            return out
+
+        keep = np.ones(len(I), bool)
+        extra: list = []
+        n_cut = 0
+        for t in np.nonzero(sel)[0]:
+            xs, zs = P[I[t], 0], P[I[t], 2]
+            if np.all(xs >= xh) or np.all(xs <= -xh) or np.all(zs <= zmin):
+                continue
+            keep[t] = False
+            n_cut += 1
+            if np.all(np.abs(xs) <= xh) and np.all(zs >= zmin):
+                continue
+            for reg in regions:
+                poly = [V[i] for i in I[t]]
+                for (a, b, c) in reg:
+                    poly = clip(poly, a, b, c)
+                    if len(poly) < 3:
+                        break
+                for k in range(1, len(poly) - 1):
+                    if np.linalg.norm(np.cross(poly[k][:3] - poly[0][:3], poly[k + 1][:3] - poly[0][:3])) > 1e-8:
+                        extra.append((poly[0], poly[k], poly[k + 1]))
+        I = I[keep]
+        used = np.unique(I)
+        remap = np.full(len(P), -1, np.int64)
+        remap[used] = np.arange(len(used))
+        for k in ('P', 'N', 'UV', 'C'):
+            arr = getattr(self, k)
+            setattr(self, k, [arr[i] for i in used])
+        self.I = remap[I].reshape(-1).tolist()
+        for tri in extra:
+            base = len(self.P)
+            for v in tri:
+                self.P.append(v[0:3].copy())
+                self.UV.append(tuple(v[3:5]))
+                self.C.append(v[5:9].copy())
+                self.N.append(v[9:12].copy())
+            self.I += [base, base + 1, base + 2]
+        return n_cut
 
     def merge(self, other: 'Mesh'):
         base = len(self.P)
@@ -924,8 +997,10 @@ def lower_district(m: Mesh, lights: Lights) -> None:
             laundry(m, (sx * 21.5, zc), (sx * 24.5, zc + rng.uniform(-1.0, 1.0)), y + rng.uniform(4.0, 5.5), rng)
 
 
-def mid_tier(m: Mesh, lights: Lights) -> None:
-    """中段（z -14.5〜16、床 6.5）：広場の輪と記念の柱・壇・天幕・東（+X）の市場の露店と給水塔・西（-X）の食堂と工房。中段の部屋の並び"""
+def mid_tier(m: Mesh, lights: Lights, well=False) -> None:
+    """中段（z -14.5〜16、床 6.5）：広場の輪と記念の柱・壇・天幕・東（+X）の市場の露店と給水塔・西（-X）の食堂と工房。中段の部屋の並び。
+    well：上段の部屋の南の階段の棟（stair_well_s）がこの段の北の端に重なる（ordo_back_up）。棟と重なる壇と 2 つの天幕を置かない
+    （天幕は棟の外の壁 |x| 9.5 の外へ 1.75 m はみ出す）"""
     rng = np.random.default_rng(65)
     y = MID
     # 床の下の擁壁（南の胸壁の面 z -14.5、y 1.5〜6.5）と胸壁
@@ -940,9 +1015,10 @@ def mid_tier(m: Mesh, lights: Lights) -> None:
     # 広場の床
     tier_floor(m, -TOWN_X, TOWN_X, MID_S, MID_N, y, 'st_pave2')
     plaza_ring(m, lights, 0.0, 2.0, y, rng)
-    box(m, -4.0, 4.0, y, y + 0.8, 7.5, 10.5, 'st_ret', rgba(WHITE), top_cell='rf_wood', faces='nsewt')      # 壇
-    tent(m, -9.0, 11.2, 4.5, 3.5, y, 2.4, 'cl_red')
-    tent(m, 9.0, 11.2, 4.5, 3.5, y, 2.4, 'cl_dark')
+    if not well:
+        box(m, -4.0, 4.0, y, y + 0.8, 7.5, 10.5, 'st_ret', rgba(WHITE), top_cell='rf_wood', faces='nsewt')      # 壇
+        tent(m, -9.0, 11.2, 4.5, 3.5, y, 2.4, 'cl_red')
+        tent(m, 9.0, 11.2, 4.5, 3.5, y, 2.4, 'cl_dark')
     # 市場（+X）：露店・天幕・給水塔
     for cx, cz in ((24.0, 6.3), (38.0, 6.3), (17.5, -2.0), (24.5, -6.5), (31.0, -2.0), (38.5, -7.0), (45.0, -1.0)):
         stall(m, lights, cx, cz, rng.uniform(3.6, 4.6), 2.6, y, rng)
@@ -1079,6 +1155,12 @@ MID_PARA_Z = -15.0       # 中段の部屋の南の胸壁の外の面（部屋�
 UPPER_PARA_Z = 33.0      # 上段の部屋の南の胸壁の外の面（部屋の z -15 = オルドの z 33。上段の部屋の z + 48）
 UP_STAIR = (11.0, 7.9)   # 上段の部屋の南の階段の棟（stair_well_s：|x| < 10.93、部屋の z -40.03 より北 = オルドの z 7.97〜）
 MID_STAIR = (11.2, -40.3)  # 中段の部屋の南の階段の棟（stair_well_s：|x| < 10.93、z -40.03 より北）
+# 段の床を切り取る所：stair_well_s の家の箱（|x| 4.5〜9.5 と奥の棟 |x| < 9.5・部屋の z -40〜-33。どれも床の 0.3 m 下から）の外の壁の
+# 0.2 m 内まで。床の縁は箱の中に隠れ、箱の外の壁ぎわ（|x| 9.5〜）と奥の棟の南（部屋の z -40 より南）には床が続く。
+# 上の 2 つ（棟の飾り・日よけまでの大きさ）で切ると、床の升目（約 4 m）が縁をまたいで丸ごと消え、壁ぎわに床の無い帯が残った
+WELL_X = 9.3
+UP_WELL_Z = 8.2          # オルドの z（部屋の z -39.8）
+MID_WELL_Z = -39.8
 FLATS = ['flat', 'flat2', 'flat', 'wood', 'flat2']   # 瓦の寄棟と屋上の庭（木）を出さない屋根
 
 
@@ -1243,9 +1325,12 @@ def build_back_mid() -> tuple[Mesh, Lights]:
     lights = Lights()
     stern_district(m, lights)
     near_mid(m, lights)
-    # 南の階段の棟（stair_well_s）の下の床を消す（踊り場の床の箱の上の面 y -5 と同じ高さで重なって、ちらついた）
+    # 南の階段の棟（stair_well_s）の下の床を切り取る（踊り場の床の箱の上の面 y -5 と同じ高さで重なって、ちらついた）。
+    # 床の升目は棟の家の箱の外の壁の 0.2 m 内で切る（棟の外の壁ぎわの床は残す）。棟の大きさ（飾り・日よけまで |x| < 10.93）に
+    # かかる物（向かいの家の日よけ）は丸ごと消す（棟の日よけとぶつかる。前は重心で消して、三角の切れ端が残った）
     sw, sz = MID_STAIR
-    m.cut(lambda x, y, z: abs(x) < sw - 0.3 and z > sz + 0.3)
+    m.cut(lambda x, y, z: abs(x) < 11.0 and z > sz + 0.3, spare=m.flat_at(LOW), touch=True)
+    m.clip_out(WELL_X, MID_WELL_Z, m.flat_at(LOW))
     return m, lights
 
 
@@ -1256,12 +1341,15 @@ def build_back_up() -> tuple[Mesh, Lights]:
     lights = Lights()
     stern_district(m, lights)
     lower_district(m, lights)
-    mid_tier(m, lights)
+    mid_tier(m, lights, well=True)
     gap_mid(m, lights)
     hull_skirt(m)
     sw, sz = UP_STAIR
     inside = lambda x, y, z: abs(x) < sw and z > sz  # noqa: E731
-    m.cut(inside)
+    # 中の段の床（y 6.5）は棟の家の箱の外の壁の 0.2 m 内で正しく切る（重心で消すと、棟の外の壁ぎわに砂漠の見える帯が残った）。
+    # 床のほかの物（広場の輪・擁壁・向かいの家の日よけ）は、棟の大きさの内にかかるものを丸ごと消す
+    m.cut(inside, spare=m.flat_at(MID), touch=True)
+    m.clip_out(WELL_X, UP_WELL_Z, m.flat_at(MID))
     lights.pts = [p for p in lights.pts if not inside(p[0], p[1], p[2])]
     return m, lights
 

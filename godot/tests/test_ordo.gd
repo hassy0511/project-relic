@@ -463,6 +463,7 @@ func test_back_town() -> void:
 			h.expect(ab.end.z < -22.9, "ordo_back_low は下段の部屋の胸壁（オルドの z -23）より向こう（北の端 %.1f）" % ab.end.z)
 		if part == "town/ordo_back_mid":
 			h.expect(ab.end.z < -14.6, "ordo_back_mid は中段の部屋の胸壁の擁壁（z -15）の 0.3 m 奥まで（北の端 %.1f）" % ab.end.z)
+			_well_floor(bm.mesh.surface_get_arrays(0), 1.5, 0.0, "ordo_back_mid")
 		var cols: PackedColorArray = arr[Mesh.ARRAY_COLOR]
 		var lit := 0
 		for c in cols:
@@ -491,6 +492,42 @@ func test_back_town() -> void:
 		o.free()
 
 
+## 南の階段の棟（stair_well_s。家の箱は |x| 4.5〜9.5、奥の棟は部屋の z -40〜-33）のまわりの背の町の床（高さ y、部屋の z + dz = オルドの z）：
+## 棟の外の壁ぎわ（|x| 9.6〜11.4）と奥の棟の南にはすき間なく床があり、踊り場の下（|x| < 4）には床が無い（踊り場の床とちらつかない）
+func _well_floor(arr: Array, y: float, dz: float, label: String) -> void:
+	var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+	var flat := PackedVector2Array()
+	for i in range(0, idx.size(), 3):
+		var a := v[idx[i]]
+		var b := v[idx[i + 1]]
+		var c := v[idx[i + 2]]
+		if absf(a.y - y) < 0.02 and absf(b.y - y) < 0.02 and absf(c.y - y) < 0.02:
+			flat.append_array([Vector2(a.x, a.z), Vector2(b.x, b.z), Vector2(c.x, c.z)])
+	var covers := func(x: float, z: float) -> bool:
+		var p := Vector2(x, z)
+		for i in range(0, flat.size(), 3):
+			if Geometry2D.point_is_inside_triangle(p, flat[i], flat[i + 1], flat[i + 2]):
+				return true
+		return false
+	var holes: Array = []
+	for x in [9.6, 10.0, 10.5, 10.95, 11.3]:
+		for z in [-38.0, -33.0, -28.0, -23.0, -18.0, -15.5]:
+			for sx in [-1.0, 1.0]:
+				if not covers.call(sx * x, z + dz):
+					holes.append(Vector2(sx * x, z))
+	for x in [0.0, 3.0, 6.0, 9.0]:
+		if not covers.call(x, -40.3 + dz):
+			holes.append(Vector2(x, -40.3))
+	h.expect(holes.is_empty(), "%s：棟の外の壁ぎわと奥の棟の南に床がある（床の無い所 %s）" % [label, str(holes.slice(0, 6))])
+	var under: Array = []
+	for z in [-31.0, -24.0, -17.0]:
+		for x in [-3.0, 0.0, 3.0]:
+			if covers.call(x, z + dz):
+				under.append(Vector2(x, z))
+	h.expect(under.is_empty(), "%s：踊り場の下には床が無い（%s）" % [label, str(under)])
+
+
 ## オルドの体なしの背の上の町（BackTownView。上段の部屋の "back_town"、部品 town/ordo_back_up）：帳の部品 1 つ（影なし・帳のシェーダー）。
 ## 上段の部屋の南の胸壁の外の面（オルドの z 33）より向こうだけ（展望台の北の地平線と章末のカメラの前に何も出さない。残課題 O1）。
 ## 胸壁から 7 m の内の屋根・物は、胸壁の上の面（オルドの y 12.7）より 2.5 m 以上低い（42 章 14.6）。灯は OrdoView と同じ（雰囲気の明るさを掛ける）
@@ -516,6 +553,7 @@ func test_back_town_view() -> void:
 		if p.z > 26.0 and absf(p.x) >= 11.0:
 			high = maxf(high, p.y)
 	h.expect(high <= 12.7 - 2.5, "胸壁から 7 m の内は胸壁の上の面より 2.5 m 以上低い（いちばん高い所 %.2f）" % high)
+	_well_floor(arr, 6.5, 48.0, "ordo_back_up")
 	b.set_mood("night")
 	h.expect(is_zero_approx(float(mat.get_shader_parameter("power"))), "既定は消えている")
 	b.set_back_lights(1.0, 0.2, 0.4)
