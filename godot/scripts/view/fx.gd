@@ -750,6 +750,10 @@ func _blade(game: GameSim, p: Player) -> void:
 
 
 ## 振り抜きの帯（blade_combo：各段 0→0.55→0、3 段目 0.85、斬線 1.8／2.2／3.1 m。blade_air：0→0.75→0.15→0、0.28 秒）
+## swing は帯が伸びる向き（刃の動く向き）。3 段斬りは動作の刃に合わせる（2026-11-05 に 1 段目と 2 段目の動作を入れ替えた）：
+## 1 段目 左上 → 右、2 段目 右上 → 左、3 段目 上 → 右前下（叩きつけ。帯の先が床の高さで止まる）。
+## 帯の半径（1.8／2.2／3.1 m）と明るさは段ごとの盛り上がり（段が進むほど大きく）で、動作の向きではないので段の番号のまま。
+## 当たり判定の届く距離はどの段も tuning の sword.range（2.2 m）
 func _slash(p: Player, move: String) -> void:
 	var f := U.yaw_to_dir(p.yaw)
 	var r := Vector3(-f.z, 0, f.x)
@@ -758,19 +762,19 @@ func _slash(p: Player, move: String) -> void:
 	var radius := 1.8
 	var b := 0.55
 	var mid := (f + up * 0.1).normalized()
-	var swing := -r + up * 0.55
+	var swing := r - up * 0.55
 	var life := 0.2
 	var dust := p.grounded
 	match move:
 		"combo2":
 			radius = 2.2
-			swing = r + up * 0.65
+			swing = -r - up * 0.45
 		"combo3":
 			radius = 3.1
 			b = 0.85
 			c = p.pos + Vector3(0, 0.55, 0)
-			mid = (f + up * 0.35).normalized()
-			swing = up
+			mid = (f + up * 0.55).normalized()
+			swing = -up + r * 0.3
 			life = 0.28
 		"air":
 			radius = 2.5
