@@ -440,6 +440,40 @@ func test_r16_lift_top_no_gap() -> void:
 				h.free_game(g)
 
 
+## 動く足場は敵の体もよける：乗っていない敵の体に重なる所へは動かず（敵がどくまで待つ）、乗っている敵は運ぶ。
+## 前はハルの体だけを見ていたので、再始動の後に縦坑 r16 で上り下りするリフトが、底にいる敵を床の下へ押し込み
+## （突撃型は床下 1.1 m を動き回り、当たりはするが狙いにくく、r16 の待ち伏せが倒しきれなくなった。盾型は世界の下へ落ちた）、縁にいた敵を持ち上げて落とした
+func test_mover_spares_enemies() -> void:
+	var main: Array = GameSim.CH1_ORDER.filter(func(f): return f != "ch1.shortcut_open")
+	var flags: Array = main.slice(0, main.find("ch1.ordo_restarted") + 1) + ["ch1.r16.cleared"]
+	for c in [["charger", Vector3(0, 0, 0.4)], ["sentry", Vector3(-1.8, 0, 2.0)], ["shield", Vector3(1.0, 0, -1.2)], ["mini", Vector3(2.3, 0, -1.8)]]:
+		var g := _game("ch1.r16", flags)
+		await h.settle()
+		g.player.teleport(Vector3(0, 20.0, -4.0), 0.0)
+		var lift: Props.Mover = g.movers[0]
+		var e0 := g.add_enemy(c[0], c[1], 0.0)
+		e0.passive = true
+		await h.settle()
+		var low := [100.0]
+		var gap := [100.0]
+		await h.run(g, TestHelpers.seconds(12.0), func(_i):
+			low[0] = minf(low[0], e0.pos.y)
+			gap[0] = minf(gap[0], lift.pos.y - (e0.pos.y + e0.body_size().y))
+			return {})
+		h.expect(low[0] > -0.05, "リフトの下の敵は床の下へ押し込まれない（%s：いちばん低い y=%.2f）" % [c[0], low[0]])
+		h.expect(gap[0] > 0.0 and lift.t < 1.0, "リフトは敵の頭の上で止まって待つ（%s：すき間 %.2f m、t=%.2f）" % [c[0], gap[0], lift.t])
+		# 敵がいなくなるとリフトは底まで下り、そこで乗った敵は上まで運ばれる
+		e0.alive = false
+		g.phys.remove(e0.body)
+		h.expect(await h.run_until(g, TestHelpers.seconds(8.0), {}, func(): return lift.t >= 1.0), "敵がどくとリフトは底まで下りる（%s：t=%.2f）" % [c[0], lift.t])
+		var rider := g.add_enemy(c[0], Vector3(0, 0, 0.4), 0.0)
+		rider.passive = true
+		await h.settle()
+		var top := await h.run_until(g, TestHelpers.seconds(12.0), {}, func(): return lift.t <= 0.0)
+		h.expect(top and rider.pos.y > 19.8 and lift.carries(rider.pos), "底でリフトに乗った敵は、上まで運ばれて乗ったまま（%s：y=%.2f）" % [c[0], rider.pos.y])
+		h.free_game(g)
+
+
 ## 崩落床 r05 の崩落の自動保存：最後に書く保存は、B2 に落ちたフラグ（ch1.fell_to_b2）と新しい目的を持つ。
 ## 前は r06 に着いたときだけ保存し、フラグと目的はその約 3 秒後に付いたので、その間にアプリが終わると古い目的のまま再開した
 func test_collapse_autosave_has_flag() -> void:

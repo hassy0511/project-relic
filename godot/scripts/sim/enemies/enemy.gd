@@ -53,6 +53,17 @@ func _init(g, spawn: Vector3, start_yaw: float, r: float, h: float, hp_max: floa
 	g.phys.set_owner_of(body, self)
 
 
+## 物理の体（筒）の半径と高さ（x・y）。CapsuleShape3D は半径を高さの半分までに詰めるので、radius より小さいことがある
+## （突撃型 0.70→0.60・小型 0.25→0.15 など）。当たり・間合いは radius、足場がよける・運ぶのはこちら
+func body_size() -> Vector2:
+	if body != null and is_instance_valid(body):
+		for c in body.get_children():
+			if c is CollisionShape3D and (c as CollisionShape3D).shape is CapsuleShape3D:
+				var cap := (c as CollisionShape3D).shape as CapsuleShape3D
+				return Vector2(cap.radius, cap.height)
+	return Vector2(minf(radius, height * 0.5), height)
+
+
 func center() -> Vector3:
 	return Vector3(pos.x, pos.y + height * 0.5, pos.z)
 

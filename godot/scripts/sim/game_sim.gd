@@ -904,15 +904,35 @@ func on_mover(feet: Vector3) -> bool:
 const MOVER_CLEAR := 0.05
 
 
-## 足場を pos（底の中心）に置くと、ハルの体（半径 Player.RADIUS・高さ Player.HEIGHT の筒とみなす）に MOVER_CLEAR より近づくか
-func _mover_overlaps_player(m: Props.Mover, pos: Vector3) -> bool:
-	var p := player.pos
-	var ex := maxf(absf(p.x - pos.x) - m.size.x * 0.5, 0.0)
-	var ez := maxf(absf(p.z - pos.z) - m.size.z * 0.5, 0.0)
-	var r := Player.RADIUS + MOVER_CLEAR
-	if ex * ex + ez * ez >= r * r:
+## 足場を pos（底の中心）に置くと、足元 feet・半径 r・高さ ht の筒とみなした体に MOVER_CLEAR より近づくか
+func _mover_overlaps(m: Props.Mover, pos: Vector3, feet: Vector3, r: float, ht: float) -> bool:
+	var ex := maxf(absf(feet.x - pos.x) - m.size.x * 0.5, 0.0)
+	var ez := maxf(absf(feet.z - pos.z) - m.size.z * 0.5, 0.0)
+	var rr := r + MOVER_CLEAR
+	if ex * ex + ez * ez >= rr * rr:
 		return false
-	return pos.y < p.y + Player.HEIGHT + MOVER_CLEAR and pos.y + m.size.y > p.y + 0.02
+	return pos.y < feet.y + ht + MOVER_CLEAR and pos.y + m.size.y > feet.y + 0.02
+
+
+## ハルの体（半径 Player.RADIUS・高さ Player.HEIGHT）に重なるか
+func _mover_overlaps_player(m: Props.Mover, pos: Vector3) -> bool:
+	return _mover_overlaps(m, pos, player.pos, Player.RADIUS, Player.HEIGHT)
+
+
+## 足場に乗っている敵と、乗らずに足場の通り道にいる敵。体は物理の筒の大きさで見る（Enemy.body_size）
+func _mover_enemies(m: Props.Mover, newpos: Vector3) -> Dictionary:
+	var riders: Array = []
+	var blocked := false
+	for e in enemies:
+		if not e.alive or e.body == null or not is_instance_valid(e.body):
+			continue
+		if m.carries(e.pos):
+			riders.append(e)
+			continue
+		var bs: Vector2 = e.body_size()
+		if _mover_overlaps(m, newpos, e.pos, bs.x, bs.y):
+			blocked = true
+	return {"riders": riders, "blocked": blocked}
 
 
 func _update_movers(dt: float) -> void:
@@ -945,9 +965,19 @@ func _update_movers(dt: float) -> void:
 			# 下りてきて体を床の中へ押し込み、床の板の中に挟まって動けなくなった（2026-10-15）
 			m.moving = false
 			continue
+		# 敵も同じ：乗っていない敵の体に重なる所へは動かず、乗っている敵は運ぶ。前は敵を見ていなかったので、
+		# 縦坑 r16 のひとりでに上り下りするリフトが、下にいる突撃型を床の下へ押し込み（床下を動き回って当たりはするが倒しにくい）、
+		# 縁にいた敵を持ち上げて落とした（2026-11-05）
+		var es := _mover_enemies(m, newpos)
+		if es.blocked:
+			m.moving = false
+			continue
 		if riding:
 			phys.move_character(player.body, delta, Phys.TERRAIN | Phys.BREAKABLE | Phys.ENEMY, delta.y <= 0.0)
 			player.pos = phys.feet_of(player.body)
+		for e in es.riders:
+			phys.move_character(e.body, delta, e._move_filter(), delta.y <= 0.0)
+			e.pos = phys.feet_of(e.body)
 		if not m.moving:
 			m.moving = true
 			emit_event({"type": "sfx", "id": "lift", "at": newpos})
