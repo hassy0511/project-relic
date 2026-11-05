@@ -670,7 +670,8 @@ func _push_player_out() -> void:
 	if off.length() < 0.01:
 		off = Vector3(-forward().z, 0.0, forward().x)
 	var push := off.normalized() * (need - off.length())
-	game.phys.move_character(p.body, push, Phys.TERRAIN)
+	# 宙にいるハルを押し出すときは、段差の乗り越え・地面への吸着をしない（縁の角で持ち上げない）
+	game.phys.move_character(p.body, push, Phys.TERRAIN, p.grounded)
 	p.pos = game.phys.feet_of(p.body)
 
 
