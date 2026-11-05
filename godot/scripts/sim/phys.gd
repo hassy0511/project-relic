@@ -144,12 +144,12 @@ func move_character(body: CharacterBody3D, delta: Vector3, mask: int, on_ground:
 ## 体の丸い底が低い段（約 0.1〜0.25 m）の角に当たった：法線が上を向いているが床とみなすより傾いている（y が 0.3〜0.71）。
 ## 壁とみなす向き（y が 0.3 未満）と同じく、段差の自動乗り越えを試す。前はどちらにもならず、角に押し当てたまま止まった（N13、2026-11-05）。
 ## 45 度より急な坂も同じ向きになるが、乗り越えは下ろした先が床（45 度まで）のときだけ成功するので、急な坂は今までどおり上れない。
-## 敵の体の丸い頭には乗らない
+## 試すのは地形・壊せる物の角だけ（キャラクターの体の丸い頭・肩には乗らない）
 func _rounded_edge(col: KinematicCollision3D, n: Vector3) -> bool:
 	if n.y < 0.3 or n.y >= FLOOR_MIN_Y:
 		return false
 	var o := col.get_collider() as CollisionObject3D
-	return o != null and (o.collision_layer & ENEMY) == 0
+	return o != null and (o.collision_layer & (ENEMY | PLAYER)) == 0
 
 
 ## 段差の自動乗り越え：上へ持ち上げ、前へ進め、下ろして床に乗れたら成功。
