@@ -7,8 +7,8 @@
 何度流しても同じ結果になる（dress と solid の箱は毎回作り直す）。部品の寸法と原点：tools/blender/kit/town_parts.py・town_sets.py・town_terrace.py。
 絵：W2-05 town_mood_day.png（中段の広場）・town_layout.png・town_mood_emergency.png（停止の夜）。
 
-  python3 tools/dress_town.py            キットを付ける部屋（ROOMS）を全部
-  python3 tools/dress_town.py mid        1 部屋だけ
+  .venv-blender/bin/python tools/dress_town.py            キットを付ける部屋（ROOMS）を全部
+  .venv-blender/bin/python tools/dress_town.py mid        1 部屋だけ
 """
 import json
 import os

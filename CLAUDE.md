@@ -7,5 +7,6 @@
   ページ版（https://hassy0511.github.io/project-relic/dashboard/）は `tools/build_dashboard.py` が push のたびに作る。詳しい経過は `docs/progress.md` に 1 項目足す。
   3D モデルを足したら、確認ページ（https://hassy0511.github.io/project-relic/models/、`tools/model_viewer/index.html` の `MODELS`）に 1 行足し、ダッシュボード 4 章の「見る」にリンクを付ける。
 - 3D 化は `.claude/skills/model-from-art/SKILL.md` に従う（時間の区切り、担当のモデルの使い分け、こまめなコミット）。
+- ステージ（遺構・町の部屋の見た目を部品で組む）は `.claude/skills/stage-from-parts/SKILL.md` に従う。
 - 発注書は `docs/art_orders/`。Codex に貼る文は `docs/art_orders/codex_prompts.md`。
 - 文書は日本語。コミットのメッセージは英語で、末尾に決まった 2 行（Co-Authored-By・Claude-Session）を付ける。

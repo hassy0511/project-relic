@@ -6,7 +6,7 @@
 
 できるもの：godot/assets/kit/ruins/<部品>.glb、確認ページ用の一覧 tools/model_viewer/kit_ruins_b2.glb など（build/kit/parts_ruins.json に三角形の数）。
 部品の一覧の画像（Godot で、キットの材質を付けて描く）：
-  tools/godot.sh import && tools/godot.sh shot --resolution 1800x1100 --script $PWD/tools/blender/kit/godot_kit_review.gd -- build/kit/review_ruins_b2.png ruins_b2
+  mkdir -p build/kit && tools/godot.sh import && tools/godot.sh shot --resolution 1800x1100 --script $PWD/tools/blender/kit/godot_kit_review.gd -- $PWD/build/kit/review_ruins_b2.png ruins_b2
 置き方（原点・向き）は各キットのファイル（ruins_b2.py・ruins_b3.py・ruins_b4.py・ruins_common.py）の冒頭と、docs/design/43_遺構の見た目.md。
 """
 from __future__ import annotations

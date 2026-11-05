@@ -185,7 +185,7 @@ description: Codex が描いた部品の絵（2 m の升目の部品組・表面
 - **決まりの距離**（`dress_solid.check`、だめなら書かずに止まる）：出口・トリガーの箱から 0.1 m、目印・チェックポイント・敵の出る所から 0.6 m、調べる物・拾う物・住人から 0.5 m。
 - **段差**は 0.17 m 以下か 0.25〜0.35 m（約 0.18〜0.24 m は歩いて上れない）。穴の底は跳んで出られる深さ（1.8 m まで）か奈落（y −30）より下。
 - **詰み探し**：置くたびに `tools/godot.sh run --script res://tests/scan_traps.gd -- ch1.r02`（部屋ごと。`--json=`・`--verbose`）。形だけの調べ（`godot/tests/reach_scan.gd`）で、詰み・限界の跳びでしか出られない所・宙づりの候補を出す。候補は `tests/test_traps.gd` が実際のゲームで体を置いて確かめる。新しい部屋・段階は `ReachScan.CH1_STATES` に足す。
-  - **テストの名前で選ぶときに注意**：`tools/godot.sh test` の引数は**関数の名前の一部**で、ファイルの名前ではない。`tools/godot.sh test test_traps` は 1 本も走らない（「テスト 0 本」で成功に見える。42 の 14.3.2 にこの書き方が残っている）。
+  - **テストの名前で選ぶときに注意**：`tools/godot.sh test` の引数は**関数の名前の一部**で、ファイルの名前ではない。`tools/godot.sh test test_traps` は 1 本も走らない（「テスト 0 本」で成功に見える。42 の 14.3.2 は 2026-11-05 に `traps` に直した）。
     `traps`（全部屋の詰みと既知の詰み）・`no_hang`（宙づり 7 本）・`dress`（飾りの当たり判定）・`kit`・`motion`・`power`・`steps`（オルドの足音の揺れ）で選び、最後は引数なしで全部を流す。
 - **テストの部屋の一覧に足す**：飾りに当たり判定を付けた部屋は、`tests/test_kit.gd` の `DRESSED`（遺構）か `DRESSED_TOWN`（町）に、箱・樽を必ず置く部屋なら `PROP_ROOMS` にも足す。
   足さないと `test_dress_solid_props` がその部屋の当たり判定の箱・決まりの距離・乗れる棚を見ないまま、全部のテストが通る（遺構の展開では r04〜r20 を足した。43 の 7 章）。
@@ -203,7 +203,7 @@ description: Codex が描いた部品の絵（2 m の升目の部品組・表面
 | キットの一覧 | `--demo` は使わず `mkdir -p build/kit && tools/godot.sh shot --resolution 1800x1100 --script $PWD/tools/blender/kit/godot_kit_review.gd -- $PWD/build/kit/review_ruins_b2.png ruins_b2`（ゲームと同じ材質）。町は `town.py --review`（Cycles）、確認ページの `kit_*` |
 
 - **出力の置き場所**：`tools/godot.sh` は `--path godot` で起動し、Godot はそのフォルダを今いる所にする。だから `--demo=build/<出力>` のような相対の道は `godot/build/<出力>` に入る（`--demo` はフォルダを作る）。
-  キットの一覧は出力のフォルダを作らないので、相対の道（`build/kit/…`）だと `godot/build/kit/` が無くて書けない（「Can't save PNG」）。上のように、先にフォルダを作って `$PWD` からの道で渡す（42 の 14.4 と `build.py`・`ruins_build.py` の冒頭の書き方は相対の道のまま）。
+  キットの一覧は出力のフォルダを作らないので、相対の道（`build/kit/…`）だと `godot/build/kit/` が無くて書けない（「Can't save PNG」）。上のように、先にフォルダを作って `$PWD` からの道で渡す（42 の 14.4 と `build.py`・`ruins_build.py` の冒頭も 2026-11-05 にこの書き方に直した）。
 - 向きの一覧：`tools/audit_views.json`（中段・r02・r03）、`audit_views_town_rooms.json`（61 向き）・`audit_views_town_rooms_walk.json`（箱・住人・出口へ歩く）、`audit_views_ruins_rollout.json`（52 向き）、`audit_views_props.json`・`audit_views_solid.json`（当たり判定）、`audit_views_props_motion.json`、`audit_views_lookout.json`・`audit_views_ordo.json`。
   項目：必ず `"name"`・`"room"`（`ch1.r02` など）・`"spawn"`（入る所）。そこにプレイヤーのカメラ `"at"`・`"look"`・`"pitch"` か自由なカメラ `"eye"`・`"target"`、`"wait"`、`"walk": true`（歩いて当たって止まった所を撮る）、`"jump": n`、`"back_lights"`。部屋が変わると暗転するので、一覧は部屋ごとにまとめる。
   `"walk"`・`"jump"` の向きがあるのは `audit_views_solid.json`（r02・r03・中段）と `audit_views_town_rooms_walk.json`（町の部屋。町長の家は無し）だけで、遺構の r04〜r20 には無い。ほかの部屋は、当たり判定のある飾りのそばへ歩く・跳ぶ向きを足してから撮る（13 章）。
