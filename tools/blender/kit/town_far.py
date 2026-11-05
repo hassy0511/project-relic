@@ -1243,6 +1243,9 @@ def build_back_mid() -> tuple[Mesh, Lights]:
     lights = Lights()
     stern_district(m, lights)
     near_mid(m, lights)
+    # 南の階段の棟（stair_well_s）の下の床を消す（踊り場の床の箱の上の面 y -5 と同じ高さで重なって、ちらついた）
+    sw, sz = MID_STAIR
+    m.cut(lambda x, y, z: abs(x) < sw - 0.3 and z > sz + 0.3)
     return m, lights
 
 
