@@ -440,6 +440,27 @@ func test_r16_lift_top_no_gap() -> void:
 				h.free_game(g)
 
 
+## 縦坑 r16 の上の足場の縁（リフトの 2 cm 手前）に立っても、再始動の前のリフト（乗ると下りる ride）は動かない（乗ってから下りる）。
+## 乗っているかの見方（足場の外 0.15 m まで）だけで動かすと、縁に立つと 0.4 m 下りては戻るのを繰り返した
+func test_r16_ride_lift_waits_at_ledge_edge() -> void:
+	var main: Array = GameSim.CH1_ORDER.filter(func(f): return f != "ch1.shortcut_open")
+	var g := _game("ch1.r16", main.slice(0, main.find("ch1.drive_powered") + 1))
+	await h.settle()
+	var lift: Props.Mover = g.movers[0]
+	var edge: float = lift.pos.z - lift.size.z * 0.5
+	var moved := [0.0, 0]
+	for z in [edge - 0.03, edge - 0.08, edge - 0.14]:
+		g.player.teleport(Vector3(0.5, 20.02, z), 0.0)
+		await h.run(g, 60, func(_i):
+			moved[0] = maxf(moved[0], lift.t)
+			for e in g.drain_events():
+				if e.type == "sfx" and e.id == "lift":
+					moved[1] += 1
+			return {})
+	h.expect(moved[0] == 0.0 and moved[1] == 0, "縁に立っている間、リフトは上で止まったまま（いちばん下がった t=%.3f、動き出した音 %d 回）" % [moved[0], moved[1]])
+	h.free_game(g)
+
+
 ## 看板も "when"・"unless" で出し分ける：縦坑 r16 のリフトの看板は、再始動の前は「乗ると降りる」、後は「上り下りしている」の 1 枚だけ。
 ## 前は看板の描き方だけが when・unless を見ず、2 枚が同じ所に重なって読めなかった（PC・スマホとも）
 func test_r16_signs_one_at_a_time() -> void:

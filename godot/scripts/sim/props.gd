@@ -255,9 +255,9 @@ class Mover:
 	func at_t(v: float) -> Vector3:
 		return from.lerp(to, v)
 
-	## 足場の上（底面の中心 pos、上面の高さ pos.y + size.y）に乗っているか
-	func carries(feet: Vector3) -> bool:
-		return absf(feet.x - pos.x) <= size.x * 0.5 + 0.15 and absf(feet.z - pos.z) <= size.z * 0.5 + 0.15 \
+	## 足場の上（底面の中心 pos、上面の高さ pos.y + size.y）に乗っているか（縁の外 margin m まで。既定 0.15 m：縁に掛かった体も運ぶ）
+	func carries(feet: Vector3, margin: float = 0.15) -> bool:
+		return absf(feet.x - pos.x) <= size.x * 0.5 + margin and absf(feet.z - pos.z) <= size.z * 0.5 + margin \
 			and feet.y >= pos.y + size.y - 0.2 and feet.y <= pos.y + size.y + 0.4
 
 

@@ -947,7 +947,10 @@ func _update_movers(dt: float) -> void:
 			"toggle":
 				target_t = 1.0 if run else 0.0
 			"ride":
-				target_t = 1.0 if run and riding else 0.0
+				# 動き出すのは足元が足場の上（縁の外の余裕なし）に来てから。動いている間は縁に掛かっていても運ぶ。
+				# 前は縁の外 0.15 m まで乗ったとみなして動き出したので、縦坑 r16 の上の足場の縁（リフトの 2 cm 手前）に立つと、
+				# リフトが 0.4 m 下りては戻るのを繰り返した
+				target_t = 1.0 if run and riding and (m.t > 0.0 or m.carries(player.pos, 0.0)) else 0.0
 			"pingpong":
 				if m.hold > 0.0:
 					m.hold -= dt
