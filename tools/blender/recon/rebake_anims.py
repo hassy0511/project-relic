@@ -2,6 +2,11 @@
 
   .venv-blender/bin/python tools/blender/recon/rebake_anims.py [--out godot/assets/models/haru_r.glb]
       [--base <GLB のパス か git の版>] [--only combo1,combo2,combo3]
+  ほかの人物（recon で作った NPC）：動作の組と足の裏の接地点を chars/<id>.json の rig_args と同じにする
+  .venv-blender/bin/python tools/blender/recon/rebake_anims.py --out godot/assets/models/junker.glb --clips child \
+      --foot-contacts=-0.17,0.13,-0.09
+  （ハルの外は --base を省くと HEAD の GLB が元。形はバイトのまま残すので、何度焼き直しても頂点は増えない。
+   杖の老人（--clips elder）は骨付けの段の手の測りが要るので、ここでは焼けない）
 
 動作を直すたびに絵からの完全な再構築（build_char.py、約 40 分、build/recon が要る）をしなくてよいための入口。
 動作の定義は従来どおり tools/blender/models/humanoid_anims.py（完全な再構築でも同じ動作になる）。
@@ -40,10 +45,10 @@ BASE_REV = '06ea887'
 
 
 def base_glb(base: str | None, out_rel: str) -> str:
-    """--base がファイルならそれ、無ければ git の版 BASE_REV の GLB を一時ファイルに出す"""
+    """--base がファイルならそれ、無ければ git の版（ハルは BASE_REV、ほかは HEAD）の GLB を一時ファイルに出す"""
     if base and os.path.exists(base):
         return os.path.abspath(base)
-    rev = base or BASE_REV
+    rev = base or (BASE_REV if out_rel == DEFAULT_OUT else 'HEAD')
     fd, path = tempfile.mkstemp(suffix='.glb', prefix='rebake_base_')
     with os.fdopen(fd, 'wb') as f:
         subprocess.run(['git', 'show', f'{rev}:{out_rel}'], cwd=REPO, stdout=f, check=True)
@@ -67,6 +72,10 @@ def main() -> None:
     ap.add_argument('--out', default=DEFAULT_OUT)
     ap.add_argument('--base', default=None, help='元の GLB（ファイル か git の版。既定は BASE_REV の --out）')
     ap.add_argument('--only', default=None, help='新しくする動作の名前（, 区切り）。省略時は全部')
+    ap.add_argument('--clips', default='standard', choices=('standard', 'child'),
+                    help='動作の組（ai_character.py --clips と同じ。standard = humanoid_anims、child = child_anims）')
+    ap.add_argument('--foot-contacts', default=None,
+                    help='足の裏の接地点「つま先 y,かかと y,下 z」（ai_character.py --foot-contacts と同じ。省略時はハルの値）')
     args = ap.parse_args([a for a in sys.argv[1:] if a != '--'])
     out_rel = os.path.relpath(os.path.abspath(args.out), REPO)
     src = base_glb(args.base, out_rel)
@@ -75,7 +84,15 @@ def main() -> None:
     bpy.ops.import_scene.gltf(filepath=src)
     summary('元')
     arm = next(o for o in bpy.data.objects if o.type == 'ARMATURE')
-    clips = A.all_clips()
+    if args.clips == 'child':
+        from models import child_anims
+        clips = child_anims.all_clips()
+    else:
+        clips = A.all_clips()
+    contacts = None
+    if args.foot_contacts:
+        ty, hy, dz = (float(v) for v in args.foot_contacts.split(','))
+        contacts = ((0.0, ty, dz), (0.0, hy, dz))
     only = set(args.only.split(',')) if args.only else None
     if only:
         clips = [c for c in clips if c.name in only]
@@ -93,7 +110,7 @@ def main() -> None:
     for a in list(bpy.data.actions):
         if a.name in names:
             bpy.data.actions.remove(a)
-    H.bake_clips(arm, clips)
+    H.bake_clips(arm, clips, contacts)
     bpy.ops.object.select_all(action='SELECT')
     out = os.path.abspath(args.out)
     fd, baked = tempfile.mkstemp(suffix='.glb', prefix='rebake_anims_')

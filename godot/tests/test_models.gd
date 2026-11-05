@@ -25,7 +25,7 @@ const GROUPS := ["feet", "body", "held"]
 ## 組は feet（足）・body（足と持ち物の外の体）・held（持ち物）・float（立つ動作で両足とも浮く）。
 ## 後ろの注は glb_audit.py（全部の頂点・皮の変形）で測った値と、こま（60 こま/秒）。直したら消す。
 ## glb_audit.py だけが見つけるもの（目印の点では 1.5 cm に届かない・骨の子の硬い物体）：
-## yana/charge・combo1〜3 の足 1.6 cm、junker/run の足 1.7 cm、haru_bs/dead の銃（骨の子の物体）13.5 cm。
+## yana/charge・combo1〜3 の足 1.6 cm、haru_bs/dead の銃（骨の子の物体）13.5 cm。
 const KNOWN := {
 	"burton/air/feet": 5.7,      # glb_audit 5.7 cm（foot.R・こま 0）
 	"burton/dead/feet": 48.2,    # glb_audit 48.2 cm（foot.R・こま 38）
@@ -49,10 +49,6 @@ const KNOWN := {
 	"haru_bs/run/feet": 6.0,     # glb_audit 6.0 cm（foot.L・こま 5）
 	"haru_proxy/dead/feet": 25.7,  # glb_audit 25.7 cm（foot.R・こま 28）
 	"haru_proxy/dead/body": 13.7,  # glb_audit 13.7 cm（legs・こま 28）
-	"junker/cower/feet": 1.9,    # glb_audit 1.9 cm（foot.L・こま 72）
-	"junker/walk/feet": 2.4,     # glb_audit 3.0 cm（foot.L・こま 28）
-	"tf_tobi/cower/feet": 2.7,   # glb_audit 2.7 cm（foot.L・こま 0）
-	"tf_tobi/run/feet": 1.8,     # glb_audit 1.8 cm（foot.L・こま 13）
 	"yana/air/feet": 6.4,        # glb_audit 6.4 cm（foot.R・こま 0）
 	"yana/dead/feet": 49.8,      # glb_audit 49.8 cm（foot.R・こま 38）
 	"yana/dead/body": 30.6,      # glb_audit 32.3 cm（legs・こま 38）

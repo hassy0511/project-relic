@@ -245,6 +245,10 @@ def _floor_pass(arm: bpy.types.Object, clip: Clip, first: int, last: int, last_s
         scene.frame_set(f)
         zs.append(root.location.z)
         lows.append(_lowest_z(objs) if objs else 0.0)
+    # メッシュの z は世界（骨の物体の大きさ込み）、root の位置は骨の物体の中の値。焼き直しで読み込んだ人物は骨の物体が
+    # 拡大してある（身長を合わせた NPC）ので、その割合で割る
+    sz = arm.matrix_world.to_scale().z or 1.0
+    lows = [lw / sz for lw in lows]
     rest = -lows[-1] if clip.floor == 'rest' else None
     raised = 0.0
     for i, f in enumerate(range(first, last + 1)):
