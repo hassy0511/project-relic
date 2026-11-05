@@ -148,7 +148,8 @@ class Clip:
     ground: bool = False
     # 床の下へ行かない（書き出しの標本ごとに、体のメッシュの一番低い頂点を測って root を上げる。glb_audit.py の床の決まりと同じ物を見る）。
     # 'above'：沈むこまだけ上げる（足を下へ向けた跳び・落ちの姿勢など）。
-    # 'rest'：さらに最後のこまで一番低い頂点をちょうど床に置く（倒れて床に寝る。最後のこまの区間で少しずつ寄せる）
+    # 'contact'：どのこまでも一番低い頂点をちょうど床に置く（床へ倒れる動作。立つ・膝をつく・手をつく・寝るのどのこまでも
+    # 体のどこかが床に着いていて、浮きも沈みも無い。一番低い所が足 → 膝 → 手 → 胸と替わっても高さは続いて動く）
     floor: str = ''
     # root の前への移動（こま, m。正で本人の前へ。こまの間は直線）。前へ倒れて伸びるとき、膝と足を床の同じ所に残すため
     slide: list[tuple[int, float]] = field(default_factory=list)
@@ -232,9 +233,8 @@ def _lerp_track(keys: list[tuple[float, float]], f: float) -> float:
     return keys[-1][1]
 
 
-def _floor_pass(arm: bpy.types.Object, clip: Clip, first: int, last: int, last_seg: int, slide: list) -> dict:
-    """書き出しの標本ごとに root を置き直す：前への移動（slide）と、床の下へ行かない高さ（floor）。
-    last_seg：最後のこまの区間の始め（'rest' で最後のこまの高さへ寄せ始めるこま）"""
+def _floor_pass(arm: bpy.types.Object, clip: Clip, first: int, last: int, slide: list) -> dict:
+    """書き出しの標本ごとに root を置き直す：前への移動（slide）と、床の下へ行かない高さ（floor）"""
     scene = bpy.context.scene
     root = arm.pose.bones['root']
     objs = _floor_objects(arm) if clip.floor else []
@@ -249,18 +249,14 @@ def _floor_pass(arm: bpy.types.Object, clip: Clip, first: int, last: int, last_s
     # 拡大してある（身長を合わせた NPC）ので、その割合で割る
     sz = arm.matrix_world.to_scale().z or 1.0
     lows = [lw / sz for lw in lows]
-    rest = -lows[-1] if clip.floor == 'rest' else None
-    raised = 0.0
+    adds = []
     for i, f in enumerate(range(first, last + 1)):
-        add = max(0.0, -lows[i])
-        if rest is not None and f >= last_seg:
-            u = (f - last_seg) / max(1, last - last_seg)
-            add = max(add, rest * u) if f < last else rest
-        raised = max(raised, add)
+        add = -lows[i] if clip.floor == 'contact' else max(0.0, -lows[i])
+        adds.append(add)
         root.location = (0.0, -_lerp_track(slide, f), zs[i] + add)
         root.keyframe_insert('location', frame=f)
     root.location = (0.0, 0.0, 0.0)
-    return {'low_before': min(lows) if lows else 0.0, 'raised': raised, 'rest': rest}
+    return {'low_before': min(lows) if lows else 0.0, 'raised': max([0.0] + adds), 'lowered': max([0.0] + [-a for a in adds])}
 
 
 def bake_clips(arm: bpy.types.Object, clips: list[Clip], foot_contacts=None) -> None:
@@ -356,10 +352,9 @@ def bake_clips(arm: bpy.types.Object, clips: list[Clip], foot_contacts=None) -> 
         if clip.floor or clip.slide:
             # 前への移動と床：書き出しの標本ごとに root を測り直して置く（root の位置の道は Z のほかに Y も持つ）
             first, last = int(round(sf(clip.keys[0][0]))), int(round(sf(clip.keys[-1][0])))
-            last_seg = int(round(sf(clip.keys[-2][0]))) if len(clip.keys) > 1 else first
-            r = _floor_pass(arm, clip, first, last, last_seg, [(sf(f), v) for f, v in clip.slide])
+            r = _floor_pass(arm, clip, first, last, [(sf(f), v) for f, v in clip.slide])
             print(f'  {clip.name}：床 {clip.floor or "-"}、測った最も低い点 {r["low_before"] * 100:+.1f} cm、'
-                  f'上げた最大 {r["raised"] * 100:.1f} cm' + (f'、最後のこまを床へ {r["rest"] * 100:+.1f} cm' if r['rest'] is not None else ''))
+                  f'上げた最大 {r["raised"] * 100:.1f} cm、下げた最大 {r["lowered"] * 100:.1f} cm')
         track = arm.animation_data.nla_tracks.new()
         track.name = clip.name
         strip = track.strips.new(clip.name, 1, action)
