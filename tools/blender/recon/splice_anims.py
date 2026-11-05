@@ -2,6 +2,7 @@
 
   python3 tools/blender/recon/splice_anims.py --clips combo1,combo2,combo3
       [--from godot/assets/models/haru_r.glb] [--base <GLB のパス か git の版>] [--out godot/assets/models/haru_r.glb]
+      [--model godot/assets/models/haru_r.glb（git の版から元を取るときのパス）]
 
 rebake_anims.py は元の GLB を Blender で読み込んで書き出すので、動作を 1 本直しただけでも、形（法線・UV の境で頂点が
 分かれて増える：haru 21354 → 22051）、節の数値（1e-7 の誤差）、ほかの動作（標本の数：dead 37 → 19、run 41 → 21）まで
@@ -12,6 +13,7 @@ rebake_anims.py は元の GLB を Blender で読み込んで書き出すので�
   .venv-blender/bin/python tools/blender/recon/rebake_anims.py --only combo1,combo2,combo3
   python3 tools/blender/recon/splice_anims.py --clips combo1,combo2,combo3
 --from の動作の対象の節は、名前で元の GLB の節に合わせる（無い名前があれば止まる）。
+書いたあと読み直して元と比べ、差し替えた動作のほかに違う所があれば止まる（違う所の一覧を出す）。
 """
 from __future__ import annotations
 
@@ -195,15 +197,76 @@ def splice(base_js: dict, base_bin: bytes, src_js: dict, src_bin: bytes, clips: 
     return js, bytes(out)
 
 
+def compare(a_js: dict, a_bin: bytes, b_js: dict, b_bin: bytes) -> list[str]:
+    """2 つの GLB で中身（形・材質・画像・節・スキン・動作ごとのトラックのバイト）が違う所の一覧"""
+    def acc(js, bin_, i):
+        a = js['accessors'][i]
+        return (a['componentType'], a['type'], a['count'], accessor_bytes(js, bin_, i))
+
+    def image(js, bin_, im):
+        bv = js['bufferViews'][im['bufferView']]
+        return bin_[bv.get('byteOffset', 0):bv.get('byteOffset', 0) + bv['byteLength']]
+
+    def prim(js, bin_, pr):
+        return ({k: acc(js, bin_, v) for k, v in pr['attributes'].items()},
+                acc(js, bin_, pr['indices']) if 'indices' in pr else None, pr.get('material'),
+                [{k: acc(js, bin_, v) for k, v in t.items()} for t in pr.get('targets', [])])
+
+    def anim(js, bin_, an):
+        names = [n.get('name') for n in js['nodes']]
+        return {f"{names[c['target']['node']]}.{c['target']['path']}":
+                (acc(js, bin_, an['samplers'][c['sampler']]['input']), acc(js, bin_, an['samplers'][c['sampler']]['output']),
+                 an['samplers'][c['sampler']].get('interpolation')) for c in an['channels']}
+
+    out = []
+    for key in ('nodes', 'materials', 'textures', 'samplers', 'scenes', 'scene'):
+        if a_js.get(key) != b_js.get(key):
+            out.append(key)
+    for i, (x, y) in enumerate(zip(a_js.get('meshes', []), b_js.get('meshes', []))):
+        if [prim(a_js, a_bin, p) for p in x['primitives']] != [prim(b_js, b_bin, p) for p in y['primitives']]:
+            out.append(f"mesh {x.get('name')}")
+    for x, y in zip(a_js.get('skins', []), b_js.get('skins', [])):
+        if x['joints'] != y['joints'] or acc(a_js, a_bin, x['inverseBindMatrices']) != acc(b_js, b_bin, y['inverseBindMatrices']):
+            out.append(f"skin {x.get('name')}")
+    for x, y in zip(a_js.get('images', []), b_js.get('images', [])):
+        if image(a_js, a_bin, x) != image(b_js, b_bin, y):
+            out.append(f"image {x.get('name')}")
+    def same_track(x, y, tol=1e-5):
+        """動作のトラック（時間・値）が同じか。小数は tol まで同じとみなす（焼き直すと 1e-7 ほどずれる）"""
+        for (ca, ta, na, ba), (cb, tb, nb, bb) in zip(x[:2], y[:2]):
+            if (ca, ta, na) != (cb, tb, nb) or len(ba) != len(bb):
+                return False
+            if ca == 5126:
+                va, vb = struct.unpack(f'<{len(ba) // 4}f', ba), struct.unpack(f'<{len(bb) // 4}f', bb)
+                if any(abs(p - q) > tol for p, q in zip(va, vb)):
+                    return False
+            elif ba != bb:
+                return False
+        return x[2] == y[2]
+
+    an_a = {a['name']: a for a in a_js.get('animations', [])}
+    an_b = {a['name']: a for a in b_js.get('animations', [])}
+    for name in sorted(set(an_a) | set(an_b)):
+        if name not in an_a or name not in an_b:
+            out.append(f'anim {name}（片方だけ）')
+            continue
+        ta, tb = anim(a_js, a_bin, an_a[name]), anim(b_js, b_bin, an_b[name])
+        diff = sorted(k for k in set(ta) | set(tb) if k not in ta or k not in tb or not same_track(ta[k], tb[k]))
+        if diff:
+            out.append(f'anim {name}：{len(diff)} 本のトラック（{", ".join(diff)}）')
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument('--clips', required=True, help='差し替える動作（, 区切り）')
     ap.add_argument('--from', dest='src', default=DEFAULT, help='新しい動作の入った GLB（rebake_anims.py の書き出し）')
     ap.add_argument('--base', default=None, help='元の GLB（ファイル か git の版。既定は rebake_anims.py の BASE_REV の --out）')
     ap.add_argument('--out', default=DEFAULT)
+    ap.add_argument('--model', default=DEFAULT, help='git の版から元を取るときの、リポジトリの中のパス')
     args = ap.parse_args()
     clips = [c for c in args.clips.split(',') if c]
-    out_rel = os.path.relpath(os.path.abspath(args.out), REPO)
+    out_rel = args.model
     if args.base and os.path.exists(args.base):
         base_data = open(args.base, 'rb').read()
         print(f'元の GLB：{args.base}')
@@ -217,6 +280,15 @@ def main() -> None:
     write_glb(args.out, js, bin_)
     print(f'差し替え：{", ".join(clips)} → {args.out}（{os.path.getsize(args.out) / 1e6:.2f} MB、'
           f'動作 {len(js["animations"])} 本、アクセサ {len(js["accessors"])}）')
+    # 書いた物を読み直して元と比べる：違うのは差し替えた動作だけのはず
+    out_js, out_bin = read_glb(open(args.out, 'rb').read())
+    diff = compare(base_js, base_bin, out_js, out_bin)
+    for d in diff:
+        print(f'  元と違う：{d}')
+    other = [d for d in diff if not any(d.startswith(f'anim {c}：') for c in clips)]
+    if other:
+        sys.exit(f'差し替えた動作のほかにも違う所がある：{other}')
+    print(f'元と同じ：形・材質・画像・節・スキン・ほかの動作 {len(out_js["animations"]) - len(clips)} 本')
 
 
 if __name__ == '__main__':
