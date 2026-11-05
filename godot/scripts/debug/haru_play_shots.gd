@@ -165,7 +165,8 @@ static func freeze_anim(d) -> void:
 
 
 ## 3 段斬りを続けて撮る：押して combo1 を始め、次の段を先に押しておく（inputBuffer）。押した刻みから CHAIN_TICKS 刻み、
-## 1 刻み（1/60 秒）ごとにゲームのカメラで撮り、動作の名前・攻撃の時間・動作の再生位置を「連続 …」の行に出す（段の切り替えの確認）
+## 1 刻み（1/60 秒）ごとにゲームのカメラで撮り、動作の名前・攻撃の時間・動作の再生位置を「連続 …」の行に出す（段の切り替えの確認）。
+## 行は撮ったあと（after）に出すので、「連続 NN」は hp_chain_NN.png と同じ刻みの状態（check はその刻みの中身を進める前に呼ばれる）
 const CHAIN_TICKS := 66
 
 
@@ -176,13 +177,12 @@ static func _chain_steps(d) -> Array:
 	for i in CHAIN_TICKS:
 		# 0 刻み目で 1 段目、4 刻み目で 2 段目、22 刻み目で 3 段目を先に押す（どれも前の段の受付の中）
 		var inp := {"sword": i == 0 or i == 4 or i == 22}
-		s.append({"ticks": 1, "shot": "hp_chain_%02d" % i, "input": inp, "cam": func(): freeze_anim(d), "check": func():
+		s.append({"ticks": 1, "shot": "hp_chain_%02d" % i, "input": inp, "cam": func(): freeze_anim(d), "after": func():
 			var p: Player = d.main.game.player
 			var pv = d.main.player_view
 			print("連続 %02d：%s　攻撃 %s　再生 %s %.3f 秒" % [i, p.anim(),
 				("%s %.3f / %.3f" % [p.attack.move, p.attack.time, p.attack.duration]) if p.attack != null else "-",
-				pv.current, pv.anim.current_animation_position if pv.anim and pv.anim.is_playing() else -1.0])
-			return true})
+				pv.current, pv.anim.current_animation_position if pv.anim and pv.anim.is_playing() else -1.0])})
 	s.append({"ticks": 40, "input": {}})
 	return s
 
@@ -234,6 +234,8 @@ static func _use_cam(d, c: Array) -> void:
 	for l in [m.hud, m.touch]:
 		if l != null and is_instance_valid(l):
 			l.visible = false
+	if m.touch != null and is_instance_valid(m.touch):
+		m.touch.shot_hidden = true   # main が毎フレーム set_shown で戻すので（--touch のスマホの撮影）
 
 
 static func _release(d) -> void:
@@ -242,7 +244,8 @@ static func _release(d) -> void:
 		_cam.queue_free()
 	_cam = null
 	m.camera.current = true
-	for l in [m.hud, m.touch]:
-		if l != null and is_instance_valid(l):
-			l.visible = true
+	if m.hud != null and is_instance_valid(m.hud):
+		m.hud.visible = true
+	if m.touch != null and is_instance_valid(m.touch):
+		m.touch.shot_hidden = false   # 見せるかは main の set_shown が決める
 	_hide_nagomi(d, false)

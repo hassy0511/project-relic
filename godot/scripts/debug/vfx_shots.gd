@@ -42,7 +42,8 @@ static func _place(g: GameSim, e, at: Vector3, face: Vector3) -> void:
 	g.phys.set_feet(e.body, at)
 
 
-## 3 段斬りを続けて撮る（B 群と同じ的と向き）。0・4・22 刻み目に押して、次の段を先に押しておく（inputBuffer）
+## 3 段斬りを続けて撮る（B 群と同じ的と向き）。0・4・22 刻み目に押して、次の段を先に押しておく（inputBuffer）。
+## 「帯 NN」の行は撮ったあと（after）に出すので、vfx_combo_NN.png と同じ刻みの状態
 static func combo_steps(d) -> Array:
 	var m = d.main
 	var s := [
@@ -59,10 +60,10 @@ static func combo_steps(d) -> Array:
 		{"ticks": 30, "input": {}},
 	]
 	for i in 66:
-		s.append(_shot("combo_%02d" % i, {"input": {"sword": i == 0 or i == 4 or i == 22}, "cam": func(): HaruPlayShots.freeze_anim(d), "check": func():
+		s.append(_shot("combo_%02d" % i, {"input": {"sword": i == 0 or i == 4 or i == 22}, "cam": func(): HaruPlayShots.freeze_anim(d), "after": func():
 			var a = m.game.player.attack
 			print("帯 %02d：%s" % [i, ("%s %.3f / %.3f" % [a.move, a.time, a.duration]) if a != null else "-"])
-			return true}))
+			print("描画 vfx_combo_%02d：%s" % [i, _draws()])}))
 	return s
 
 

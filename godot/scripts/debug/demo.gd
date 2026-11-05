@@ -1536,9 +1536,10 @@ func _talk_zoom(id: String, on: bool) -> void:
 			_zoom_cam.queue_free()
 			_zoom_cam = null
 		main.camera.make_current()
-		for l in layers:
-			if l != null and is_instance_valid(l):
-				l.visible = true
+		if main.hud != null and is_instance_valid(main.hud):
+			main.hud.visible = true
+		if main.touch != null:
+			main.touch.shot_hidden = false   # 見せるかは main の set_shown が決める
 		return
 	var npc: Array = main.game.npcs.filter(func(n): return n.id == id)
 	if npc.is_empty():
@@ -1554,6 +1555,8 @@ func _talk_zoom(id: String, on: bool) -> void:
 	for l in layers:
 		if l != null and is_instance_valid(l):
 			l.visible = false
+	if main.touch != null:
+		main.touch.shot_hidden = true   # main が毎フレーム set_shown で戻すので（--touch のスマホの撮影）
 
 
 ## 会話を送り終える（会話の続きのイベントの会話も）

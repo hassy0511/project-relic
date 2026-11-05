@@ -48,6 +48,9 @@ const TAP_SLOP := 0.04
 signal activated
 
 var active := false
+## 確認の撮影のカメラ（近写など）が画面の操作を隠している間は true。main が set_shown を毎フレーム呼ぶので、
+## visible を直接 false にしても次のフレームで戻る（HaruPlayShots._use_cam・Demo._talk_zoom が使う）
+var shot_hidden := false
 ## ロックオンの入り切り（押すたびに切り替え）
 var lock_toggled := false
 var move := Vector2.ZERO
@@ -120,7 +123,7 @@ func activate() -> void:
 
 
 func set_shown(on: bool) -> void:
-	visible = active and on
+	visible = active and on and not shot_hidden
 	_draw.queue_redraw()
 	if not visible:
 		_release_all()
