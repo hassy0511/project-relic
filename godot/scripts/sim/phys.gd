@@ -130,7 +130,7 @@ func move_character(body: CharacterBody3D, delta: Vector3, mask: int, on_ground:
 				break
 			# 上れなかった段（高すぎる・上がふさがっている）の角や上向きの面：体を押し上げない（下の空中と同じ）。
 			# 前は接地中に角へ当たり続けると、体の丸い底が刻みごとに少しずつ角の上へ押し上がり、
-			# 大きな体（半径 0.45 m 以上）では 0.36 m を超える段も上った
+			# 大きな体（物理の体の半径 0.45 m 以上：歩哨型・盾型・突撃型）では 0.36 m を超える段も上った
 			corner = n.y > 0.0
 		var slid := rem.slide(n)
 		if n.y >= FLOOR_MIN_Y and delta.y <= 0.0 and (on_ground or n.y > EDGE_FLAT):

@@ -254,7 +254,9 @@ func test_stepup_stairs_along_wall() -> void:
 
 
 ## 敵の大きさの体（地形だけに当たるカプセル）も、0.35 m までの段は上り、それより高い段は速く当たっても上らない。
-## 前は段の角に沿って押し上げられた所から高さを数えたので、大きな体・速い動きでは 0.36〜0.42 m の段も上った（N13 の見直し）
+## 前は段の角に沿って押し上げられた所から高さを数えたので、大きな体・速い動きでは 0.36〜0.42 m の段も上った（N13 の見直し）。
+## 体は敵と同じ指定（小型・歩哨型・盾型・突撃型の radius と height）で作る。CapsuleShape3D は半径を高さの半分までに詰めるので、
+## 物理の体の半径は小型 0.15 m・突撃型 0.60 m になる（Enemy.body_size）。報告には実際の半径を出す
 func test_stepup_enemy_sizes() -> void:
 	for rr in [[0.25, 0.3], [0.45, 1.1], [0.55, 1.8], [0.7, 1.2]]:
 		for spd in [2.0, 8.0, 14.0]:
@@ -269,7 +271,8 @@ func test_stepup_enemy_sizes() -> void:
 					var res: Dictionary = g.phys.move_character(b, Vector3(0, -0.05 if gnd else -0.2, spd / 60.0), Phys.TERRAIN, gnd)
 					gnd = res.grounded
 				var up: bool = b.position.y > ht - 0.02
-				h.expect(up == pair[1], "体 半径 %.2f m・%.0f m/s で段 %.2f m：上る=%s（y=%.3f）" % [rr[0], spd, ht, pair[1], b.position.y])
+				var real_r: float = ((b.get_child(0) as CollisionShape3D).shape as CapsuleShape3D).radius
+				h.expect(up == pair[1], "体 半径 %.2f m（指定 %.2f）・高さ %.2f m・%.0f m/s で段 %.2f m：上る=%s（y=%.3f）" % [real_r, rr[0], rr[1], spd, ht, pair[1], b.position.y])
 				h.free_game(g)
 
 
