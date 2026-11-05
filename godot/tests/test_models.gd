@@ -28,9 +28,10 @@ const GROUPS := ["feet", "body", "held"]
 ## 組は feet（足）・body（足と持ち物の外の体）・held（持ち物）・float（立つ動作で両足とも浮く）・
 ## touch（地上の動作で足がずっと浮く。値は浮きの高さ）。
 ## 後ろの注は glb_audit.py（全部の頂点・皮の変形）で測った値と、こま（60 こま/秒）。直したら消す。
-## 残してよい訳は、モデルの組ごとに 1 行で書く（W1_ハル再構築の結果.md 10.3・11 章）。
-## glb_audit.py だけが見つけるもの（目印の点では 1.5 cm に届かない・骨の子の硬い物体）：
-## yana/charge・combo1〜3 の足 1.6 cm、haru_bs/dead の銃（骨の子の物体）13.5 cm。
+## 残してよい訳は、モデルの組ごとに 1 行で書く（W1_ハル再構築の結果.md 10.3）。
+## glb_audit.py だけが見つけるもの（目印の点では 1.5 cm に届かない・骨の子の硬い物体・光刃・dead の最後のこまの胴）：
+## yana/charge・combo1〜3 の足 1.6 cm、haru_bs/dead の銃（骨の子の物体）13.5 cm と光刃（長押しの 0.6 倍）16.7 cm、haru_a/dead の光刃 12.1 cm、
+## dead の最後のこまで胴が床から浮く burton 12.7・haru_a 10.5・haru_bs 4.0・haru_proxy 20.5 cm。
 const KNOWN := {
 	# burton・yana：NPC。ゲームでは idle だけを出す（props_view.gd の _npc_anim_for）。直すときは
 	# rebake_anims.py --model godot/assets/models/<名前>.glb で標準の動作を焼き直す（dead・jump・fall・hurt・dash・lunge は
