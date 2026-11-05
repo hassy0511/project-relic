@@ -494,6 +494,37 @@ func test_r16_lift_bottom_wall_side() -> void:
 		h.free_game(g)
 
 
+## どの部屋の目印・中継地点（体の足元）も、形の箱の中に埋まっていない（そこから出る・やられて戻ると、体が箱の中に入る）。
+## 前は遺構 r08 の中継地点が柱の箱（1.2 m 角）の中にあった（生成の道具 tools/gen_ch1_ruins.py の r16 の from_r18 も上の足場の箱の中だった）
+func test_markers_not_inside_boxes() -> void:
+	var bad: Array = []
+	var n := 0
+	for fn in DirAccess.get_files_at("res://content/areas"):
+		if not fn.ends_with(".json"):
+			continue
+		var area: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://content/areas/" + fn))
+		for rid in area.get("rooms", {}):
+			var r: Dictionary = area.rooms[rid]
+			var pts: Array = []
+			for k in r.get("markers", {}):
+				if r.markers[k].has("pos"):
+					pts.append([k, r.markers[k].pos])
+			for c in r.get("checkpoints", []):
+				if c.has("pos"):
+					pts.append([c.id, c.pos])
+			for pt in pts:
+				n += 1
+				var m := RoomGeo.v3(pt[1])
+				for gm in r.get("geometry", []):
+					if gm.get("t", "") != "box" or float(gm.get("yaw", 0.0)) != 0.0:
+						continue
+					var gp := RoomGeo.v3(gm.pos)
+					var gs := RoomGeo.v3(gm.size)
+					if absf(m.x - gp.x) < gs.x * 0.5 - 0.05 and absf(m.z - gp.z) < gs.z * 0.5 - 0.05 and gp.y + 0.05 < m.y + 0.5 and m.y + 0.5 < gp.y + gs.y:
+						bad.append("%s %s %s（箱 %s %s）" % [fn, rid, pt[0], gm.pos, gm.size])
+	h.expect(n > 100 and bad.is_empty(), "目印・中継地点 %d 個が箱の中に無い（%s）" % [n, bad])
+
+
 ## 看板も "when"・"unless" で出し分ける：縦坑 r16 のリフトの看板は、再始動の前は「乗ると降りる」、後は「上り下りしている」の 1 枚だけ。
 ## 前は看板の描き方だけが when・unless を見ず、2 枚が同じ所に重なって読めなかった（PC・スマホとも）
 func test_r16_signs_one_at_a_time() -> void:

@@ -273,8 +273,9 @@ r.trigger("dead", 0, 0, 14, 6, 3, 2, "ch1.r07.dead")
 
 r = new("r08", "B2", "封印室", 2, 1)
 r.shell(22, 8, 22)
-r.start("from_r07", 0, 0, -8.5, 0)
-r.marker("from_r09", 0, 0, 8, 180)
+# 目印は柱（z=±8.5）の手前（部屋のデータと同じ）
+r.start("from_r07", 0, 0, -6.5, 0)
+r.marker("from_r09", 0, 0, 6.5, 180)
 r.exit("to_r07", "r07", "from_r08", 0, 0, -10, lock="ch1.frame_fitted", text="")
 r.exit("to_r09", "r09", "from_r08", 0, 0, 10, lock="ch1.r08.trained", text="まだ何か、呼ばれている気がする。")
 r.box(0, 0, 0, 5, 0.4, 5, "#3b5a60")         # 台座
@@ -404,7 +405,7 @@ r.trigger("enter", 0, 0, -15, 14, 3, 2, "ch1.r12.enter")
 r = new("r13", "B3", "歯車の間", 2, 2)
 r.shell(20, 12, 30)
 r.start("from_r12", 0, 0, -12.5, 0)
-r.marker("from_r15", 0, 0, 12.5, 180)
+r.marker("from_r15", 6, 0, 12.5, 180)   # 張り出しの箱（x −4〜4）の横の床（部屋のデータと同じ）
 r.exit("to_r12", "r12", "from_r13", 0, 0, -14, size=(6, 4, 2))
 r.exit("to_r15", "r15", "from_r13", 0, 0, 14, size=(6, 4, 2))
 # 歯車のリフト（動力が通っていると往復）で、奥の張り出し（y=4）へ
@@ -594,6 +595,16 @@ for k, rm in ROOMS.items():
             px, py, pz = p["pos"]; sx, sy, sz = p["size"]
             if abs(mx - px) <= sx / 2 and abs(mz - pz) <= sz / 2 and py - 0.1 <= my <= py + sy:
                 print("目印が出口の中：", rm.rid, mk, p["id"]); bad += 1
+    # 目印・中継地点（体の足元）が形の箱の中に埋まっていないこと（前は r16 の from_r18 が上の足場の箱の中に、
+    # r08 の目印と中継地点が柱の中にあった。使われていなかった・死なない部屋だったので気づかなかった）
+    for mk, m in list(rm.d["markers"].items()) + [(c["id"], c) for c in rm.d["checkpoints"]]:
+        mx, my, mz = m["pos"]
+        for g in rm.d["geometry"]:
+            if g["t"] != "box" or g.get("yaw"):
+                continue
+            gx, gy, gz = g["pos"]; sx, sy, sz = g["size"]
+            if abs(mx - gx) < sx / 2 - 0.05 and abs(mz - gz) < sz / 2 - 0.05 and gy + 0.05 < my + 0.5 < gy + sy:
+                print("目印が形の中：", rm.rid, mk, g["pos"], g["size"]); bad += 1
 if bad:
     raise SystemExit("検査に失敗")
 
