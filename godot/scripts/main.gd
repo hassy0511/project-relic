@@ -160,6 +160,9 @@ func _apply_mood() -> void:
 	var ordo := _ordo()
 	if ordo != null:
 		ordo.set_mood(mood)
+	var bt := _back_town()
+	if bt != null:
+		bt.set_mood(mood)
 	_apply_light(mood)
 
 
@@ -191,6 +194,13 @@ func _ordo() -> OrdoView:
 	if level == null or not is_instance_valid(level):
 		return null
 	return level.get_node_or_null("Ordo") as OrdoView
+
+
+## オルドの体を置かない部屋の背の上の町（部屋の "back_town"。RoomView が作る BackTownView。上段）
+func _back_town() -> BackTownView:
+	if level == null or not is_instance_valid(level):
+		return null
+	return level.get_node_or_null("BackTown") as BackTownView
 
 
 ## オルドの歩き：停止の夜（ch1.ordo_stopped）から再始動（ch1.ordo_restarted）までは 8 本の足が肩の真下に着いた停止の姿勢、

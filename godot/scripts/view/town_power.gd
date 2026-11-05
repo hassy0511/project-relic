@@ -436,6 +436,10 @@ func _apply() -> void:
 func _apply_ordo(lv: float) -> void:
 	if main == null or not main.has_method("_ordo"):
 		return
+	# オルドの体を置かない部屋の背の上の町（上段の BackTownView）も、同じく窓を消し・点ける
+	var bt: Node = main._back_town() if main.has_method("_back_town") else null
+	if bt != null:
+		_sync_back_windows(bt, lv)
 	var o: OrdoView = main._ordo()
 	if o == null:
 		return
@@ -446,13 +450,13 @@ func _apply_ordo(lv: float) -> void:
 	_sync_back_windows(o, lv)
 
 
-## 部屋のオルドの背の上の遠くの町の窓（OrdoView.set_back_lights）：電気のある町なら灯し、停電の間は消し、
+## 部屋のオルドの背の上の遠くの町の窓（OrdoView・BackTownView の set_back_lights）：電気のある町なら灯し、停電の間は消し、
 ## 再始動の波では消えた順の逆にちらつきながら戻す。電気の網のある部屋だけ。場面の途中は場面（CineDirector）の値のまま。
 ## 窓の光は雰囲気の明るさを掛けるので、昼は見えない（夜明け 0.6・夜 1）
-func _sync_back_windows(o: OrdoView, lv: float) -> void:
+func _sync_back_windows(o: Node, lv: float) -> void:
 	if _grid == "" or _cine_active():
 		return
-	o.set_back_lights(1.0, BACK_FLICKER if lv > 0.0 and lv < 1.0 else 0.0, 1.0 - lv)
+	o.call("set_back_lights", 1.0, BACK_FLICKER if lv > 0.0 and lv < 1.0 else 0.0, 1.0 - lv)
 
 
 ## 背の上の町の灯（TownLights。場面のカメラが出したときだけある）：電気の明るさ lv のとき、消えた灯の割合 out を 1 - lv に

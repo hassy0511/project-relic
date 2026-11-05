@@ -428,13 +428,14 @@ func test_town_lights() -> void:
 	o.free()
 
 
-## 背の上の遠くの町（帳の部品 ordo_town・ordo_back。tools/blender/kit/town_far.py）：体の骨組みの子の別の 1 つのメッシュ（面 1 つ・影なし・
-## 帳のシェーダー）で、体の 3 つの面には入れない。町の中に収まり、ordo_back は中段の部屋の下の段の家並み（z -54 まで）に重ならない。
+## 背の上の遠くの町（帳の部品 ordo_town・ordo_back・ordo_back_low・ordo_back_mid。tools/blender/kit/town_far.py）：体の骨組みの子の別の
+## 1 つのメッシュ（面 1 つ・影なし・帳のシェーダー）で、体の 3 つの面には入れない。町の中に収まり、部屋の胸壁より向こうだけ（下段の部屋の
+## ordo_back_low は胸壁の外の面 z -23 まで、中段の部屋の ordo_back_mid は z -14.7 まで）。
 ## 灯の値（set_back_lights）は雰囲気の明るさ（昼 0・夜 1）を掛けてシェーダーへ渡し、雰囲気を替えても残る。灯の点（TownLights）にも同じ値。
 ## 材質はオルドごと（ほかの部屋のオルドの町の灯は変わらない）
 func test_back_town() -> void:
 	var made: Array = []
-	for part in ["town/ordo_town", "town/ordo_back"]:
+	for part in ["town/ordo_town", "town/ordo_back", "town/ordo_back_low", "town/ordo_back_mid"]:
 		var o := OrdoView.new()
 		o.body_fixed = true
 		o.back_part = part
@@ -451,13 +452,17 @@ func test_back_town() -> void:
 		h.expect(o.skin_mesh != null and o.skin_mesh.mesh.get_surface_count() <= 3, "%s：体の面は 3 つのまま（町は入れない）" % part)
 		var arr := bm.mesh.surface_get_arrays(0)
 		var tris := (arr[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
-		var budget := 34000 if part == "town/ordo_town" else 12000
+		var budget: int = {"town/ordo_town": 34000, "town/ordo_back": 12000}.get(part, 16000)
 		h.expect(tris > 2000 and tris <= budget, "%s：三角形 %d（上限 %d）" % [part, tris, budget])
 		var ab := bm.get_aabb()
 		h.expect(ab.position.x > -56.0 and ab.end.x < 56.0 and ab.position.z > -118.0 and ab.end.z < 100.0 and ab.position.y > -0.5 and ab.end.y < 60.0,
 			"%s：背の面の上の町の中（%s）" % [part, ab])
 		if part == "town/ordo_back":
-			h.expect(ab.end.z < -55.0, "ordo_back は中段の部屋の下の段の家並み（z -54 まで）に重ならない（北の端 %.1f）" % ab.end.z)
+			h.expect(ab.end.z < -55.0, "ordo_back は中段の部屋の下の段（z -54 まで）に重ならない（北の端 %.1f）" % ab.end.z)
+		if part == "town/ordo_back_low":
+			h.expect(ab.end.z < -22.9, "ordo_back_low は下段の部屋の胸壁（オルドの z -23）より向こう（北の端 %.1f）" % ab.end.z)
+		if part == "town/ordo_back_mid":
+			h.expect(ab.end.z < -14.6, "ordo_back_mid は中段の部屋の胸壁の擁壁（z -15）の 0.3 m 奥まで（北の端 %.1f）" % ab.end.z)
 		var cols: PackedColorArray = arr[Mesh.ARRAY_COLOR]
 		var lit := 0
 		for c in cols:
@@ -480,7 +485,42 @@ func test_back_town() -> void:
 		o.set_back_lights(0.8, 0.1, 0.3)
 		h.expect(is_equal_approx(tl.power, 0.8) and is_equal_approx(tl.flicker, 0.1) and is_equal_approx(tl.out, 0.3), "%s：灯の点にも同じ値" % part)
 		h.expect(TownLights.points(part).size() >= 60, "%s：灯の点の表（%d）" % [part, TownLights.points(part).size()])
-	if made.size() == 2 and made[0].back_mesh != null and made[1].back_mesh != null:
+	if made.size() >= 2 and made[0].back_mesh != null and made[1].back_mesh != null:
 		h.expect(made[0].back_mesh.material_override != made[1].back_mesh.material_override, "材質はオルドごと")
 	for o in made:
 		o.free()
+
+
+## オルドの体なしの背の上の町（BackTownView。上段の部屋の "back_town"、部品 town/ordo_back_up）：帳の部品 1 つ（影なし・帳のシェーダー）。
+## 上段の部屋の南の胸壁の外の面（オルドの z 33）より向こうだけ（展望台の北の地平線と章末のカメラの前に何も出さない。残課題 O1）。
+## 胸壁から 7 m の内の屋根・物は、胸壁の上の面（オルドの y 12.7）より 2.5 m 以上低い（42 章 14.6）。灯は OrdoView と同じ（雰囲気の明るさを掛ける）
+func test_back_town_view() -> void:
+	var b := BackTownView.new()
+	b.part = "town/ordo_back_up"
+	h.tree.root.add_child(b)
+	var mi := b.mesh_node
+	h.expect(mi != null and mi.mesh.get_surface_count() == 1, "1 つのメッシュ（描画 1 回）")
+	if mi == null:
+		b.free()
+		return
+	h.expect(mi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "影を落とさない")
+	var mat := mi.material_override as ShaderMaterial
+	h.expect(mat != null and mat.shader.resource_path.ends_with("town_far.gdshader"), "帳のシェーダー")
+	var arr := mi.mesh.surface_get_arrays(0)
+	var tris := (arr[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
+	h.expect(tris > 4000 and tris <= 24000, "三角形 %d（上限 24000）" % tris)
+	var ab := mi.get_aabb()
+	h.expect(ab.end.z <= 33.05, "上段の部屋の南の胸壁より向こうだけ（北の端 %.2f）" % ab.end.z)
+	var high := -INF
+	for p in (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array):
+		if p.z > 26.0 and absf(p.x) >= 11.0:
+			high = maxf(high, p.y)
+	h.expect(high <= 12.7 - 2.5, "胸壁から 7 m の内は胸壁の上の面より 2.5 m 以上低い（いちばん高い所 %.2f）" % high)
+	b.set_mood("night")
+	h.expect(is_zero_approx(float(mat.get_shader_parameter("power"))), "既定は消えている")
+	b.set_back_lights(1.0, 0.2, 0.4)
+	h.near(float(mat.get_shader_parameter("power")), 1.0, 0.001, "夜は窓が光る")
+	h.near(float(mat.get_shader_parameter("out_amount")), 0.4, 0.001, "消えた割合を渡す")
+	b.set_mood("day")
+	h.expect(is_zero_approx(float(mat.get_shader_parameter("power"))), "昼は光らない")
+	b.free()
