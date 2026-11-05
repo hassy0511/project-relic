@@ -40,6 +40,8 @@ LOOPS = ('idle', 'run', 'fall', 'drill', 'walk', 'cower')   # player_view.gd の
 GROUNDED = ('idle', 'walk', 'cower')                        # 立って待つ・歩く（足が床に着いているはずの動作）
 PARTS = ('foot.L', 'foot.R', 'legs', 'body', 'arms', 'hands', 'head', 'hair', 'held')
 HELD_WORDS = ('gun', 'blade', 'weapon', 'staff', 'cane', 'hammer', 'sword')
+TOGGLED = ('LightBlade',)   # ゲームが攻撃の間だけ出す物（player_view.gd）。攻撃の動作でだけ床を見る
+ATTACK_CLIPS = ('combo1', 'combo2', 'combo3', 'lunge', 'charge', 'air')
 BUDGET = {'main': ('主要キャラ', 6000, 10000, 1024), 'town': ('町の住人', 3000, 5000, 512)}
 MAIN_CHARS = ('haru', 'yana')   # W1 の主要キャラ。ほかの人物は町の住人として目安を見る
 
@@ -256,7 +258,8 @@ class Model:
                                             name=n.get('name', '')))
                 else:
                     self.meshes.append(dict(node=ni, skin=None, pos=pos, W=None, part=np.full(len(pos), PARTS.index('held')),
-                                            mat=mat, infl=None, prim=pr, name=n.get('name', '')))
+                                            mat=mat, infl=None, prim=pr, name=n.get('name', ''),
+                                            toggled=n.get('name', '') in TOGGLED))
         self.anims = []
         for a in g.js.get('animations', []):
             chans = []
@@ -411,11 +414,13 @@ def skin_report(model: Model) -> dict:
 
 # ---------------------------------------------------------------- 姿勢の確かめ
 
-def part_lows(model: Model, hs: list) -> np.ndarray:
-    """(部位, F) の最も低い y。重みの無い頂点は除く（その部位が無ければ +inf）"""
+def part_lows(model: Model, hs: list, clip: str = '') -> np.ndarray:
+    """(部位, F) の最も低い y。重みの無い頂点と、攻撃の外の出し入れする物（光刃）は除く（その部位が無ければ +inf）"""
     f = hs[0].shape[0]
     low = np.full((len(PARTS), f), np.inf)
     for m, h in zip(model.meshes, hs):
+        if m.get('toggled') and clip not in ATTACK_CLIPS:
+            continue
         ok = np.ones(len(m['pos']), bool) if m['W'] is None else m['W'].sum(axis=1) > 0
         for p in range(len(PARTS)):
             sel = ok & (m['part'] == p)
@@ -457,7 +462,7 @@ def rest_report(model: Model) -> dict:
 def clip_report(model: Model, anim: dict) -> dict:
     t = frame_times(anim['length'])
     wm = model.world(anim, t)
-    low = part_lows(model, model.heights(wm))         # (部位, F)
+    low = part_lows(model, model.heights(wm), anim['name'])   # (部位, F)
     r = dict(name=anim['name'], length=anim['length'], frames=len(t), findings=[])
     r['part_low'] = {PARTS[p]: (float(low[p].min()), int(low[p].argmin())) for p in range(len(PARTS)) if np.isfinite(low[p]).any()}
     fails, notes = [], []
