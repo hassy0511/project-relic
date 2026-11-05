@@ -3,10 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
+uid="uid://cqth3cffhljqh"
+path="res://.godot/imported/ordo_back_low.glb-c7adc0bba86c49a6c7b066de2617189b.scn"
 
 [deps]
 
 source_file="res://assets/kit/town/ordo_back_low.glb"
+dest_files=["res://.godot/imported/ordo_back_low.glb-c7adc0bba86c49a6c7b066de2617189b.scn"]
 
 [params]
 
