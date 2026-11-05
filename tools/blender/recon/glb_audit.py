@@ -33,6 +33,7 @@ FLOAT_MIN = 0.020      # 立って待つ動作で両足とも 2 cm より上な�
 DEAD_REST_MAX = 0.030  # dead の最後のこまの最も低い点は 3 cm 以内（床に寝ている）
 ORIGIN_TOL = 0.010     # 基準の姿勢の最も低い点が原点（床）から 1 cm 以内
 DRIFT_WARN = 0.030     # 腰・胸・頭が原点から横に 3 cm より離れたら注意
+FAR_WARN = 0.80       # 重みの一番大きい骨から 80 cm より遠い頂点は迷子の部品かもしれない（スカートの裾・杖の先で約 70 cm）
 SEAM_TOL = 0.005       # 輪の動作の最初と最後のこまの頂点の差 5 mm まで
 WEIGHT_TOL = 1e-3
 
@@ -453,8 +454,21 @@ def rest_report(model: Model) -> dict:
         if j is not None:
             x, _y, z = wm[j][0, :3, 3]
             drift[key] = (float(x), float(z))
+    # 骨から遠い頂点（重みの一番大きい骨の原点からの距離）
+    far = (0.0, '', 0, [0.0, 0.0])
+    for m, p in zip(model.meshes, ps):
+        if m['skin'] is None:
+            continue
+        js = model.skins[m['skin']]['joints']
+        dom = np.argmax(m['W'], axis=1)
+        d = np.linalg.norm(p[0] - np.array([wm[j][0, :3, 3] for j in js])[dom], axis=1)
+        i = int(np.argmax(d))
+        if d[i] > far[0]:
+            sel = d > FAR_WARN
+            yr = [float(p[0][sel, 1].min()), float(p[0][sel, 1].max())] if sel.any() else [0.0, 0.0]
+            far = (float(d[i]), model.joint_names[js[dom[i]]], int(np.count_nonzero(sel)), yr)
     low_parts = part_lows(model, model.heights(wm))[:, 0]
-    return dict(height=float(hi[1] - lo[1]), lowest_y=float(lo[1]), forward=fwd, drift=drift,
+    return dict(height=float(hi[1] - lo[1]), lowest_y=float(lo[1]), forward=fwd, drift=drift, far=far,
                 bounds=[[float(v) for v in lo], [float(v) for v in hi]],
                 rest_lows={PARTS[p]: float(v) for p, v in enumerate(low_parts) if np.isfinite(v)})
 
@@ -533,6 +547,9 @@ def audit(path: str) -> dict:
     for k, (x, z) in rs['drift'].items():
         if math.hypot(x, z) > DRIFT_WARN:
             warns.append('%s が原点から横に %.1f cm（x %+.1f, z %+.1f）' % (k, math.hypot(x, z) * 100, x * 100, z * 100))
+    if rs['far'][0] > FAR_WARN:
+        d, b, n, yr = rs['far']
+        warns.append('骨から遠い頂点 %d（%s から最大 %.2f m、高さ %.2f〜%.2f m。迷子の部品か。身長の値もこれを含む）' % (n, b, d, yr[0], yr[1]))
     if rs['forward'] not in (None, '+Z'):
         warns.append('正面が %s（ゲームは +Z）' % rs['forward'])
     for c in rep['clips']:
