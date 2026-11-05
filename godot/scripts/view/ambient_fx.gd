@@ -12,11 +12,17 @@ const STEAM_COLOR := Color("#ece6dc")
 ## オルドの足音で布から落ちる砂ぼこり（蒸気と見分けがつくよう、落砂より濃く赤みのある砂の色。粒の層は光を受けず、色をそのまま
 ## 線形の値として描くので、sRGB から直して渡す：直さないと白っぽい湯気の色に見えた）
 const STEP_DUST_COLOR := Color("#c49a68")
+## スマホ・ブラウザ版の描き方（gl_compatibility）だけの足音の砂ぼこりの整え（残課題 T10）：この描き方では粒の色が暗く薄く出て、
+## 日よけの裏の暗い布の前でほとんど見えなかった。砂の色を sRGB のまま渡し、濃さ・砂ぼこりの大きさ・砂粒の数を少し上げる（PC は変えない）
+const COMPAT_STEP_DUST := {"alpha": 1.35, "size": 1.25, "grains": 1.4}
 ## 1 部屋の出所の上限（多すぎる部屋でも粒が増えすぎないように）
 const MAX_SOURCES := 16
 
 var room_id := ""
 var sources: Array = []
+## 足音の砂ぼこりの描き方：-1 = 今の描き方に従う、0 = PC（Forward+）、1 = スマホ・ブラウザ版（gl_compatibility）。
+## 確かめ（headless は Forward+ の扱い）でスマホの側の整えを確かめるためのもの
+var dust_compat := -1
 var _rng := RandomNumberGenerator.new()
 var _t := 0.0
 ## オルドの足音（OrdoSteps）で砂ぼこりの落ちる所：部屋の飾りの、揺れる布（日よけ・洗濯物・垂れ幕）の下の端（ワールド）
@@ -147,8 +153,12 @@ func step_puffs(vfx: Vfx, cam: Vector3, fwd: Vector3, n: int, strength := 1.0, l
 	near = near.slice(0, 2 * n)
 	var big := clampf(0.55 + 0.45 * strength, 0.75, 1.5)
 	var dense := clampf(0.75 + 0.25 * strength, 0.8, 1.25)
-	var col := STEP_DUST_COLOR.srgb_to_linear()
+	var compat := EnvironmentSetup.is_compat() if dust_compat < 0 else dust_compat == 1
+	var col := STEP_DUST_COLOR if compat else STEP_DUST_COLOR.srgb_to_linear()
 	col = Color(col.r * light, col.g * light, col.b * light)
+	var ka: float = COMPAT_STEP_DUST.alpha if compat else 1.0
+	var ks: float = COMPAT_STEP_DUST.size if compat else 1.0
+	var kg: float = COMPAT_STEP_DUST.grains if compat else 1.0
 	var made := 0
 	for k in mini(n, near.size()):
 		var i := _srng.randi_range(0, near.size() - 1)
@@ -156,10 +166,10 @@ func step_puffs(vfx: Vfx, cam: Vector3, fwd: Vector3, n: int, strength := 1.0, l
 		var at: Vector3 = near[i][1]
 		near.remove_at(i)
 		# 砂粒の筋（布の縁から細かい粒が落ちる）
-		for j in int(round(_srng.randi_range(6, 8) * dense)):
+		for j in int(round(_srng.randi_range(6, 8) * dense * kg)):
 			var g := vfx.emit(Vfx.DOT, at + Vector3(_srng.randf_range(-0.25, 0.25), -_srng.randf_range(0.0, 0.1), _srng.randf_range(-0.25, 0.25)),
-				Vector3(0, -_srng.randf_range(0.3, 0.8), 0), _srng.randf_range(1.0, 1.5), 0.05, 0.07,
-				Color(col, _srng.randf_range(0.75, 0.95)))
+				Vector3(0, -_srng.randf_range(0.3, 0.8), 0), _srng.randf_range(1.0, 1.5), 0.05 * ks, 0.07 * ks,
+				Color(col, minf(_srng.randf_range(0.75, 0.95) * ka, 1.0)))
 			g.grav = 2.4
 			g.drag = 0.5
 			g.fin = 0.1
@@ -170,8 +180,8 @@ func step_puffs(vfx: Vfx, cam: Vector3, fwd: Vector3, n: int, strength := 1.0, l
 			var out := Vector3(sin(a), 0.0, cos(a))
 			var q := vfx.emit(Vfx.DUST, at + out * 0.12 + Vector3(0, -0.1, 0),
 				out * _srng.randf_range(0.08, 0.2) + Vector3(0, -_srng.randf_range(0.3, 0.6), 0),
-				_srng.randf_range(1.2, 1.6), 0.12, minf(_srng.randf_range(0.38, 0.55) * big, cap),
-				Color(col, _srng.randf_range(0.5, 0.65) * dense))
+				_srng.randf_range(1.2, 1.6), 0.12, minf(_srng.randf_range(0.38, 0.55) * big * ks, cap),
+				Color(col, minf(_srng.randf_range(0.5, 0.65) * dense * ka, 0.95)))
 			q.rot = _srng.randf() * TAU
 			q.spin = _srng.randf_range(-0.4, 0.4)
 			q.drag = 1.0

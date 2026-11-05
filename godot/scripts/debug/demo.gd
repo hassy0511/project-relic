@@ -616,6 +616,8 @@ func _town_steps() -> Array:
 ## --audit_views=<JSON のパス>（既定は tools/audit_views.json。中段の広場・遺構 r02・r03）：[{"name", "room", "spawn", "at", "look", "pitch"}（プレイヤーのカメラ）
 ##   か {"name", "room", "spawn", "eye", "target"}（自由なカメラ。高い所・裏側から見る）, …]
 ## "wait"：構えてから撮るまでの刻み（既定 20。宙に置いて落ちる途中を撮るときは長く）。--audit_only=<名前,…> で一部だけ。--audit_state=night で停止の夜
+## （停電の夜）、--audit_state=lit で電気のある夜（再始動のあとの夜。町の電気は戻って見せたあと）。向きごとの "state" で、その向きだけ替える
+## （替わったら部屋を作り直す。画面が 0.6 秒暗くなるので、その向きは "wait": 60 ほどにする）
 ## "walk": true：撮るまでの間、look の向きへ歩き続ける（箱・樽に歩いて当たって止まるかの確かめ。自由なカメラでも "look" で向きを決める）
 ## "jump": n：撮るまでの間の初めの n 刻み、跳ぶボタンを押す（"walk" と合わせて、跳んで乗れない所・頭が当たる所の確かめ）
 ## "back_lights": [明るさ, ちらつき, 消えた割合]：部屋のオルドの背の上の遠くの町の灯（OrdoView.set_back_lights。既定は消えている）
@@ -626,16 +628,23 @@ func _audit_steps() -> Array:
 		var want: PackedStringArray = String(main.args["audit_only"]).split(",")
 		views = views.filter(func(v): return v.name in want)
 	var night := ["ch1.night", "ch1.ordo_stopped", "ch1.scolded", "ch1.debt_scene", "ch1.nico_rescued", "ch1.plaza_done"]
-	var is_night: bool = main.args.get("audit_state", "day") == "night"
+	var state := String(main.args.get("audit_state", "day"))
 	var steps := []
+	var cur := {"state": state}
 	for v in views:
 		steps.append({"ticks": 2, "setup": func():
 			var g: GameSim = main.game
 			g.god_mode = true
+			var vs := String(v.get("state", state))
+			var vn: bool = vs == "night" or vs == "lit"
 			for f in night:
-				g.set_flag(f, is_night)
-			if g.room_id != v.room:
+				g.set_flag(f, vn)
+			g.set_flag("ch1.ordo_restarted", vs == "lit")
+			if vs == "lit" and main.get("power") != null:
+				main.power.pending.clear()
+			if g.room_id != v.room or vs != cur.state:
 				g.load_room(v.room, v.get("spawn", ""))
+			cur.state = vs
 			for t in g.triggers:
 				t.fired = true
 			if v.has("eye"):

@@ -456,3 +456,34 @@ func test_town_power_seeds_and_reach() -> void:
 	root.queue_free()
 	tp.free()
 	h.free_game(g)
+
+
+## オルドの体を置かない上段の背の上の町（BackTownView。部屋の "back_town"）の窓も、町の電気に従う（停電の間は消え、戻ると灯る）
+class _FakeMainUp extends Node:
+	var b := BackTownView.new()
+	var cine := _FakeCine.new()
+	var state := "playing"
+	func _ordo() -> OrdoView:
+		return null
+	func _back_town() -> BackTownView:
+		return b
+
+
+func test_town_power_back_town_upper() -> void:
+	var g := _game(STOPPED + ["ch1.plaza_done"], "ch1.upper")
+	await h.settle()
+	h.expect(g.room.has("back_town") and not g.room.has("ordo"), "上段は背の上の町だけ（オルドの体は置かない）")
+	var m := _FakeMainUp.new()
+	var tp := TownPower.new(m)
+	h.expect(tp.begin_room(g), "上段は停電の間は暗く作る")
+	tp.room_built(null)
+	h.expect(m.b.back_power > 0.5 and is_equal_approx(m.b.back_out, 1.0), "停電の間は上段の下の町の窓も消えている（out %.2f）" % m.b.back_out)
+	g.set_flag("ch1.ordo_restarted")
+	for e in g.drain_events():
+		tp.handle(e)
+	tp.power_on(null, true)
+	h.expect(is_equal_approx(m.b.back_out, 0.0) and is_equal_approx(m.b.back_power, 1.0), "電気が戻ると窓が灯る（out %.2f）" % m.b.back_out)
+	tp.free()
+	m.b.free()
+	m.free()
+	h.free_game(g)

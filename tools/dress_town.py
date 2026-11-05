@@ -85,6 +85,7 @@ def common(room, d, on_grid=True):
     on_grid=False：電気の網に乗せない（夜明けの甲羅。始めの場面は電気があり、停電の間は来ない）"""
     room["kit"] = "town"
     room.pop("ordo", None)
+    room.pop("back_town", None)
     if on_grid:
         grid(room)
 
@@ -149,8 +150,12 @@ def lamp(room, d, pos, real=None, size=0.45, pool=3.0, floor=0.0, part=True):
 #   中段 mid    [0, -6.5, 0]    背の面は下の段の床（y = -5.02）の 1.5 m 下。町の真ん中（オルドの z = 0）
 #   下段 lower  [0, -1.5, 8]    背の面は床の 1.5 m 下。リフトの端末（z = -4）・昇降機（z = -9）をオルドの左舷のリフト（z = -12、踊り場 -21〜-3）に合わせる
 #   夜明けの甲羅 opening [0, -39.5, -176]  船首の頭（背の面 +30、上の機械の箱の上 +37）の上の台。北の地平線の前に何も置かない
-#   上段 upper  置かない          展望台は船首の向き。頭（背の面 +32.5）が地平線を 14 度の高さまで隠し、章末のカランの影が見えなくなる
+#   上段 upper  置かない          展望台は船首の向き。頭（背の面 +32.5）が地平線を 14 度の高さまで隠し、章末のカランの影が見えなくなる。
+#                [0, -11.5, -48]  の所に、背の上の町の部品だけを置く（部屋の "back_town"。BackTownView。南の胸壁の下の町）
+# 背の上の町の部品は部屋ごと（2026-11-05、T9。tools/blender/kit/town_far.py）：中段 ordo_back_mid（胸壁の下の下の段の家並みから南）、
+# 下段 ordo_back_low（胸壁の向こうの裏通りと家並みから南）、上段 ordo_back_up（胸壁の下の中の段・中段の広場・下の段・南の区画）
 ORDO_POS = {"mid": [0, -6.5, 0], "lower": [0, -1.5, 8], "opening": [0, -39.5, -176]}
+BACK_TOWN_UP = [0, -11.5, -48]
 
 
 def ordo(room, d, name, back="ordo_back", ground=True, phase=None):
@@ -274,16 +279,10 @@ def mid(room):
     d.put("lamp_tall", [5.4, 0, -12.9], 180, light={"at": [0.55, 3.92, 0], "color": "#ffc27a", "range": 14, "energy": 1.6})
     light(room, [0, 5, -10], [-4.85, 3.92, -12.9], was=[[-4.85, 3.92, -13.4]])
 
-    # --- 下の段（胸壁の向こう、5 m 下）：床と家並み。南の階段の東の棟（外の面 x=9.5）の横の区画は x=16（前は 15.5 で、
-    # 区画の家の日よけ・金具が棟の窓と同じ面で重なっていた）
-    d.put("deck_slab", [0, -5.02, -35.35], shadow=False)           # 北の縁 z=-14.7（擁壁の面 z=-15 の 0.3 m 奥）まで
-    for x, z, v, yaw in ((-40, -23, "a", 0), (-26, -22, "b", 180), (-15.5, -24, "c", 0), (16.0, -23, "a", 180), (26, -24, "c", 0),
-                         (40, -22, "b", 0), (-34, -36, "c", 180), (-18, -38, "a", 0), (18, -36, "b", 180), (34, -38, "a", 180),
-                         (-26, -50, "b", 0), (0, -46, "c", 180), (26, -50, "c", 0), (-44, -48, "a", 180), (44, -48, "b", 0)):
-        d.put("lower_block_" + v, [x, -5.02, z], yaw, shadow=False)
-
-    # --- 町の下のオルド（背の面は下の段の床の 1.5 m 下）と、下の段の向こうの遠くの町
-    ordo(room, d, "mid")
+    # --- 下の段（胸壁の向こう、5 m 下）の床と家並み、その向こうの遠くの町：オルドの背の上の町の部品 ordo_back_mid（1 つのメッシュ、描画 1 回）。
+    # 前（2026-11-05 まで）はキットの部品（床 deck_slab と白磁の箱の家 lower_block_a/b/c を 15 区画）で、すぐ後ろの遠くの町
+    # （窓・扉・店・日よけの正面）より質素に見えた（残課題 T9）。今は遠くの町と同じ 1 間 × 1 階の正面。胸壁から 10 m の内は 1 階
+    ordo(room, d, "mid", back="ordo_back_mid")
 
     # --- 広場：中央の記念の柱（看板「広場」の文字の下に収まる高さ）、床の円、奥の壇、角の外灯、ベンチ、鉢植え
     d.put("monument", [0, 0, 2], scale=[1, 0.68, 1])
@@ -559,7 +558,7 @@ def lower(room):
         # 物置（C、高さ 4）の屋上は乗れない柱（東の低い壁の手すりの上 1.9 から跳ぶと屋上に乗れ、そこから洗濯屋（A）の屋上、
         # 北の段の通路の縁の乗れない柱の上へと渡れた。2026-10-15 の詰みの確かめ）
         dress_solid.B(44.0, 48.0, 4.0, 6.4, 1.0, 7.0, cam=False, nogo=True)])
-    ordo(room, d, "lower")
+    ordo(room, d, "lower", back="ordo_back_low")
     # --- 北の階段（中段へ）：中段の北の階段と同じ手すり・段鼻・上り口の鉢植え
     d.put("stair_rail_12", [-4.0, 0, 16.0], solid="town/stair_rail_12_foot")
     d.put("stair_rail_12_r", [4.0, 0, 16.0], solid="town/stair_rail_12_r_foot")
@@ -708,6 +707,8 @@ def upper(room):
     d = Dress()
     common(room, d)
     room["kit"] = "town_tidy"
+    # 南の胸壁の下の町（オルドの体は置かず、背の上の町の部品だけ。BackTownView）。前は胸壁の下に何も無く、台地の上に見えた（T9）
+    room["back_town"] = {"part": "town/ordo_back_up", "pos": BACK_TOWN_UP}
     G = lambda pos, size: geo_index(room, pos, size)  # noqa: E731
     roof = {"floor": "stone2", "wall": "graphite", "ceiling": "graphite"}
     G([-22, 7, 8.5], [14.6, 0.6, 9.6])["skin"] = roof

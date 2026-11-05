@@ -41,6 +41,13 @@ static func build(world: World, room_id: String, dark := false) -> Node3D:
 		o.phase = fposmod(float(r.ordo.get("phase", 0.0)), 1.0)
 		o.position = RoomGeo.v3(r.ordo.get("pos", [0, 0, 0]))
 		root.add_child(o)
+	# 背の上の町だけ（オルドの体なし。"back_town": { "part": "town/ordo_back_up", "pos": [x,y,z] }。上段：BackTownView）
+	if r.has("back_town"):
+		var b := BackTownView.new()
+		b.name = "BackTown"
+		b.part = String(r.back_town.get("part", ""))
+		b.position = RoomGeo.v3(r.back_town.get("pos", [0, 0, 0]))
+		root.add_child(b)
 	root.name = "Room"
 	# 部屋の明かり（街灯・窓・室内灯）：{ "lights": [ { "pos": [x,y,z], "color": "#ffb060", "range": 10, "energy": 1.5 } ] }。
 	# 町の電気（42 章 14.8）："source"（"electric" = 停電で消える。電気の網 "grid" のある部屋の既定／"oil" = 油の灯・火）、
