@@ -1,0 +1,11 @@
+[
+ {"name": "t9_lo_south", "room": "ch1.lower", "spawn": "start", "at": [0, 0, 10], "look": [0, 0, -16], "pitch": 14, "wait": 60},
+ {"name": "t9_lo_rail", "room": "ch1.lower", "spawn": "start", "at": [28, 0, -12.6], "look": [28, 0, -40], "pitch": 6},
+ {"name": "t9_lo_high", "room": "ch1.lower", "spawn": "start", "at": [10, 0, -6], "look": [0, 0, -40], "eye": [12.0, 9.0, -4.0], "target": [0.0, -2.0, -60.0]},
+ {"name": "t9_mid_rail", "room": "ch1.mid", "spawn": "start", "at": [-24, 0, -12.6], "look": [-24, 0, -40], "pitch": 24, "wait": 60},
+ {"name": "t9_mid_high", "room": "ch1.mid", "spawn": "start", "at": [-24, 0, -10], "look": [-24, 0, -40], "eye": [-34.0, 10.0, -9.0], "target": [-18.0, -6.0, -52.0]},
+ {"name": "t9_up_south", "room": "ch1.upper", "spawn": "start", "at": [0, 0, 10], "look": [0, -3, -20], "pitch": 16, "wait": 60},
+ {"name": "t9_up_rail", "room": "ch1.upper", "spawn": "start", "at": [14, 0, -12.6], "look": [14, 0, -40], "pitch": 12},
+ {"name": "t9_up_high", "room": "ch1.upper", "spawn": "start", "at": [-14, 0, -10], "look": [-14, 0, -40], "eye": [-16.0, 8.0, -8.0], "target": [-2.0, -8.0, -70.0]},
+ {"name": "t9_up_obs", "room": "ch1.upper", "spawn": "start", "at": [0, 0, 17], "look": [0, 1, 26], "pitch": 10}
+]

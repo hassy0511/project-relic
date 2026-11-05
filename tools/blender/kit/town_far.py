@@ -105,6 +105,22 @@ class Mesh:
     def tris(self) -> int:
         return len(self.I) // 3
 
+    def cut(self, pred) -> int:
+        """三角形のうち、重心 (x, y, z) で pred が真のものを消す（部屋の形と重なる所をあける）。消した数を返す"""
+        P = np.asarray(self.P, float)
+        I = np.asarray(self.I, np.int64).reshape(-1, 3)
+        c = P[I].mean(axis=1)
+        keep = np.array([not pred(*q) for q in c], bool)
+        I = I[keep]
+        used = np.unique(I)
+        remap = np.full(len(P), -1, np.int64)
+        remap[used] = np.arange(len(used))
+        for k in ('P', 'N', 'UV', 'C'):
+            arr = getattr(self, k)
+            setattr(self, k, [arr[i] for i in used])
+        self.I = remap[I].reshape(-1).tolist()
+        return int((~keep).sum())
+
     def merge(self, other: 'Mesh'):
         base = len(self.P)
         self.P += other.P
@@ -259,6 +275,7 @@ class House:
         self.faces = faces
         self.ups = UP_SETS[int(rng.integers(len(UP_SETS)))]
         self.lit = float(rng.uniform(0.45, 0.8))
+        self.bare = False     # 屋上の物（日よけ・水槽・煙突・小屋・鉢・木）を置かない（部屋の胸壁のすぐ下の家：届く縁の高さに物を出さない）
 
 
 def pick_tint(rng):
@@ -372,6 +389,8 @@ def roof(m: Mesh, h: House, lights: Lights, sides='nsew'):
     t = 0.28
     cell = {'flat': 'rf_flat', 'flat2': 'rf_flat2', 'garden': 'rf_garden', 'wood': 'rf_wood', 'metal': 'rf_metal'}.get(h.roof, 'rf_flat')
     floor(m, h.x0 + t, h.x1 - t, h.z0 + t, h.z1 - t, h.top + 0.08, cell, rgba(WHITE), 4.0)
+    if h.bare:
+        return
     w, d = h.x1 - h.x0, h.z1 - h.z0
     cx, cz = (h.x0 + h.x1) / 2, (h.z0 + h.z1) / 2
     r = rng.random()
@@ -541,9 +560,10 @@ def house(m: Mesh, h: House, lights: Lights, neighbours=(), street_faces='nsew',
 # ---------------------------------------------------------------- 区画（通りに挟まれた家の塊）
 
 def block(m: Mesh, lights: Lights, x0, x1, z0, z1, y, rng, storeys=(1, 3), lot=(4.5, 8.0), streets='nsew', ground='house',
-          skip=None, awn=0.3, tall=0.0):
+          skip=None, awn=0.3, tall=0.0, roofs=None, bare=False):
     """x0〜x1・z0〜z1 の区画を家で埋める。長い辺に沿って間口 lot の家を並べ、奥行きが 11 m を超えたら背中合わせの 2 列。
-    streets：通りに面した辺（扉・店・日よけを付ける）。skip(x, z) が真の所には建てない（広場・目印の建物の場所）"""
+    streets：通りに面した辺（扉・店・日よけを付ける）。skip(x, z) が真の所には建てない（広場・目印の建物の場所）。
+    roofs：屋根の種類の候補（省くと pick_roof。胸壁のすぐ下の家は瓦の寄棟を出さない：棟が高くなる）。bare：屋上の物を置かない"""
     houses = []
     along_x = (x1 - x0) >= (z1 - z0)
     depth = (z1 - z0) if along_x else (x1 - x0)
@@ -579,7 +599,9 @@ def block(m: Mesh, lights: Lights, x0, x1, z0, z1, y, rng, storeys=(1, 3), lot=(
                     hx1 -= inset
                 hb = (hx0, hx1, pos, pos + w)
             if skip is None or not skip((hb[0] + hb[1]) / 2, (hb[2] + hb[3]) / 2):
-                houses.append(House(hb[0], hb[1], hb[2], hb[3], y, n, np.random.default_rng(int(rng.integers(1 << 30)))))
+                hr = np.random.default_rng(int(rng.integers(1 << 30)))
+                houses.append(House(hb[0], hb[1], hb[2], hb[3], y, n, hr, roof=roofs[int(hr.integers(len(roofs)))] if roofs else None))
+                houses[-1].bare = bare
             pos += w
     for h in houses:
         # 通りに面した辺：区画の外の辺に接する面
@@ -788,6 +810,12 @@ def landmark(m: Mesh, lights: Lights, x0, x1, z0, z1, y, storeys, front_cell, rn
 
 # ---------------------------------------------------------------- 町の並び
 
+def side(sx, x, za, zb):
+    """段の東西の縁の縦の面（x = sx・x、z za〜zb）を外向き（sx の向き）にする a → b。
+    前（2026-11-05 まで）は逆向きで、外から見ると裏の面で消えた（オープニングの場面 D で、段の擁壁の所から紫の遠景が見えた）"""
+    return ((sx * x, zb), (sx * x, za)) if sx > 0 else ((sx * x, za), (sx * x, zb))
+
+
 def stern_district(m: Mesh, lights: Lights) -> None:
     """南の区画（z -114〜-57。ordo_back と ordo_town の両方）：下の段の床・大通り・横の通り・家並み・黒鉛の塔・街灯・小旗"""
     rng = np.random.default_rng(57)
@@ -798,7 +826,7 @@ def stern_district(m: Mesh, lights: Lights) -> None:
     # 床の縁（南の端・東西の端）の擁壁の面（背の面から 1.5 m）
     retaining(m, (TOWN_X, z0), (-TOWN_X, z0), 0.0, y, rng, doors=0)
     for sx in (-1, 1):
-        a, b = ((sx * TOWN_X, z0), (sx * TOWN_X, z1)) if sx > 0 else ((sx * TOWN_X, z1), (sx * TOWN_X, z0))
+        a, b = side(sx, TOWN_X, z0, z1)
         retaining(m, a, b, 0.0, y, rng, doors=0)
     # 区画：大通り |x| < 3.5、横の通り（4 m）z -100〜-96・-84〜-80・-70〜-66、東西の小路 |x| 21.5〜24.5
     zb = [(z0 + 1.0, -100.0), (-96.0, -84.0), (-80.0, -70.0), (-66.0, z1 - 1.0)]
@@ -847,7 +875,7 @@ def lower_district(m: Mesh, lights: Lights) -> None:
     z0, z1 = BACK_Z, MID_S
     tier_floor(m, -TOWN_X, TOWN_X, z0, z1, y)
     for sx in (-1, 1):
-        a, b = ((sx * TOWN_X, z0), (sx * TOWN_X, z1)) if sx > 0 else ((sx * TOWN_X, z1), (sx * TOWN_X, z0))
+        a, b = side(sx, TOWN_X, z0, z1)
         retaining(m, a, b, 0.0, y, rng, doors=0)
     # 訓練場（西 x -32〜-12、z -50〜-33：開けた砂の庭、的の柱、門の棟）
     tx0, tx1, tz0, tz1 = -32.0, -12.0, -50.0, -33.0
@@ -907,7 +935,7 @@ def mid_tier(m: Mesh, lights: Lights) -> None:
         wall(m, a, b, MID, MID + 1.2, 'st_coping', rgba(WHITE), (0, 0.2, 1, 0.8))
         floor(m, min(a[0], b[0]), max(a[0], b[0]), MID_S, MID_S + 0.3, MID + 1.2, 'st_coping', rgba(WHITE), 2.0)
     for sx in (-1, 1):
-        a, b = ((sx * TOWN_X, MID_S), (sx * TOWN_X, MID_N)) if sx > 0 else ((sx * TOWN_X, MID_N), (sx * TOWN_X, MID_S))
+        a, b = side(sx, TOWN_X, MID_S, MID_N)
         retaining(m, a, b, 0.0, MID, rng, doors=0)
     # 広場の床
     tier_floor(m, -TOWN_X, TOWN_X, MID_S, MID_N, y, 'st_pave2')
@@ -949,13 +977,15 @@ def terraces(m: Mesh, lights: Lights) -> None:
     rng = np.random.default_rng(16)
     # 段 0：擁壁 z 16（y 6.5〜11.5）。階段の口 |x| < 4 は開ける
     for sx in (-1, 1):
-        a, b = ((sx * 4.0, MID_N), (sx * TOWN_X, MID_N)) if sx > 0 else ((sx * TOWN_X, MID_N), (sx * 4.0, MID_N))
+        # 南（広場）を向く（前は北を向いていて、広場の側から見ると消えた）
+        a, b = ((sx * TOWN_X, MID_N), (sx * 4.0, MID_N)) if sx > 0 else ((sx * 4.0, MID_N), (sx * TOWN_X, MID_N))
         retaining(m, a, b, MID, UP, rng, doors=0.4)
         pot_plants(m, min(a[0], b[0]), max(a[0], b[0]), MID_N + 0.6, UP, rng)
     tier_floor(m, -TOWN_X, TOWN_X, MID_N, GATE_Z, UP)
     stairs(m, -4.0, 4.0, MID_N, 28.0, MID, UP)
     for sx in (-1, 1):
-        retaining(m, (sx * 4.0, 28.0) if sx > 0 else (sx * 4.0, MID_N), (sx * 4.0, MID_N) if sx > 0 else (sx * 4.0, 28.0), MID, UP, rng, doors=0)
+        a, b = side(-sx, -4.0, MID_N, 28.0)       # 階段の側（x = 0 の向き）を向く
+        retaining(m, a, b, MID, UP, rng, doors=0)
     # 段 1〜3：正面 z 18.5（高さ 4.4 = 1 階 + 縁）・22（2 階＋）・27（3 階＋）。奥は z 34
     rows = [(18.5, 22.0, 1), (22.0, 27.0, 2), (27.0, GATE_Z, 3)]
     for sx in (-1, 1):
@@ -997,7 +1027,7 @@ def upper_tier(m: Mesh, lights: Lights) -> None:
     tier_floor(m, -TOWN_X, TOWN_X, GATE_Z, BOW_Z, y, 'st_pave2')
     # 東西と北（船首の側）の段の壁：下の 4 m に扉と灯（外から見る面。夜に明かりがともる）
     for sx in (-1, 1):
-        a, b = ((sx * TOWN_X, MID_N), (sx * TOWN_X, BOW_Z)) if sx > 0 else ((sx * TOWN_X, BOW_Z), (sx * TOWN_X, MID_N))
+        a, b = side(sx, TOWN_X, MID_N, BOW_Z)
         retaining(m, a, b, 0.0, y, rng, doors=0.3)
     retaining(m, (-TOWN_X, BOW_Z), (TOWN_X, BOW_Z), 0.0, y, rng, doors=0.35)
     # 町長の家：落ち着いた家（緑の屋上の庭、真鍮の帯、両開きの扉）
@@ -1040,6 +1070,146 @@ def upper_tier(m: Mesh, lights: Lights) -> None:
         stack(m, cx, cz, y, 12.0, 0.5)
 
 
+# ---------------------------------------------------------------- 部屋ごとの手前の町（2026-11-05。ダッシュボードの残課題 T9）
+# 部屋の胸壁のすぐ向こうは、部屋ごとに高さと位置がちがう（部屋はオルドの座標の別の所に置く）。胸壁の向こうに見た目だけの屋根を置くときは、
+# 届く縁（胸壁の上 1.2 m・手すりの上 1.9 m）より 2.5 m 以上低くするか、跳んで届く高さ（手すりの上から 2.2 m）より上にする（42 章 14.6）。
+
+LOWER_PARA_Z = -23.0     # 下段の部屋の南の胸壁の外の面（部屋の z -15。下段のオルドは部屋の z + 8）
+MID_PARA_Z = -15.0       # 中段の部屋の南の胸壁の外の面（部屋の z = オルドの z）
+UPPER_PARA_Z = 33.0      # 上段の部屋の南の胸壁の外の面（部屋の z -15 = オルドの z 33。上段の部屋の z + 48）
+UP_STAIR = (11.0, 7.9)   # 上段の部屋の南の階段の棟（stair_well_s：|x| < 10.93、部屋の z -40.03 より北 = オルドの z 7.97〜）
+MID_STAIR = (11.2, -40.3)  # 中段の部屋の南の階段の棟（stair_well_s：|x| < 10.93、z -40.03 より北）
+FLATS = ['flat', 'flat2', 'flat', 'wood', 'flat2']   # 瓦の寄棟と屋上の庭（木）を出さない屋根
+
+
+def _side_walls(m: Mesh, z0, z1, y, rng):
+    """段の床の東西の縁の擁壁（背の面から床まで）"""
+    for sx in (-1, 1):
+        a, b = side(sx, TOWN_X, z0, z1)
+        retaining(m, a, b, 0.0, y, rng, doors=0)
+
+
+def near_lower(m: Mesh, lights: Lights) -> None:
+    """下段の部屋の南の胸壁の向こう（z -57〜-23。前は背の面の白い平らな所が約 36 m 続き、その先から遠くの町だった）：
+    胸壁の下の 1.5 m 低い裏通り（背の面の上、幅 12 m。擁壁の扉・街灯）、擁壁の上の歩道と低い手すり、真ん中の大通りへ上る階段、
+    下の段の床の家並み 2 列（裏通りに面した列は 2〜3 階：屋根は手すりの上から跳んで届く高さより上）"""
+    rng = np.random.default_rng(23)
+    y = LOW
+    lane0, lane1 = -35.0, LOWER_PARA_Z
+    floor(m, -TOWN_X, TOWN_X, lane0, lane1, 0.05, 'st_pave', rgba(_lin('#EDE6D8')), 4.0)
+    tier_floor(m, -TOWN_X, TOWN_X, BACK_Z, lane0, y)
+    _side_walls(m, BACK_Z, lane0, y, rng)
+    # 裏通りの南の擁壁（北を向く。扉は地下の倉・店）と上の低い手すり。大通りの口（|x| < 3.5）は階段
+    for a, b in (((-TOWN_X, lane0), (-3.5, lane0)), ((3.5, lane0), (TOWN_X, lane0))):
+        retaining(m, a, b, 0.0, y, rng, doors=0.3)
+        strip(m, a, b, y, y + 0.9, 'st_coping', rgba(WHITE), 4.0, 0.85, 1.0, (0.2, 0.8))
+        floor(m, a[0], b[0], lane0, lane0 + 0.25, y + 0.9, 'st_coping', rgba(WHITE), 2.0)
+        wall(m, b, a, y + 0.02, y + 0.9, 'st_coping', rgba(WHITE * 0.8), (0, 0.2, 1, 0.8))   # 歩道の側の面（南を向く）
+    # 手すりの端の面（階段の口を向く）
+    wall(m, (3.5, lane0), (3.5, lane0 + 0.25), y, y + 0.9, 'st_coping', rgba(WHITE), (0, 0.2, 0.2, 0.8))
+    wall(m, (-3.5, lane0 + 0.25), (-3.5, lane0), y, y + 0.9, 'st_coping', rgba(WHITE), (0, 0.2, 0.2, 0.8))
+    # 階段（裏通り z -31 → 歩道 z -35、北を向いて下る）と両脇の三角の面
+    n = 4
+    for i in range(n):
+        za, zb = -31.0 - 4.0 * i / n, -31.0 - 4.0 * (i + 1) / n
+        ya, yb = 0.05 + (y - 0.05) * i / n, 0.05 + (y - 0.05) * (i + 1) / n
+        m.quad((-3.5, ya, za), (3.5, ya, za), (3.5, yb, zb), (-3.5, yb, zb), 'st_stair', rgba(WHITE), (0, 0, 1, 1))
+    u0, v0, u1, v1 = A.uv_rect('st_ret')
+    m.poly([(3.5, 0.05, -31.0), (3.5, 0.05, lane0), (3.5, y, lane0)], [(u0, v1), (u1, v1), (u1, v0)], rgba(WHITE * 0.85))
+    m.poly([(-3.5, 0.05, lane0), (-3.5, 0.05, -31.0), (-3.5, y, lane0)], [(u0, v1), (u1, v1), (u0, v0)], rgba(WHITE * 0.85))
+    # 家並み：裏通りに面した列（2〜3 階）と、その南の列（1〜3 階）。区画の割り方は南の区画と同じ（大通り |x| < 3.5、東西の小路 |x| 21.5〜24.5）
+    xb = [(3.5, 21.5), (24.5, TOWN_X - 1.2)]
+    for sx in (-1, 1):
+        for (xa, xc) in xb:
+            bx0, bx1 = (xa, xc) if sx > 0 else (-xc, -xa)
+            block(m, lights, bx0, bx1, -45.5, lane0 - 0.6, y, rng, storeys=(2, 3), streets='nsew', awn=0.45)
+            block(m, lights, bx0, bx1, -54.5, -49.5, y, rng, storeys=(1, 3), streets='nsew', awn=0.35, tall=0.1)
+    # 裏通りの街灯（擁壁の前）・大通りの街灯と木・横の通りの小旗・小路の洗濯物
+    for x in (-42.0, -30.0, -18.0, -8.0, 8.0, 18.0, 30.0, 42.0):
+        lamp_post(m, lights, x, 0.05, lane0 + 1.0, rng)
+    for z in (-41.0, -52.0):
+        for sx in (-1, 1):
+            lamp_post(m, lights, sx * 3.0, y, z, rng)
+    tree(m, -2.4, y, -47.5, 3.2, 4701)
+    tree(m, 2.4, y, -47.5, 3.0, 4702)
+    bunting(m, (-21.5, -47.5), (21.5, -47.5), y + 6.6, 1.0, rng)
+    for sx in (-1, 1):
+        laundry(m, (sx * 21.5, -40.0), (sx * 24.5, -40.6), y + 4.6, rng)
+        laundry(m, (sx * 21.5, -52.0), (sx * 24.5, -51.4), y + 4.2, rng)
+
+
+def near_mid(m: Mesh, lights: Lights) -> None:
+    """中段の部屋の南の胸壁の下（z -57〜-15、下の段の床）：前のキットの部品 lower_block（白磁の箱の家）の代わりに、遠くの町と同じ
+    1 間 × 1 階の正面の家並み。胸壁から 10 m の内は 1 階（屋根は胸壁の上の面より 2.5 m 以上低い）、その先は 1〜3 階。
+    南の階段の棟（stair_well_s、|x| < 11・z -40 より北）の所はあける"""
+    rng = np.random.default_rng(15)
+    y = LOW
+    z1 = MID_PARA_Z
+    tier_floor(m, -TOWN_X, TOWN_X, BACK_Z, z1 + 0.3, y)          # 胸壁の下の擁壁の面（z -15）の 0.3 m 奥まで
+    _side_walls(m, BACK_Z, z1, y, rng)
+    sw, sz = MID_STAIR
+    stair = lambda x, z: abs(x) < sw + 0.4 and z > sz  # noqa: E731
+    xb = [(sw + 0.6, 21.5), (24.5, TOWN_X - 1.2)]
+    for sx in (-1, 1):
+        for (xa, xc) in xb:
+            bx0, bx1 = (xa, xc) if sx > 0 else (-xc, -xa)
+            block(m, lights, bx0, bx1, -24.5, z1 - 1.5, y, rng, storeys=(1, 1), streets='sew', awn=0.45, roofs=FLATS, bare=True)
+            block(m, lights, bx0, bx1, -38.0, -28.5, y, rng, storeys=(1, 3), streets='nsew', awn=0.35)
+        for (xa, xc) in [(3.5, 21.5), (24.5, TOWN_X - 1.2)]:
+            bx0, bx1 = (xa, xc) if sx > 0 else (-xc, -xa)
+            block(m, lights, bx0, bx1, -54.5, -42.0, y, rng, storeys=(1, 3), streets='nsew', awn=0.35, tall=0.1, skip=stair)
+    for z in (-44.0, -52.0):
+        for sx in (-1, 1):
+            lamp_post(m, lights, sx * 3.0, y, z, rng)
+    for (lx, lz) in ((-16.0, -26.5), (16.0, -26.5), (-36.0, -26.5), (36.0, -26.5), (-30.0, -40.0), (30.0, -40.0)):
+        lamp_post(m, lights, lx, y, lz, rng)
+    tree(m, -2.4, y, -48.0, 3.2, 4801)
+    tree(m, 2.4, y, -48.0, 3.0, 4802)
+    for zc in (-26.5, -40.0):
+        bunting(m, (-21.5, zc), (-12.0, zc), y + 5.4, 0.6, rng)
+        bunting(m, (12.0, zc), (21.5, zc), y + 5.4, 0.6, rng)
+    for sx in (-1, 1):
+        laundry(m, (sx * 21.5, -33.0), (sx * 24.5, -33.6), y + 4.4, rng)
+        laundry(m, (sx * 21.5, -47.0), (sx * 24.5, -46.4), y + 4.4, rng)
+
+
+def gap_mid(m: Mesh, lights: Lights) -> None:
+    """上段の部屋の南の胸壁の下（z 16〜33、中の段の床 6.5）：1 階の家並み（屋根は胸壁の上の面より 2.5 m 以上低い。瓦の寄棟は出さない）。
+    本物の町では北の段々（町の段の壁）の所。上段の部屋は中段の枠を写した形で、南の階段が中の段へ下りるので、その高さの町にする"""
+    rng = np.random.default_rng(33)
+    y = MID
+    tier_floor(m, -TOWN_X, TOWN_X, MID_N, UPPER_PARA_Z, y, 'st_pave2')
+    _side_walls(m, MID_N, UPPER_PARA_Z, y, rng)
+    retaining(m, (-TOWN_X, UPPER_PARA_Z), (TOWN_X, UPPER_PARA_Z), 0.0, y, rng, doors=0)   # 北の縁（上段の部屋の外の横から見える）
+    sw = UP_STAIR[0]
+    for sx in (-1, 1):
+        for (xa, xc) in ((sw + 0.6, 22.0), (25.5, TOWN_X - 1.0)):
+            bx0, bx1 = (xa, xc) if sx > 0 else (-xc, -xa)
+            block(m, lights, bx0, bx1, MID_N + 2.5, 23.5, y, rng, storeys=(1, 1), streets='nsew', awn=0.4, roofs=FLATS)
+            block(m, lights, bx0, bx1, 27.0, UPPER_PARA_Z - 0.4, y, rng, storeys=(1, 1), streets='sew', awn=0.4, roofs=FLATS, bare=True)
+    for (lx, lz) in ((-16.5, 25.2), (16.5, 25.2), (-36.0, 25.2), (36.0, 25.2), (-24.0, 17.2), (24.0, 17.2)):
+        lamp_post(m, lights, lx, y, lz, rng)
+    for sx in (-1, 1):
+        bunting(m, (sx * 12.0, 25.2), (sx * 22.0, 25.2), y + 4.4, 0.5, rng)
+        laundry(m, (sx * 22.0, 29.0), (sx * 25.5, 29.6), y + 3.0, rng, 0.25)
+
+
+def hull_skirt(m: Mesh) -> None:
+    """オルドの体を置かない部屋（上段）の下の町の外の縁：背の面の東西の縁（|x| 48.5〜56）と船体の上の白磁の帯・黒鉛の側面（y 0〜-14）、
+    船尾の縁（z -118）。体が無いと、町の縁の下から空の絵の砂漠が見えて、町が宙に浮いて見えた"""
+    W, Z0, Z1 = 56.0, -118.0, UPPER_PARA_Z
+    hull = rgba(_lin('#5A463A'))
+    for sx in (-1, 1):
+        x0, x1 = (TOWN_X, W) if sx > 0 else (-W, -TOWN_X)
+        floor(m, x0, x1, Z0, Z1, 0.0, 'st_deck', rgba(_lin('#E8DFCC')), 4.0)
+        a, b = side(sx, W, Z0, Z1)
+        strip(m, a, b, -1.6, 0.0, 'mt_ivory', rgba(WHITE), 4.0)
+        strip(m, a, b, -14.0, -1.6, 'mt_graphite', hull, 8.0, 0.6, 1.0)
+    floor(m, -TOWN_X, TOWN_X, Z0, STERN_Z, 0.0, 'st_deck', rgba(_lin('#E8DFCC')), 4.0)
+    strip(m, (W, Z0), (-W, Z0), -1.6, 0.0, 'mt_ivory', rgba(WHITE), 4.0)
+    strip(m, (W, Z0), (-W, Z0), -14.0, -1.6, 'mt_graphite', hull, 8.0, 0.6, 1.0)
+
+
 def build_town() -> tuple[Mesh, Lights]:
     m = Mesh('ordo_town')
     lights = Lights()
@@ -1055,6 +1225,41 @@ def build_back() -> tuple[Mesh, Lights]:
     m = Mesh('ordo_back')
     lights = Lights()
     stern_district(m, lights)
+    return m, lights
+
+
+def build_back_low() -> tuple[Mesh, Lights]:
+    """下段の部屋：南の区画と、胸壁の向こうの裏通りと家並み（z -114〜-23）"""
+    m = Mesh('ordo_back_low')
+    lights = Lights()
+    stern_district(m, lights)
+    near_lower(m, lights)
+    return m, lights
+
+
+def build_back_mid() -> tuple[Mesh, Lights]:
+    """中段の部屋：南の区画と、胸壁の下の下の段の家並み（z -114〜-15。前のキットの部品 lower_block と床 deck_slab の代わり）"""
+    m = Mesh('ordo_back_mid')
+    lights = Lights()
+    stern_district(m, lights)
+    near_mid(m, lights)
+    return m, lights
+
+
+def build_back_up() -> tuple[Mesh, Lights]:
+    """上段の部屋（オルドの体は置かない。部屋の "back_town"）：胸壁の下の中の段の家並み・中段の広場と市場・下の段・南の区画（z -114〜33）と、
+    背の面の縁と船体の上の帯。上段の南の階段の棟（stair_well_s）と重なる所はあける"""
+    m = Mesh('ordo_back_up')
+    lights = Lights()
+    stern_district(m, lights)
+    lower_district(m, lights)
+    mid_tier(m, lights)
+    gap_mid(m, lights)
+    hull_skirt(m)
+    sw, sz = UP_STAIR
+    inside = lambda x, y, z: abs(x) < sw and z > sz  # noqa: E731
+    m.cut(inside)
+    lights.pts = [p for p in lights.pts if not inside(p[0], p[1], p[2])]
     return m, lights
 
 
@@ -1125,7 +1330,8 @@ def build_all(atlas_only=False):
         return
     index_path = os.path.join(OUT, 'parts.json')
     index = json.load(open(index_path)) if os.path.exists(index_path) else {}
-    for name, fn in (('ordo_town', build_town), ('ordo_back', build_back)):
+    for name, fn in (('ordo_town', build_town), ('ordo_back', build_back), ('ordo_back_low', build_back_low),
+                     ('ordo_back_mid', build_back_mid), ('ordo_back_up', build_back_up)):
         m, lights = fn()
         info = write_glb(m, os.path.join(OUT, f'{name}.glb'))
         info['lights'] = len(lights.pts)
