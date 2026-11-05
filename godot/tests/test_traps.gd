@@ -440,6 +440,23 @@ func test_r16_lift_top_no_gap() -> void:
 				h.free_game(g)
 
 
+## 看板も "when"・"unless" で出し分ける：縦坑 r16 のリフトの看板は、再始動の前は「乗ると降りる」、後は「上り下りしている」の 1 枚だけ。
+## 前は看板の描き方だけが when・unless を見ず、2 枚が同じ所に重なって読めなかった（PC・スマホとも）
+func test_r16_signs_one_at_a_time() -> void:
+	var main: Array = GameSim.CH1_ORDER.filter(func(f): return f != "ch1.shortcut_open")
+	for after in [false, true]:
+		var flags: Array = main.slice(0, main.find("ch1.ordo_restarted" if after else "ch1.drive_powered") + 1)
+		var g := _game("ch1.r16", flags)
+		await h.settle()
+		var pv := PropsView.new()
+		g.get_parent().add_child(pv)
+		pv.build(g)
+		var texts: Array = pv.find_children("*", "Label3D", true, false).map(func(lb): return (lb as Label3D).text).filter(func(t): return String(t).begins_with("リフト"))
+		var want := "リフト（上り下りしている）" if after else "リフト（乗ると降りる）"
+		h.expect(texts == [want], "再始動の%s：r16 のリフトの看板は「%s」の 1 枚だけ（%s）" % ["後" if after else "前", want, texts])
+		h.free_game(g)
+
+
 ## 動く足場は敵の体もよける：乗っていない敵の体に重なる所へは動かず（敵がどくまで待つ）、乗っている敵は運ぶ。
 ## 前はハルの体だけを見ていたので、再始動の後に縦坑 r16 で上り下りするリフトが、底にいる敵を床の下へ押し込み
 ## （突撃型は床下 1.1 m を動き回り、当たりはするが狙いにくく、r16 の待ち伏せが倒しきれなくなった。盾型は世界の下へ落ちた）、縁にいた敵を持ち上げて落とした

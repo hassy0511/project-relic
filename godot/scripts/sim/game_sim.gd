@@ -293,11 +293,14 @@ func place(p: Dictionary) -> Dictionary:
 	return {"pos": RoomGeo.v3(p.get("pos", [0, 0, 0])), "yaw": float(p.get("yaw", 0.0)) * U.DEG}
 
 
+## 部屋の物 p（props の 1 つ）が今のフラグで出ているか（"when" が真で "unless" が偽）。見た目（看板・遠景の飾り）も同じ決まりで出す
+func prop_on(p: Dictionary) -> bool:
+	return (not p.has("when") or Cond.eval(p.when, self)) and (not p.has("unless") or not Cond.eval(p.unless, self))
+
+
 func _build_room() -> void:
 	for p in room.get("props", []):
-		if p.has("when") and not Cond.eval(p.when, self):
-			continue
-		if p.has("unless") and Cond.eval(p.unless, self):
+		if not prop_on(p):
 			continue
 		var m := place(p)
 		match p.type:

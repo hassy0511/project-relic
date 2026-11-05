@@ -101,9 +101,10 @@ func build(game: GameSim) -> void:
 	# セーブビーコンの台（定常の光の柱は Fx._beacon_beam が光柱の素材で描く）
 	for b in game.beacons:
 		MeshKit.add(self, MeshKit.cyl(0.5, 0.7, 0.4), MeshKit.mat(Color("#e9e3d6"), 0.35), b.pos + Vector3(0, 0.2, 0))
-	# 看板・名札（見た目だけ）：{ "type": "sign", "text": "ハルの家", "pos": [x,y,z], "size": 48 }。pos の高さに文字を浮かべる
+	# 看板・名札（見た目だけ）：{ "type": "sign", "text": "ハルの家", "pos": [x,y,z], "size": 48 }。pos の高さに文字を浮かべる。
+	# "when"・"unless" は ほかの物と同じ（GameSim.prop_on）。前は看板だけ見ず、縦坑 r16 の再始動の前と後の看板が重なって読めなかった
 	for p in game.room.get("props", []):
-		if p.type == "sign":
+		if p.type == "sign" and game.prop_on(p):
 			var m := game.place(p)
 			var lb := MeshKit.label(String(p.text), 0.0, Color(p.get("color", "#ffe7b8")), int(p.get("size", 64)))
 			lb.position = m.pos
@@ -113,7 +114,7 @@ func build(game: GameSim) -> void:
 			add_child(lb)
 	# 遠景の飾り（当たり判定なし）：{ "type": "decor", "pos": [x,y,z] 底の中心, "size": [幅,高さ,奥行き], "color": "#46506a", "yaw": 度 }
 	for p in game.room.get("props", []):
-		if p.type == "decor" and (not p.has("when") or Cond.eval(p.when, game)) and (not p.has("unless") or not Cond.eval(p.unless, game)):
+		if p.type == "decor" and game.prop_on(p):
 			var sz := RoomGeo.v3(p.size)
 			var dm := MeshKit.mat(Color(p.get("color", "#46506a")), 0.9, 0.0)
 			var node := Node3D.new()
