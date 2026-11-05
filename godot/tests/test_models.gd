@@ -24,7 +24,7 @@ const GROUPS := ["feet", "body", "held"]
 ## 今わかっている失敗：「モデル/動作/組」→ 床の下の深さ（cm。float は両足の浮きの高さ）。この試験の骨と目印の点で測った値。
 ## 組は feet（足）・body（足と持ち物の外の体）・held（持ち物）・float（立つ動作で両足とも浮く）。
 ## 後ろの注は glb_audit.py（全部の頂点・皮の変形）で測った値と、こま（60 こま/秒）。直したら消す。
-## glb_audit.py だけが見つけるもの（目印の点では 1.5 cm に届かない・骨の子の硬い物体）：haru_r/fall の足 1.9 cm、
+## glb_audit.py だけが見つけるもの（目印の点では 1.5 cm に届かない・骨の子の硬い物体）：
 ## yana/charge・combo1〜3 の足 1.6 cm、junker/run の足 1.7 cm、haru_bs/dead の銃（骨の子の物体）13.5 cm。
 const KNOWN := {
 	"burton/air/feet": 5.7,      # glb_audit 5.7 cm（foot.R・こま 0）
@@ -49,11 +49,6 @@ const KNOWN := {
 	"haru_bs/run/feet": 6.0,     # glb_audit 6.0 cm（foot.L・こま 5）
 	"haru_proxy/dead/feet": 25.7,  # glb_audit 25.7 cm（foot.R・こま 28）
 	"haru_proxy/dead/body": 13.7,  # glb_audit 13.7 cm（legs・こま 28）
-	"haru_r/dead/feet": 33.5,    # glb_audit 33.7 cm（foot.R・こま 31）
-	"haru_r/dead/body": 16.1,    # glb_audit 17.4 cm（legs・こま 36）
-	"haru_r/dead/held": 19.2,    # glb_audit 19.5 cm（held・こま 36）
-	"haru_r/hurt/feet": 2.0,     # glb_audit 2.2 cm（foot.L・こま 0）
-	"haru_r/jump/feet": 3.3,     # glb_audit 3.6 cm（foot.R・こま 0）
 	"junker/cower/feet": 1.9,    # glb_audit 1.9 cm（foot.L・こま 72）
 	"junker/walk/feet": 2.4,     # glb_audit 3.0 cm（foot.L・こま 28）
 	"tf_tobi/cower/feet": 2.7,   # glb_audit 2.7 cm（foot.L・こま 0）
