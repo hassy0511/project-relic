@@ -265,3 +265,159 @@ func test_r02_pile_corner_no_hang() -> void:
 	await _walk_off(g, Vector3(-5.5, 3.22, -1.5), Vector2(-1, -1), Vector3(-2.0, 0, -4.0), "折れた柱の上から南西へ")
 	await _walk_off(g, Vector3(-5.3, 3.22, -1.3), Vector2(-1, -1), Vector3(-2.0, 0, -4.0), "折れた柱の上から南西へ（奥から）")
 	h.free_game(g)
+
+
+## 隠し部屋 r14（ライフコア）は、近道のレバー（r17）をいつ引いても、引かなくても取り逃さない（N14、2026-11-05）。
+## 崩落（r05）は一度きりの一方通行なので、ドリルを手にして町から遺構へ戻るとき、駆動層へ下りる道は近道のエレベーター（r02 ↔ r17）だけ。
+## 前はレバーを引かずにボスまで進むと、エレベーターが開かないまま章が終わり、r14 へ行けなくなった。
+## 今はオルドの再始動（ch1.ordo_restarted）で遺構に動力が戻り、エレベーターが開く。
+## レバーは、それより前に外殻層・町へ戻る道を開ける褒美のまま（再始動の前は、引かないと開かない）。
+## 部屋のつながりは出口（lock・when・unless）だけでたどり（台本で移る崩落はたどらない）、通る部屋の中
+## （r02 の入口からエレベーター、r17 の中、r12 のエレベーターからひびの壁、r14 の入口からライフコア）は、形の調べ（ReachScan）で見る
+func test_r14_reachable_in_every_order() -> void:
+	var g := _game("ch1.mid", [], true)
+	await h.settle()
+	var main: Array = GameSim.CH1_ORDER.filter(func(f): return f != "ch1.shortcut_open")
+	var drill := main.find("ch1.drill_developed")
+	var restart := main.find("ch1.ordo_restarted")
+	var spark := main.find("ch1.got_spark")
+	# レバーを引く時：駆動回廊 r12（r17 の隣）に着いてから章の終わりまでのどこか。-1 は引かない
+	var lever_at: Array = [-1]
+	for i in range(main.find("ch1.first_beacon"), main.size()):
+		lever_at.append(i)
+	var cases := 0
+	for at in lever_at:
+		for s in main.size():
+			g.story.flags.clear()
+			for k in s + 1:
+				g.set_flag(main[k])
+			if at >= 0 and at <= s:
+				g.set_flag("ch1.shortcut_open")
+			g.drain_events()
+			var lever := g.flag("ch1.shortcut_open")
+			var what := "レバー：%s・%s まで" % ["引かない" if at < 0 else "%s の後に引く" % main[at], main[s]]
+			var open := _exit_usable(g, "ch1.r02", "ch1.r02.to_r17") and _exit_usable(g, "ch1.r17", "ch1.r17.to_r02")
+			if s >= restart:
+				h.expect(open, "%s：オルドの再始動の後は、近道のエレベーターが両側から動く" % what)
+			elif s >= spark:
+				h.expect(open == lever, "%s：再始動の前は、レバーを引いたときだけ近道が開く（開いている %s）" % [what, open])
+			if s >= drill:
+				var seen := _rooms_by_exits(g, "ch1.mid")
+				h.expect(seen.has("ch1.r14"), "%s：町から隠し部屋 r14 へ行ける（行ける部屋 %d）" % [what, seen.size()])
+			cases += 1
+	h.free_game(g)
+	h.expect(cases > 100, "順番の組み合わせを調べた（%d）" % cases)
+	# 部屋の中：レバーを引かないまま、ドリルを手にした後（章の終わりまで）。ひびの壁は壊した後
+	var late: Array = main.slice(0, drill + 1)
+	var path := [["ch1.r01", "ch1.r02", "ch1.r17"], ["ch1.r02", "ch1.r17", "ch1.r12"], ["ch1.r17", "ch1.r12", "ch1.r14"]]
+	for p in path:
+		var fl: Array = late + (["broken.ch1.r12.crack"] if p[1] == "ch1.r12" else [])
+		h.expect(await _walks_through(fl, p[0], p[1], p[2]), "%s に %s から入って、%s への出口へ歩いて行ける" % [p[1], p[0], p[2]])
+	h.expect(await _walks_through(late, "ch1.r17", "ch1.r12", "", Vector3(-8.5, 0, -14)), "r12 のひびの壁（壊す前）の前まで行ける")
+	h.expect(await _walks_through(late, "ch1.r12", "ch1.r14", "", Vector3(0, 0.8, 0)), "r14 の入口からライフコアの所へ行ける")
+
+
+## 実際のゲームで、近道のエレベーター（r02 の東の扉）へ歩いて入る：レバーを引かないまま、オルドの再始動の前（ボスを倒した所まで）は
+## 乗れずに「閉まっている」と出て、再始動の後（ドリルを手にした後）は乗って r17 へ下りられる。下りた先の r17 のレバーは「もう開いている」と出る（N14）
+func test_shortcut_opens_after_restart() -> void:
+	var main: Array = GameSim.CH1_ORDER.filter(func(f): return f != "ch1.shortcut_open")
+	for late in [false, true]:
+		var flags: Array = main.slice(0, main.find("ch1.drill_developed" if late else "ch1.boss_defeated") + 1)
+		var g := _game("ch1.r02", flags, true)
+		await h.settle()
+		g.player.teleport(Vector3(8.5, 0, 0), PI / 2)
+		g.cam.yaw = PI / 2
+		g.drain_events()
+		var msgs: Array = []
+		await h.run_until(g, TestHelpers.seconds(2.0), {"move_y": 1.0}, func():
+			for e in g.drain_events():
+				if e.type == "message":
+					msgs.append(e.text)
+			return g.room_id != "ch1.r02")
+		if not late:
+			h.expect(g.room_id == "ch1.r02", "再始動の前は、レバーを引かないとエレベーターに乗れない（%s）" % g.room_id)
+			h.expect(msgs.any(func(t): return String(t).contains("閉まっている")), "閉まっていると出る（%s）" % [msgs])
+			h.free_game(g)
+			continue
+		h.expect(g.room_id == "ch1.r17", "再始動の後は、レバーを引いていなくてもエレベーターで r17 へ下りられる（%s）" % g.room_id)
+		await h.run(g, 10, {})
+		# r17 のレバー（端末）の前に立って調べる
+		g.player.teleport(Vector3(0, 0, -3.0), PI)
+		g.cam.yaw = PI
+		g.drain_events()
+		await h.run(g, 6, {})
+		await h.run(g, 1, {"jump": true})
+		msgs = []
+		await h.run(g, 30, func(_i):
+			for e in g.drain_events():
+				if e.type == "message":
+					msgs.append(e.text)
+			return {})
+		h.expect(msgs.has("近道のエレベーターは、もう開いている"), "r17 のレバーは「もう開いている」と出る（%s）" % [msgs])
+		h.free_game(g)
+
+
+## 部屋 rid の出口 exit_id が、今のフラグで通れるか（when・unless・lock）。ひびの壁（壊せる壁。フラグ broken.<id>）で閉じた出口は、
+## ドリルを手にした後（ch1.drill_developed）なら、その部屋の壁を壊して通れるとみなす
+func _exit_usable(g: GameSim, rid: String, exit_id: String) -> bool:
+	for p in g.world.room(rid).get("props", []):
+		if p.type == "exit" and p.id == exit_id:
+			return _exit_ok(g, rid, p)
+	h.expect(false, "出口 %s が %s に無い" % [exit_id, rid])
+	return false
+
+
+func _exit_ok(g: GameSim, rid: String, p: Dictionary) -> bool:
+	if p.has("when") and not Cond.eval(p.when, g):
+		return false
+	if p.has("unless") and Cond.eval(p.unless, g):
+		return false
+	var lock = p.get("lock")
+	if lock == null or Cond.eval(lock, g):
+		return true
+	if lock is String and String(lock).begins_with("broken.") and g.flag("ch1.drill_developed"):
+		var bid := String(lock).substr(7)
+		for b in g.world.room(rid).get("props", []):
+			if b.type == "breakable" and b.id == bid:
+				return true
+	return false
+
+
+## 出口だけをたどって、部屋 from から行ける部屋（今のフラグで通れる出口だけ）
+func _rooms_by_exits(g: GameSim, from: String) -> Dictionary:
+	var seen := {from: true}
+	var q: Array = [from]
+	while not q.is_empty():
+		var rid: String = q.pop_front()
+		for p in g.world.room(rid).get("props", []):
+			if p.type != "exit" or not _exit_ok(g, rid, p):
+				continue
+			var to: String = g.world.resolve(p.to, rid)
+			if not seen.has(to):
+				seen[to] = true
+				q.append(to)
+	return seen
+
+
+## 部屋 rid に、部屋 prev からの出口で入って（その出口の spawn の目印から）、部屋 next への出口（next が空なら位置 goal の近く）へ
+## 歩いて・跳んで行けるか（形の調べ）
+func _walks_through(flags: Array, prev: String, rid: String, next: String, goal = null) -> bool:
+	var g := _game(rid, flags, true)
+	await h.settle()
+	var spawn := ""
+	for p in g.world.room(prev).get("props", []):
+		if p.type == "exit" and g.world.resolve(p.to, prev) == rid:
+			spawn = String(p.get("spawn", "start"))
+	var start: Vector3 = g.marker(spawn).pos
+	var scan := ReachScan.new(g, {"dash": g.has_ability("dash"), "from": [start]})
+	scan.run()
+	var ok := false
+	if next == "":
+		ok = scan.reaches_near(goal, 1.0)
+	else:
+		for x in g.exits:
+			if x.to == next and scan.reaches_exit(x):
+				ok = true
+	h.free_game(g)
+	await h.tree.physics_frame
+	return ok

@@ -4243,7 +4243,12 @@
       4,
       6
      ],
-     "lock": "ch1.shortcut_open",
+     "lock": {
+      "any": [
+       "ch1.shortcut_open",
+       "ch1.ordo_restarted"
+      ]
+     },
      "text": "エレベーターの扉は閉まっている。内側から開けないと動かない。"
     },
     {
@@ -38434,7 +38439,12 @@
       4,
       3
      ],
-     "lock": "ch1.shortcut_open",
+     "lock": {
+      "any": [
+       "ch1.shortcut_open",
+       "ch1.ordo_restarted"
+      ]
+     },
      "text": "エレベーターはまだ動かない。レバーを引こう。"
     },
     {

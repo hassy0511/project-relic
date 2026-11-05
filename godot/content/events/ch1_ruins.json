@@ -615,7 +615,12 @@
  "ch1.r17.lever": {
   "steps": [
    {
-    "if": "ch1.shortcut_open",
+    "if": {
+     "any": [
+      "ch1.shortcut_open",
+      "ch1.ordo_restarted"
+     ]
+    },
     "then": [
      {
       "message": "近道のエレベーターは、もう開いている"

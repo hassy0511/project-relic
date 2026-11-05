@@ -13,12 +13,14 @@ extends RefCounted
 ## 使い方：var scan := ReachScan.new(game, {"dash": game.has_ability("dash")}); var res := scan.run()
 ##   res = { stuck: [ { pos, y0, y1, nodes, box: [x0, z0, x1, z1] } ], hard: [同じ形], hangs: [ { pos, from, wedged } ], nodes, comps, reached, ms }
 ##   scan.explain(位置)：始まりからその所までのたどり方（説明用）
+##   ReachScan.new(game, {"from": [位置...]}) で始まりを決めると、scan.reaches_exit(出口)・scan.reaches_near(位置, 半径) で、そこから行けるかを見られる
 ## 候補探しの道具（tests/scan_traps.gd）と、回帰のテスト（tests/test_traps.gd）に使う。
 
 ## 第 1 章の部屋 → 本筋の段階の名前 → 立てるフラグ（そこにいるときの扉・住人・使える力。ダッシュは GameSim.has_ability が本筋のフラグから決める）
-## 終盤（オルドの再始動のあと）：本筋のフラグ（GameSim.CH1_ORDER の ch1.ordo_restarted まで）と、開いた門・近道
+## 終盤（オルドの再始動のあと）：本筋のフラグ（GameSim.CH1_ORDER の ch1.ordo_restarted まで）と、開いた門。
+## 近道のレバー（ch1.shortcut_open）は引かないほうを調べる（近道のエレベーターは、オルドの再始動で開く。2026-11-05）
 const CH1_LATE := ["ch1.chores_started", "ch1.nico_rescued", "ch1.scolded", "ch1.debt_scene", "ch1.ordo_stopped", "ch1.got_spark",
-	"ch1.fell_to_b2", "ch1.frame_fitted", "ch1.first_beacon", "ch1.drive_powered", "ch1.shortcut_open", "ch1.diagnosis",
+	"ch1.fell_to_b2", "ch1.frame_fitted", "ch1.first_beacon", "ch1.drive_powered", "ch1.diagnosis",
 	"ch1.boss_defeated", "ch1.ordo_restarted", "ch1.gate_open", "ch1.blade_online"]
 const CH1_STATES := {
 	"ch1.opening": {"early": []},
@@ -1006,12 +1008,14 @@ func _jump_any(u: int, v: int, speed: float, safe: bool) -> bool:
 
 ## 行ける所・戻れる所を調べて、詰みを集める
 func _judge() -> Dictionary:
-	# 始まり：目印・中継地点
+	# 始まり：目印・中継地点（opts の "from" に位置の配列を渡すと、そこからだけ）
 	var starts: Array = []
 	for k in game.geometry.markers:
 		starts.append(game.geometry.markers[k].pos)
 	for c in game.checkpoints:
 		starts.append(c.pos)
+	if opts.has("from"):
+		starts = opts.from
 	var start_comps := {}
 	for p in starts:
 		var id := _node_near(p.x, top_below(p.x, p.z, p.y + 0.4), p.z)
@@ -1100,6 +1104,22 @@ func _back(goal: PackedByteArray, rev: Array, safe: bool) -> PackedByteArray:
 				ok[e[0]] = 1
 				q2.append(e[0])
 	return ok
+
+
+## 始まりから出口 x の中へ行けるか（run の後に呼ぶ）
+func reaches_exit(x) -> bool:
+	for u in nx.size():
+		if _fwd[comp[u]] == 1 and x.contains(Vector3(nx[u], ny[u], nz[u])):
+			return true
+	return false
+
+
+## 始まりから位置 p の水平の距離 r 以内、高さの差 1 m 以内の所へ行けるか（run の後に呼ぶ）
+func reaches_near(p: Vector3, r: float) -> bool:
+	for u in nx.size():
+		if _fwd[comp[u]] == 1 and absf(ny[u] - p.y) < 1.0 and Vector2(nx[u] - p.x, nz[u] - p.z).length() <= r:
+			return true
+	return false
 
 
 ## 始まりから位置 p（の近くの node）のまとまりまで、どうたどったか（説明用。run の後に呼ぶ）
