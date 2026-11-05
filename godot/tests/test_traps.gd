@@ -368,12 +368,13 @@ func test_shortcut_opens_after_restart() -> void:
 		h.free_game(g)
 
 
-## 再始動の後に心臓部前室 r18 へ下りても戻れる：入ってきた扉（南）へ歩くと、縦坑 r16 の上（町の側）に出る。
+## 再始動の後に心臓部前室 r18 へ下りても戻れる：入ってきた扉（南）へ歩くと縦坑 r16 の底に出て、上り下りするリフトで上（町の側）へ上がれる。
 ## 再始動の前は、その扉はただの壁（出口が無い）。前は再始動の後に B4 へ下りると、上へ戻る出口が無かった
 func test_b4_way_back_after_restart() -> void:
 	var main: Array = GameSim.CH1_ORDER.filter(func(f): return f != "ch1.shortcut_open")
 	for after in [false, true]:
-		var flags: Array = main.slice(0, main.find("ch1.ordo_restarted" if after else "ch1.boss_defeated") + 1)
+		# 縦坑 r16 の底の待ち伏せ（突撃型）は倒した後とする
+		var flags: Array = main.slice(0, main.find("ch1.ordo_restarted" if after else "ch1.boss_defeated") + 1) + ["ch1.r16.cleared"]
 		var g := _game("ch1.r18", flags, true)
 		await h.settle()
 		var at: Vector3 = g.marker("from_r16").pos
@@ -381,7 +382,15 @@ func test_b4_way_back_after_restart() -> void:
 		g.cam.yaw = PI
 		await h.run_until(g, TestHelpers.seconds(2.0), {"move_y": 1.0}, func(): return g.room_id != "ch1.r18")
 		if after:
-			h.expect(g.room_id == "ch1.r16" and g.player.pos.y > 19.5, "再始動の後は、r18 の南の扉から縦坑 r16 の上へ戻れる（%s、y=%.2f）" % [g.room_id, g.player.pos.y])
+			h.expect(g.room_id == "ch1.r16" and g.player.pos.y < 0.5, "再始動の後は、r18 の南の扉から縦坑 r16 の底へ出る（%s、y=%.2f）" % [g.room_id, g.player.pos.y])
+			# リフトが底に下りてくるのを待って乗り、上まで運ばれる
+			var lift: Props.Mover = g.movers.filter(func(m): return m.id == "ch1.r16.lift_powered")[0]
+			h.expect(await h.run_until(g, TestHelpers.seconds(12.0), {}, func(): return lift.t >= 1.0), "リフトが底まで下りてくる（t=%.2f）" % lift.t)
+			g.player.yaw = PI
+			g.cam.yaw = PI
+			await h.run_until(g, TestHelpers.seconds(2.0), {"move_y": 1.0}, func(): return lift.carries(g.player.pos) and g.player.pos.z < 1.6)
+			var top := await h.run_until(g, TestHelpers.seconds(14.0), {}, func(): return g.player.pos.y > 19.5 and g.player.grounded)
+			h.expect(top, "リフトに乗って縦坑の上へ上がれる（y=%.2f）" % g.player.pos.y)
 		else:
 			h.expect(g.room_id == "ch1.r18", "再始動の前は、r18 の南の扉は出口ではない（%s）" % g.room_id)
 		h.free_game(g)

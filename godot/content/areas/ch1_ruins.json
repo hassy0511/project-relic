@@ -37080,7 +37080,31 @@
       0
      ],
      "speed": 4.5,
-     "mode": "ride"
+     "mode": "ride",
+     "unless": "ch1.ordo_restarted"
+    },
+    {
+     "type": "mover",
+     "id": "ch1.r16.lift_powered",
+     "pos": [
+      0,
+      19.6,
+      0.4
+     ],
+     "size": [
+      5,
+      0.4,
+      4
+     ],
+     "move": [
+      0,
+      -20.0,
+      0
+     ],
+     "speed": 4.5,
+     "mode": "pingpong",
+     "wait": 3.0,
+     "when": "ch1.ordo_restarted"
     },
     {
      "type": "sign",
@@ -37091,7 +37115,20 @@
       -2.4
      ],
      "size": 30,
-     "color": "#ffb050"
+     "color": "#ffb050",
+     "unless": "ch1.ordo_restarted"
+    },
+    {
+     "type": "sign",
+     "text": "リフト（上り下りしている）",
+     "pos": [
+      0,
+      22.2,
+      -2.4
+     ],
+     "size": 30,
+     "color": "#ffb050",
+     "when": "ch1.ordo_restarted"
     }
    ],
    "enemies": [
@@ -39983,7 +40020,7 @@
      "type": "exit",
      "id": "ch1.r18.to_r16",
      "to": "r16",
-     "spawn": "from_r15",
+     "spawn": "from_r18",
      "pos": [
       0,
       0,
