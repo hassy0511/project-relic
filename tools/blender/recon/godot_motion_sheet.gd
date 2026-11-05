@@ -18,7 +18,7 @@ var model_path := "res://assets/models/haru_r.glb"
 var views := [[180.0, 12.0], [45.0, 10.0]]
 var look_y := 0.85
 var span := 2.1
-const ATTACKS := ["combo1", "combo2", "combo3", "lunge", "charge", "air"]
+const ATTACKS := ["combo1", "combo2", "combo3", "lunge", "charge", "air", "dash"]   # 光刃を出す動作（dash はダッシュ斬り。glb_audit.py の ATTACK_CLIPS と同じ）
 var pv: PlayerView
 var cam: Camera3D
 

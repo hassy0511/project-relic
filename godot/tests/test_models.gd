@@ -5,7 +5,8 @@ extends RefCounted
 ## 高さ（モデルの座標。床は y=0）を見る。目印の点は、基準の姿勢で 1 本の骨にほぼ固く付いた頂点（重み 0.9 以上）のうち、
 ## 骨の座標の 14 の向きでいちばん外れた点（骨ごと・材質ごとに最大 14 点）。全部の頂点の皮の変形は glb_audit.py が見る。
 ## 決まり：足は床の 1.5 cm 下まで、ほかの骨（腰・胸・頭・手・髪）と持ち物は 1 cm 下まで。立つ動作（idle・walk・cower）で
-## 両足とも 2 cm より上は浮き。今わかっている失敗は KNOWN に深さ（cm）とともに書く：1 cm より深くなったら失敗、
+## 両足とも 2 cm より上は浮き。地上でだけ出す動作（TOUCH）で、動作の間ずっと足が 2 cm より上も浮き（touch）。
+## 今わかっている失敗は KNOWN に深さ（cm）とともに書く：1 cm より深くなったら失敗、
 ## 直ったのに KNOWN に残っていても失敗（消す）。人物でない GLB は NOT_CHARACTERS に書く（新しい人物の入れ忘れを防ぐ）。
 
 var h: TestHelpers
@@ -18,15 +19,22 @@ const LIMIT := {"feet": -0.015, "body": -0.010, "held": -0.010}
 const FLOAT_MIN := 0.020
 const WORSE_TOL := 1.0   # cm。KNOWN より 1 cm 深くなったら失敗
 const GROUNDED := ["idle", "walk", "cower"]
+## 地上でだけ出し、跳ぶこまの無い動作（glb_audit.py の TOUCH と同じ）：動作の間の足の最も低い点が FLOAT_MIN 以下であること
+const TOUCH := ["dash", "lunge", "charge", "drill", "combo1", "combo2", "combo3"]
 const HELD_WORDS := ["gun", "blade", "weapon", "staff", "cane", "hammer", "sword"]
 const GROUPS := ["feet", "body", "held"]
 
 ## 今わかっている失敗：「モデル/動作/組」→ 床の下の深さ（cm。float は両足の浮きの高さ）。この試験の骨と目印の点で測った値。
-## 組は feet（足）・body（足と持ち物の外の体）・held（持ち物）・float（立つ動作で両足とも浮く）。
+## 組は feet（足）・body（足と持ち物の外の体）・held（持ち物）・float（立つ動作で両足とも浮く）・
+## touch（地上の動作で足がずっと浮く。値は浮きの高さ）。
 ## 後ろの注は glb_audit.py（全部の頂点・皮の変形）で測った値と、こま（60 こま/秒）。直したら消す。
+## 残してよい訳は、モデルの組ごとに 1 行で書く（W1_ハル再構築の結果.md 10.3・11 章）。
 ## glb_audit.py だけが見つけるもの（目印の点では 1.5 cm に届かない・骨の子の硬い物体）：
 ## yana/charge・combo1〜3 の足 1.6 cm、haru_bs/dead の銃（骨の子の物体）13.5 cm。
 const KNOWN := {
+	# burton・yana：NPC。ゲームでは idle だけを出す（props_view.gd の _npc_anim_for）。直すときは
+	# rebake_anims.py --model godot/assets/models/<名前>.glb で標準の動作を焼き直す（dead・jump・fall・hurt・dash・lunge は
+	# 直った定義になる）。air・drill・charge・combo1〜3 は別に直す
 	"burton/air/feet": 5.7,      # glb_audit 5.7 cm（foot.R・こま 0）
 	"burton/dead/feet": 48.2,    # glb_audit 48.2 cm（foot.R・こま 38）
 	"burton/dead/body": 25.3,    # glb_audit 29.4 cm（legs・こま 38）
@@ -34,9 +42,19 @@ const KNOWN := {
 	"burton/fall/feet": 5.1,     # glb_audit 5.3 cm（foot.L・こま 0）
 	"burton/hurt/feet": 4.0,     # glb_audit 4.4 cm（foot.L・こま 0）
 	"burton/jump/feet": 7.2,     # glb_audit 7.4 cm（foot.R・こま 0）
+	"burton/dash/touch": 5.3,    # 浮き。glb_audit 4.9 cm（こま 0）
+	"burton/lunge/touch": 7.3,   # 浮き。glb_audit 6.9 cm（こま 0）
+	# haru_a・haru_proxy：前の版のハル。F2（main.gd の toggle_haru）か --haru でだけ出る。直さない
 	"haru_a/dead/feet": 30.3,    # glb_audit 30.3 cm（foot.R・こま 33）
 	"haru_a/dead/body": 17.9,    # glb_audit 17.9 cm（hands・こま 38）
 	"haru_a/jump/feet": 2.1,     # glb_audit 2.1 cm（foot.R・こま 0）
+	"haru_a/charge/touch": 3.6,  # 浮き。glb_audit 3.5 cm（こま 0）
+	"haru_a/combo1/touch": 3.6,  # 浮き。glb_audit 3.5 cm（こま 0）
+	"haru_a/combo2/touch": 3.6,  # 浮き。glb_audit 3.5 cm（こま 0）
+	"haru_a/combo3/touch": 3.6,  # 浮き。glb_audit 3.5 cm（こま 0）
+	"haru_a/dash/touch": 9.0,    # 浮き。glb_audit 9.0 cm（こま 0）
+	"haru_a/lunge/touch": 9.9,   # 浮き。glb_audit 9.7 cm（こま 11）
+	# haru_bs：外の技能の試作（--haru=bs でだけ出る）。直さない
 	"haru_bs/combo1/feet": 3.3,  # glb_audit 3.3 cm（foot.R・こま 5）
 	"haru_bs/combo2/feet": 3.3,  # glb_audit 3.3 cm（foot.R・こま 0）
 	"haru_bs/combo3/feet": 4.0,  # glb_audit 4.0 cm（foot.R・こま 8）
@@ -49,6 +67,14 @@ const KNOWN := {
 	"haru_bs/run/feet": 6.0,     # glb_audit 6.0 cm（foot.L・こま 5）
 	"haru_proxy/dead/feet": 25.7,  # glb_audit 25.7 cm（foot.R・こま 28）
 	"haru_proxy/dead/body": 13.7,  # glb_audit 13.7 cm（legs・こま 28）
+	"haru_proxy/charge/touch": 4.3,  # 浮き。glb_audit 4.3 cm（こま 0）
+	"haru_proxy/combo1/touch": 4.3,  # 浮き。glb_audit 4.3 cm（こま 0）
+	"haru_proxy/combo2/touch": 4.3,  # 浮き。glb_audit 4.3 cm（こま 0）
+	"haru_proxy/combo3/touch": 4.3,  # 浮き。glb_audit 4.3 cm（こま 0）
+	"haru_proxy/dash/touch": 10.8,   # 浮き。glb_audit 10.8 cm（こま 0）
+	"haru_proxy/drill/touch": 2.4,   # 浮き。glb_audit 2.4 cm（こま 0）
+	"haru_proxy/lunge/touch": 12.1,  # 浮き。glb_audit 12.1 cm（こま 0）
+	# yana：burton と同じ（上）
 	"yana/air/feet": 6.4,        # glb_audit 6.4 cm（foot.R・こま 0）
 	"yana/dead/feet": 49.8,      # glb_audit 49.8 cm（foot.R・こま 38）
 	"yana/dead/body": 30.6,      # glb_audit 32.3 cm（legs・こま 38）
@@ -56,6 +82,7 @@ const KNOWN := {
 	"yana/fall/feet": 6.1,       # glb_audit 6.4 cm（foot.L・こま 0）
 	"yana/hurt/feet": 4.4,       # glb_audit 4.8 cm（foot.L・こま 0）
 	"yana/jump/feet": 6.7,       # glb_audit 6.8 cm（foot.R・こま 0）
+	"yana/lunge/touch": 2.8,     # 浮き。glb_audit 2.5 cm（こま 0）
 }
 
 
@@ -200,6 +227,8 @@ func _measure(name: String) -> Dictionary:
 				out["%s/%s" % [clip, GROUPS[g]]] = [low[g], at[g]]
 		if GROUNDED.has(clip):
 			out["%s/float" % clip] = [feet_high, feet_high_at]
+		if TOUCH.has(clip) and low[0] < INF:
+			out["%s/touch" % clip] = [low[0], at[0]]
 	root.queue_free()
 	return out
 
@@ -216,8 +245,9 @@ func test_models_floor_contact() -> void:
 			var y: float = m[k][0]
 			var frame: int = m[k][1]
 			var grp := k.get_slice("/", 1)
-			var bad: bool = y > FLOAT_MIN if grp == "float" else y < float(LIMIT[grp])
-			var cm := (y if grp == "float" else -y) * 100.0
+			var up := grp == "float" or grp == "touch"
+			var bad: bool = y > FLOAT_MIN if up else y < float(LIMIT[grp])
+			var cm := (y if up else -y) * 100.0
 			if bad:
 				found[key] = true
 				lines.append("\"%s\": %.1f,   # こま %d" % [key, cm, frame])
@@ -225,7 +255,9 @@ func test_models_floor_contact() -> void:
 					h.expect(cm <= KNOWN[key] + WORSE_TOL, "%s が悪くなった：%.1f cm（KNOWN は %.1f cm、こま %d）" % [key, cm, KNOWN[key], frame])
 				else:
 					h.expect(false, "%s が床の決まりの外：%.1f cm（こま %d）。直すか、KNOWN に足す" % [key, cm, frame])
+	var same := found.size() == KNOWN.size()
 	for key: String in KNOWN:
 		h.expect(found.has(key), "%s は直った（または無い）。KNOWN から消す" % key)
-	if not lines.is_empty() and lines.size() != KNOWN.size():
+		same = same and found.has(key)
+	if not same:
 		print("  測った床の失敗（KNOWN の形）：\n    " + "\n    ".join(lines))

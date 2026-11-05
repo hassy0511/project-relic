@@ -11,9 +11,12 @@
      重みの一番大きい骨から 80 cm より遠い頂点（迷子の部品）
   d) 動作ごと：長さ、輪の動作の最初と最後のこまの差、値がすべて 1 の大きさの道、
      60 こま/秒で標本して（位置は直線・回転は slerp）逆バインド行列で皮を変形した、こまごとの最も低い点（部位別）
-  e) 立って待つ動作（idle・walk・cower）で両足とも床から 2 cm より上のこま＝浮き。dead の最後のこまは床に寝ていること
+  e) 立って待つ動作（idle・walk・cower）で両足とも床から 2 cm より上のこま＝浮き。地上でだけ出す動作（dash・lunge・charge・
+     drill・combo1〜3。跳ぶこまの無い物）は、動作の間のどこかで足が床から 2 cm 以内に来ること（ずっと浮いていない）。
+     dead の最後のこまは床に寝ていること（一番低い点と、胴（腰・胸）の一番低い点がどちらも 3 cm 以内）
 床の決まり：足は床の 1.5 cm 下まで、ほかの部位は 1 cm 下まで。部位は頂点の重みが一番大きい骨で決める（銃・刃などの材質と、
-骨の子の硬い物体は「持ち物」。光刃 LightBlade はゲームが攻撃の間だけ出すので攻撃の動作でだけ見る）。
+骨の子の硬い物体は「持ち物」）。光刃 LightBlade は player_view.gd が出し入れする：攻撃の間（dash の斬りを含む）は
+1 倍、ボタンの長押しの間（攻撃の外のどの動作でも）は 0.6 倍で出す。なので攻撃の動作では 1 倍、ほかの動作では 0.6 倍で見る。
 Blender 4.5 の glTF 読み込み（評価したメッシュ）と頂点ごとに比べて、差は 3 µm 以内だった（2026-11-05、haru_r・yana・burton・nico ほか）。
 考え方の出所：arjun988/blender-skills（MIT）の書き出しの前の確認の一覧に、床の接地と原点のずれを足して自動にしたもの。
 """
@@ -43,8 +46,13 @@ LOOPS = ('idle', 'run', 'fall', 'drill', 'walk', 'cower')   # player_view.gd の
 GROUNDED = ('idle', 'walk', 'cower')                        # 立って待つ・歩く（足が床に着いているはずの動作）
 PARTS = ('foot.L', 'foot.R', 'legs', 'body', 'arms', 'hands', 'head', 'hair', 'held')
 HELD_WORDS = ('gun', 'blade', 'weapon', 'staff', 'cane', 'hammer', 'sword')
-TOGGLED = ('LightBlade',)   # ゲームが攻撃の間だけ出す物（player_view.gd）。攻撃の動作でだけ床を見る
-ATTACK_CLIPS = ('combo1', 'combo2', 'combo3', 'lunge', 'charge', 'air')
+# 地上でだけ出し、跳ぶこまの無い動作（player.gd：dash・lunge・charge は地上でだけ始まる。combo1〜3 は地上の斬り、drill は掘る）。
+# 動作の間の足の最も低い点が FLOAT_MIN より上なら、ずっと浮いている（run は跳ぶこまがあるので入れない）
+TOUCH = ('dash', 'lunge', 'charge', 'drill', 'combo1', 'combo2', 'combo3')
+# ゲームが出し入れする物（player_view.gd）：攻撃の間は 1 倍、攻撃の外でもボタンの長押しの間は BLADE_HOLD 倍で出す
+TOGGLED = ('LightBlade',)
+BLADE_HOLD = 0.6
+ATTACK_CLIPS = ('combo1', 'combo2', 'combo3', 'lunge', 'charge', 'air', 'dash')   # dash はダッシュ斬り（player.gd）
 BUDGET = {'main': ('主要キャラ', 6000, 10000, 1024), 'town': ('町の住人', 3000, 5000, 512)}
 MAIN_CHARS = ('haru', 'yana')   # W1 の主要キャラ。ほかの人物は町の住人として目安を見る
 
@@ -417,13 +425,17 @@ def skin_report(model: Model) -> dict:
 
 # ---------------------------------------------------------------- 姿勢の確かめ
 
-def part_lows(model: Model, hs: list, clip: str = '') -> np.ndarray:
-    """(部位, F) の最も低い y。重みの無い頂点と、攻撃の外の出し入れする物（光刃）は除く（その部位が無ければ +inf）"""
+def part_lows(model: Model, hs: list, clip: str = '', wm: dict | None = None) -> np.ndarray:
+    """(部位, F) の最も低い y。重みの無い頂点は除く（その部位が無ければ +inf）。出し入れする物（光刃）は、攻撃の動作では
+    そのまま、ほかの動作では長押しの大きさ（BLADE_HOLD 倍、物体の原点まわり。wm が要る）で見る。wm が無ければ除く"""
     f = hs[0].shape[0]
     low = np.full((len(PARTS), f), np.inf)
     for m, h in zip(model.meshes, hs):
         if m.get('toggled') and clip not in ATTACK_CLIPS:
-            continue
+            if wm is None or m['skin'] is not None:
+                continue
+            ty = wm[m['node']][:, 1, 3][:, None]
+            h = ty + (h - ty) * BLADE_HOLD
         ok = np.ones(len(m['pos']), bool) if m['W'] is None else m['W'].sum(axis=1) > 0
         for p in range(len(PARTS)):
             sel = ok & (m['part'] == p)
@@ -478,10 +490,10 @@ def rest_report(model: Model) -> dict:
 def clip_report(model: Model, anim: dict) -> dict:
     t = frame_times(anim['length'])
     wm = model.world(anim, t)
-    low = part_lows(model, model.heights(wm), anim['name'])   # (部位, F)
+    low = part_lows(model, model.heights(wm), anim['name'], wm)   # (部位, F)
     r = dict(name=anim['name'], length=anim['length'], frames=len(t), findings=[])
     r['part_low'] = {PARTS[p]: (float(low[p].min()), int(low[p].argmin())) for p in range(len(PARTS)) if np.isfinite(low[p]).any()}
-    fails, notes = [], []
+    fails = []
 
     def group(parts, label, limit):
         """部位の組の、こまごとの最も低い点 (F,) と最も深いこま。limit より下なら失敗"""
@@ -520,14 +532,26 @@ def clip_report(model: Model, anim: dict) -> dict:
         if n_float:
             fails.append('両足とも床から %.1f cm 上（浮き、こま %d、%d/%d こま）' % (feet[fh] * 100, fh, n_float, len(t)))
             r['findings'].append(dict(clip=anim['name'], part='feet (floating)', depth_cm=round(float(-feet[fh]) * 100, 1), frame=fh))
-    # dead の最後のこま：床に寝ている（最も低い点が 0〜3 cm）
+    # ずっと浮き：地上でだけ出す動作で、動作の間の足の最も低い点が 2 cm より上
+    if anim['name'] in TOUCH and feet is not None:
+        fl = int(np.argmin(feet))
+        r['feet_touch'] = (float(feet[fl]), fl)
+        if feet[fl] > FLOAT_MIN:
+            fails.append('動作の間ずっと足が床から浮いている（最も低いこま %d で %.1f cm 上）' % (fl, feet[fl] * 100))
+            r['findings'].append(dict(clip=anim['name'], part='feet (never touch)', depth_cm=round(float(-feet[fl]) * 100, 1), frame=fl))
+    # dead の最後のこま：床に寝ている（最も低い点と胴の最も低い点が 0〜3 cm。腕 1 本だけが床に着いて体が浮くのは失敗）
     if anim['name'] == 'dead':
         last = float(min(y[-1] for y in (feet, body) if y is not None))
+        torso = float(low[PARTS.index('body')][-1])
         r['dead_last_low'] = last
+        r['dead_last_torso'] = torso
         if last > DEAD_REST_MAX:
             fails.append('最後のこまで体が床から %.1f cm 上（寝ていない）' % (last * 100))
             r['findings'].append(dict(clip='dead', part='body (not resting)', depth_cm=round(-last * 100, 1), frame=len(t) - 1))
-    r['fails'], r['notes'] = fails, notes
+        elif np.isfinite(torso) and torso > DEAD_REST_MAX:
+            fails.append('最後のこまで胴が床から %.1f cm 上（手足だけが床に着いて浮いている）' % (torso * 100))
+            r['findings'].append(dict(clip='dead', part='body (torso not resting)', depth_cm=round(-torso * 100, 1), frame=len(t) - 1))
+    r['fails'] = fails
     return r
 
 
@@ -556,7 +580,6 @@ def audit(path: str) -> dict:
         warns.append('正面が %s（ゲームは +Z）' % rs['forward'])
     for c in rep['clips']:
         fails += ['%s: %s' % (c['name'], f) for f in c['fails']]
-        warns += ['%s: %s' % (c['name'], f) for f in c['notes']]
     ones = [c['scale_tracks_all_1'] for c in rep['clips'] if c['scale_tracks_all_1']]
     if ones:
         warns.append('値がすべて 1 の大きさの道：%d 動作で計 %d 本（Godot は取り込みで消すが、書き出しの設定で外せる）' % (len(ones), sum(ones)))
@@ -614,8 +637,9 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     reps = []
     print('# GLB の確かめ（glb_audit.py）\n')
-    print('床の決まり：足は %.1f cm 下まで・ほかの部位は %.1f cm 下まで。立つ動作（%s）で両足とも %.0f cm より上は浮き。%d こま/秒で標本。\n'
-          % (-FEET_MIN * 100, -OTHER_MIN * 100, '・'.join(GROUNDED), FLOAT_MIN * 100, FPS))
+    print('床の決まり：足は %.1f cm 下まで・ほかの部位は %.1f cm 下まで。立つ動作（%s）で両足とも %.0f cm より上は浮き。'
+          '地上の動作（%s）で足がずっと %.0f cm より上は浮き。%d こま/秒で標本。\n'
+          % (-FEET_MIN * 100, -OTHER_MIN * 100, '・'.join(GROUNDED), FLOAT_MIN * 100, '・'.join(TOUCH), FLOAT_MIN * 100, FPS))
     for p in a.glb:
         rep = audit(p)
         reps.append(rep)

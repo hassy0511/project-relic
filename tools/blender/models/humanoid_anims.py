@@ -383,7 +383,10 @@ def charge() -> Clip:
     start = stance({'spine': (5, -60, 0), 'chest': (0, -30, 0), 'upper_arm.L': (-60, 0, 70), 'forearm.L': (-50, 0, 0)})
     mid = stance({'spine': (10, 0, 0), 'chest': (0, 0, 0), 'upper_arm.L': (-80, 0, -20), 'forearm.L': (0, 0, 0)})
     end = stance({'spine': (10, 60, 0), 'chest': (0, 30, 0), 'upper_arm.L': (-70, 0, -80), 'forearm.L': (0, 0, 0)})
-    return Clip('charge', 15, [(1, start), (5, start), (9, mid), (12, end), (16, end)], loop=False)
+    # 地上でだけ出す（player.gd）。足の裏の低いほうを床に着ける（前は両足とも 1.8 cm 浮いたままだった）。足首は描いたまま
+    both = {'lifted': ('foot.L', 'foot.R')}
+    return Clip('charge', 15, [(1, start, both), (5, start, both), (9, mid, both), (12, end, both), (16, end, both)],
+                loop=False, ground=True, floor='above')
 
 
 def all_clips() -> list[Clip]:
