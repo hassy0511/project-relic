@@ -220,8 +220,11 @@ Godot：`godot/assets/models/<名前>.glb` に置き、`tools/godot.sh import` �
 動作は `tools/blender/models/humanoid_anims.py` に書き、`lib/humanoid.py` の `bake_clips` が焼く（60fps の標本、こまごとのつなぎ、接地）。
 経過と画像：`docs/art_orders/W1_ハル3段斬りの結果.md`、`haru_r_trial/motion_*.jpg`。
 
-1. **モデルは触らず、動作だけ焼き直す**：`.venv-blender/bin/python tools/blender/recon/rebake_anims.py`（1 分、`godot/assets/models/haru_r.glb`）。
-   元は必ず「動作を直す前の版」（`BASE_REV`）から取る。読み込み→書き出しを繰り返すと頂点が増える。完全な再構築をしたら `BASE_REV` をその版に直す。
+1. **モデルは触らず、動作だけ焼き直す**：`.venv-blender/bin/python tools/blender/recon/rebake_anims.py --only <直した動作>`（1 分、`build/rebake/haru_r.glb`）
+   → `python3 tools/blender/recon/splice_anims.py --clips <同じ動作>`（直した動作だけを `godot/assets/models/haru_r.glb` に差し込む）→ コミット。
+   焼き直しの書き出しはそのまま使わない（Blender の読み込み→書き出しで頂点が増え、焼き直さなかった動作は長さが半分になる）。
+   元の GLB は両方とも「形が `BASE_REV` と同じ物のうち、いちばん新しい物」（作業中 → git HEAD）を自動で選ぶ。`BASE_REV` の版をそのまま元にしない（そのあとに直した動作が旧に戻る）。
+   完全な再構築をしたら `BASE_REV` をその版に直す（直していないと、形が違うので道具が止まる）。
 2. **形**：予備動作（ゆっくり始めて加速、`QUAD`/`EASE_IN`）→ 振り抜き（3 こま = 0.05 秒。`QUAD`/`EASE_IN` で最後が一番速い）→ 行き過ぎ（2 こま）→ 戻り（ゆっくり止まる、`CUBIC`/`EASE_OUT`）。
    姿勢を 3〜4 個置いて等速でつなぐだけだと「人形」に見える。全身で動かす：腰・背骨・胸のひねりで刃を運ぶ、頭は逆にひねって顔を相手に、反対の腕で釣り合う、前の足を踏み込む。
 3. **書き方**：`sp()`（腰・背骨・胸・首・頭・肩・上腕・肘・脚・かかと）で全身を 1 行、`k(こま, 姿勢, つなぎ, 緩急)` でこま。`fps=60`、`ground=True`（足の裏を床に。腰の沈みは脚の曲げから決まる）。
