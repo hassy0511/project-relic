@@ -304,6 +304,17 @@ func test_r14_reachable_in_every_order() -> void:
 			if s >= drill:
 				var seen := _rooms_by_exits(g, "ch1.mid")
 				h.expect(seen.has("ch1.r14"), "%s：町から隠し部屋 r14 へ行ける（行ける部屋 %d）" % [what, seen.size()])
+			if s >= restart:
+				# 帰り道：再始動の後に町から行けるどの部屋からも、出口をたどって町へ戻れる。
+				# 前は縦坑 r16 のリフトで B4（r18〜r20）へ下りると上へ戻る出口が無く、出られなかった。
+				# 再始動までに必ず通った B2 の部屋の中の進み（封印・訓練・制圧・弁）も済んだことにする
+				for f in ["ch1.r07.seal_open", "ch1.r08.trained", "ch1.r09.cleared", "switch.ch1.r10.valve", "cleared.r10_w1"]:
+					g.set_flag(f)
+				var stuck: Array = []
+				for rid in _rooms_by_exits(g, "ch1.mid"):
+					if not _rooms_by_exits(g, rid).has("ch1.mid"):
+						stuck.append(rid)
+				h.expect(stuck.is_empty(), "%s：町から行けるどの部屋からも町へ戻れる（戻れない部屋 %s）" % [what, stuck])
 			cases += 1
 	h.free_game(g)
 	h.expect(cases > 100, "順番の組み合わせを調べた（%d）" % cases)
@@ -354,6 +365,25 @@ func test_shortcut_opens_after_restart() -> void:
 					msgs.append(e.text)
 			return {})
 		h.expect(msgs.has("近道のエレベーターは、もう開いている"), "r17 のレバーは「もう開いている」と出る（%s）" % [msgs])
+		h.free_game(g)
+
+
+## 再始動の後に心臓部前室 r18 へ下りても戻れる：入ってきた扉（南）へ歩くと、縦坑 r16 の上（町の側）に出る。
+## 再始動の前は、その扉はただの壁（出口が無い）。前は再始動の後に B4 へ下りると、上へ戻る出口が無かった
+func test_b4_way_back_after_restart() -> void:
+	var main: Array = GameSim.CH1_ORDER.filter(func(f): return f != "ch1.shortcut_open")
+	for after in [false, true]:
+		var flags: Array = main.slice(0, main.find("ch1.ordo_restarted" if after else "ch1.boss_defeated") + 1)
+		var g := _game("ch1.r18", flags, true)
+		await h.settle()
+		var at: Vector3 = g.marker("from_r16").pos
+		g.player.teleport(at, PI)
+		g.cam.yaw = PI
+		await h.run_until(g, TestHelpers.seconds(2.0), {"move_y": 1.0}, func(): return g.room_id != "ch1.r18")
+		if after:
+			h.expect(g.room_id == "ch1.r16" and g.player.pos.y > 19.5, "再始動の後は、r18 の南の扉から縦坑 r16 の上へ戻れる（%s、y=%.2f）" % [g.room_id, g.player.pos.y])
+		else:
+			h.expect(g.room_id == "ch1.r18", "再始動の前は、r18 の南の扉は出口ではない（%s）" % g.room_id)
 		h.free_game(g)
 
 

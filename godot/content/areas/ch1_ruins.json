@@ -39980,6 +39980,23 @@
      "text": "大きな扉は閉ざされている。……ナゴミが何か言いたそうだ。"
     },
     {
+     "type": "exit",
+     "id": "ch1.r18.to_r16",
+     "to": "r16",
+     "spawn": "from_r15",
+     "pos": [
+      0,
+      0,
+      -11.0
+     ],
+     "size": [
+      3,
+      4,
+      0.8
+     ],
+     "when": "ch1.ordo_restarted"
+    },
+    {
      "type": "door",
      "id": "ch1.r18.door",
      "pos": [

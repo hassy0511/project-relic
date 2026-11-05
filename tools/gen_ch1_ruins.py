@@ -140,7 +140,7 @@ r.marker("from_r03", 0, 0, 10, 180)
 r.marker("from_elevator", 8.5, 0, 0, 270)
 r.exit("to_r01", "r01", "from_r02", 0, 0, -12)
 r.exit("to_r03", "r03", "from_r02", 0, 0, 12)
-r.exit("to_r17", "r17", "from_r02", 12, 0, 0, size=(2, 4, 6), lock="ch1.shortcut_open",
+r.exit("to_r17", "r17", "from_r02", 12, 0, 0, size=(2, 4, 6), lock={"any": ["ch1.shortcut_open", "ch1.ordo_restarted"]},
        text="エレベーターの扉は閉まっている。内側から開けないと動かない。")
 r.box(12.7, 0, 0, 0.6, 4, 6, "#3a3d44")
 r.sign("近道エレベーター", 12.3, 4.3, 0, "#9ad0ff", 28)
@@ -482,7 +482,7 @@ r.shell(12, 6, 12)
 r.start("from_r12", 3, 0, 0, 270)
 r.marker("from_r02", -3, 0, -3, 90)
 r.exit("to_r12", "r12", "from_r17", 4.6, 0, 3, size=(1.6, 4, 3))
-r.exit("to_r02", "r02", "from_elevator", -4.6, 0, -3, size=(1.6, 4, 3), lock="ch1.shortcut_open",
+r.exit("to_r02", "r02", "from_elevator", -4.6, 0, -3, size=(1.6, 4, 3), lock={"any": ["ch1.shortcut_open", "ch1.ordo_restarted"]},
        text="エレベーターはまだ動かない。レバーを引こう。")
 r.box(-5.6, 0, -3, 0.6, 3.6, 3, "#3a3d44")
 r.box(0, 0, -4.8, 0.6, 1.3, 0.6, "#6a5a48")
@@ -496,6 +496,8 @@ r.shell(20, 8, 24)
 r.start("from_r16", 0, 0, -10, 0)
 r.marker("from_r19", 0, 0, 8, 180)
 r.exit("to_r19", "r19", "from_r18", 0, 0, 11, lock="ch1.diagnosis", text="大きな扉は閉ざされている。……ナゴミが何か言いたそうだ。")
+# 再始動の後の帰り道：入ってきた扉から、縦坑 r16 の上（リフトで上がった所）へ。前は B4 から上へ戻る出口が無く、再始動の後に下りると出られなかった
+r.prop(type="exit", id="ch1.r18.to_r16", to="r16", spawn="from_r15", pos=[0, 0, -11.0], size=[3, 4, 0.8], when="ch1.ordo_restarted")
 r.box(-6.5, 0, 9.6, 7, 8, 0.6, "#3a3d44")
 r.box(6.5, 0, 9.6, 7, 8, 0.6, "#3a3d44")
 r.prop(type="door", id="ch1.r18.door", pos=[0, 0, 9.6], yaw=0, size=[6, 5, 0.6], opens="auto", lock="ch1.diagnosis")
