@@ -44,7 +44,7 @@ const KNOWN := {
 	"burton/jump/feet": 7.2,     # glb_audit 7.4 cm（foot.R・こま 0）
 	"burton/dash/touch": 5.3,    # 浮き。glb_audit 4.9 cm（こま 0）
 	"burton/lunge/touch": 7.3,   # 浮き。glb_audit 6.9 cm（こま 0）
-	# haru_a・haru_proxy：前の版のハル。F2（main.gd の toggle_haru）か --haru でだけ出る。直さない
+	# haru_a・haru_proxy：前の版のハル。F2（main.gd の toggle_haru。haru_a だけ）か --haru=a・--haru=proxy でだけ出る。直さない
 	"haru_a/dead/feet": 30.3,    # glb_audit 30.3 cm（foot.R・こま 33）
 	"haru_a/dead/body": 17.9,    # glb_audit 17.9 cm（hands・こま 38）
 	"haru_a/jump/feet": 2.1,     # glb_audit 2.1 cm（foot.R・こま 0）
