@@ -4,10 +4,12 @@
   python3 tools/blender/recon/glb_shape_diff.py 前.glb 後.glb
       （この機械では /usr/bin/python3 か .venv-blender/bin/python）
 
-形：ノードの名前・親子・基準の TRS・メッシュ・皮、材質・画像、皮の骨の名前・逆バインド行列、
+形：ノードの名前・親子・基準の TRS・メッシュ・皮、材質（中身・テクスチャ・サンプラーも）・画像（バイトも）、皮の骨の名前・逆バインド行列、
 メッシュの面ごとの頂点の数・位置・法線・UV・重み・三角の番号（差 1e-5 まで）。違いがあれば終了コード 1。
 動作：動作ごとに、骨の名前と道（translation・rotation・scale）で比べた最大の差（変えた動作だけが大きいはず）。
 """
+import hashlib
+import json
 import os
 import sys
 
@@ -23,7 +25,12 @@ def summary(g: Glb):
               tuple(np.round(n.get('rotation', [0, 0, 0, 1]), 6)), tuple(np.round(n.get('scale', [1, 1, 1]), 6)),
               n.get('mesh'), n.get('skin')) for n in js['nodes']]
     mats = [m.get('name') for m in js.get('materials', [])]
-    imgs = [(i.get('name'), i.get('mimeType')) for i in js.get('images', [])]
+    # 材質は名前のほか中身（色・テクスチャの番号・設定）、画像は名前のほかバイトの指紋も比べる
+    mat_js = [json.dumps(m, sort_keys=True) for m in js.get('materials', [])]
+    imgs = [(i.get('name'), i.get('mimeType'),
+             hashlib.sha1(g.view_bytes(i['bufferView'])).hexdigest() if 'bufferView' in i else i.get('uri'))
+            for i in js.get('images', [])]
+    mats = (mats, mat_js, json.dumps(js.get('textures', []), sort_keys=True), json.dumps(js.get('samplers', []), sort_keys=True))
     skins = []
     for s in js.get('skins', []):
         skins.append(([js['nodes'][j].get('name') for j in s['joints']], g.acc(s['inverseBindMatrices'])))
@@ -34,7 +41,7 @@ def summary(g: Glb):
             at = p['attributes']
             d = {k: g.acc(v) for k, v in at.items()}
             d['_idx'] = g.acc(p['indices']) if 'indices' in p else None
-            d['_mat'] = mats[p['material']] if 'material' in p else None
+            d['_mat'] = mats[0][p['material']] if 'material' in p else None
             d['_targets'] = len(p.get('targets', []))
             prims.append(d)
         meshes.append((m.get('name'), prims, m.get('extras', {}).get('targetNames')))
@@ -60,10 +67,10 @@ def compare_shape(a, b):
                 break
     else:
         print('ノード：同じ（%d、名前・親子・基準の TRS・メッシュ・皮）' % len(A[0]))
-    print('材質：', '同じ' if A[1] == B[1] else '違う', A[1])
+    print('材質：', '同じ' if A[1] == B[1] else '違う', A[1][0], '（中身・テクスチャ・サンプラーも）')
     if A[1] != B[1]:
-        bad('材質 %s / %s' % (A[1], B[1]))
-    print('画像：', '同じ' if A[2] == B[2] else '違う', len(A[2]))
+        bad('材質 %s / %s' % (A[1][0], B[1][0]) if A[1][0] != B[1][0] else '材質の中身・テクスチャ・サンプラー')
+    print('画像：', '同じ' if A[2] == B[2] else '違う', len(A[2]), '（バイトも）')
     if A[2] != B[2]:
         bad('画像')
     if len(A[3]) != len(B[3]):
