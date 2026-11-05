@@ -211,49 +211,22 @@ def between(a: Pose, b: Pose, w: dict[str, float]) -> Pose:
 LEAD_1 = {'hips': 0.75, 'spine': 0.55, 'chest': 0.35, 'head': 0.45, 'sh': 0.4, 'arm_l': 0.18, 'arm_r': 0.3, 'legs': 0.55}
 LEAD_2 = {'hips': 1.0, 'spine': 0.95, 'chest': 0.85, 'head': 0.85, 'sh': 0.9, 'arm_l': 0.62, 'arm_r': 0.75, 'legs': 0.95}
 
-# 1 段目の終わり（= 2 段目の始め）：刃を左前へ振り切って、少し戻した構え
+# 2 段目の終わり（= 3 段目の始め）：刃を左前へ振り切って、少し戻した構え
 READY_L = sp(hips=(2, 5), spine=(8, 6), chest=(2, 12), neck=-5, head=(0, -10), sh_l=(0, -5), sh_r=(0, -3),
              arm_l=(-70, -40, -6), fore_l=-22, arm_r=(0, 0, 22), fore_r=-36, legs=(-32, 26, 24, 10), heel=(0, 4))
-# 2 段目の終わり（= 3 段目の始め）：刃を右前（体の前を横切った先）へ振り切って、少し戻した構え
+# 1 段目の終わり（= 2 段目の始め）：刃を右前（体の前を横切った先）へ振り切って、少し戻した構え
 READY_R = sp(hips=(2, -5), spine=(8, -6), chest=(2, -12), neck=5, head=(0, 10), sh_l=(0, -6), sh_r=(0, -3),
              arm_l=(-68, 24, 6), fore_l=-24, arm_r=(6, 0, 24), fore_r=-36, legs=(-30, 24, 24, 10), heel=(0, 4))
 
-# 振り幅（刃の先の向き）：右 70 度 → 左 85 度（振り抜き）→ 左 95 度（行き過ぎ）→ 左前 55 度。ゲームのカメラは後ろにあるので、
-# 刃を体の前〜横に置いたままにする（左後ろまで回すと、カメラからは腕に隠れて見えない）。
+# 振りの向き（2026-11-05 に 1 段目と 2 段目を入れ替えた。前は 2 段目と 3 段目がどちらも左から右へ流れて不自然だった）：
+# 1 段目 左上 → 右（切り返しの形）、2 段目 右 → 左（横薙ぎ。銃の腕は反動で真横へ）、3 段目 左上 → 右前下（叩きつけ）。
+# 振り終わりの刃のある側から次の段が始まるので、振り戻しの勢いがそのまま次の斬りになる（右・左・右と交互）。
+# ゲームのカメラは後ろにあるので、刃を体の前〜横に置いたままにする（左後ろまで回すと、カメラからは腕に隠れて見えない）。
 # 大きさは体のひねり（腰 ±14〜16、背骨 ±16、胸 ±28〜32）で出す。反対の腕（銃）は振り抜きで反動のように大きく開く。
 
 
 def combo1() -> Clip:
-    """右から左への横薙ぎ（左腕の光刃）。17 こま = 0.283 秒"""
-    # 予備動作：体を右へ深くひねり、刃を胸の前に引きつけて（肘を曲げて）右後ろ上へ。銃の腕は内に抱える。重心は後ろ（右）の足
-    coil = sp(hips=(0, -16), spine=(0, -16), chest=(-6, -30), neck=14, head=(-2, 32), sh_l=(2, 12), sh_r=(0, 6),
-              arm_l=(-92, 50, 0), fore_l=-48, arm_r=(-24, 0, 4), fore_r=-65, legs=(-20, 14, 26, 8), heel=(0, 10))
-    # 振り抜き：腰→背骨→胸のひねりで左へ、腕は伸び切る。前の足を大きく踏み込んで腰が沈む。右腕（銃）は反動で真横（水平）まで振り抜く
-    strike = sp(hips=(8, 14), spine=(16, 16), chest=(6, 28), neck=-12, head=(6, -26), sh_l=(-2, -16), sh_r=(0, -10),
-                arm_l=(-88, -34, -6), fore_l=-4, arm_r=(25, 0, 85), fore_r=-10, legs=(-46, 34, 30, 6), heel=(0, 10))
-    keys = [
-        k(1, sp(hips=(0, -8), spine=(3, -10), chest=(-2, -20), neck=10, head=(0, 22), sh_l=(0, 6), sh_r=(0, 4),
-                arm_l=(-78, 36, 6), fore_l=-40, arm_r=(-16, 0, 6), fore_r=-55, legs=(-22, 16, 24, 6), heel=(0, 8)),
-          'QUAD', 'EASE_IN'),
-        k(4, coil, 'LINEAR'),
-        k(5, between(coil, strike, LEAD_1), 'LINEAR'),
-        k(6, between(coil, strike, LEAD_2), 'LINEAR'),
-        k(7, strike, 'SINE', 'EASE_OUT'),
-        # 行き過ぎ：腕と胸はさらに先へ、腰は少し戻り始める
-        k(9, sp(hips=(10, 12), spine=(18, 19), chest=(7, 32), neck=-14, head=(8, -32), sh_l=(-2, -18), sh_r=(0, -12),
-                arm_l=(-84, -38, -8), fore_l=0, arm_r=(30, 0, 92), fore_r=-6, legs=(-48, 36, 30, 8), heel=(0, 10)),
-          'CUBIC', 'EASE_OUT'),
-        # 戻り：ゆっくり構えへ
-        k(14, sp(hips=(4, 7), spine=(10, 9), chest=(3, 16), neck=-7, head=(3, -14), sh_l=(0, -8), sh_r=(0, -6),
-                 arm_l=(-74, -42, -6), fore_l=-16, arm_r=(10, 0, 48), fore_r=-30, legs=(-36, 28, 26, 10), heel=(0, 6)),
-          'SINE', 'EASE_IN_OUT'),
-        k(18, READY_L),
-    ]
-    return Clip('combo1', 17, keys, loop=False, fps=SWORD_FPS, ground=True)
-
-
-def combo2() -> Clip:
-    """左から右への切り返し。18 こま = 0.30 秒"""
+    """左上から右への斬り（左腕の光刃）。17 こま = 0.283 秒。待機から入るので、1 こま目はもう左へ巻き始めた姿勢"""
     # 予備動作：体を左へ深くひねり、刃を左上へ引く。銃の腕は内に抱える。重心は前（左）の足
     coil = sp(hips=(0, 16), spine=(-2, 16), chest=(-8, 30), neck=-14, head=(-4, -30), sh_l=(4, 10), sh_r=(0, -4),
               arm_l=(-96, -46, -12), fore_l=-40, arm_r=(-18, 0, 10), fore_r=-60, legs=(-26, 20, 22, 6), heel=(0, 8))
@@ -261,24 +234,64 @@ def combo2() -> Clip:
     strike = sp(hips=(8, -14), spine=(16, -16), chest=(6, -28), neck=12, head=(6, 26), sh_l=(-2, -18), sh_r=(0, -12),
                 arm_l=(-88, 30, 6), fore_l=-4, arm_r=(36, 0, 46), fore_r=-26, legs=(-34, 30, 32, 2), heel=(0, 10))
     keys = [
-        k(1, READY_L, 'QUAD', 'EASE_IN'),
+        # 待機（0.05 秒で混ぜて入る）から、左への巻き込みが 7 割ほど進んだ姿勢
+        k(1, sp(hips=(0, 8), spine=(2, 10), chest=(-4, 20), neck=-10, head=(-2, -21), sh_l=(2, 6), sh_r=(0, -2),
+                arm_l=(-80, -33, -10), fore_l=-34, arm_r=(-14, 0, 9), fore_r=-52, legs=(-24, 18, 23, 8), heel=(0, 6)),
+          'QUAD', 'EASE_IN'),
+        k(4, coil, 'LINEAR'),
+        k(5, between(coil, strike, LEAD_1), 'LINEAR'),
+        k(6, between(coil, strike, LEAD_2), 'LINEAR'),
+        k(7, strike, 'SINE', 'EASE_OUT'),
+        # 行き過ぎ：腕と胸はさらに先へ、腰は少し戻り始める
+        k(9, sp(hips=(10, -12), spine=(18, -18), chest=(7, -32), neck=14, head=(8, 30), sh_l=(-2, -20), sh_r=(0, -12),
+                arm_l=(-84, 34, 8), fore_l=0, arm_r=(42, 0, 52), fore_r=-22, legs=(-38, 34, 32, 4), heel=(0, 10)),
+          'CUBIC', 'EASE_OUT'),
+        # 戻り：ゆっくり構えへ
+        k(14, sp(hips=(4, -7), spine=(10, -9), chest=(3, -16), neck=7, head=(3, 14), sh_l=(0, -8), sh_r=(0, -6),
+                 arm_l=(-72, 26, 6), fore_l=-18, arm_r=(12, 0, 30), fore_r=-34, legs=(-32, 26, 26, 10), heel=(0, 6)),
+          'SINE', 'EASE_IN_OUT'),
+        k(18, READY_R),
+    ]
+    return Clip('combo1', 17, keys, loop=False, fps=SWORD_FPS, ground=True)
+
+
+def combo2() -> Clip:
+    """右から左への横薙ぎ（振り戻し）。18 こま = 0.30 秒"""
+    # 予備動作：1 段目で右へ振り切った刃を、そのまま右後ろ上へ巻き込む。体を右へ深くひねり、刃を胸の前に引きつけて
+    # （肘を曲げて）。銃の腕は内に抱える。重心は後ろ（右）の足
+    coil = sp(hips=(0, -16), spine=(0, -16), chest=(-6, -30), neck=14, head=(-2, 32), sh_l=(2, 12), sh_r=(0, 6),
+              arm_l=(-92, 50, 0), fore_l=-48, arm_r=(-24, 0, 4), fore_r=-65, legs=(-20, 14, 26, 8), heel=(0, 10))
+    # 振り抜き：腰→背骨→胸のひねりで左へ、腕は伸び切る。前の足を大きく踏み込んで腰が沈む。右腕（銃）は反動で真横（水平）まで振り抜く
+    strike = sp(hips=(8, 14), spine=(16, 16), chest=(6, 28), neck=-12, head=(6, -26), sh_l=(-2, -16), sh_r=(0, -10),
+                arm_l=(-88, -34, -6), fore_l=-4, arm_r=(25, 0, 85), fore_r=-10, legs=(-46, 34, 30, 6), heel=(0, 10))
+    keys = [
+        k(1, READY_R, 'QUAD', 'EASE_IN'),
         k(5, coil, 'LINEAR'),
         k(6, between(coil, strike, LEAD_1), 'LINEAR'),
         k(7, between(coil, strike, LEAD_2), 'LINEAR'),
         k(8, strike, 'SINE', 'EASE_OUT'),
-        k(10, sp(hips=(10, -12), spine=(18, -18), chest=(7, -32), neck=14, head=(8, 30), sh_l=(-2, -20), sh_r=(0, -12),
-                 arm_l=(-84, 34, 8), fore_l=0, arm_r=(42, 0, 52), fore_r=-22, legs=(-38, 34, 32, 4), heel=(0, 10)),
+        # 行き過ぎ：腕と胸はさらに先へ、腰は少し戻り始める
+        k(10, sp(hips=(10, 12), spine=(18, 19), chest=(7, 32), neck=-14, head=(8, -32), sh_l=(-2, -18), sh_r=(0, -12),
+                 arm_l=(-84, -38, -8), fore_l=0, arm_r=(30, 0, 92), fore_r=-6, legs=(-48, 36, 30, 8), heel=(0, 10)),
           'CUBIC', 'EASE_OUT'),
-        k(15, sp(hips=(4, -7), spine=(10, -9), chest=(3, -16), neck=7, head=(3, 14), sh_l=(0, -8), sh_r=(0, -6),
-                 arm_l=(-72, 26, 6), fore_l=-18, arm_r=(12, 0, 30), fore_r=-34, legs=(-32, 26, 26, 10), heel=(0, 6)),
+        # 戻り：ゆっくり構えへ
+        k(15, sp(hips=(4, 7), spine=(10, 9), chest=(3, 16), neck=-7, head=(3, -14), sh_l=(0, -8), sh_r=(0, -6),
+                 arm_l=(-74, -42, -6), fore_l=-16, arm_r=(10, 0, 48), fore_r=-30, legs=(-36, 28, 26, 10), heel=(0, 6)),
           'SINE', 'EASE_IN_OUT'),
-        k(19, READY_R),
+        k(19, READY_L),
     ]
     return Clip('combo2', 18, keys, loop=False, fps=SWORD_FPS, ground=True)
 
 
+# 3 段目の振りかぶりの途中（4 こま目）の割合。2 段目で刃はもう左にあるので、振りかぶりは「左前から左の上へ持ち上げる」だけ。
+# 加速して（QUAD の EASE_IN）ここで一番速くなり、頂点へは減速して（SINE の EASE_OUT）1 こま止まってから叩きつける。
+# 速さが 4 こま目でつながるのは、ここまでが全体の 4 割強のとき
+RISE_3 = {'hips': 0.45, 'spine': 0.4, 'chest': 0.45, 'head': 0.45, 'sh': 0.45, 'arm_l': 0.45, 'arm_r': 0.5, 'legs': 0.4}
+
+
 def combo3() -> Clip:
-    """振り下ろし（とどめ）。27 こま = 0.45 秒。膝を上げて大きく振りかぶり、踏み込みながら叩きつけ、沈んだ姿勢を少し保つ"""
+    """振り下ろし（とどめ）。27 こま = 0.45 秒。2 段目の振り終わり（刃は左前）から左の上へ振りかぶり、
+    膝を上げ、踏み込みながら右前へ叩きつけ、沈んだ姿勢を少し保つ"""
     # 振りかぶり：上腕を頭の上の左へ（Z 正で外へ開いて髪に入らない）。背を反らして体を左へひねり、前（左）の膝を上げ、
     # 後ろの足はつま先立ち。銃の腕は胸の前に抱える
     peak = sp(hips=(-4, 12), spine=(-18, 10), chest=(-12, 16), neck=-8, head=(-8, -16), sh_l=(14, 8), sh_r=(0, -4),
@@ -289,7 +302,9 @@ def combo3() -> Clip:
     impact = sp(hips=(10, -8), spine=(36, -10), chest=(12, -14), neck=6, head=(18, 8), sh_l=(-6, -16), sh_r=(0, -8),
                 arm_l=(-112, 0, -6), fore_l=-6, arm_r=(46, 0, 44), fore_r=-20, legs=(-56, 38, 36, 4), heel=(0, 10))
     keys = [
-        k(1, READY_R, 'CUBIC', 'EASE_IN'),
+        k(1, READY_L, 'QUAD', 'EASE_IN'),
+        # 持ち上げの途中：刃は左の外を通って上がる。前の膝が上がり始める
+        k(4, between(READY_L, peak, RISE_3), 'SINE', 'EASE_OUT', lifted=('foot.L',)),
         k(7, peak, 'LINEAR', lifted=('foot.L',)),
         k(8, peak, 'LINEAR', lifted=('foot.L',)),
         k(9, between(peak, impact, {'hips': 0.7, 'spine': 0.6, 'chest': 0.4, 'head': 0.4, 'sh': 0.4, 'arm_l': 0.15, 'arm_r': 0.3, 'legs': 0.6}),

@@ -2,6 +2,7 @@ class_name HaruPlayShots
 ## ハルのモデルの比べ（--haru=r と --haru=bs などで同じ場面を撮って並べる）：Demo（--demo=<フォルダ>）から使う。
 ##   --haru_play_shots                 全部：ゲームのカメラ（後ろ）で動作、顔の表情 4 つ、フレームの段 4 つ、会話のカメラ、ナゴミ
 ##   --haru_play_shots=play,face,frame,talk,nagomi   名前で選ぶ
+##   --haru_play_shots=chain           3 段斬りを続けて（combo1 → combo2 → combo3）ゲームの速さで 1 刻みずつ撮る（hp_chain_<刻み>.png。全部には入らない）
 ## 出力：<フォルダ>/hp_play_<動作>.png（ゲームのカメラ、画面の表示つき）、hp_face_<0..3>.png（顔の寄り）、
 ## hp_frame_<段>_<front|back>.png（フレームの段）。会話のカメラ（talk_yana_*）とナゴミ（nd_*）は Demo・NagomiShots の撮り方のまま
 ## （--talk_cam・--nagomi_cams が無ければ yana、game,close）。
@@ -31,6 +32,8 @@ static func steps(d) -> Array:
 	var s := []
 	if on.call("play"):
 		s.append_array(_play_steps(d))
+	if want.split(",").has("chain"):
+		s.append_array(_chain_steps(d))
 	if on.call("face"):
 		s.append_array(_face_steps(d))
 	if on.call("frame"):
@@ -148,6 +151,39 @@ static func _play_steps(d) -> Array:
 	s.append({"ticks": 3, "input": {}})
 	s.append(_shot(d, "hurt", {}, "hurt"))
 	s.append({"ticks": 40, "input": {}, "setup": func(): d.main.game.player.hp = d.main.game.player.max_hp})
+	return s
+
+
+## 1 刻みずつ続けて撮るときの動作の再生：撮る間（画面を 2 回描くあいだ、中身は止まっている）は再生も止める。
+## 止めないと、撮るたびに動作が 2 こまずつ中身より先へ進む。ただし撮る刻みでは、その刻みの再生（1/60 秒）が
+## 撮る前に済んでいないので、ここで進めてから止める（ヒットストップ中は速さ 0 なので進まない）。次の刻みの PlayerView.sync が速さを戻す
+static func freeze_anim(d) -> void:
+	var pv = d.main.player_view
+	if pv != null and pv.anim != null:
+		pv.anim.advance(1.0 / 60.0)
+		pv.anim.speed_scale = 0.0
+
+
+## 3 段斬りを続けて撮る：押して combo1 を始め、次の段を先に押しておく（inputBuffer）。押した刻みから CHAIN_TICKS 刻み、
+## 1 刻み（1/60 秒）ごとにゲームのカメラで撮り、動作の名前・攻撃の時間・動作の再生位置を「連続 …」の行に出す（段の切り替えの確認）
+const CHAIN_TICKS := 66
+
+
+static func _chain_steps(d) -> Array:
+	var s := []
+	s.append(_reset(d))
+	s.append({"ticks": 30, "input": {}})
+	for i in CHAIN_TICKS:
+		# 0 刻み目で 1 段目、4 刻み目で 2 段目、22 刻み目で 3 段目を先に押す（どれも前の段の受付の中）
+		var inp := {"sword": i == 0 or i == 4 or i == 22}
+		s.append({"ticks": 1, "shot": "hp_chain_%02d" % i, "input": inp, "cam": func(): freeze_anim(d), "check": func():
+			var p: Player = d.main.game.player
+			var pv = d.main.player_view
+			print("連続 %02d：%s　攻撃 %s　再生 %s %.3f 秒" % [i, p.anim(),
+				("%s %.3f / %.3f" % [p.attack.move, p.attack.time, p.attack.duration]) if p.attack != null else "-",
+				pv.current, pv.anim.current_animation_position if pv.anim and pv.anim.is_playing() else -1.0])
+			return true})
+	s.append({"ticks": 40, "input": {}})
 	return s
 
 

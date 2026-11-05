@@ -1,6 +1,7 @@
 class_name VfxShots
 ## エフェクト（W2-09）の確認の撮影と、描画の回数の計測。Demo（--demo=<フォルダ>）から使う：
 ##   --vfx_shots           エフェクトの決まった場面を撮る（vfx_<群>_<場面>.png）。撮るたびに「描画 …」の行を出す
+##   --vfx_shots=combo     3 段斬りを続けて（combo1 → combo2 → combo3）1 刻みずつ撮る（vfx_combo_<刻み>.png。振り抜きの帯が刃を追うかの確認）
 ##   --vfx_shots=h         残りの仕上げ（H 群：解析の光の帯・盾の亀裂・フレームの装着・遺物・ノードの記憶・ビーコン・フラッシュの強さ）だけ
 ##   --vfx_bench=r09,r15,r19,arena  戦闘の重い場面（配管広間・伝導路・ボス部屋・試しの部屋の閂）を数秒ずつ毎こま描いて、描画の回数の最大・平均を出す
 ## どちらも god_mode で、ゲームの中身には手を加えない（状態を作るのは確認用の関数・敵の状態の書き換えだけ）
@@ -41,6 +42,30 @@ static func _place(g: GameSim, e, at: Vector3, face: Vector3) -> void:
 	g.phys.set_feet(e.body, at)
 
 
+## 3 段斬りを続けて撮る（B 群と同じ的と向き）。0・4・22 刻み目に押して、次の段を先に押しておく（inputBuffer）
+static func combo_steps(d) -> Array:
+	var m = d.main
+	var s := [
+		{"ticks": 2, "setup": func():
+			d._arena_start("sentry")
+			var g: GameSim = m.game
+			var e = g.enemies[0]
+			_targets(g, [e])
+			_place(g, e, Vector3(0, 0, 4), Vector3(0, 0, 9))
+			e.hp = 9999.0
+			e.max_hp = 9999.0
+			d._stand(Vector3(0, 0, 6.2), Vector3(0, 0, 4))
+			_view(d, 1.0)},
+		{"ticks": 30, "input": {}},
+	]
+	for i in 66:
+		s.append(_shot("combo_%02d" % i, {"input": {"sword": i == 0 or i == 4 or i == 22}, "cam": func(): HaruPlayShots.freeze_anim(d), "check": func():
+			var a = m.game.player.attack
+			print("帯 %02d：%s" % [i, ("%s %.3f / %.3f" % [a.move, a.time, a.duration]) if a != null else "-"])
+			return true}))
+	return s
+
+
 static func steps(d) -> Array:
 	var m = d.main
 	# --vfx_shots=h：残りの仕上げ（H 群）だけを撮る
@@ -49,6 +74,9 @@ static func steps(d) -> Array:
 	# --vfx_shots=machines：番機 5 種と閂の見た目だけ（W2_番機3D化の結果.md の 3e。前後の比べ）
 	if String(m.args.get("vfx_shots", "")) == "machines":
 		return machine_steps(d)
+	# --vfx_shots=combo：3 段斬りの帯を 1 刻みずつ
+	if String(m.args.get("vfx_shots", "")) == "combo":
+		return combo_steps(d)
 	var s := []
 	# ---- A：主武器（連射・溜め・弱点・装甲）
 	s.append_array([
