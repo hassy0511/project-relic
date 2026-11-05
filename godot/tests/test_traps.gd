@@ -387,6 +387,27 @@ func test_b4_way_back_after_restart() -> void:
 		h.free_game(g)
 
 
+## 崩落床 r05 の崩落の自動保存：最後に書く保存は、B2 に落ちたフラグ（ch1.fell_to_b2）と新しい目的を持つ。
+## 前は r06 に着いたときだけ保存し、フラグと目的はその約 3 秒後に付いたので、その間にアプリが終わると古い目的のまま再開した
+func test_collapse_autosave_has_flag() -> void:
+	var g := _game("ch1.r05", ["ch1.chores_started", "ch1.nico_rescued", "ch1.scolded", "ch1.debt_scene", "ch1.ordo_stopped", "ch1.got_spark"], true)
+	for t in g.triggers:
+		t.fired = false
+	await h.settle()
+	g.player.teleport(Vector3(0, 0, 3), 0.0)
+	var saves: Array = []
+	await h.run_until(g, 3000, func(i): return {"jump": (i % 6) < 3} if g.story.blocking() else {}, func():
+		for e in g.drain_events():
+			if e.type == "autosave":
+				saves.append(g.to_save())
+		return g.room_id == "ch1.r06" and g.flag("ch1.fell_to_b2") and not g.story.running_event())
+	h.expect(g.room_id == "ch1.r06" and g.flag("ch1.fell_to_b2"), "床が崩れて r06 へ落ちる（%s）" % g.room_id)
+	var last: Dictionary = saves.back() if not saves.is_empty() else {}
+	h.expect(not last.is_empty() and last.room == "ch1.r06" and last.flags.has("ch1.fell_to_b2") and String(last.objective).contains("上には戻れない"),
+			"最後の自動保存は r06・落ちたフラグ・新しい目的を持つ（%s）" % [{} if last.is_empty() else {"room": last.room, "objective": last.objective}])
+	h.free_game(g)
+
+
 ## 部屋 rid の出口 exit_id が、今のフラグで通れるか（when・unless・lock）。ひびの壁（壊せる壁。フラグ broken.<id>）で閉じた出口は、
 ## ドリルを手にした後（ch1.drill_developed）なら、その部屋の壁を壊して通れるとみなす
 func _exit_usable(g: GameSim, rid: String, exit_id: String) -> bool:

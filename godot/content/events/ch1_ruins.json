@@ -102,6 +102,9 @@
     "objective": "上には戻れない。非常灯をたどって、出口を探す"
    },
    {
+    "autosave": true
+   },
+   {
     "freeze": false
    }
   ]
