@@ -238,8 +238,19 @@ def compare(a_js: dict, a_bin: bytes, b_js: dict, b_bin: bytes) -> list[str]:
     for x, y in zip(a_js.get('images', []), b_js.get('images', [])):
         if image(a_js, a_bin, x) != image(b_js, b_bin, y):
             out.append(f"image {x.get('name')}")
+    def constant(a, tol):
+        """値（アクセサ）がどのこまでも同じか（tol まで）"""
+        ctype, _, count, raw = a
+        if ctype != 5126 or count < 1:
+            return False
+        v = struct.unpack(f'<{len(raw) // 4}f', raw)
+        n = len(v) // count
+        return all(abs(v[i] - v[i % n]) <= tol for i in range(len(v)))
+
     def same_track(x, y, tol=1e-5):
-        """動作のトラック（時間・値）が同じか。小数は tol まで同じとみなす（焼き直すと 1e-7 ほどずれる）"""
+        """動作のトラック（時間・値・つなぎ）が同じか。小数は tol まで同じとみなす（焼き直すと 1e-7 ほどずれる）。
+        値が一定の道は STEP と LINEAR で動きが同じなので同じとみなす（床合わせの root は値が 1e-8 ほど揺れ、
+        Blender の書き出しがどちらを選ぶかが焼き直しごとに変わる：haru_r の dash の root.translation）"""
         for (ca, ta, na, ba), (cb, tb, nb, bb) in zip(x[:2], y[:2]):
             if (ca, ta, na) != (cb, tb, nb) or len(ba) != len(bb):
                 return False
@@ -249,7 +260,10 @@ def compare(a_js: dict, a_bin: bytes, b_js: dict, b_bin: bytes) -> list[str]:
                     return False
             elif ba != bb:
                 return False
-        return x[2] == y[2]
+        ia, ib = x[2] or 'LINEAR', y[2] or 'LINEAR'
+        if ia == ib:
+            return True
+        return {ia, ib} <= {'STEP', 'LINEAR'} and constant(x[1], tol) and constant(y[1], tol)
 
     an_a = {a['name']: a for a in a_js.get('animations', [])}
     an_b = {a['name']: a for a in b_js.get('animations', [])}

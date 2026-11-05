@@ -6,7 +6,7 @@
 
 形：ノードの名前・親子・基準の TRS・メッシュ・皮、材質（中身・テクスチャ・サンプラーも）・画像（バイトも）、皮の骨の名前・逆バインド行列、
 メッシュの面ごとの頂点の数・位置・法線・UV・重み・三角の番号（差 1e-5 まで）。違いがあれば終了コード 1。
-動作：動作ごとに、骨の名前と道（translation・rotation・scale）で比べた最大の差（変えた動作だけが大きいはず）。
+動作：動作ごとに、骨の名前と道（translation・rotation・scale）で比べた最大の差（変えた動作だけが大きいはず）と、つなぎ（STEP・LINEAR）の違い。
 """
 import hashlib
 import json
@@ -134,15 +134,24 @@ def compare_anims(a, b):
         da, db = A[name], B[name]
         worst = 0.0
         wk = None
-        for k in set(da) | set(db):
+        interp = []
+        for k in sorted(set(da) | set(db)):
             if k not in da or k not in db:
                 print(name, '道が片方だけ', k)
                 continue
-            ta, va, _ = da[k]
-            tb, vb, _ = db[k]
+            ta, va, ia = da[k]
+            tb, vb, ib = db[k]
+            if ia != ib:
+                # つなぎ（STEP・LINEAR・CUBICSPLINE）が違うと、こまと値が同じでも動きが変わる（動く道で STEP ならかくかく）。
+                # 値が一定の道なら STEP と LINEAR は同じ動き（焼き直すと書き出しがどちらかを選ぶ：dash の root.translation）
+                const = {ia, ib} <= {'STEP', 'LINEAR'} and all(len(v) and np.abs(v - v[0]).max() <= 1e-5 for v in (va, vb))
+                interp.append('%s.%s %s→%s%s' % (k[0], k[1], ia, ib, '（値が一定なので動きは同じ）' if const else ''))
             if ta.shape != tb.shape or np.abs(ta - tb).max() > 1e-5:
                 # こまの置き方が違う（作り直した動作）。差は測らない
                 worst, wk = np.inf, ('こま %d → %d' % (len(ta), len(tb)), k[0])
+                continue
+            if va.shape != vb.shape:
+                worst, wk = np.inf, ('値の数 %d → %d' % (len(va), len(vb)), k[0])
                 continue
             x = va.copy()
             if k[1] == 'rotation':
@@ -152,6 +161,8 @@ def compare_anims(a, b):
             if d > worst:
                 worst, wk = d, k
         print('%-8s 道 %d / %d、最大の差 %s %s' % (name, len(da), len(db), '%.2e' % worst if worst < np.inf else 'こまが違う', wk or ''))
+        if interp:
+            print('         つなぎが違う：%s' % '、'.join(interp))
 
 
 if __name__ == '__main__':
