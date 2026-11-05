@@ -57,6 +57,7 @@ def base_glb(base: str | None, model_rel: str) -> str:
     if not base and model_rel != DEFAULT_MODEL:
         path = os.path.join(REPO, model_rel)
         if os.path.exists(path):
+            print(f'元の GLB：作業中の {model_rel}')
             return path
         base = 'HEAD'
     if base:
