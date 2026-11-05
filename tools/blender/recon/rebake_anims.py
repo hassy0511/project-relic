@@ -6,10 +6,12 @@
 動作を直すたびに絵からの完全な再構築（build_char.py、約 40 分、build/recon が要る）をしなくてよいための入口。
 動作の定義は従来どおり tools/blender/models/humanoid_anims.py（完全な再構築でも同じ動作になる）。
 
-元の GLB は必ず「動作を直す前の版」から取る（--base）。読み込み→書き出しを繰り返すと、glTF の書き出しが
-法線・UV の境で頂点を分けるので、頂点が少しずつ増える（46634 → 47529 → 47863）。既定は BASE_REV のコミットの
-GLB（git show）。骨・形・塗りを作り直したら BASE_REV をその版に直す。
---only：その動作だけ新しい定義にし、ほかは元の GLB の動作をそのまま残す（確認用。既定は全部焼き直す）。
+元の GLB は「骨・形・塗りを最後に作り直した版」から取る（--base）。既定は BASE_REV のコミットの GLB（git show）。
+骨・形・塗りを作り直したら BASE_REV をその版に直す（古い版から焼くと、その後の作り直し（髪など）が消える）。
+Blender の読み込み→書き出しを 1 回通すと、法線・UV の境で頂点が分かれて頂点が増え、法線も少し変わる
+（haru_r：60,026 → 60,969）。そこで書き出した GLB からは動作だけを取り、元の GLB の形（メッシュ・骨・塗り・目印）は
+バイトのまま残す（glb_splice_anims.py）。形が同じかは、出力のあとに頂点の数・材質・骨の名前を並べて見る。
+--only：その動作だけ新しい定義にし、ほかは元の GLB の動作をバイトのまま残す（既定は全部焼き直す）。
 """
 from __future__ import annotations
 
@@ -17,6 +19,7 @@ import argparse
 import os
 import subprocess
 import sys
+import shutil
 import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -26,12 +29,14 @@ import bpy  # noqa: E402
 from lib import common as C  # noqa: E402
 from lib import humanoid as H  # noqa: E402
 from models import humanoid_anims as A  # noqa: E402
+from recon.glb_splice_anims import splice  # noqa: E402
 
 REPO = C.REPO
 DEFAULT_OUT = 'godot/assets/models/haru_r.glb'
-# 骨・形・塗りを最後に作り直した版（2026-10-20 揺れの骨（髪 7・ポーチ 2）を足した版。前は 2026-10-07 外装フレームを群に分けた
-# c9faf94）。この版の GLB を元にして動作だけ替える（前の版から焼き直すと揺れの骨が消える）
-BASE_REV = 'f2516e2'
+# 骨・形・塗りを最後に作り直した版（2026-11-02 髪の葉の房 37・耳を避けた髪の土台・輪ごとの揺れの重み（H1）を作り直した版。
+# 前は 2026-10-20 揺れの骨を足した f2516e2、その前は 2026-10-07 外装フレームを群に分けた c9faf94）。
+# この版の GLB を元にして動作だけ替える（前の版から焼き直すと、その後の作り直しが消える）
+BASE_REV = '06ea887'
 
 
 def base_glb(base: str | None, out_rel: str) -> str:
@@ -91,8 +96,16 @@ def main() -> None:
     H.bake_clips(arm, clips)
     bpy.ops.object.select_all(action='SELECT')
     out = os.path.abspath(args.out)
-    C.export_glb(out)
-    print(f'書き出し：{out}（{os.path.getsize(out) / 1e6:.2f} MB）')
+    fd, baked = tempfile.mkstemp(suffix='.glb', prefix='rebake_anims_')
+    os.close(fd)
+    C.export_glb(baked)
+    # 動作だけを元の GLB に入れる（形はバイトのまま）
+    fd, spliced = tempfile.mkstemp(suffix='.glb', prefix='rebake_out_')
+    os.close(fd)
+    r = splice(src, baked, spliced, only)
+    shutil.move(spliced, out)
+    os.remove(baked)
+    print(f'書き出し：{out}（{os.path.getsize(out) / 1e6:.2f} MB。差し替えた動作 {r["replaced"]}、元のまま {r["kept"]}）')
 
     # 読み直して、同じ物が残っているか
     C.reset_scene()
