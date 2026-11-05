@@ -461,6 +461,39 @@ func test_r16_ride_lift_waits_at_ledge_edge() -> void:
 	h.free_game(g)
 
 
+## 縦坑 r16 の底の北の壁ぎわ（上の隙間から落ちた所）に立っていても、上り下りするリフトの板が体を突き抜けない（体はすっかり足場の下にあるので、頭の上で待つ）。
+## 前はリフトの北の端（z=-1.6）が壁の面（z=-2.04）より 0.44 m 手前で、壁ぎわの体は運ぶ余裕（0.15 m）の内なので乗ったとみなされ、
+## 体に重なる確かめを飛ばして板が体の中を上がり、ハルは 2.4 m 跳ね上がって落ちた
+func test_r16_lift_bottom_wall_side() -> void:
+	var main: Array = GameSim.CH1_ORDER.filter(func(f): return f != "ch1.shortcut_open")
+	var flags: Array = main.slice(0, main.find("ch1.ordo_restarted") + 1) + ["ch1.r16.cleared"]
+	for x in [0.0, 2.2]:
+		var g := _game("ch1.r16", flags)
+		await h.settle()
+		var lift: Props.Mover = g.movers[0]
+		g.player.teleport(Vector3(x, 0.02, -1.9), 0.0)
+		var worst := [0.0, 0.0]
+		await h.run(g, TestHelpers.seconds(18.0), func(_i):
+			var p: Vector3 = g.player.pos
+			worst[1] = maxf(worst[1], p.y)
+			var top: float = lift.pos.y + lift.size.y
+			if absf(p.x - lift.pos.x) < lift.size.x * 0.5 and top > p.y and lift.pos.y < p.y + Player.HEIGHT:
+				worst[0] = maxf(worst[0], minf(top - p.y, p.y + Player.HEIGHT - lift.pos.y))
+			return {})
+		# 体はすっかり足場の下にあるので、下りてきたリフトはハルの頭の上で止まって待つ（どの足場とも同じ。どけば下りてきて乗れる）
+		var head: float = g.player.pos.y + Player.HEIGHT
+		h.expect(worst[0] < 0.05 and worst[1] < 0.1 and lift.pos.y > head and lift.pos.y < head + 0.2,
+				"底の北の壁ぎわ（x=%.1f）：板が体に重ならず（いちばん深い重なり %.3f m、いちばん高い足元 %.2f m）、頭の上で待つ（板の下 %.2f）" % [x, worst[0], worst[1], lift.pos.y])
+		# 横へどくとリフトは底まで下り、乗れば上まで運ばれる
+		g.cam.yaw = PI * 0.5
+		await h.run_until(g, TestHelpers.seconds(3.0), {"move_y": 1.0}, func(): return absf(g.player.pos.x) > 3.1)
+		h.expect(await h.run_until(g, TestHelpers.seconds(6.0), {}, func(): return lift.t >= 1.0), "どくとリフトは底まで下りる（t=%.2f）" % lift.t)
+		g.cam.yaw = -g.cam.yaw
+		await h.run_until(g, TestHelpers.seconds(2.0), {"move_y": 1.0}, func(): return absf(g.player.pos.x) < 1.0)
+		h.expect(await h.run_until(g, TestHelpers.seconds(12.0), {}, func(): return g.player.pos.y > 19.5 and g.player.grounded), "乗れば上まで運ばれる（y=%.2f）" % g.player.pos.y)
+		h.free_game(g)
+
+
 ## 看板も "when"・"unless" で出し分ける：縦坑 r16 のリフトの看板は、再始動の前は「乗ると降りる」、後は「上り下りしている」の 1 枚だけ。
 ## 前は看板の描き方だけが when・unless を見ず、2 枚が同じ所に重なって読めなかった（PC・スマホとも）
 func test_r16_signs_one_at_a_time() -> void:
