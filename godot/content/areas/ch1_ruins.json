@@ -4243,7 +4243,12 @@
       4,
       6
      ],
-     "lock": "ch1.shortcut_open",
+     "lock": {
+      "any": [
+       "ch1.shortcut_open",
+       "ch1.ordo_restarted"
+      ]
+     },
      "text": "エレベーターの扉は閉まっている。内側から開けないと動かない。"
     },
     {
@@ -21274,7 +21279,7 @@
      "pos": [
       0,
       0,
-      -8.5
+      -6.5
      ],
      "yaw": 0,
      "radius": 4
@@ -36543,6 +36548,40 @@
     {
      "t": "box",
      "pos": [
+      0,
+      19.6,
+      -2.22
+     ],
+     "size": [
+      5.2,
+      0.4,
+      0.36
+     ],
+     "tint": "#5a4a3a",
+     "skin": {
+      "wall": "wall",
+      "floor": "floor"
+     }
+    },
+    {
+     "t": "box",
+     "pos": [
+      0,
+      4.0,
+      -2.22
+     ],
+     "size": [
+      5.2,
+      15.6,
+      0.36
+     ],
+     "wall": true,
+     "hide": true,
+     "cam": false
+    },
+    {
+     "t": "box",
+     "pos": [
       -5.0,
       0.0,
       5.82
@@ -37062,12 +37101,12 @@
      "pos": [
       0,
       19.6,
-      0.4
+      0.19
      ],
      "size": [
       5,
       0.4,
-      4
+      4.42
      ],
      "move": [
       0,
@@ -37075,7 +37114,32 @@
       0
      ],
      "speed": 4.5,
-     "mode": "ride"
+     "mode": "ride",
+     "unless": "ch1.ordo_restarted"
+    },
+    {
+     "type": "mover",
+     "id": "ch1.r16.lift_powered",
+     "pos": [
+      0,
+      19.6,
+      0.19
+     ],
+     "size": [
+      5,
+      0.4,
+      4.42
+     ],
+     "move": [
+      0,
+      -20.0,
+      0
+     ],
+     "speed": 4.5,
+     "mode": "pingpong",
+     "wait": 3.0,
+     "hold": 3.0,
+     "when": "ch1.ordo_restarted"
     },
     {
      "type": "sign",
@@ -37086,7 +37150,20 @@
       -2.4
      ],
      "size": 30,
-     "color": "#ffb050"
+     "color": "#ffb050",
+     "unless": "ch1.ordo_restarted"
+    },
+    {
+     "type": "sign",
+     "text": "リフト（上り下りしている）",
+     "pos": [
+      0,
+      22.2,
+      -2.4
+     ],
+     "size": 30,
+     "color": "#ffb050",
+     "when": "ch1.ordo_restarted"
     }
    ],
    "enemies": [
@@ -38434,7 +38511,12 @@
       4,
       3
      ],
-     "lock": "ch1.shortcut_open",
+     "lock": {
+      "any": [
+       "ch1.shortcut_open",
+       "ch1.ordo_restarted"
+      ]
+     },
      "text": "エレベーターはまだ動かない。レバーを引こう。"
     },
     {
@@ -39968,6 +40050,23 @@
      ],
      "lock": "ch1.diagnosis",
      "text": "大きな扉は閉ざされている。……ナゴミが何か言いたそうだ。"
+    },
+    {
+     "type": "exit",
+     "id": "ch1.r18.to_r16",
+     "to": "r16",
+     "spawn": "from_r18",
+     "pos": [
+      0,
+      0,
+      -11.0
+     ],
+     "size": [
+      3,
+      4,
+      0.8
+     ],
+     "when": "ch1.ordo_restarted"
     },
     {
      "type": "door",

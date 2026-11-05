@@ -385,11 +385,12 @@ func _update_sword(dt: float) -> void:
 	if a.move == "lunge" and locked != null and a.time < a.active_from:
 		var d: float = U.hdist(locked.pos, pos) - (locked.radius + 1.0)
 		var step := minf(maxf(d, 0.0), s.lungeSpeed * dt)
-		g.phys.move_character(body, fw * step, mask)
+		# 空中で踏み込むときは、段差の乗り越え・地面への吸着をしない（接地中だけ）
+		g.phys.move_character(body, fw * step, mask, grounded)
 		pos = g.phys.feet_of(body)
 	elif a.move in ["combo1", "combo2", "combo3"] and a.time < 0.1 and grounded:
 		var step2: float = s.comboStep / 0.1 * dt
-		g.phys.move_character(body, fw * step2, mask)
+		g.phys.move_character(body, fw * step2, mask, grounded)
 		pos = g.phys.feet_of(body)
 
 	# 当たり判定

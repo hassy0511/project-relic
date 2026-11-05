@@ -140,7 +140,7 @@ r.marker("from_r03", 0, 0, 10, 180)
 r.marker("from_elevator", 8.5, 0, 0, 270)
 r.exit("to_r01", "r01", "from_r02", 0, 0, -12)
 r.exit("to_r03", "r03", "from_r02", 0, 0, 12)
-r.exit("to_r17", "r17", "from_r02", 12, 0, 0, size=(2, 4, 6), lock="ch1.shortcut_open",
+r.exit("to_r17", "r17", "from_r02", 12, 0, 0, size=(2, 4, 6), lock={"any": ["ch1.shortcut_open", "ch1.ordo_restarted"]},
        text="エレベーターの扉は閉まっている。内側から開けないと動かない。")
 r.box(12.7, 0, 0, 0.6, 4, 6, "#3a3d44")
 r.sign("近道エレベーター", 12.3, 4.3, 0, "#9ad0ff", 28)
@@ -273,8 +273,9 @@ r.trigger("dead", 0, 0, 14, 6, 3, 2, "ch1.r07.dead")
 
 r = new("r08", "B2", "封印室", 2, 1)
 r.shell(22, 8, 22)
-r.start("from_r07", 0, 0, -8.5, 0)
-r.marker("from_r09", 0, 0, 8, 180)
+# 目印は柱（z=±8.5）の手前（部屋のデータと同じ）
+r.start("from_r07", 0, 0, -6.5, 0)
+r.marker("from_r09", 0, 0, 6.5, 180)
 r.exit("to_r07", "r07", "from_r08", 0, 0, -10, lock="ch1.frame_fitted", text="")
 r.exit("to_r09", "r09", "from_r08", 0, 0, 10, lock="ch1.r08.trained", text="まだ何か、呼ばれている気がする。")
 r.box(0, 0, 0, 5, 0.4, 5, "#3b5a60")         # 台座
@@ -404,7 +405,7 @@ r.trigger("enter", 0, 0, -15, 14, 3, 2, "ch1.r12.enter")
 r = new("r13", "B3", "歯車の間", 2, 2)
 r.shell(20, 12, 30)
 r.start("from_r12", 0, 0, -12.5, 0)
-r.marker("from_r15", 0, 0, 12.5, 180)
+r.marker("from_r15", 6, 0, 12.5, 180)   # 張り出しの箱（x −4〜4）の横の床（部屋のデータと同じ）
 r.exit("to_r12", "r12", "from_r13", 0, 0, -14, size=(6, 4, 2))
 r.exit("to_r15", "r15", "from_r13", 0, 0, 14, size=(6, 4, 2))
 # 歯車のリフト（動力が通っていると往復）で、奥の張り出し（y=4）へ
@@ -464,12 +465,21 @@ for z in (-8, 0, 8):
 r = new("r16", "B3", "中央縦坑", 4, 2)
 r.shell(12, 26, 12)
 r.box(0, 0, -4.2, 10, 20.0, 3.6, "#5a4a3a")       # 上の足場（上面 y=20）
+# 上の足場の縁（z=-2.4）からリフトの北の端（z=-2.02）までをふさぐ：上は歩ける縁（0.36 m）、その下は体だけを止める見えない壁
+# （底の壁の面 z=-2.04 を上まで続ける。乗っている間にリフトの北の端へ寄っても、縁の下に頭がはさまらない）。
+# 前は縁とリフトの間が 0.8 m 空いていて、歩いて渡ると角に載ってから 20 m 下へ落ちた
+r.d["geometry"].append({"t": "box", "pos": [0, 19.6, -2.22], "size": [5.2, 0.4, 0.36], "tint": "#5a4a3a", "skin": {"wall": "wall", "floor": "floor"}})
+r.d["geometry"].append({"t": "box", "pos": [0, 4.0, -2.22], "size": [5.2, 15.6, 0.36], "wall": True, "hide": True, "cam": False})
 r.start("from_r15", 0, 20.0, -3.0, 0)
-r.marker("from_r18", 0, 0, -3.5, 0)
+r.marker("from_r18", 0, 0, 3.0, 180)
 r.exit("to_r15", "r15", "from_r16", 0, 20.0, -5.0, size=(5, 4, 1.4))
 r.exit("to_r18", "r18", "from_r16", 0, 0, 5, size=(6, 4, 2))
-r.prop(type="mover", id="ch1.r16.lift", pos=[0, 19.6, 0.4], size=[5, 0.4, 4], move=[0, -20.0, 0], speed=4.5, mode="ride")
-r.sign("リフト（乗ると降りる）", 0, 22.2, -2.4, "#ffb050", 30)
+# リフトの北の端は底の壁の面（z=-2.04）の 2 cm 手前：底で壁ぎわに立っても体がすっかりリフトの上に載る
+r.prop(type="mover", id="ch1.r16.lift", pos=[0, 19.6, 0.19], size=[5, 0.4, 4.42], move=[0, -20.0, 0], speed=4.5, mode="ride", unless="ch1.ordo_restarted")
+# 再始動の後は動力が戻り、リフトがひとりでに上り下りする（B4 から上へ戻れる）。部屋に入った時は上で 3 秒止まっている（hold）
+r.prop(type="mover", id="ch1.r16.lift_powered", pos=[0, 19.6, 0.19], size=[5, 0.4, 4.42], move=[0, -20.0, 0], speed=4.5, mode="pingpong", wait=3.0, hold=3.0, when="ch1.ordo_restarted")
+r.prop(type="sign", text="リフト（乗ると降りる）", pos=[0, 22.2, -2.4], size=30, color="#ffb050", unless="ch1.ordo_restarted")
+r.prop(type="sign", text="リフト（上り下りしている）", pos=[0, 22.2, -2.4], size=30, color="#ffb050", when="ch1.ordo_restarted")
 r.enemy("charger", -4, 0, 3, 180, group="r16_w1", unless="ch1.r16.cleared")
 r.enemy("charger", 4, 0, 3.5, 180, group="r16_w1", unless="ch1.r16.cleared")
 r.flag_trigger("done", {"cleared": "r16_w1"}, "ch1.r16.done")
@@ -482,7 +492,7 @@ r.shell(12, 6, 12)
 r.start("from_r12", 3, 0, 0, 270)
 r.marker("from_r02", -3, 0, -3, 90)
 r.exit("to_r12", "r12", "from_r17", 4.6, 0, 3, size=(1.6, 4, 3))
-r.exit("to_r02", "r02", "from_elevator", -4.6, 0, -3, size=(1.6, 4, 3), lock="ch1.shortcut_open",
+r.exit("to_r02", "r02", "from_elevator", -4.6, 0, -3, size=(1.6, 4, 3), lock={"any": ["ch1.shortcut_open", "ch1.ordo_restarted"]},
        text="エレベーターはまだ動かない。レバーを引こう。")
 r.box(-5.6, 0, -3, 0.6, 3.6, 3, "#3a3d44")
 r.box(0, 0, -4.8, 0.6, 1.3, 0.6, "#6a5a48")
@@ -496,6 +506,8 @@ r.shell(20, 8, 24)
 r.start("from_r16", 0, 0, -10, 0)
 r.marker("from_r19", 0, 0, 8, 180)
 r.exit("to_r19", "r19", "from_r18", 0, 0, 11, lock="ch1.diagnosis", text="大きな扉は閉ざされている。……ナゴミが何か言いたそうだ。")
+# 再始動の後の帰り道：入ってきた扉から縦坑 r16 の底へ（上り下りするリフトで上へ）。前は B4 から上へ戻る出口が無く、再始動の後に下りると出られなかった
+r.prop(type="exit", id="ch1.r18.to_r16", to="r16", spawn="from_r18", pos=[0, 0, -11.0], size=[3, 4, 0.8], when="ch1.ordo_restarted")
 r.box(-6.5, 0, 9.6, 7, 8, 0.6, "#3a3d44")
 r.box(6.5, 0, 9.6, 7, 8, 0.6, "#3a3d44")
 r.prop(type="door", id="ch1.r18.door", pos=[0, 0, 9.6], yaw=0, size=[6, 5, 0.6], opens="auto", lock="ch1.diagnosis")
@@ -583,6 +595,16 @@ for k, rm in ROOMS.items():
             px, py, pz = p["pos"]; sx, sy, sz = p["size"]
             if abs(mx - px) <= sx / 2 and abs(mz - pz) <= sz / 2 and py - 0.1 <= my <= py + sy:
                 print("目印が出口の中：", rm.rid, mk, p["id"]); bad += 1
+    # 目印・中継地点（体の足元）が形の箱の中に埋まっていないこと（前は r16 の from_r18 が上の足場の箱の中に、
+    # r08 の目印と中継地点が柱の中にあった。使われていなかった・死なない部屋だったので気づかなかった）
+    for mk, m in list(rm.d["markers"].items()) + [(c["id"], c) for c in rm.d["checkpoints"]]:
+        mx, my, mz = m["pos"]
+        for g in rm.d["geometry"]:
+            if g["t"] != "box" or g.get("yaw"):
+                continue
+            gx, gy, gz = g["pos"]; sx, sy, sz = g["size"]
+            if abs(mx - gx) < sx / 2 - 0.05 and abs(mz - gz) < sz / 2 - 0.05 and gy + 0.05 < my + 0.5 < gy + sy:
+                print("目印が形の中：", rm.rid, mk, g["pos"], g["size"]); bad += 1
 if bad:
     raise SystemExit("検査に失敗")
 

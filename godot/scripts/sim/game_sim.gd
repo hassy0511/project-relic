@@ -293,11 +293,14 @@ func place(p: Dictionary) -> Dictionary:
 	return {"pos": RoomGeo.v3(p.get("pos", [0, 0, 0])), "yaw": float(p.get("yaw", 0.0)) * U.DEG}
 
 
+## 部屋の物 p（props の 1 つ）が今のフラグで出ているか（"when" が真で "unless" が偽）。見た目（看板・遠景の飾り）も同じ決まりで出す
+func prop_on(p: Dictionary) -> bool:
+	return (not p.has("when") or Cond.eval(p.when, self)) and (not p.has("unless") or not Cond.eval(p.unless, self))
+
+
 func _build_room() -> void:
 	for p in room.get("props", []):
-		if p.has("when") and not Cond.eval(p.when, self):
-			continue
-		if p.has("unless") and Cond.eval(p.unless, self):
+		if not prop_on(p):
 			continue
 		var m := place(p)
 		match p.type:
@@ -381,6 +384,8 @@ func _build_room() -> void:
 				mv.mode = p.get("mode", "toggle")
 				mv.cond = p.get("cond")
 				mv.wait = float(p.get("wait", 1.0))
+				# 部屋に入った時に端で止まっている秒数（pingpong）。入った瞬間に足場が出て行かないように
+				mv.hold = float(p.get("hold", 0.0))
 				mv.t = 1.0 if mv.mode == "toggle" and Cond.eval(mv.cond, self) else 0.0
 				mv.pos = mv.at_t(mv.t)
 				mv.body = phys.add_box(mv.pos + Vector3(0, mv.size.y * 0.5, 0), mv.size * 0.5, Phys.TERRAIN)
@@ -902,15 +907,35 @@ func on_mover(feet: Vector3) -> bool:
 const MOVER_CLEAR := 0.05
 
 
-## 足場を pos（底の中心）に置くと、ハルの体（半径 Player.RADIUS・高さ Player.HEIGHT の筒とみなす）に MOVER_CLEAR より近づくか
-func _mover_overlaps_player(m: Props.Mover, pos: Vector3) -> bool:
-	var p := player.pos
-	var ex := maxf(absf(p.x - pos.x) - m.size.x * 0.5, 0.0)
-	var ez := maxf(absf(p.z - pos.z) - m.size.z * 0.5, 0.0)
-	var r := Player.RADIUS + MOVER_CLEAR
-	if ex * ex + ez * ez >= r * r:
+## 足場を pos（底の中心）に置くと、足元 feet・半径 r・高さ ht の筒とみなした体に MOVER_CLEAR より近づくか
+func _mover_overlaps(m: Props.Mover, pos: Vector3, feet: Vector3, r: float, ht: float) -> bool:
+	var ex := maxf(absf(feet.x - pos.x) - m.size.x * 0.5, 0.0)
+	var ez := maxf(absf(feet.z - pos.z) - m.size.z * 0.5, 0.0)
+	var rr := r + MOVER_CLEAR
+	if ex * ex + ez * ez >= rr * rr:
 		return false
-	return pos.y < p.y + Player.HEIGHT + MOVER_CLEAR and pos.y + m.size.y > p.y + 0.02
+	return pos.y < feet.y + ht + MOVER_CLEAR and pos.y + m.size.y > feet.y + 0.02
+
+
+## ハルの体（半径 Player.RADIUS・高さ Player.HEIGHT）に重なるか
+func _mover_overlaps_player(m: Props.Mover, pos: Vector3) -> bool:
+	return _mover_overlaps(m, pos, player.pos, Player.RADIUS, Player.HEIGHT)
+
+
+## 足場に乗っている敵と、乗らずに足場の通り道にいる敵。体は物理の筒の大きさで見る（Enemy.body_size）
+func _mover_enemies(m: Props.Mover, newpos: Vector3) -> Dictionary:
+	var riders: Array = []
+	var blocked := false
+	for e in enemies:
+		if not e.alive or e.body == null or not is_instance_valid(e.body):
+			continue
+		if m.carries(e.pos):
+			riders.append(e)
+			continue
+		var bs: Vector2 = e.body_size()
+		if _mover_overlaps(m, newpos, e.pos, bs.x, bs.y):
+			blocked = true
+	return {"riders": riders, "blocked": blocked}
 
 
 func _update_movers(dt: float) -> void:
@@ -922,7 +947,10 @@ func _update_movers(dt: float) -> void:
 			"toggle":
 				target_t = 1.0 if run else 0.0
 			"ride":
-				target_t = 1.0 if run and riding else 0.0
+				# 動き出すのは足元が足場の上（縁の外の余裕なし）に来てから。動いている間は縁に掛かっていても運ぶ。
+				# 前は縁の外 0.15 m まで乗ったとみなして動き出したので、縦坑 r16 の上の足場の縁（リフトの 2 cm 手前）に立つと、
+				# リフトが 0.4 m 下りては戻るのを繰り返した
+				target_t = 1.0 if run and riding and (m.t > 0.0 or m.carries(player.pos, 0.0)) else 0.0
 			"pingpong":
 				if m.hold > 0.0:
 					m.hold -= dt
@@ -943,9 +971,19 @@ func _update_movers(dt: float) -> void:
 			# 下りてきて体を床の中へ押し込み、床の板の中に挟まって動けなくなった（2026-10-15）
 			m.moving = false
 			continue
+		# 敵も同じ：乗っていない敵の体に重なる所へは動かず、乗っている敵は運ぶ。前は敵を見ていなかったので、
+		# 縦坑 r16 のひとりでに上り下りするリフトが、下にいる突撃型を床の下へ押し込み（床下を動き回って当たりはするが倒しにくい）、
+		# 縁にいた敵を持ち上げて落とした（2026-11-05）
+		var es := _mover_enemies(m, newpos)
+		if es.blocked:
+			m.moving = false
+			continue
 		if riding:
 			phys.move_character(player.body, delta, Phys.TERRAIN | Phys.BREAKABLE | Phys.ENEMY, delta.y <= 0.0)
 			player.pos = phys.feet_of(player.body)
+		for e in es.riders:
+			phys.move_character(e.body, delta, e._move_filter(), delta.y <= 0.0)
+			e.pos = phys.feet_of(e.body)
 		if not m.moving:
 			m.moving = true
 			emit_event({"type": "sfx", "id": "lift", "at": newpos})

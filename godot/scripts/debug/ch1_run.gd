@@ -447,9 +447,17 @@ func play_part2(g: GameSim) -> void:
 	await _pump(g, 1500, func(): return g.flag("ch1.parcel_delivered") and not g.story.running_event())
 	h.expect(Economy.complete_request(g, "ch1.req.parcel").ok, "荷物を届けて依頼を達成")
 	h.expect(g.guild_points == 20, "ギルドポイント +20（%d）" % g.guild_points)
-	# ---- 再訪：B3 のひび割れた壁をドリルで壊す
-	g.load_room("ch1.r12", "from_r11")
+	# ---- 再訪：B3 のひび割れた壁をドリルで壊す。崩落床 r05 は一度きりなので、外殻層 r02 の近道のエレベーターで B3 の r17 へ下り、
+	# 駆動回廊 r12 へ入る（実際の道。前は r12 へ直接置いていた）
+	g.load_room("ch1.r02", "from_r01")
 	await _pump(g, 6)
+	await _pump(g, 1500, func(): return not g.story.running_event())
+	_warp(g, Vector3(12, 0, 0), PI / 2)
+	await _pump(g, 40)
+	h.expect(g.room_id == "ch1.r17", "再訪：外殻層の近道のエレベーターで B3 の r17 へ（%s）" % g.room_id)
+	_warp(g, Vector3(4.6, 0, 3), PI / 2)
+	await _pump(g, 40)
+	h.expect(g.room_id == "ch1.r12", "再訪：r17 から駆動回廊 r12 へ（%s）" % g.room_id)
 	var cr_wall = g.breakables.filter(func(b): return b.id == "ch1.r12.crack")[0]
 	g.drill_breakable(cr_wall, 5.0)
 	await _pump(g, 6)

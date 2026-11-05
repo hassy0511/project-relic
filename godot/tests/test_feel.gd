@@ -67,6 +67,234 @@ func test_ledges() -> void:
 		h.free_game(g)
 
 
+## 高さ ht の段（手前の面が z=4、幅 60 m・奥行き 30 m）へ、向き yaw（ラジアン。0 で +Z）から stick の強さで歩いて行く。
+## 返り値：{ top: 段の上に立った, y, z, max_y: いちばん高い足元, air: 接地していない刻みの数, dip: 段の上で下がった深さ,
+##   bob: 1 刻みで足元が下がったいちばん大きな量（上る途中で上下に揺れていないか） }
+func _walk_into_step(ht: float, stick: float = 1.0, yaw: float = 0.0, secs: float = 1.6, ceil_y: float = -1.0) -> Dictionary:
+	var boxes := [[Vector3(0, ht / 2.0, 19), Vector3(60, ht, 30)]]
+	if ceil_y > 0.0:
+		# 天井（下の面が床から ceil_y）。段の手前から先まで覆う
+		boxes.append([Vector3(0, ceil_y + 0.25, 15), Vector3(60, 0.5, 40)])
+	var g := h.make_game({"boxes": boxes, "markers": {"start": Vector3(0, 0, 1.5)}})
+	await h.settle()
+	g.player.teleport(Vector3(0, 0, 1.5), yaw)
+	g.cam.yaw = yaw
+	await h.run(g, 5, {})
+	var r := {"top": false, "max_y": 0.0, "air": 0, "dip": 0.0, "bob": 0.0, "last": 0.0}
+	var top_y := [INF]
+	await h.run(g, TestHelpers.seconds(secs), func(_i):
+		var p: Vector3 = g.player.pos
+		r.max_y = maxf(r.max_y, p.y)
+		r.bob = maxf(r.bob, r.last - p.y)
+		r.last = p.y
+		if not g.player.grounded:
+			r.air += 1
+		if g.player.grounded and p.y > ht - 0.02 and p.z > 4.2:
+			r.top = true
+		if r.top:
+			top_y[0] = minf(top_y[0], p.y)
+		return {"move_y": stick})
+	r["y"] = g.player.pos.y
+	r["z"] = g.player.pos.z
+	if r.top:
+		r.dip = maxf(0.0, ht - top_y[0])
+	h.free_game(g)
+	return r
+
+
+## 歩いて上る段（自動の乗り越え。Phys.STEP_HEIGHT の 0.35 m まで）：どの高さの段でも、歩いて当たると止まらずに上る。
+## 前は 0.18〜0.24 m の段で、体の丸い底が段の角に当たる向き（法線の y が 0.3〜0.71）が、乗り越え（壁とみなす向き）にも床にもならず、
+## 角に押し当てたまま止まった（N13、2026-11-05 に直した。Phys.move_character）。0.35 m より高い段は、今までどおり歩いては上れない
+func test_stepup_heights() -> void:
+	for pair in [[0.05, true], [0.10, true], [0.15, true], [0.18, true], [0.21, true], [0.24, true], [0.27, true], [0.30, true],
+			[Phys.STEP_HEIGHT - 0.01, true], [Phys.STEP_HEIGHT, true], [0.38, false], [0.45, false], [0.60, false]]:
+		var ht: float = pair[0]
+		var r: Dictionary = await _walk_into_step(ht)
+		var what := "段 %.2f m：歩いて上れる=%s（上った %s、足元 y=%.3f z=%.2f、最高 %.3f、宙 %d 刻み、揺れ %.3f）" % [ht, pair[1], r.top, r.y, r.z, r.max_y, r.air, r.bob]
+		h.expect(r.top == pair[1], what)
+		print("    ", what)
+		if pair[1]:
+			h.expect(r.z > 6.0 and absf(r.y - ht) < 0.01, "%s：段の上を先まで進み、段の高さに立つ" % what)
+			h.expect(r.max_y < ht + 0.03 and r.dip < 0.01, "%s：段の上で跳ね上がったり沈んだりしない" % what)
+			h.expect(r.air <= 2, "%s：上る間に宙に浮かない" % what)
+		else:
+			h.expect(r.z < 4.0 and r.y < 0.02, "%s：段の手前で止まり、床に立ったまま" % what)
+
+
+## ゆっくり歩いて（スティックを少しだけ倒して）も、斜めに当たっても、0.18〜0.24 m の段を上れる
+func test_stepup_slow_and_angled() -> void:
+	for ht in [0.12, 0.18, 0.21, 0.24, 0.30]:
+		for c in [[0.35, 0.0], [1.0, deg_to_rad(40.0)], [0.5, deg_to_rad(-60.0)]]:
+			var r: Dictionary = await _walk_into_step(ht, c[0], c[1], 3.0)
+			var what := "段 %.2f m、倒し %.2f、向き %.0f 度（足元 y=%.3f z=%.2f、宙 %d 刻み、揺れ %.3f）" % [ht, c[0], rad_to_deg(c[1]), r.y, r.z, r.air, r.bob]
+			h.expect(r.top and absf(r.y - ht) < 0.01, "%s：上れる" % what)
+			h.expect(r.max_y < ht + 0.03 and r.air <= 2, "%s：跳ね上がらず、宙に浮かない" % what)
+	# 高すぎる段（0.38 m）は、ゆっくりでも斜めでも上れない
+	for c in [[0.35, 0.0], [1.0, deg_to_rad(40.0)]]:
+		var r: Dictionary = await _walk_into_step(0.38, c[0], c[1], 2.0)
+		h.expect(not r.top and r.y < 0.02, "段 0.38 m は、倒し %.2f・向き %.0f 度でも歩いては上れない（y=%.3f）" % [c[0], rad_to_deg(c[1]), r.y])
+
+
+## 天井の低い所の段：0.3 m・0.24 m の段を、天井が床から 1.92〜2.0 m（段の上に体 1.55 m が収まる）の所で斜めに歩いて上っても、
+## 角に載って浮かずに上る。持ち上げの確かめは、天井の手前までの高さで行う（Phys._try_step）。
+## 前は持ち上げをいつも 0.35 m で確かめたので天井に当たって失敗し、段の角に載ったまま 8 刻みほど接地せずに浮いてから上った（N13 の 2 回目の見直し）。
+## 体が収まらない天井（段の上に 1.5 m しかない）では、今までどおり上らない
+func test_stepup_low_ceiling() -> void:
+	for ht in [0.24, 0.30]:
+		for ceil_y in [1.92, 1.95, 2.0]:
+			for c in [[1.0, deg_to_rad(50.0)], [1.0, 0.0], [0.4, deg_to_rad(-40.0)]]:
+				var r: Dictionary = await _walk_into_step(ht, c[0], c[1], 3.0, ceil_y)
+				var what := "段 %.2f m・天井 %.2f m、倒し %.2f、向き %.0f 度（足元 y=%.3f z=%.2f、宙 %d 刻み）" % [ht, ceil_y, c[0], rad_to_deg(c[1]), r.y, r.z, r.air]
+				h.expect(r.top and absf(r.y - ht) < 0.01 and r.air <= 2, "%s：上り、角に載って浮かない" % what)
+	var low: Dictionary = await _walk_into_step(0.30, 1.0, 0.0, 2.0, 1.80)
+	h.expect(not low.top and low.y < 0.02, "段 0.30 m・天井 1.80 m（段の上に体が収まらない）は上らない（y=%.3f）" % low.y)
+
+
+## 坂・階段の上り下りは変わらない：0.3 m の段の階段を上って下り、14 度と 40 度の坂を上って下りる間、
+## 足元の高さは行く向きにだけ変わり（上る間に下がらない・下りる間に上がらない）、ほとんど接地したまま
+func test_stepup_stairs_and_ramps() -> void:
+	var cases := [
+		["階段（0.3 m × 6 段）", {"t": "stairs", "pos": [0, 0, 6.6], "size": [4, 1.8, 3.6], "steps": 6}, 1.8],
+		["階段（0.2 m × 6 段）", {"t": "stairs", "pos": [0, 0, 6.6], "size": [4, 1.2, 3.6], "steps": 6}, 1.2],
+		["坂（14 度）", {"t": "ramp", "pos": [0, 0, 7.8], "size": [4, 1.5, 6]}, 1.5],
+		["坂（40 度）", {"t": "ramp", "pos": [0, 0, 6.6], "size": [4, 3.02, 3.6]}, 3.02],
+	]
+	for cs in cases:
+		var name: String = cs[0]
+		var top: float = cs[2]
+		var shape: Dictionary = cs[1]
+		var faces := [TestHelpers.box_faces(Vector3(0, -0.5, 0), Vector3(200, 1, 200))]
+		faces.append_array(RoomGeo.shape(shape))
+		# 上り口の先の平らな台（上りきった所）
+		var land_z: float = float(shape.pos[2]) + float(shape.size[2]) * 0.5
+		faces.append(TestHelpers.box_faces(Vector3(0, top * 0.5, land_z + 10.0), Vector3(4, top, 20)))
+		var g := h.make_game({"geometry": {"faces": faces, "markers": {"start": {"pos": Vector3(0, 0, 1.0), "yaw": 0.0}}}})
+		await h.settle()
+		await h.run(g, 5, {})
+		var st := {"drop": 0.0, "rise": 0.0, "air": 0, "last": 0.0, "t_top": -1}
+		await h.run(g, TestHelpers.seconds(2.4), func(i):
+			var y: float = g.player.pos.y
+			st.drop = maxf(st.drop, st.last - y)
+			st.last = y
+			if not g.player.grounded:
+				st.air += 1
+			if st.t_top < 0 and y > top - 0.01:
+				st.t_top = i
+			return {"move_y": 1.0})
+		h.expect(absf(g.player.pos.y - top) < 0.02, "%s：上りきる（y=%.3f）" % [name, g.player.pos.y])
+		h.expect(st.drop < 0.01, "%s：上る間に足元が下がらない（いちばん下がった %.3f m）" % [name, st.drop])
+		h.expect(st.air <= 3, "%s：上る間ほとんど接地したまま（宙 %d 刻み）" % [name, st.air])
+		h.between(st.t_top, 0, TestHelpers.seconds(2.0), "%s：上りきるまでの刻み" % name)
+		# 下りる
+		g.cam.yaw = PI
+		g.player.yaw = PI
+		st.last = g.player.pos.y
+		st.air = 0
+		await h.run(g, TestHelpers.seconds(2.6), func(_i):
+			var y: float = g.player.pos.y
+			st.rise = maxf(st.rise, y - st.last)
+			st.last = y
+			if not g.player.grounded:
+				st.air += 1
+			return {"move_y": 1.0})
+		h.expect(g.player.pos.y < 0.02 and g.player.pos.z < 3.0, "%s：下りきる（y=%.3f z=%.2f）" % [name, g.player.pos.y, g.player.pos.z])
+		h.expect(st.rise < 0.01, "%s：下りる間に足元が上がらない（いちばん上がった %.3f m）" % [name, st.rise])
+		print("    %s：上りきる %d 刻み、下りで宙 %d 刻み" % [name, st.t_top, st.air])
+		h.free_game(g)
+
+
+## g のハルを start から向き yaw（度。0 で +Z、正で +X へ）・倒し stick で最大 ticks 刻み歩かせ、接地して goal_y に届くまでを数える。
+## 返り値：{ t: 届いた刻み（届かなければ -1）, air: それまでに接地していなかった刻み, lifts: 接地から離れた回数, y }
+func _climb_to(g: GameSim, start: Vector3, yaw_deg: float, stick: float, ticks: int, goal_y: float) -> Dictionary:
+	var yaw := deg_to_rad(yaw_deg)
+	g.player.teleport(start, yaw)
+	g.cam.yaw = yaw
+	await h.run(g, 3, {})
+	var r := {"t": -1, "air": 0, "lifts": 0, "was": true}
+	await h.run_until(g, ticks, {"move_y": stick}, func():
+		var gnd: bool = g.player.grounded
+		if not gnd:
+			r.air += 1
+		if r.was and not gnd:
+			r.lifts += 1
+		r.was = gnd
+		if gnd and g.player.pos.y > goal_y - 0.05:
+			r.t = 1
+			return true
+		return false)
+	r["y"] = g.player.pos.y
+	return r
+
+
+## 横に壁（手すり）のある階段・段を、壁へ斜めに歩いて上る：上りきり、上る間ずっと接地したまま（浮いては落ちるのを繰り返さない）。
+## 前は 1 段上ったあと次の段の角に載り、乗り越えの確かめが横の壁に当たって失敗して、接地しないまま角の上で浮いては落ち、
+## 上りきれなかった（町の下段の階段を手すりへ 40〜50 度で。Phys._try_step は、ふさがれたら壁に沿う向きで確かめ直す）
+func test_stepup_stairs_along_wall() -> void:
+	var wall := TestHelpers.box_faces(Vector3(3.8, 4, 20), Vector3(0.4, 8, 40))
+	var cases := []
+	for spec in [[0.2, 10, 5.0], [0.3, 6, 3.6], [0.35, 6, 3.6]]:
+		var hh: float = spec[0] * spec[1]
+		var faces := [TestHelpers.box_faces(Vector3(0, -0.5, 0), Vector3(200, 1, 200)), wall]
+		faces.append_array(RoomGeo.shape({"t": "stairs", "pos": [0, 0, 4 + spec[2] / 2.0], "size": [7.2, hh, spec[2]], "steps": spec[1]}))
+		faces.append(TestHelpers.box_faces(Vector3(0, hh / 2.0, 4 + spec[2] + 5), Vector3(7.2, hh, 10)))
+		cases.append(["階段 %.2f m × %d 段" % [spec[0], spec[1]], faces, hh, [[30.0, 0.4], [50.0, 0.4], [40.0, 1.0], [50.0, 1.0]]])
+	# 1 段だけの段へ、壁へ 60 度・ゆっくり（前は宙に浮いては落ちるのを繰り返した）
+	for ht in [0.2, 0.3]:
+		cases.append(["段 %.2f m" % ht, [TestHelpers.box_faces(Vector3(0, -0.5, 0), Vector3(200, 1, 200)), wall,
+				TestHelpers.box_faces(Vector3(0, ht / 2.0, 19), Vector3(7.2, ht, 30))], ht, [[60.0, 0.4]]])
+	for cs in cases:
+		var g := h.make_game({"geometry": {"faces": cs[1], "markers": {"start": {"pos": Vector3(1, 0, 2), "yaw": 0.0}}}})
+		await h.settle()
+		for c in cs[3]:
+			var r: Dictionary = await _climb_to(g, Vector3(1, 0, 2), c[0], c[1], TestHelpers.seconds(10), cs[2])
+			var what := "%s、壁へ %.0f 度・倒し %.1f（届いた %s、y=%.3f、宙 %d 刻み、離れた %d 回）" % [cs[0], c[0], c[1], r.t >= 0, r.y, r.air, r.lifts]
+			print("    ", what)
+			h.expect(r.t >= 0, "%s：上りきる" % what)
+			h.expect(r.air <= 2 and r.lifts <= 1, "%s：上る間ずっと接地したまま" % what)
+		h.free_game(g)
+	# 本物の部屋：町の下段の階段（z 16〜28、y 0〜5、両側に手すり x=±3.8）
+	var g2 := GameSim.new()
+	var vp := SubViewport.new()
+	vp.own_world_3d = true
+	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	vp.size = Vector2i(2, 2)
+	h.tree.root.add_child(vp)
+	vp.add_child(g2)
+	g2.setup({"world": World.load_manifest("res://content/world.json"), "tuning": TestHelpers.default_tuning(), "seed": 1})
+	g2.set_flag("ch1.chores_started")
+	g2.load_room("ch1.lower")
+	await h.settle()
+	for ang in [-50.0, 40.0, 60.0]:
+		var r: Dictionary = await _climb_to(g2, Vector3(0, 0, 15.2), ang, 1.0, TestHelpers.seconds(10), 5.0)
+		var what := "町の下段の階段、手すりへ %.0f 度（届いた %s、y=%.3f、宙 %d 刻み、離れた %d 回）" % [ang, r.t >= 0, r.y, r.air, r.lifts]
+		print("    ", what)
+		h.expect(r.t >= 0 and r.air <= 2, "%s：上りきり、ずっと接地したまま" % what)
+	h.free_game(g2)
+
+
+## 敵の大きさの体（地形だけに当たるカプセル）も、0.35 m までの段は上り、それより高い段は速く当たっても上らない。
+## 前は段の角に沿って押し上げられた所から高さを数えたので、大きな体・速い動きでは 0.36〜0.42 m の段も上った（N13 の見直し）。
+## 体は敵と同じ指定（小型・歩哨型・盾型・突撃型の radius と height）で作る。CapsuleShape3D は半径を高さの半分までに詰めるので、
+## 物理の体の半径は小型 0.15 m・突撃型 0.60 m になる（Enemy.body_size）。報告には実際の半径を出す
+func test_stepup_enemy_sizes() -> void:
+	for rr in [[0.25, 0.3], [0.45, 1.1], [0.55, 1.8], [0.7, 1.2]]:
+		for spd in [2.0, 8.0, 14.0]:
+			for pair in [[0.12, true], [0.24, true], [0.34, true], [0.37, false], [0.40, false], [0.44, false]]:
+				var ht: float = pair[0]
+				var g := h.make_game({"boxes": [[Vector3(0, ht / 2.0, 19), Vector3(60, ht, 30)]], "markers": {"start": Vector3(0, 0, -6)}})
+				await h.settle()
+				var b := g.phys.create_character(Vector3(0, 0, 4.0 - rr[0] - 1.0), rr[0], rr[1], Phys.ENEMY, Phys.TERRAIN)
+				await h.settle()
+				var gnd := true
+				for k in 50:
+					var res: Dictionary = g.phys.move_character(b, Vector3(0, -0.05 if gnd else -0.2, spd / 60.0), Phys.TERRAIN, gnd)
+					gnd = res.grounded
+				var up: bool = b.position.y > ht - 0.02
+				var real_r: float = ((b.get_child(0) as CollisionShape3D).shape as CapsuleShape3D).radius
+				h.expect(up == pair[1], "体 半径 %.2f m（指定 %.2f）・高さ %.2f m・%.0f m/s で段 %.2f m：上る=%s（y=%.3f）" % [real_r, rr[0], rr[1], spd, ht, pair[1], b.position.y])
+				h.free_game(g)
+
+
 func test_gaps() -> void:
 	# 手前の足場は z<0、溝のあと向こう側の足場。床は溝の下に落ちる
 	var make := func(gap: float) -> GameSim:
