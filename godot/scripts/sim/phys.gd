@@ -175,9 +175,15 @@ func _try_step(body: CharacterBody3D, rem: Vector3, base_y: float) -> bool:
 	# 少なくとも 0.2m は前へ進んで確かめる（小さな角で登らないように）
 	var probe_fwd := fwd.normalized() * maxf(fwd.length(), 0.2)
 	var t := body.global_transform
-	if body.test_move(t, Vector3(0, STEP_HEIGHT, 0)):
-		return false
-	var up := t.translated(Vector3(0, STEP_HEIGHT, 0))
+	# 持ち上げる高さ：ふつうは STEP_HEIGHT。上が低い天井でふさがれていたら、天井の手前まで（段がそれより低ければ上れる）。
+	# 前は天井が足元から約 1.9 m より低いと、0.3 m の段でも持ち上げの確かめが失敗し、体が段の角に載って接地しないまま浮いてから上った
+	var lift := STEP_HEIGHT
+	var head := KinematicCollision3D.new()
+	if body.test_move(t, Vector3(0, STEP_HEIGHT, 0), head):
+		lift = head.get_travel().y - 0.002
+		if lift < 0.05:
+			return false
+	var up := t.translated(Vector3(0, lift, 0))
 	var side := KinematicCollision3D.new()
 	if body.test_move(up, probe_fwd, side):
 		# 前が横の壁（階段の手すり・壁ぎわ）でふさがれた：壁に沿う向きに変えて、もう一度だけ確かめる。
@@ -194,7 +200,7 @@ func _try_step(body: CharacterBody3D, rem: Vector3, base_y: float) -> bool:
 			return false
 	var ahead := up.translated(probe_fwd)
 	var res := KinematicCollision3D.new()
-	if not body.test_move(ahead, Vector3(0, -STEP_HEIGHT - 0.05, 0), res):
+	if not body.test_move(ahead, Vector3(0, -lift - 0.05, 0), res):
 		return false
 	if res.get_normal().y < FLOOR_MIN_Y:
 		return false
@@ -212,7 +218,7 @@ func _try_step(body: CharacterBody3D, rem: Vector3, base_y: float) -> bool:
 	if fwd.length() < probe_fwd.length() - 1e-4:
 		var here := up.translated(fwd)
 		var res2 := KinematicCollision3D.new()
-		if body.test_move(here, Vector3(0, -STEP_HEIGHT - 0.05, 0), res2):
+		if body.test_move(here, Vector3(0, -lift - 0.05, 0), res2):
 			y = here.origin.y + res2.get_travel().y
 	body.position = Vector3(t.origin.x + fwd.x, y, t.origin.z + fwd.z)
 	if body.test_move(body.global_transform, Vector3.ZERO):

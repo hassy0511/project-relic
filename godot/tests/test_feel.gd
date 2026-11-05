@@ -70,8 +70,12 @@ func test_ledges() -> void:
 ## 高さ ht の段（手前の面が z=4、幅 60 m・奥行き 30 m）へ、向き yaw（ラジアン。0 で +Z）から stick の強さで歩いて行く。
 ## 返り値：{ top: 段の上に立った, y, z, max_y: いちばん高い足元, air: 接地していない刻みの数, dip: 段の上で下がった深さ,
 ##   bob: 1 刻みで足元が下がったいちばん大きな量（上る途中で上下に揺れていないか） }
-func _walk_into_step(ht: float, stick: float = 1.0, yaw: float = 0.0, secs: float = 1.6) -> Dictionary:
-	var g := h.make_game({"boxes": [[Vector3(0, ht / 2.0, 19), Vector3(60, ht, 30)]], "markers": {"start": Vector3(0, 0, 1.5)}})
+func _walk_into_step(ht: float, stick: float = 1.0, yaw: float = 0.0, secs: float = 1.6, ceil_y: float = -1.0) -> Dictionary:
+	var boxes := [[Vector3(0, ht / 2.0, 19), Vector3(60, ht, 30)]]
+	if ceil_y > 0.0:
+		# 天井（下の面が床から ceil_y）。段の手前から先まで覆う
+		boxes.append([Vector3(0, ceil_y + 0.25, 15), Vector3(60, 0.5, 40)])
+	var g := h.make_game({"boxes": boxes, "markers": {"start": Vector3(0, 0, 1.5)}})
 	await h.settle()
 	g.player.teleport(Vector3(0, 0, 1.5), yaw)
 	g.cam.yaw = yaw
@@ -129,6 +133,21 @@ func test_stepup_slow_and_angled() -> void:
 	for c in [[0.35, 0.0], [1.0, deg_to_rad(40.0)]]:
 		var r: Dictionary = await _walk_into_step(0.38, c[0], c[1], 2.0)
 		h.expect(not r.top and r.y < 0.02, "段 0.38 m は、倒し %.2f・向き %.0f 度でも歩いては上れない（y=%.3f）" % [c[0], rad_to_deg(c[1]), r.y])
+
+
+## 天井の低い所の段：0.3 m・0.24 m の段を、天井が床から 1.92〜2.0 m（段の上に体 1.55 m が収まる）の所で斜めに歩いて上っても、
+## 角に載って浮かずに上る。持ち上げの確かめは、天井の手前までの高さで行う（Phys._try_step）。
+## 前は持ち上げをいつも 0.35 m で確かめたので天井に当たって失敗し、段の角に載ったまま 8 刻みほど接地せずに浮いてから上った（N13 の 2 回目の見直し）。
+## 体が収まらない天井（段の上に 1.5 m しかない）では、今までどおり上らない
+func test_stepup_low_ceiling() -> void:
+	for ht in [0.24, 0.30]:
+		for ceil_y in [1.92, 1.95, 2.0]:
+			for c in [[1.0, deg_to_rad(50.0)], [1.0, 0.0], [0.4, deg_to_rad(-40.0)]]:
+				var r: Dictionary = await _walk_into_step(ht, c[0], c[1], 3.0, ceil_y)
+				var what := "段 %.2f m・天井 %.2f m、倒し %.2f、向き %.0f 度（足元 y=%.3f z=%.2f、宙 %d 刻み）" % [ht, ceil_y, c[0], rad_to_deg(c[1]), r.y, r.z, r.air]
+				h.expect(r.top and absf(r.y - ht) < 0.01 and r.air <= 2, "%s：上り、角に載って浮かない" % what)
+	var low: Dictionary = await _walk_into_step(0.30, 1.0, 0.0, 2.0, 1.80)
+	h.expect(not low.top and low.y < 0.02, "段 0.30 m・天井 1.80 m（段の上に体が収まらない）は上らない（y=%.3f）" % low.y)
 
 
 ## 坂・階段の上り下りは変わらない：0.3 m の段の階段を上って下り、14 度と 40 度の坂を上って下りる間、
