@@ -1,6 +1,6 @@
 ---
 name: stage-from-parts
-description: Codex が描いた部品の絵（2 m の升目の部品組・表面・遠景）から、ステージの部屋の見た目を「部品を組む方式」で作る手順。Blender で部品（キット）を作り、部屋の JSON に飾り（dress）・面（skin）・汚れの層・小物・動き・灯を書き、当たり判定と詰み探し・決まった向きの撮影・重さで確かめる。遺構・町の部屋の見た目を作る・広げる・直すとき、部品の絵を発注するとき、BlenderKit の素材を使うか決めるときに使う。
+description: Codex が描いた部品の絵（2 m の升目の部品組・表面・遠景）から、ステージの部屋の見た目を「部品を組む方式」で作る手順。Blender で部品（キット）を作り、部屋の JSON に飾り（dress）・面（skin）・汚れの層・小物・動き・灯を書き、当たり判定と詰み探し・決まった向きの撮影・重さで確かめる。遺構・町の部屋の見た目を作る・広げる・直すとき、部品の絵を発注するとき、BlenderKit の素材を使うか決めるときに使う。部品の絵から作る部屋の小物もここ。人物・番機・オルドのような機械・キャラクターの 3D 化は model-from-art を使う。
 ---
 
 # 部品の絵からステージを組む
@@ -31,7 +31,7 @@ description: Codex が描いた部品の絵（2 m の升目の部品組・表面
 
 ## 1. 最初にすること：1 枚の計画
 
-形を作る前に、結果の文書の冒頭に次の 1 枚を書く（外部のスキル集の試しで効いた「作る前の Brief」。13 章）。
+形を作る前に、その段の結果を書く所（遺構は `docs/design/43_遺構の見た目.md`、町は 42 の 14 章に、段の節を作る。発注ごとの結果の文書を作るなら `docs/art_orders/<発注>_結果.md`）の初めに次の 1 枚を書く（外部のスキル集の試しで効いた「作る前の Brief」。13 章）。
 
 | 書くこと | 中身 |
 |---------|------|
@@ -42,9 +42,13 @@ description: Codex が描いた部品の絵（2 m の升目の部品組・表面
 | 必ず入れる物 | 絵・雰囲気画にある物の一覧。これがそのまま 13 章の受け入れの表になる |
 
 同時に確かめること：
-1. 環境：`bash tools/setup_blender.sh`、`bash tools/setup_godot.sh`（作業環境は作り直されるので、セッションごとに必要）。新しい作業場所では先に `tools/godot.sh import`。
-2. 絵の取り出し：町は `git archive origin/art/w2-town art/concepts/W2_town | tar -x -C build/intake/w2town --strip-components=3`（`town.py` の冒頭）、遺構は `origin/art/w2-ruins` の `art/concepts/W2_back_ruins` を `build/intake/w2ruins` へ（`textures.py` の冒頭。手元に無ければ先に `git fetch origin art/w2-ruins`）。
-3. 雰囲気画と今の画面を同じ向きで並べる。差の大きいのは汚れよりも**光・物の密度・砂の吹きだまりの形**だった（`BlenderKit検討.md` 0 章）。足りない物は部品組として発注する（2 章）。
+1. 環境：`bash tools/setup_blender.sh`、`bash tools/setup_godot.sh`（作業環境は作り直されるので、セッションごとに必要）。新しい作業場所では先に `tools/godot.sh import`。Blender で部品を作り直したあとも、撮影・テストの前に毎回取り込む（3 章）。
+2. 絵の取り出し（`tar -C` の先のフォルダは先に作る）：
+   - 町：`mkdir -p build/intake/w2town && git archive origin/art/w2-town art/concepts/W2_town | tar -x -C build/intake/w2town --strip-components=3`（`town.py` の冒頭）。
+   - 遺構：手元に無ければ先に `git fetch origin art/w2-ruins`。`mkdir -p build/intake/w2ruins && git archive origin/art/w2-ruins art/concepts/W2_back_ruins | tar -x -C build/intake/w2ruins --strip-components=3`（`textures.py` の冒頭）。
+3. 汚れの型を作り直すなら、型の元の CC0 の写真 4 枚を先に `build/blenderkit/` へ落とし直す（新しい作業環境では空）：`godot/assets/kit/grime/SOURCES.json` の `id` ごとに `python3 tools/blenderkit_fetch.py get <id> --file <file_type>`、できたフォルダ（`made_from` の名前）に `texture <フォルダ>`（5 章）。
+4. 雰囲気画と今の画面を同じ向きで並べる。差の大きいのは汚れよりも**光・物の密度・砂の吹きだまりの形**だった（`BlenderKit検討.md` 0 章）。足りない物は部品組として発注する（2 章）。
+5. 担当に任せるときの指示は model-from-art の 6.1 のとおり（開始時に `date` で時間の区切り、こまめなコミット、自分のファイルだけを add、一時ファイルは `build/`、予約や通知を作らない）。Godot は `flock -o /tmp/godot.lock` で、Blender の流しが 1 分を超えそうなら（Cycles で描く `town.py --review`、`--only` なしの全部の作り直しなど）`flock -o /tmp/blender_heavy.lock` で囲む（同じ機械でほかの担当も Blender・Godot を回す）。
 
 ---
 
@@ -71,12 +75,17 @@ description: Codex が描いた部品の絵（2 m の升目の部品組・表面
 | 背の町の遠景 | `town_far.py`（Blender なし、numpy で GLB） | 絵の帳 `town_far_atlas.py` → `godot/assets/kit/tex/town_far.png` |
 | CC0 の小物 | `cc0_props.py [--only cask] [--gallery]` | 6 章 |
 
-出力は `godot/assets/kit/<ruins|town|cc0>/<部品>.glb` と確認ページの `tools/model_viewer/kit_*.glb`。**何度流しても同じ GLB**（重みの無い部品は作り直してもバイトまで同じ）。
+出力は `godot/assets/kit/<ruins|town|cc0>/<部品>.glb`。**何度流しても同じ GLB**（重みの無い部品は作り直してもバイトまで同じ）。
+確認ページの一覧 `tools/model_viewer/kit_*.glb` は、`build.py`・`ruins_build.py` では `--only` なしで流したときだけ、`town.py`・`cc0_props.py` では `--gallery` を付けたときだけ作り直される（`--only` で部品だけ直すと、確認ページは前のまま）。
 
+- **作り直したら Godot に取り込む**：撮影・テストの前に `tools/godot.sh import`。取り込むまで、新しい部品は Godot に無く（撮影の「飾りの部品がそろっている」が落ちる）、変えた部品は前の形のまま映る。
 - **原点と向き**：底の中心、正面（通路の側）が +Z。壁に付く物は背面（壁の面）。部屋の座標のまま作る大きな組（`*_set`・`terrace_*`・`stair_gate`）は `pos [0,0,0]`・yaw 0 で置く。
 - **面は外向き**（model-viewer と Godot は裏の面を描かない）。`geo.py` の `lathe`・`cyl` の始めのふたが内向きで、筒の端が抜けて中が透けたことがある。手で頂点を書いた薄く広い板は `geo.Part.add` の向きそろえ（閉じた形の体積の符号）に任せない：全部の面が裏返り、上の面が消えた（布をかけた木箱）。
 - **同じ平面の重なり**（ちらつき）：書き出し（`geo.to_blender`・`town_geo.to_object`）が 5 mm 以内の重なりをほどき、小さい方を 1.5 cm 外へ出す。部品と地形の箱の重なりは置く部品の側で 2 cm 外へ。芯の箱と冠・金具の上の面を同じ高さにしない。壁の列が角で交わる所は `b1_corner` でふさぐ。
   探すのは `.venv-blender/bin/python tools/blender/kit/check_coplanar.py`（`--only`・`--raw`・`--room ch1_town.json:mid,ch1_ruins.json:r02`。材質の違う重なりが 1 つでもあれば終わりの値 1）。
+  **この道具が知っているのは町の部品（`town.catalog()`）と遺構 B1 の部品（`ruins_b1.PARTS`）だけ**。引数なしでも `--kit town,ruins_b1` しか見ない。`--room` でも、知らない部品（B2〜B4・しみの `ruins_common`・散らかりの `ruins_clutter`・`cc0/*`）は**何も言わずに飛ばす**ので、それらの重なりがあっても 0 になる。
+  2026-11-05 に数えた、飾りの部品の種類のうち調べられないもの：r07・r08・r10・r19・r20 は全部、r06 は 25 のうち 21、r09 は 18 のうち 16、r13 は 20 のうち 18、r04 は 35 のうち 18、r02 は 39 のうち 9、r01 は 19 のうち 3、町のほかの部屋は `cc0` の 0〜2。
+  飛ばされる部品は、近くから撮った向き（10 章）で重なりを目で確かめる。道具に B2〜B4 などを足すまでは、0 を「重なりが無い」の証にしない。
 - **壁の部品の出っ張り**は壁の面から 0.35 m まで（`ruins_b1.RELIEF`。当たり判定の壁の帯の内）。前は柱が 0.42〜0.65 m 出て、壁ぎわを歩く体が柱に半分入った。
 - **材質**：町は平らな色を頂点の色にして `flat` 1 つ、黒鉛と真鍮は `metal`、電気の灯の芯は `amber`、油の灯は `flame`、大きな面は `shell`（`town_geo.MATERIALS` に色を足しても `flat` なら描画は増えない）。
   遺構は材質の名前でキットの材質に置き換わる（`RoomKit.part_mesh`）ので、同じ GLB が B3 と B4 で違う色になる。部品の材質は 1〜3 個に（暗い板は黒鉛にまとめる）。
@@ -92,12 +101,18 @@ description: Codex が描いた部品の絵（2 m の升目の部品組・表面
 - **手で書かない。道具で書く**（何度流しても同じ。形の位置・当たり判定・目印は変えず、飾りの箱だけ作り直す）：
   - 町：`.venv-blender/bin/python tools/dress_town.py [部屋]`（部屋は `mid`・`lower`・`upper`・`training`・`home`・`workshop`・`guild`・`mayor`・`r01`・`opening`）。`--check` で、流し直してもファイルが変わらないかだけを見る。
     numpy が要る（`town_landing.py`）。この機械の `python3` には numpy が無く、`ModuleNotFoundError` で止まった。
-  - 遺構：`python3 tools/dress_ruins.py [部屋]`（r02・r03 はこのファイル、r04〜r20 は `tools/dress_ruins_deep.py`）。
+    `r01` は遺構 B1 のキット（`ruins_b1`）の部屋だが `ch1_town.json` にあり、書くのは `dress_town.py`（`dress_ruins.py r01` は KeyError で止まる）。
+  - 遺構：`python3 tools/dress_ruins.py [部屋]`（r02・r03 はこのファイル、r04〜r20 は `tools/dress_ruins_deep.py`）。`--check` は無い。流し直したあと `git diff --exit-code godot/content/areas/ch1_ruins.json` が何も出さなければ同じ。
 - **組で置く**：1 つずつ散らさず、話のある組（回収の山・野営・作業の跡・市場の露店）にする。壁ぎわ・柱・山に寄せ、通り道・出口・扉・住人・トリガー・看板と、それを見るカメラの前は空ける。壁ぎわの組は正面（+Z）を部屋へ向ける。
   箱どうし・壁の帯とは 2 cm 離して並べる（`Dress.snug`・`dress_solid.snap`）。別の組とは 0.75 m 以上離す。
 - **ハリボテを作らない**（42 の 14.6）：建物は箱で作る（正面・側面・屋根・奥行き）。飾りの列は当たり判定の箱の端で止める。当たり判定の無い見た目だけの塊は、届く縁より 2.5 m 以上低くする（跳ぶ高さは 2.2 m）。出口の先の壁には門・扉を描く。
-- **カメラ**：カメラの高さ（約 1.9 m）に届く物を、カメラが下がってくる部屋の角に置かない（`near_fade` の網目の箱が画面の真ん中に透けた）。決まった撮影の向きで、カメラの真ん前に物を置かない。撃つ・見る仕掛けの前に板を置かない（r10 の弁の輪が見えなくなった）。
-- **影**：キットの既定は影なし（`"dress_shadows": false`）。町は近くで形を読ませる物だけ（`dress_town.py` の `SHADOW`）。生活感の小物には影を付けない（CC0 の 2 つに付けたら市場の向きで +16 回、見た目はほとんど変わらなかった）。
+- **カメラ**（42 の 14.6、`camera_rig.gd`）：
+  - カメラの高さ（約 1.9 m）に届く物を、カメラが下がってくる部屋の角に置かない（`near_fade` の網目の箱が画面の真ん中に透けた）。決まった撮影の向きで、カメラの真ん前に物を置かない。撃つ・見る仕掛けの前に板を置かない（r10 の弁の輪が見えなくなった）。
+  - カメラは当たり判定の箱の 0.3 m 手前で止まり、体だけの箱には当たらない。見た目だけの塊（`shell` など）にはカメラが入りうるので、カメラが届く所（立てる所から 5.5 m、跳んで 2.2 m 上）では、当たり判定の上の面より下げるか、当たり判定の面から十分に引っ込める。
+  - 縁から見下ろす穴は底が見えない深さにする（遺構の `b1_pit` は 20 m）。
+  - `near_fade`（カメラの近くを網目で消す）はスマホ・ブラウザ版（`gl_compatibility`）では外れる（12 章）。網目で消えるのを当てにして、カメラの前に見た目だけの物を置かない（スマホでは消えずに画面をふさぐ）。
+- **影**：今のキットはどれも `"dress_shadows": false` を書いて、飾りを影なしにしている。**コードの既定は影あり**（`RoomKit` の `get("dress_shadows", true)`）なので、新しいキットの JSON にも必ず書く（書かないと飾りの部品が全部影を落とし、描画が増える）。
+  町は近くで形を読ませる物だけ（`dress_town.py` の `SHADOW`）。生活感の小物には影を付けない（CC0 の 2 つに付けたら市場の向きで +16 回、見た目はほとんど変わらなかった）。
 
 ---
 
@@ -105,14 +120,14 @@ description: Codex が描いた部品の絵（2 m の升目の部品組・表面
 
 - 面・部品の材質に `"detail": [ … ]` を 4 つまで（42 の 14.2.1。シェーダーは `godot/assets/shaders/kit_detail.gdshaderinc`、値を入れるのは `RoomKit._set_detail`）。
   `mask`（`grime`・`chips`・`mottle`・`streaks`）・`color`（パレットの色）・`amount`・`mode`（`paint`／`multiply`。シェーダーの中の混ぜ方で、半透明の掛け算ではない）・`cover`（面積の割合）・`edge`・`uv_m`、置き場所 `on`・`feet`・`top`・`seam`・`gate`。
-- 型の絵は `.venv-blender/bin/python tools/grime_masks.py`（numpy と PIL が要る。`build/blenderkit` の CC0 の写真 4 枚から形だけ → `godot/assets/kit/grime/masks.png`・`masks2.png`、出所は `SOURCES.json`。CC0 でなければ止まる）。
+- 型の絵は `.venv-blender/bin/python tools/grime_masks.py`（numpy と PIL が要る。`build/blenderkit` の CC0 の写真 4 枚（先に落とし直す。1 章）から形だけ → `godot/assets/kit/grime/masks.png`・`masks2.png`、出所は `SOURCES.json`。CC0 でなければ止まる）。
   1 枚に型を 2 つだけ（白黒の RGB と A）。RGB に 3 つ入れたら、VRAM 圧縮で縁が 4×4 画素の段々に崩れた。
 - **汚れは 3 段で決める**（43 の 3 章。ユーザー「汚れているべきところではこうだし、その辺の調整する前提だね」）：
   1. キットごとの強さと色（B2 は濡れたさび、B3 は油とさび、B4 はきれいめ。町は `town_tidy` できれいに・`town_worn` で汚く）。
   2. 同じ部品の中で汚れるべき所だけ別の材質（遺構の `ivory_stain`：灯の下と足元、扉の枠の足元）。
   3. 置き場所の部品：遺構は `dress_ruins_deep.py` の `grime()`・`drips()`（`stain_floor`：扉の前、`stain_path`：通り道、`stain_corner`：部屋の隅、`stain_floor_b`：機械の下、`stain_drip`：壁を垂れるさびの筋。B2 の太い管は垂れつきの部品 `b2_pipe_drip`）、町は `dress_town.dirt()`（`grime_patch`・`oil_patch`：戸口・階段の足元・路地・作業台）。部屋の真ん中・戦いの広間には置かない。
 - わかったこと：欠けを一面に貼ると御影石の模様に見えた（`gate` で大きな斑の中だけに）。しみを不透明な板で塗ると床の絵が消えて茶色のペンキに見えた。遠くで型が画面の画素より細かいと汚れが消えるので、そこは平均の濃さで塗る（シェーダーがする）。
-- 重さ：描画・三角形は変わらない（シェーダーの中だけ）。ブラウザ版の大きさは型の絵 2 枚で +0.9 MB。
+- 重さ：描画・三角形は変わらない（シェーダーの中だけ）。ブラウザ版の大きさは型の絵 2 枚で +0.83 MB（PC 用とスマホ用の 2 形式）。
 
 ---
 
@@ -137,6 +152,12 @@ description: Codex が描いた部品の絵（2 m の升目の部品組・表面
 - キットの材質に `"sway"`・`"flow"`、キットに `"emitters"`（部品 → `dust`・`steam` の出所。1 部屋 16 か所まで、`AmbientFx`）。町の風は船首（+Z）から吹き、風下は -Z（`"wind": [0, 0, -1]`）。
 - 面の向き（法線）は傾けない。傾けた旗にスマホ・ブラウザ版で一瞬白い点が散った。落砂の流れは太い（0.1 m）と柱に見えたので 0.03 m に。
 - 確かめ：`--motion_shots`（`--motion_shots=flag,sand` で選ぶ）、テスト `test_kit_motion_materials`・`test_kit_motion_weights`・`test_kit_motion_no_multiply_blend`・`test_ambient_fx_view_only`。
+- **オルドの足音の揺れ**（`jolt`。`docs/design/30_レベルデザイン設計.md` の「世界の小さな反応」）：足が着くと、揺れの重みのある材質（キットの `"sway"` のある材質）が振り子のように揺れる。布・旗など重みのある部品は何もしなくても揺れるが、灯の重み・砂ぼこり・弱めた揺れは `godot/content/ordo_steps.json` に**書いた部品だけ**に効く。町に灯・吊り物・壁の布を足すときに要る。
+  - 灯は `"hang"`：端の重み `w`（外の灯 0.6、屋内の灯 0.5、置いた携行灯 0.2）。部品を読むとき（`RoomKit.part_mesh` → `OrdoSteps.part_loaded`）に、芯の材質（`amber`・`flame`）の筒で灯を見つけ、吊り金具から下へ重みを足す。
+    鎖ごと天井から揺らす灯は `"chains"`（`[x, z, 天井の高さ]`、4 つ目に半径があればその筒の中を 1 つの振り子に）、台に置いた灯は `"stand": true`、吊り灯の部品の中に置いた携行灯は `"stands"`。
+  - 砂ぼこりの出る揺れる布の部品は `"puffs"`。すぐ前に梁・壁のある布は `"soft"` で揺れを弱める（`town/goods_cloth_wall` は 0.3 倍。1 倍では 4〜5 cm 押し出されて梁の前に出た）。
+  - 足音の鳴り方（`place`：町・屋内・遺構）・オルドの座標・天井の高さは部屋の id で `"rooms"`、無ければキットの id で `"kits"`（遺構の B1〜B4）から引く。どちらにも無い部屋は鳴らない・揺れないので、新しい部屋・キットはここに足す。
+  - 確かめ：撮影 `--steps_shots`、テスト `steps`（`tests/test_steps.gd`。灯の重みと壁の布の弱めた揺れも見る）。
 
 ---
 
@@ -160,12 +181,14 @@ description: Codex が描いた部品の絵（2 m の升目の部品組・表面
 - **体だけの箱**（`cam=False`）：細い柱・手すり。カメラ・弾は通る（ふつうの箱だと柱が横切るたびにカメラが跳ねた）。ただし**立たせたい面は体だけにしない**（足の接地 `FootIK` は体だけの形を見ない）。
 - **乗れない柱**（`NOGO`）：頭の上の張り出し・露店の屋根。上の端は近くの足場から跳んで届く高さ（＋2.2 m）より上（前は工具棚 → 給水塔 → 露店の屋根と登れた）。屋内は天井の板の中まで伸ばす。
 - **すき間**：0.35〜0.75 m のすき間を作らない（体の直径 0.7 m が縁の角に載って宙に止まる）。`dress_solid.fill_gaps` が 0.75 m（`GAP`）より狭いすき間をふさぎ、0.3 m（`FILL_WARN`）より広く 3 m（`LEDGE_TOP`）より低いと警告する（見えない棚。置き方を直す）。
-- **壁の帯**（遺構）：壁の部品は面から 0.36 m（`dress_solid.LINER`）の帯。溝・すき間に面する壁の部品には `solid` を付けない（r12 の溝が 0.64 m になり、詰み探しで 177 か所）。かけらは壁から 1.5 m 以上離す。
+- **壁の帯**（遺構）：壁の部品は面から 0.36 m（`dress_solid.LINER`）の帯。溝・すき間に面する壁の部品には `solid` を付けない（r12 の溝が 0.64 m になり、詰み探しで 177 か所）。溝・すき間の口の前に角の柱を置かない（r16 で上から落ちると出られなくなった）。かけらは壁から 1.5 m 以上離す。
 - **決まりの距離**（`dress_solid.check`、だめなら書かずに止まる）：出口・トリガーの箱から 0.1 m、目印・チェックポイント・敵の出る所から 0.6 m、調べる物・拾う物・住人から 0.5 m。
 - **段差**は 0.17 m 以下か 0.25〜0.35 m（約 0.18〜0.24 m は歩いて上れない）。穴の底は跳んで出られる深さ（1.8 m まで）か奈落（y −30）より下。
 - **詰み探し**：置くたびに `tools/godot.sh run --script res://tests/scan_traps.gd -- ch1.r02`（部屋ごと。`--json=`・`--verbose`）。形だけの調べ（`godot/tests/reach_scan.gd`）で、詰み・限界の跳びでしか出られない所・宙づりの候補を出す。候補は `tests/test_traps.gd` が実際のゲームで体を置いて確かめる。新しい部屋・段階は `ReachScan.CH1_STATES` に足す。
   - **テストの名前で選ぶときに注意**：`tools/godot.sh test` の引数は**関数の名前の一部**で、ファイルの名前ではない。`tools/godot.sh test test_traps` は 1 本も走らない（「テスト 0 本」で成功に見える。42 の 14.3.2 にこの書き方が残っている）。
-    `traps`（全部屋の詰みと既知の詰み）・`no_hang`（宙づり 7 本）・`dress`（飾りの当たり判定）・`kit`・`motion`・`power` で選び、最後は引数なしで全部を流す。
+    `traps`（全部屋の詰みと既知の詰み）・`no_hang`（宙づり 7 本）・`dress`（飾りの当たり判定）・`kit`・`motion`・`power`・`steps`（オルドの足音の揺れ）で選び、最後は引数なしで全部を流す。
+- **テストの部屋の一覧に足す**：飾りに当たり判定を付けた部屋は、`tests/test_kit.gd` の `DRESSED`（遺構）か `DRESSED_TOWN`（町）に、箱・樽を必ず置く部屋なら `PROP_ROOMS` にも足す。
+  足さないと `test_dress_solid_props` がその部屋の当たり判定の箱・決まりの距離・乗れる棚を見ないまま、全部のテストが通る（遺構の展開では r04〜r20 を足した。43 の 7 章）。
 
 ---
 
@@ -177,15 +200,18 @@ description: Codex が描いた部品の絵（2 m の升目の部品組・表面
 | 遺構の全部屋を 1 枚ずつ | `--ruins_shots`（`ruin_r02`〜`ruin_r20`） |
 | 部屋の見た目の基準 | `--stage_shots [--stage_view=r02_entry] [--stage_plain]`（キットを外して比べる）、町は `--town_shots [--town_view=market]` |
 | 動き・停電・場面 | `--motion_shots`、`--blackout_shots`、`--opening_shots` |
-| キットの一覧 | `--demo` は使わず `tools/godot.sh shot --resolution 1800x1100 --script $PWD/tools/blender/kit/godot_kit_review.gd -- build/kit/review_ruins_b2.png ruins_b2`（ゲームと同じ材質）。町は `town.py --review`（Cycles）、確認ページの `kit_*` |
+| キットの一覧 | `--demo` は使わず `mkdir -p build/kit && tools/godot.sh shot --resolution 1800x1100 --script $PWD/tools/blender/kit/godot_kit_review.gd -- $PWD/build/kit/review_ruins_b2.png ruins_b2`（ゲームと同じ材質）。町は `town.py --review`（Cycles）、確認ページの `kit_*` |
 
+- **出力の置き場所**：`tools/godot.sh` は `--path godot` で起動し、Godot はそのフォルダを今いる所にする。だから `--demo=build/<出力>` のような相対の道は `godot/build/<出力>` に入る（`--demo` はフォルダを作る）。
+  キットの一覧は出力のフォルダを作らないので、相対の道（`build/kit/…`）だと `godot/build/kit/` が無くて書けない（「Can't save PNG」）。上のように、先にフォルダを作って `$PWD` からの道で渡す（42 の 14.4 と `build.py`・`ruins_build.py` の冒頭の書き方は相対の道のまま）。
 - 向きの一覧：`tools/audit_views.json`（中段・r02・r03）、`audit_views_town_rooms.json`（61 向き）・`audit_views_town_rooms_walk.json`（箱・住人・出口へ歩く）、`audit_views_ruins_rollout.json`（52 向き）、`audit_views_props.json`・`audit_views_solid.json`（当たり判定）、`audit_views_props_motion.json`、`audit_views_lookout.json`・`audit_views_ordo.json`。
-  項目：プレイヤーのカメラ `"at"`・`"look"`・`"pitch"` か自由なカメラ `"eye"`・`"target"`、`"wait"`、`"walk": true`（歩いて当たって止まった所を撮る）、`"jump": n`、`"back_lights"`。部屋が変わると暗転するので、一覧は部屋ごとにまとめる。
+  項目：必ず `"name"`・`"room"`（`ch1.r02` など）・`"spawn"`（入る所）。そこにプレイヤーのカメラ `"at"`・`"look"`・`"pitch"` か自由なカメラ `"eye"`・`"target"`、`"wait"`、`"walk": true`（歩いて当たって止まった所を撮る）、`"jump": n`、`"back_lights"`。部屋が変わると暗転するので、一覧は部屋ごとにまとめる。
+  `"walk"`・`"jump"` の向きがあるのは `audit_views_solid.json`（r02・r03・中段）と `audit_views_town_rooms_walk.json`（町の部屋。町長の家は無し）だけで、遺構の r04〜r20 には無い。ほかの部屋は、当たり判定のある飾りのそばへ歩く・跳ぶ向きを足してから撮る（13 章）。
 - 撮るたびに `描画 audit_<名前>：draw N・物 N・三角形 N` の行が出る。飾りの部品が足りないと「飾りの部品がそろっている」の確かめが落ちる（部屋の `missing_parts`）。
 - **スマホ**：`shot` の後ろ（`--` の前）に `--rendering-driver opengl3 --rendering-method gl_compatibility --resolution 844x390`、`--` の後ろに `--touch`。
-- 前と後は**同じ向き・同じ刻み**で撮り（前は変更前の `godot/` の写しか前のコミットの部屋のデータ）、横に並べた画像を `docs/progress_shots/<名前>/` に（日本語の見出し、400 KB 未満）。全部のこまを自分で見てから報告する。
+- 前と後は**同じ向き・同じ刻み・同じ描き方と大きさ**で撮り（前は変更前の `godot/` の写しか前のコミットの部屋のデータ。表の大きさ 1280×720 は点検の既定で、停電の夜の数（42 の 14.8）は PC 1600×900。基準の数と比べるなら、基準を撮った大きさにそろえる）、横に並べた画像を `docs/progress_shots/<名前>/` に（日本語の見出し、400 KB 未満）。全部のこまを自分で見てから報告する。
 - 壁の帯のある部屋で、プレイヤーを壁から 2 m 以内に立たせると、カメラが上へ回って見下ろしになる（撮る位置を離す）。
-- 遠景は、胸壁・縁から外を見る向きと場面のこま（`--opening_shots`）でも撮る。残課題 T9：下段の南の胸壁と遠くの町の間に白い平らな所、上段の南の胸壁の下に町が無い、オープニングの 37〜39 秒に甲羅の縁と家のすき間から紫の背景（2026-11-02 の見直しで見つかった）。
+- 遠景は、胸壁・縁から外を見る向きと場面のこま（`--opening_shots`）でも撮る。遠景で今残っていることは `docs/dashboard.md` の残課題の表（T9 など）を見る。
 
 ---
 
@@ -198,15 +224,16 @@ description: Codex が描いた部品の絵（2 m の升目の部品組・表面
 
 | 変えたこと | 描画の差（いちばん重い向き） | 目安・決まり |
 |-----------|---------------------------|--------|
-| 町の 9 部屋への展開 | どの部屋も中段の `mid_high`（PC 361・スマホ 392）より軽い | 中段のいちばん重い向きを超えない |
-| 遺構 r04〜r20 への展開 | 番機のいない部屋は r02 の 1.2 倍の内（PC 227・スマホ 247）。番機のいる部屋は飾りで +38〜79 | r02 の 1.2 倍 |
+| 町の 9 部屋への展開 | どの部屋も中段の `mid_high`（PC 361・スマホ 392。PC は Forward+ 1280×720、スマホは `gl_compatibility` 844×390）より軽い | 中段のいちばん重い向きを超えない |
+| 遺構 r04〜r20 への展開 | 番機のいない部屋は r02 の 1.2 倍の内（PC 227・「スマホ」247）。**この「スマホ」は 844×390 の Forward+ で、`gl_compatibility` ではない**（43 の 6 章）。番機のいる部屋（r04・r09・r10・r13・r15・r19）は灰色のときから r02 より重く、飾りで +38〜79 のあと**1.2 倍を超えたまま**（43 の 8 章の残り。下げるなら番機の描画） | r02 の 1.2 倍 |
 | 生活感の小物（10-15） | 遺構 +14〜25（三角形 +1〜8%）・町 +20〜44（+11〜22%） | 影なし |
 | 絵から作った小物（10-17） | いちばんきつい r05 で PC +10（上限 +12）、三角形 +0〜2% | 部屋ごとに前の 1.1 倍まで |
 | 汚れの層・揺れ・流れ | 0（シェーダーの中だけ）。粒の見える向きで +1〜2 | — |
 | 停電の夜 | +1〜3 | 本物の光は顔を照らす数個 |
 | 背の町の遠景 | +1、三角形 +0.6 万 | 1 つのメッシュ・材質 1 つ（絵の帳） |
 
-- 軽くする手：同じ部品は MultiMesh、壁・梁の部品は部屋で 1 種類（交互にしない）、部品の中の材質をまとめる、影を落とさない、しみは半透明の 1 回、離れた所に種類を 1 つだけ置かない（MultiMesh は部屋じゅうの置き場所を囲むので、多くの向きで描かれる）。
+- 表の数は撮った描き方・大きさがばらばら。前と後は**基準と同じ描き方・同じ大きさ**で撮って比べる（`gl_compatibility` の数を遺構の「スマホ 247」と比べない）。
+- 軽くする手：同じ部品は MultiMesh、壁・梁の部品は部屋で 1 種類（交互にしない）、部品の中の材質をまとめる、影を落とさない、しみは半透明の 1 回、離れた所に種類を 1 つだけ置かない（MultiMesh は部屋じゅうの置き場所を囲むので、多くの向きで描かれる）。戦いのある部屋（r09・r10）には低い道標を置かない（支柱の足元の灯で足りる）。
 - 実機の fps はこの機械では測れない（CPU で描く）。こまの時間は ±10% ほど揺れるので、比べるのは前と後の差だけ。
 
 ---
@@ -214,7 +241,7 @@ description: Codex が描いた部品の絵（2 m の升目の部品組・表面
 ## 12. スマホ・ブラウザ版の描き方（`gl_compatibility`）の決まり
 
 1. **掛け算の半透明（`blend_mul`）は使わない**（真っ黒に塗られた。遺構のしみ・町の汚れの斑）。普通の半透明か足し合わせ。`test_kit_motion_no_multiply_blend` が見るのは面・揺れ・光の筋のシェーダーだけ（しみ `kit_stain`・斑 `kit_decal` は見ないので、足したら目で確かめる）。
-2. `discard` を使う網目（`near_fade`）は付けない（`RoomKit` がこの描き方では外す）。
+2. `discard` を使う網目（`near_fade`）はこの描き方では効かない（`RoomKit` が外す）。網目で消えるのを当てにした置き方をしない（4 章）。
 3. 影を落とす光は別の回で描いてトーンマップのあとに足すので、光の当たる床が白っぽくなった。太陽は `EnvironmentSetup.COMPAT_SHADOW_LIGHT`（0.4）倍、部品の影つきのスポットは影なし。
 4. 夜は暗い所が真っ黒に詰まった。キットの光の項目に `"compat"`（環境光・`contrast`・人物だけを照らす `char_fill`）を書く。
 5. 深さは 24 bit：30 m 先の 2 mm は分けられない。重なる面は 2 cm 以上離す（3 章）。
@@ -230,13 +257,14 @@ description: Codex が描いた部品の絵（2 m の升目の部品組・表面
 1. **作る前に 1 枚の計画**（1 章）。予算は §5.4 と 11 章の表から。必ず入れる物の一覧を受け入れの表にする。
 2. **比べの輪**：雰囲気画・部品の絵と同じ向きの画面を並べ、**違いは 1 回に 5 つまで、3 回まで**。目立つ順に選ぶ。3 回で止め、残った違いは表に理由つきで残す。
 3. **報告の前の自動の確かめ**（全部通ってから画像を見せる）：
-   - `.venv-blender/bin/python tools/dress_town.py --check`（「同じ（流し直しても変わらない）」）。道具が `dress_solid.check` で止まらない・`fill_gaps` の警告が無い。
-   - `check_coplanar.py`（部屋に置いた形で `--room`）で材質の違う重なりが 0（終わりの値 0）。
+   - 部品を作り直したら、先に `tools/godot.sh import`（3 章）。
+   - 町は `.venv-blender/bin/python tools/dress_town.py --check`（「同じ（流し直しても変わらない）」）。遺構は `python3 tools/dress_ruins.py` を流し直して `git diff --exit-code godot/content/areas/ch1_ruins.json` が何も出さない。道具が `dress_solid.check` で止まらない・`fill_gaps` の警告が無い。
+   - `check_coplanar.py`（部屋に置いた形で `--room`）で材質の違う重なりが 0（終わりの値 0）。**町と遺構 B1 の部品しか見ない**（3 章）ので、B2〜B4・しみ・散らかり・`cc0` の部品は撮影で目で見る。
    - 詰み探し（`scan_traps.gd`）で詰み 0・限界の跳びでだけ出られる所 0。宙づりの候補の増減を前と比べる。
-   - `tools/godot.sh test`（全部、失敗 0）。
+   - `tools/godot.sh test`（全部、失敗 0）。新しい部屋が `test_kit.gd` の `DRESSED`・`DRESSED_TOWN` に入っている（9 章）。
    - `tools/godot.sh run --fixed-fps 60 -- --demo=build/ch1 --ch1_full` が「見本の完了（失敗 0 件）」で、ERROR の行が無い。
    - 撮影の行で、部屋ごとのいちばん重い向きが予算の内。飾りの部品の欠けが 0。
-   試しで見逃したのは「ゲームとの約束」（原点・床との接地）だった。ステージでは原点・向き・当たり判定の箱と見た目のずれを、撮影の `"walk"`・`"jump"` の向き（`audit_views_solid.json`）で必ず見る。
+   試しで見逃したのは「ゲームとの約束」（原点・床との接地）だった。ステージでは原点・向き・当たり判定の箱と見た目のずれを、撮影の `"walk"`・`"jump"` の向きで必ず見る（r02・r03・中段は `audit_views_solid.json`、町の部屋は `audit_views_town_rooms_walk.json`。遺構の r04〜r20 などは向きを足す。10 章）。
 4. **判定**（3 つのうち 1 つ）。止めるものが 1 つでもあれば「直す」、大きいものが残れば「注意つきで出してよい」（理由と残りの表つき）、小さいものだけなら「出してよい」。
 
 ```
