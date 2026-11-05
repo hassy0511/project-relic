@@ -391,9 +391,53 @@ func test_b4_way_back_after_restart() -> void:
 			await h.run_until(g, TestHelpers.seconds(2.0), {"move_y": 1.0}, func(): return lift.carries(g.player.pos) and g.player.pos.z < 1.6)
 			var top := await h.run_until(g, TestHelpers.seconds(14.0), {}, func(): return g.player.pos.y > 19.5 and g.player.grounded)
 			h.expect(top, "リフトに乗って縦坑の上へ上がれる（y=%.2f）" % g.player.pos.y)
+			# 上で歩いて降り、伝導路 r15 への出口まで行ける（落ちない）。前は上の足場とリフトの間に 0.8 m の隙間があり、
+			# 歩いて降りると角に載ってから 20 m 下へ落ち、跳ばないと上の足場に乗れなかった
+			var low := [100.0]
+			var out := await h.run_until(g, TestHelpers.seconds(4.0), {"move_y": 1.0}, func():
+				if g.room_id == "ch1.r16":
+					low[0] = minf(low[0], g.player.pos.y)
+				return g.room_id != "ch1.r16")
+			h.expect(out and g.room_id == "ch1.r15" and low[0] > 19.5, "リフトから歩いて降りて r15 へ出る（%s、いちばん低い y=%.2f）" % [g.room_id, low[0]])
 		else:
 			h.expect(g.room_id == "ch1.r18", "再始動の前は、r18 の南の扉は出口ではない（%s）" % g.room_id)
 		h.free_game(g)
+
+
+## 縦坑 r16 の上で、上の足場とリフトの間を歩いて渡れる（隙間に落ちない）。再始動の前（乗ると下りる ride）は上の足場からリフトへ、
+## 再始動の後（上り下りする pingpong。部屋に入った時は上で 3 秒止まっている）はリフトから上の足場へ。ゆっくり倒しても、リフトの中ほど・端からでも。
+## 前は上の足場の縁（z=-2.4）とリフトの北の端（z=-1.6）の間が 0.8 m 空いていて、どちら向きでも角に載ってから 20 m 下へ落ちた
+func test_r16_lift_top_no_gap() -> void:
+	var main: Array = GameSim.CH1_ORDER.filter(func(f): return f != "ch1.shortcut_open")
+	for after in [false, true]:
+		var flags: Array = main.slice(0, main.find("ch1.ordo_restarted" if after else "ch1.drive_powered") + 1) + ["ch1.r16.cleared"]
+		for x in [0.0, -2.0, 2.0]:
+			for stick in [1.0, 0.4, 0.25]:
+				var g := _game("ch1.r16", flags)
+				await h.settle()
+				var lift: Props.Mover = g.movers[0]
+				var low := [100.0]
+				if after:
+					g.player.teleport(Vector3(x, 20.05, -1.0), PI)
+					g.cam.yaw = PI
+					await h.run_until(g, TestHelpers.seconds(4.0), {"move_y": stick}, func():
+						low[0] = minf(low[0], g.player.pos.y)
+						return g.player.pos.z < -4.0)
+					h.expect(g.player.pos.z < -4.0 and low[0] > 19.9, "再始動の後：リフトから上の足場へ歩いて渡れる（x=%.1f・倒し %.2f：z=%.2f、いちばん低い y=%.2f）" % [x, stick, g.player.pos.z, low[0]])
+				else:
+					g.player.teleport(Vector3(x, 20.05, -3.5), 0.0)
+					g.cam.yaw = 0.0
+					# 体がすっかりリフトの上に乗ったら手を離す。ハルはリフトと一緒に下り、リフトより先に底へ落ちない
+					var fell := [false]
+					var north_edge: float = lift.pos.z - lift.size.z * 0.5
+					await h.run_until(g, TestHelpers.seconds(4.0), {"move_y": stick}, func():
+						fell[0] = fell[0] or g.player.pos.y < lift.pos.y + lift.size.y - 0.5
+						return g.player.pos.z > north_edge + Player.RADIUS and g.player.grounded)
+					await h.run_until(g, TestHelpers.seconds(8.0), {}, func():
+						fell[0] = fell[0] or g.player.pos.y < lift.pos.y + lift.size.y - 0.5
+						return lift.t >= 1.0)
+					h.expect(lift.t >= 1.0 and not fell[0] and g.player.pos.y < 0.5, "再始動の前：上の足場からリフトへ歩いて乗り、底まで運ばれる（x=%.1f・倒し %.2f：落ちた=%s、t=%.2f、y=%.2f）" % [x, stick, fell[0], lift.t, g.player.pos.y])
+				h.free_game(g)
 
 
 ## 崩落床 r05 の崩落の自動保存：最後に書く保存は、B2 に落ちたフラグ（ch1.fell_to_b2）と新しい目的を持つ。

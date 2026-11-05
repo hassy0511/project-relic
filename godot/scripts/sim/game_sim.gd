@@ -381,6 +381,8 @@ func _build_room() -> void:
 				mv.mode = p.get("mode", "toggle")
 				mv.cond = p.get("cond")
 				mv.wait = float(p.get("wait", 1.0))
+				# 部屋に入った時に端で止まっている秒数（pingpong）。入った瞬間に足場が出て行かないように
+				mv.hold = float(p.get("hold", 0.0))
 				mv.t = 1.0 if mv.mode == "toggle" and Cond.eval(mv.cond, self) else 0.0
 				mv.pos = mv.at_t(mv.t)
 				mv.body = phys.add_box(mv.pos + Vector3(0, mv.size.y * 0.5, 0), mv.size * 0.5, Phys.TERRAIN)

@@ -464,13 +464,19 @@ for z in (-8, 0, 8):
 r = new("r16", "B3", "中央縦坑", 4, 2)
 r.shell(12, 26, 12)
 r.box(0, 0, -4.2, 10, 20.0, 3.6, "#5a4a3a")       # 上の足場（上面 y=20）
+# 上の足場の縁（z=-2.4）からリフトの北の端（z=-2.02）までをふさぐ：上は歩ける縁（0.36 m）、その下は体だけを止める見えない壁
+# （底の壁の面 z=-2.04 を上まで続ける。乗っている間にリフトの北の端へ寄っても、縁の下に頭がはさまらない）。
+# 前は縁とリフトの間が 0.8 m 空いていて、歩いて渡ると角に載ってから 20 m 下へ落ちた
+r.d["geometry"].append({"t": "box", "pos": [0, 19.6, -2.22], "size": [5.2, 0.4, 0.36], "tint": "#5a4a3a", "skin": {"wall": "wall", "floor": "floor"}})
+r.d["geometry"].append({"t": "box", "pos": [0, 4.0, -2.22], "size": [5.2, 15.6, 0.36], "wall": True, "hide": True, "cam": False})
 r.start("from_r15", 0, 20.0, -3.0, 0)
-r.marker("from_r18", 0, 0, -3.5, 0)
+r.marker("from_r18", 0, 0, 3.0, 180)
 r.exit("to_r15", "r15", "from_r16", 0, 20.0, -5.0, size=(5, 4, 1.4))
 r.exit("to_r18", "r18", "from_r16", 0, 0, 5, size=(6, 4, 2))
-r.prop(type="mover", id="ch1.r16.lift", pos=[0, 19.6, 0.4], size=[5, 0.4, 4], move=[0, -20.0, 0], speed=4.5, mode="ride", unless="ch1.ordo_restarted")
-# 再始動の後は動力が戻り、リフトがひとりでに上り下りする（B4 から上へ戻れる）
-r.prop(type="mover", id="ch1.r16.lift_powered", pos=[0, 19.6, 0.4], size=[5, 0.4, 4], move=[0, -20.0, 0], speed=4.5, mode="pingpong", wait=3.0, when="ch1.ordo_restarted")
+# リフトの北の端は底の壁の面（z=-2.04）の 2 cm 手前：底で壁ぎわに立っても体がすっかりリフトの上に載る
+r.prop(type="mover", id="ch1.r16.lift", pos=[0, 19.6, 0.19], size=[5, 0.4, 4.42], move=[0, -20.0, 0], speed=4.5, mode="ride", unless="ch1.ordo_restarted")
+# 再始動の後は動力が戻り、リフトがひとりでに上り下りする（B4 から上へ戻れる）。部屋に入った時は上で 3 秒止まっている（hold）
+r.prop(type="mover", id="ch1.r16.lift_powered", pos=[0, 19.6, 0.19], size=[5, 0.4, 4.42], move=[0, -20.0, 0], speed=4.5, mode="pingpong", wait=3.0, hold=3.0, when="ch1.ordo_restarted")
 r.prop(type="sign", text="リフト（乗ると降りる）", pos=[0, 22.2, -2.4], size=30, color="#ffb050", unless="ch1.ordo_restarted")
 r.prop(type="sign", text="リフト（上り下りしている）", pos=[0, 22.2, -2.4], size=30, color="#ffb050", when="ch1.ordo_restarted")
 r.enemy("charger", -4, 0, 3, 180, group="r16_w1", unless="ch1.r16.cleared")
