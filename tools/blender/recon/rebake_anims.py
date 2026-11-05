@@ -4,7 +4,7 @@
       [--base <GLB のパス か git の版>] [--only combo1,combo2,combo3]
   ほかの人物（recon で作った NPC）：動作の組と足の裏の接地点を chars/<id>.json の rig_args と同じにする
   .venv-blender/bin/python tools/blender/recon/rebake_anims.py --out godot/assets/models/junker.glb --clips child \
-      --foot-contacts=-0.17,0.13,-0.09
+      --foot-contacts=-0.22,0.13,-0.09
   （ハルの外は --base を省くと HEAD の GLB が元。形はバイトのまま残すので、何度焼き直しても頂点は増えない。
    杖の老人（--clips elder）は骨付けの段の手の測りが要るので、ここでは焼けない）
 
@@ -15,16 +15,16 @@
 骨・形・塗りを作り直したら BASE_REV をその版に直す（古い版から焼くと、その後の作り直し（髪など）が消える）。
 Blender の読み込み→書き出しを 1 回通すと、法線・UV の境で頂点が分かれて頂点が増え、法線も少し変わる
 （haru_r：60,026 → 60,969）。そこで書き出した GLB からは動作だけを取り、元の GLB の形（メッシュ・骨・塗り・目印）は
-バイトのまま残す（glb_splice_anims.py）。形が同じかは、出力のあとに頂点の数・材質・骨の名前を並べて見る。
+バイトのまま残す（glb_splice_anims.py）。形が同じかは glb_shape_diff.py で確かめる（頂点・材質・骨・ノードが同じで、変えた動作だけが違う）。
 --only：その動作だけ新しい定義にし、ほかは元の GLB の動作をバイトのまま残す（既定は全部焼き直す）。
 """
 from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
-import shutil
 import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
