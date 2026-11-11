@@ -210,26 +210,27 @@ def build_hair(m):
             return 'hair.back.R'
         return 'hair.side.R'
     # --- 頭頂の立った房（前へ・上へ。絵の頭のてっぺんのとげ） ---
-    L((0.030, 0.005, 1.502), (-0.055, -0.090, 1.562), 0.100, 0.022, lift=0.030, bone='hair.top', sway=0.7, root_w=0.7, wpos=0.40)
-    L((0.055, 0.040, 1.502), (0.050, -0.030, 1.558), 0.086, 0.020, lift=0.026, bone='hair.top', sway=0.7, root_w=0.7, wpos=0.40)
+    L((0.030, 0.005, 1.502), (-0.055, -0.090, 1.552), 0.100, 0.022, lift=0.030, bone='hair.top', sway=0.7, root_w=0.7, wpos=0.40)
+    L((0.055, 0.040, 1.502), (0.050, -0.030, 1.548), 0.086, 0.020, lift=0.026, bone='hair.top', sway=0.7, root_w=0.7, wpos=0.40)
     L((-0.035, 0.045, 1.502), (-0.112, 0.005, 1.534), 0.084, 0.020, lift=0.024, bone='hair.top', sway=0.65, root_w=0.7)
     # --- 1 段目：つむじから放射状（太い葉。先はヒモの上の方で外へとがる） ---
     for a in (50, 90, 130, 167, 205, 242, 280, 318):
-        zt = strap_z(a) + 0.074
-        L(crown, ('a', a, zt, 0.034), 0.124, 0.018, lift=0.016, bone=bone_of(a), sway=0.45, wpos=0.52, root_w=0.5, segs=5)
+        zt = strap_z(a) + 0.072
+        L(crown, ('a', a, zt, 0.024), 0.132, 0.016, lift=0.014, bone=bone_of(a), sway=0.45, wpos=0.52, root_w=0.5, segs=5)
     # --- 2 段目：ヒモのすぐ上で外へ張り出す（いちばん外の輪郭） ---
     for a in (70, 110, 148, 186, 224, 262, 298):
         zr, zt = strap_z(a) + 0.110, strap_z(a) + 0.006
-        L(('a', a - 5 if a < 180 else a + 5, zr, 0.010), ('a', a, zt, 0.072), 0.118, 0.022, lift=0.036, bone=bone_of(a), sway=0.55, wpos=0.46, root_w=0.55, segs=5)
+        back = abs(a - 180) < 62
+        L(('a', a - 5 if a < 180 else a + 5, zr, 0.010), ('a', a, zt, 0.046 if back else 0.072), 0.128 if back else 0.118, 0.020, lift=0.026 if back else 0.036, bone=bone_of(a), sway=0.55, wpos=0.46, root_w=0.55, segs=5)
     # --- 3 段目：ヒモの下から下・外へ（真横は外へはっきり張り出す） ---
     for a in (106, 136, 166, 194, 224, 254):
         zr, zt = strap_z(a) - 0.000, strap_z(a) - 0.098
-        tip = ('a', a, zt, 0.058)
-        wd = 0.108
+        tip = ('a', a, zt, 0.040)
+        wd = 0.118
         if a in (106, 254):
             tip = ((1 if a == 106 else -1) * 0.196, 0.085, 1.300)
             wd = 0.112
-        L(('a', a, zr, 0.006), tip, wd, 0.020, lift=0.030, bone=bone_of(a), sway=0.55, wpos=0.44, root_w=0.55, segs=5)
+        L(('a', a, zr, 0.006), tip, wd, 0.018, lift=0.022, bone=bone_of(a), sway=0.55, wpos=0.44, root_w=0.55, segs=5)
     # --- 4 段目：えり足（下へとがる） ---
     for (a, zt, out, w) in ((108, 1.226, 0.030, 0.078), (138, 1.208, 0.034, 0.086), (166, 1.196, 0.032, 0.088), (194, 1.196, 0.032, 0.088), (222, 1.208, 0.034, 0.086), (252, 1.226, 0.030, 0.078)):
         L(('a', a, strap_z(a) - 0.066, 0.004), ('a', a, zt, out), w, 0.018, lift=0.024, bone='hair.nape', sway=0.5, wpos=0.42, root_w=0.6)

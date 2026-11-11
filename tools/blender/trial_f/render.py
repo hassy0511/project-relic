@@ -121,7 +121,7 @@ def compare_sheet(names, render_dir, out, size=1024, crop=None):
     print('sheet', out, sheet.size)
 
 
-HEAD_VIEWS = [('front', 0, 0, 'haru_face_front'), ('right', -90, 0, 'haru_head_side_right'), ('back', 180, 0, 'haru_head_back'),
+HEAD_VIEWS = [('front', 0, 0, 'haru_face_front'), ('right', -90, 0, 'haru_head_side_right'), ('back', 180, 0, 'haru_head_back'), ('back12', 180, 12, 'haru_head_back'),
               ('top', 0, 90, 'haru_head_top'), ('fr45', -45, 0, 'haru_head_front_right45')]
 
 
@@ -140,7 +140,7 @@ def render_head(cam, sun, out_dir, out_sheet, size=640, zc=1.37, span=0.50):
         else:
             a = math.radians(az)
             c = Vector((0, DEPTH0 * abs(math.sin(a)), zc))
-            aim(cam, sun, az, c, span)
+            aim(cam, sun, az, c, span, elev_deg=el)
         bpy.context.scene.render.resolution_x = bpy.context.scene.render.resolution_y = size
         path = os.path.join(out_dir, 'head_%s.png' % name)
         bpy.context.scene.render.filepath = os.path.abspath(path)

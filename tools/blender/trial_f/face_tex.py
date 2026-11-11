@@ -125,13 +125,29 @@ def build(out_dir='build/f/tex', debug=True):
     fb = (xs.min(), ys.min(), xs.max(), ys.max())
     exr = ex.convert('RGB')
     dbg = []
+    shift = (0.0, 0.0)
     for qi, (r0, q0) in enumerate(((0, 0), (0, 1024), (1024, 0), (1024, 1024))):
         sub = A[r0:r0 + 1024, q0:q0 + 1024]
         ys, xs = np.where(sub > 128)
         qb = (xs.min() + q0, ys.min() + r0, xs.max() + q0, ys.max() + r0)
         k = (qb[2] - qb[0]) / (fb[2] - fb[0])
-        xf = lambda x, y, qb=qb, k=k: (qb[0] + (x - fb[0]) * k, qb[1] + (y - fb[1]) * k)
+        xf = lambda x, y, qb=qb, k=k, sh=shift: (qb[0] + (x - fb[0]) * k + sh[0], qb[1] + (y - fb[1]) * k + sh[1])
         ce = np.array(crop_cell(exr, xf), dtype=float)
+        if qi == 0:
+            # 通常の顔どうし（顔の絵と、表情の絵の左上）を重ねて、箱合わせのずれを測る。ほかの区画にも同じずれを使う
+            a_ref = (ns0 > 0.5).astype(float)
+            b = (nonskin(ce) > 0.5).astype(float)
+            best, bs = -1.0, (0, 0)
+            for dy in range(-24, 25, 2):
+                for dx in range(-24, 25, 2):
+                    sc = float((a_ref * np.roll(np.roll(b, dy, 0), dx, 1)).sum())
+                    if sc > best:
+                        best, bs = sc, (dx, dy)
+            px = (cm_to_px(1, 0)[0] - cm_to_px(0, 0)[0]) * (cell_window_cm()[1] - cell_window_cm()[0]) / CELL * k
+            shift = (-bs[0] * px, -bs[1] * px)
+            print('expression sheet alignment shift (cell px):', bs)
+            xf = lambda x, y, qb=qb, k=k, sh=shift: (qb[0] + (x - fb[0]) * k + sh[0], qb[1] + (y - fb[1]) * k + sh[1])
+            ce = np.array(crop_cell(exr, xf), dtype=float)
         dbg.append(ce)
         if qi == 0:
             continue
@@ -140,8 +156,11 @@ def build(out_dir='build/f/tex', debug=True):
         soft = np.clip((de - 24.0) / 30.0, 0, 1)          # 口の中・歯・赤い線も拾う
         low = poly_mask([(-5.2, 126.0), (5.2, 126.0), (5.2, 121.0), (-5.2, 121.0)], 3.0)
         a = np.maximum(ns, soft * low) * window * (1 - np.clip(hair, 0, 1)) * (1 - wedge)
-        # 小さい切れ端（髪の縁・あごの陰）を捨てる
+        # 目・眉の高さでは、細い線（髪の房の縁の残り）を消す（太さ 5 画素より細い物）
         from scipy import ndimage
+        opened = ndimage.binary_dilation(ndimage.binary_erosion(a > 0.35, iterations=5), iterations=7)
+        a = np.where(low > 0.5, a, a * opened)
+        # 小さい切れ端（髪の縁・あごの陰）を捨てる
         lab, nlab = ndimage.label(a > 0.35)
         if nlab:
             sizes = ndimage.sum(np.ones_like(a), lab, index=np.arange(1, nlab + 1))

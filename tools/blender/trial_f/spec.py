@@ -16,7 +16,7 @@ PALETTE = {
     'boot': '#5B3B2D', 'white': '#FFF8EA', 'amber_dk': '#D9912E', 'gun': '#4A4C48',
     'hair_md': '#4E3024',
 }
-EMISSIVE = {'amber': '#5A3A0E', 'amber_dk': '#3C2609'}
+EMISSIVE = {'amber': '#805416', 'amber_dk': '#3C2609'}
 SKIN_HEX = PALETTE['skin']
 
 # 関節（左。右は x を反転）。骨は 親 → 子 の順
