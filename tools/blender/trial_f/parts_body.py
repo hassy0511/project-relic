@@ -43,9 +43,9 @@ def torso_at(z):
 
 
 def build_torso(m):
-    n = 12
+    n = 16
     rings = [bring(z, hw, yf, yb, n) for (z, hw, yf, yb) in TORSO]
-    v, f, kinds = geo.loft(rings, True, True)
+    v, f, kinds = geo.loft(rings, True, True, split_caps=True)
     cols = []
     k = 0
     for i in range(len(rings) - 1):
@@ -53,11 +53,11 @@ def build_torso(m):
             front = j in (0, n - 1)
             cols.append('ivory' if (front and TORSO[i + 1][0] > 0.86) else 'brick')
     cols += ['brick', 'ivory']
-    m.add(v, f, cols, torso_w, smooth=False, name='torso')
+    m.add(v, f, cols, torso_w, smooth=True, name='torso')
     # 首（肌）：鎖骨のあたりから頭の中まで
     NECK = [(1.108, 0.066, -0.044, 0.062), (1.130, 0.050, -0.037, 0.054), (1.152, 0.040, -0.031, 0.049),
             (1.20, 0.037, -0.029, 0.046), (1.25, 0.037, -0.029, 0.046)]
-    rings = [bring(z, hw, yf, yb, 12, 2.0) for (z, hw, yf, yb) in NECK]
+    rings = [bring(z, hw, yf, yb, 14, 2.0) for (z, hw, yf, yb) in NECK]
     v, f, _ = geo.loft(rings, True, True)
     m.add(v, f, 'skin', torso_w, smooth=True, name='neck')
 
@@ -71,7 +71,7 @@ def jacket_ring(z, hw, yf, yb, edge, exp=2.6):
     yc, hd = (yf + yb) / 2, (yb - yf) / 2
     e = 2.0 / exp
     a0 = math.asin(min(1.0, (edge / hw) ** (1 / e)))
-    angs = [a0] + [math.radians(d) for d in (32, 60, 90, 120, 150, 180, 210, 240, 270, 300, 328)] + [2 * math.pi - a0]
+    angs = [a0] + [math.radians(d) for d in (30, 50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330)] + [2 * math.pi - a0]
     pts = []
     for a in angs:
         s, c = math.sin(a), math.cos(a)
@@ -87,7 +87,8 @@ def build_jacket(m):
         return norm(d)
     v, f, kinds = geo.grid_shell(grid, 0.010, inward)
     cols = ['brick_dk' if k == 'inner' else 'brick' for k in kinds]
-    m.add(v, f, cols, torso_w, smooth=False, name='jacket')
+    v, f = geo.split_groups(v, f, kinds)
+    m.add(v, f, cols, torso_w, smooth=True, name='jacket')
     # 背中の中心の縫い目・すその折り返しは形にしない（絵でも線だけ）
 
 
@@ -102,6 +103,12 @@ def build_collar(m):
          (120, 0.048, 1.150, 0.110, 1.206, 0.132, 1.180, 0.142, 1.130),
          (150, 0.050, 1.156, 0.098, 1.210, 0.118, 1.186, 0.126, 1.128),
          (180, 0.050, 1.158, 0.090, 1.210, 0.108, 1.188, 0.114, 1.128)]
+    K2 = []
+    for a, b in zip(K, K[1:]):
+        K2.append(a)
+        K2.append(tuple((x + y) / 2 for x, y in zip(a, b)))
+    K2.append(K[-1])
+    K = K2
     full = K + [(360 - k[0],) + k[1:] for k in K[-2::-1]]
     ax = V(0, 0.010, 0)
     rows = [[], [], [], []]
@@ -116,11 +123,14 @@ def build_collar(m):
     # 行：内の下 → 内の上 → 外の上 → 外の下 → 内の下（閉じた帯）
     rings = [[rows[r][c] for r in (0, 1, 2, 3)] for c in range(len(full))]
     v, f, kinds = geo.loft(rings, True, True)
-    cols = []
+    cols, grp = [], []
     for i in range(len(rings) - 1):
         cols += ['brick_dk', 'brick', 'brick', 'brick_dk']
+        grp += [0, 1, 1, 3]
     cols += ['brick', 'brick']
-    m.add(v, f, cols, torso_w, smooth=False, name='collar')
+    grp += [4, 5]
+    v, f = geo.split_groups(v, f, grp)
+    m.add(v, f, cols, torso_w, smooth=True, name='collar')
 
 
 def arm_axis(side):
@@ -137,14 +147,14 @@ def build_sleeves(m):
         P = lambda s, lift=0.0: S + a * s + up * lift
         path = [(P(-0.045, 0.004), 0.030, 0.046), (P(0.000, 0.004), 0.046, 0.058), (P(0.055, 0.002), 0.058, 0.066),
                 (P(0.112), 0.063, 0.067), (P(0.116), 0.068, 0.071), (P(0.168), 0.066, 0.069)]
-        v, f, kinds = geo.tube(path, n=8, hint=(0, -1, 0), phase=0.5)
+        v, f, kinds = geo.tube(path, n=12, hint=(0, -1, 0), phase=0.5, split_caps=True)
         w = lambda p, side=side: arm_w(p, side, shoulder_mix=0.35)
         cols = ['brick_dk' if k == 'cap1' else 'brick' for k in kinds]
-        m.add(v, f, cols, w, smooth=False, name='sleeve')
+        m.add(v, f, cols, w, smooth=True, name='sleeve')
         # 暗い袖口（中の服の端）
         path = [(P(0.156), 0.050, 0.052), (P(0.196), 0.049, 0.051)]
-        v, f, kinds = geo.tube(path, n=8, hint=(0, -1, 0), phase=0.5)
-        m.add(v, f, 'graphite', w, smooth=False, name='sleeve_cuff')
+        v, f, kinds = geo.tube(path, n=12, hint=(0, -1, 0), phase=0.5, split_caps=True)
+        m.add(v, f, 'graphite', w, smooth=True, name='sleeve_cuff')
 
 
 def build_arms(m):
@@ -154,12 +164,12 @@ def build_arms(m):
         w = lambda p, side=side: arm_w(p, side)
         path = [(S + a1 * 0.10, 0.036, 0.037), (S + a1 * 0.17, 0.035, 0.036), (E, 0.0335, 0.0345),
                 (E + a2 * 0.05, 0.036, 0.036), (E + a2 * 0.12, 0.033, 0.033), (W - a2 * 0.02, 0.0275, 0.029), (W + a2 * 0.01, 0.027, 0.028)]
-        v, f, _ = geo.tube(path, n=10, hint=(0, -1, 0))
+        v, f, _ = geo.tube(path, n=12, hint=(0, -1, 0))
         m.add(v, f, 'skin', w, smooth=True, name='arm')
         # 手袋のカフ（手首の暗い帯）
         path = [(W - a2 * 0.048, 0.036, 0.037), (W - a2 * 0.044, 0.039, 0.040), (W - a2 * 0.006, 0.037, 0.038), (W + a2 * 0.004, 0.033, 0.034)]
-        v, f, _ = geo.tube(path, n=8, hint=(0, -1, 0), phase=0.5)
-        m.add(v, f, 'graphite', 'forearm' + ('.L' if side > 0 else '.R'), smooth=False, name='glove_cuff')
+        v, f, _ = geo.tube(path, n=12, hint=(0, -1, 0), phase=0.5, split_caps=True)
+        m.add(v, f, 'graphite', 'forearm' + ('.L' if side > 0 else '.R'), smooth=True, name='glove_cuff')
 
 
 def build_belt(m):
@@ -167,9 +177,11 @@ def build_belt(m):
     rings = []
     for z, off in ((z0, 0.004), (z0 + 0.004, 0.011), (z1 - 0.004, 0.011), (z1, 0.004)):
         hw, yf, yb = torso_at(0.85)
-        rings.append(bring(z, hw + 0.006 + off, yf - 0.006 - off, yb + 0.006 + off, 12, 2.6))
-    v, f, _ = geo.loft(rings, True, True)
-    m.add(v, f, 'graphite', 'hips', smooth=False, name='belt')
+        rings.append(bring(z, hw + 0.006 + off, yf - 0.006 - off, yb + 0.006 + off, 16, 2.6))
+    v, f, kinds = geo.loft(rings, True, True)
+    grp = [(i // 16 if k == 'side' else k) for i, k in enumerate(kinds)]
+    v, f = geo.split_groups(v, f, grp)
+    m.add(v, f, 'graphite', 'hips', smooth=True, name='belt')
     # バックル：真鍮の四角い枠（中は帯）
     yb = -0.086 - 0.017
     c = V(0.004, yb, 0.846)
@@ -210,12 +222,12 @@ LEG = [(0.80, 0.060, 0.000, 0.066, 0.086), (0.74, 0.078, 0.002, 0.082, 0.094), (
 
 
 def build_trousers(m):
-    n = 10
+    n = 14
     # 腰（ベルトの下〜股）
-    rings = [bring(z, hw, yf, yb, 12, 2.6) for (z, hw, yf, yb) in
+    rings = [bring(z, hw, yf, yb, 16, 2.6) for (z, hw, yf, yb) in
              ((0.700, 0.150, -0.088, 0.096), (0.760, 0.146, -0.094, 0.096), (0.815, 0.128, -0.094, 0.090), (0.885, 0.116, -0.091, 0.084))]
-    v, f, _ = geo.loft(rings, True, True)
-    m.add(v, f, 'brick', 'hips', smooth=False, name='pelvis')
+    v, f, _ = geo.loft(rings, True, True, split_caps=True)
+    m.add(v, f, 'brick', 'hips', smooth=True, name='pelvis')
     for side in (1, -1):
         w = lambda p, side=side: leg_w(p, side)
         rings = []
@@ -225,12 +237,12 @@ def build_trousers(m):
         z, cx, cy, rx, ry = LEG[-1]
         rings.append([V(side * cx + q[0], cy + q[1], z + 0.012) for q in geo.sring(n, rx * 0.74, ry * 0.74, 2.5, 0.5)])
         rings = rings[::-1]
-        v, f, kinds = geo.loft(rings, True, True)
+        v, f, kinds = geo.loft(rings, True, True, split_caps=True)
         cols = []
         for i in range(len(rings) - 1):
             cols += ['brick_dk' if i == 0 else 'brick'] * n
         cols += ['graphite_dk', 'brick']
-        m.add(v, f, cols, w, smooth=False, name='trouser_leg')
+        m.add(v, f, cols, w, smooth=True, name='trouser_leg')
 
 
 def leg_frame(side):
@@ -239,7 +251,7 @@ def leg_frame(side):
 
 
 def build_shins(m):
-    n = 8
+    n = 12
     for side in (1, -1):
         K, A, a = leg_frame(side)
         w = lambda p, side=side: leg_w(p, side)
@@ -247,16 +259,17 @@ def build_shins(m):
         path = [(P(-0.11), 0.056, 0.062), (P(-0.02), 0.057, 0.064), (P(0.06), 0.054, 0.066, None), (P(0.13), 0.049, 0.060),
                 (P(0.205), 0.043, 0.051), (P(0.25), 0.043, 0.050)]
         path = [(c + V(0, 0.006, 0), rx, ry) for (c, rx, ry, *_) in path]
-        v, f, _ = geo.tube(path, n=n, hint=(0, -1, 0), phase=0.5)
-        m.add(v, f, 'boot', w, smooth=False, name='shin')
+        v, f, _ = geo.tube(path, n=n, hint=(0, -1, 0), phase=0.5, split_caps=True)
+        m.add(v, f, 'boot', w, smooth=True, name='shin')
         # 足首のカフ（れんが色の太い輪）と、その重なりの端
         sfx = '.L' if side > 0 else '.R'
         c = V(A[0], A[1] + 0.004, 0)
         rings = []
         for z, k in ((0.148, 0.90), (0.156, 1.0), (0.198, 1.0), (0.208, 0.88)):
             rings.append([V(c[0] + q[0], c[1] + q[1], z) for q in geo.sring(n, 0.062 * k, 0.074 * k, 2.6, 0.5)])
-        v, f, _ = geo.loft(rings, True, True)
-        m.add(v, f, 'brick', 'shin' + sfx, smooth=False, name='ankle_cuff')
+        v, f, kinds = geo.loft(rings, True, True)
+        v, f = geo.split_groups(v, f, [(i // n if k == 'side' else k) for i, k in enumerate(kinds)])
+        m.add(v, f, 'brick', 'shin' + sfx, smooth=True, name='ankle_cuff')
         v, f, _ = geo.box(V(c[0] - side * 0.012, c[1] - 0.070, 0.178), (0.058, 0.014, 0.050), chamfer=0.004)
         m.add(v, f, 'brick', 'shin' + sfx, smooth=False, name='ankle_cuff_tab')
 
@@ -297,9 +310,9 @@ def build_boots(m):
         rings = []
         for z, l0, l1, hw in ((0.034, -0.084, 0.150, 0.058), (0.062, -0.086, 0.150, 0.059), (0.105, -0.082, 0.085, 0.056), (0.152, -0.074, 0.060, 0.053)):
             cl, hl = (l0 + l1) / 2, (l1 - l0) / 2
-            rings.append([o + sd * q[0] + fwd * (cl + q[1]) + up * z for q in geo.sring(8, hw, hl, 3.2, 0.5)])
-        v, f, _ = geo.loft(rings, True, True)
-        m.add(v, f, 'boot', bone, smooth=False, name='boot_upper')
+            rings.append([o + sd * q[0] + fwd * (cl + q[1]) + up * z for q in geo.sring(12, hw, hl, 3.2, 0.5)])
+        v, f, _ = geo.loft(rings, True, True, split_caps=True)
+        m.add(v, f, 'boot', bone, smooth=True, name='boot_upper')
         # 爪先（生成り）
         toe = [(0.072, 0.036), (0.193, 0.036), (0.197, 0.066), (0.184, 0.092), (0.150, 0.103), (0.088, 0.110), (0.072, 0.104)]
         v, f, _ = profile_extrude(toe, o, sd, fwd, 0.066, inset=0.014, lin=0.010)

@@ -121,44 +121,48 @@ def compare_sheet(names, render_dir, out, size=1024, crop=None):
     print('sheet', out, sheet.size)
 
 
-HEAD_VIEWS = [('front', 0, 0, 'haru_face_front'), ('right', -90, 0, 'haru_head_side_right'), ('back', 180, 0, 'haru_head_back'), ('back12', 180, 12, 'haru_head_back'),
+HEAD_VIEWS = [('front', 0, 0, 'haru_face_front'), ('right', -90, 0, 'haru_head_side_right'), ('back', 180, 0, 'haru_head_back'),
               ('top', 0, 90, 'haru_head_top'), ('fr45', -45, 0, 'haru_head_front_right45')]
+# 頭の拡大の絵とモデルの対応（measure の格子と同じ）：絵の 1 cm = モデルの 0.98 cm、目の高さ 130.3 cm（絵）= 1.31 m、
+# 正面・背面の中心 = x 0、真横の中心の列 = 原点から 1.8 cm 後ろ
+HEAD_PPM = 40.7 / 0.0098          # 画素 / m
+HEAD_SPAN = 2048 / HEAD_PPM       # 絵 1 枚（2048 画素）が写す幅（m）
+HEAD_ZC = 1.31 + (1151.3 - 1024) / HEAD_PPM
+HEAD_Y0 = 0.018
 
 
-def render_head(cam, sun, out_dir, out_sheet, size=640, zc=1.37, span=0.50):
-    """頭の 5 方向を描いて、頭の拡大の絵と並べる（絵は 40.7 画素/cm、頭頂 146 行 = 155 cm）"""
+def render_head(cam, sun, out_dir, out_sheet, size=640):
+    """頭の 5 方向を絵と同じ枠で描き、絵・モデル・半透明の重ねを並べる。外形の重なり（IoU）も出す"""
     import numpy as np
     os.makedirs(out_dir, exist_ok=True)
-    tiles_a, tiles_r = [], []
-    ppc = 40.7
+    rows = [[], [], []]
     for (name, az, el, art) in HEAD_VIEWS:
         if el == 90:
-            cam.location = Vector((0, 0.01, 4.0))
+            cam.location = Vector((0, HEAD_Y0, 4.0))
             cam.rotation_euler = (0, 0, 0)
-            cam.data.ortho_scale = span
+            cam.data.ortho_scale = HEAD_SPAN
             sun.rotation_euler = (math.radians(25), 0, 0)
         else:
             a = math.radians(az)
-            c = Vector((0, DEPTH0 * abs(math.sin(a)), zc))
-            aim(cam, sun, az, c, span, elev_deg=el)
+            c = Vector((0, HEAD_Y0 * abs(math.sin(a)), HEAD_ZC))
+            aim(cam, sun, az, c, HEAD_SPAN, elev_deg=el)
         bpy.context.scene.render.resolution_x = bpy.context.scene.render.resolution_y = size
         path = os.path.join(out_dir, 'head_%s.png' % name)
         bpy.context.scene.render.filepath = os.path.abspath(path)
         bpy.ops.render.render(write_still=True)
-        tiles_r.append(over(Image.open(path).convert('RGBA')))
-        im = Image.open(ART + art + '.png').convert('RGBA')
-        if el == 90:
-            box = (1024 - span * 50 * ppc, 1024 - span * 50 * ppc, 1024 + span * 50 * ppc, 1024 + span * 50 * ppc)
-        else:
-            top = 146 + (155 - (zc + span / 2) * 100) * ppc
-            box = (1024 - span * 50 * ppc, top, 1024 + span * 50 * ppc, top + span * 100 * ppc)
-        box = tuple(int(v) for v in box)
-        canvas = Image.new('RGBA', (box[2] - box[0], box[3] - box[1]), (0, 0, 0, 0))
-        canvas.paste(im, (-box[0], -box[1]))
-        tiles_a.append(over(canvas.resize((size, size), Image.LANCZOS)))
-    sheet = Image.new('RGB', (size * len(HEAD_VIEWS), size * 2), (128, 128, 136))
-    for i, (ta, tr) in enumerate(zip(tiles_a, tiles_r)):
-        sheet.paste(ta, (i * size, 0))
-        sheet.paste(tr, (i * size, size))
+        ren = Image.open(path).convert('RGBA')
+        im = Image.open(ART + art + '.png').convert('RGBA').resize((size, size), Image.LANCZOS)
+        A, B = np.array(im.getchannel('A')) > 128, np.array(ren.getchannel('A')) > 128
+        # 首から下（絵は首で切れている）は比べない：上の 82% だけ
+        cut = int(size * 0.80) if el != 90 else size
+        iou = (A[:cut] & B[:cut]).sum() / max(1, (A[:cut] | B[:cut]).sum())
+        print('  head %-6s IoU %.3f' % (name, iou))
+        rows[0].append(over(im))
+        rows[1].append(over(ren))
+        rows[2].append(Image.blend(over(im), over(ren), 0.5))
+    sheet = Image.new('RGB', (size * len(HEAD_VIEWS), size * 3), (128, 128, 136))
+    for r, row in enumerate(rows):
+        for i, t in enumerate(row):
+            sheet.paste(t, (i * size, r * size))
     sheet.save(out_sheet, quality=88)
     print('head sheet', out_sheet, sheet.size)

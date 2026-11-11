@@ -85,8 +85,8 @@ def build_core(m):
     S, E, W, T = arm_axis(-1)
     a = norm(E - S)
     path = [(S + a * 0.070, 0.073, 0.076), (S + a * 0.098, 0.071, 0.074)]
-    v, f, _ = geo.tube(path, n=8, hint=(0, -1, 0), phase=0.5)
-    m.add(v, f, 'graphite', lambda p: arm_w(p, -1, shoulder_mix=0.35), smooth=False, name='plate_band')
+    v, f, _ = geo.tube(path, n=12, hint=(0, -1, 0), phase=0.5, split_caps=True)
+    m.add(v, f, 'graphite', lambda p: arm_w(p, -1, shoulder_mix=0.35), smooth=True, name='plate_band')
 
 
 # ---------- Frame_arm：左の籠手 ----------
@@ -106,12 +106,12 @@ def build_gauntlet(m):
     L = float(np.linalg.norm(W - E))
     bone = 'forearm.L'
     P = lambda s: E + a * s
-    v, f, _ = geo.tube([(P(0.050), 0.049, 0.050), (P(0.105), 0.049, 0.049), (P(L - 0.040), 0.043, 0.044)], n=8, hint=(0, -1, 0), phase=0.5)
-    m.add(v, f, 'ivory', bone, smooth=False, name='gauntlet')
-    v, f, _ = geo.tube([(P(0.022), 0.047, 0.048), (P(0.027), 0.055, 0.056), (P(0.060), 0.055, 0.056), (P(0.064), 0.050, 0.051)], n=8, hint=(0, -1, 0), phase=0.5)
-    m.add(v, f, 'graphite', bone, smooth=False, name='gauntlet_band')
-    v, f, _ = geo.tube([(P(L - 0.052), 0.044, 0.045), (P(L - 0.047), 0.048, 0.049), (P(L - 0.010), 0.045, 0.046), (P(L - 0.004), 0.040, 0.041)], n=8, hint=(0, -1, 0), phase=0.5)
-    m.add(v, f, 'graphite', bone, smooth=False, name='gauntlet_band')
+    v, f, _ = geo.tube([(P(0.050), 0.049, 0.050), (P(0.105), 0.049, 0.049), (P(L - 0.040), 0.043, 0.044)], n=12, hint=(0, -1, 0), phase=0.5, split_caps=True)
+    m.add(v, f, 'ivory', bone, smooth=True, name='gauntlet')
+    v, f, _ = geo.tube([(P(0.022), 0.047, 0.048), (P(0.027), 0.055, 0.056), (P(0.060), 0.055, 0.056), (P(0.064), 0.050, 0.051)], n=12, hint=(0, -1, 0), phase=0.5, split_caps=True)
+    m.add(v, f, 'graphite', bone, smooth=True, name='gauntlet_band')
+    v, f, _ = geo.tube([(P(L - 0.052), 0.044, 0.045), (P(L - 0.047), 0.048, 0.049), (P(L - 0.010), 0.045, 0.046), (P(L - 0.004), 0.040, 0.041)], n=12, hint=(0, -1, 0), phase=0.5, split_caps=True)
+    m.add(v, f, 'graphite', bone, smooth=True, name='gauntlet_band')
     # 外側のレール：真鍮の台と琥珀の射出口
     c = E + V(0, 0, 0)
     yc = 0.0
@@ -155,8 +155,8 @@ def build_legs(m):
         yaw = lambda vs: [piv + Rz @ (np.asarray(q, dtype=float) - piv) for q in vs]
         # 膝の後ろの暗い当て（膝を回る短い筒）
         P = lambda s: K + a * s + V(0, 0.006, 0)
-        v, f, _ = geo.tube([(P(-0.052), 0.060, 0.066), (P(-0.046), 0.064, 0.071), (P(0.046), 0.063, 0.071), (P(0.054), 0.058, 0.067)], n=8, hint=(0, -1, 0), phase=0.5)
-        m.add(v, f, 'graphite', w, smooth=False, name='knee_wrap')
+        v, f, _ = geo.tube([(P(-0.052), 0.060, 0.066), (P(-0.046), 0.064, 0.071), (P(0.046), 0.063, 0.071), (P(0.054), 0.058, 0.067)], n=12, hint=(0, -1, 0), phase=0.5, split_caps=True)
+        m.add(v, f, 'graphite', w, smooth=True, name='knee_wrap')
         # 膝当て：前へ張り出す厚い八角の板
         c = V(K[0] + side * 0.004, K[1] + 0.004, K[2] - 0.004)
         ex, ez, ey = V(1, 0, 0), V(0, 0, 1), V(0, -1, 0)
@@ -169,9 +169,9 @@ def build_legs(m):
         for s2 in (1, -1):
             hc = V(K[0] + side * 0.004, K[1] + 0.020, K[2])
             d = V(s2, 0, 0)
-            v, f, _ = geo.tube([(hc + d * 0.056, 0.038, 0.038), (hc + d * 0.080, 0.038, 0.038), (hc + d * 0.084, 0.033, 0.033)], n=10, hint=(0, 0, 1))
+            v, f, _ = geo.tube([(hc + d * 0.056, 0.038, 0.038), (hc + d * 0.080, 0.038, 0.038), (hc + d * 0.084, 0.033, 0.033)], n=14, hint=(0, 0, 1))
             m.add(yaw(v), f, 'graphite', shin, smooth=False, name='hinge')
-            v, f, _ = geo.tube([(hc + d * 0.082, 0.026, 0.026), (hc + d * 0.091, 0.024, 0.024), (hc + d * 0.095, 0.014, 0.014)], n=10, hint=(0, 0, 1))
+            v, f, _ = geo.tube([(hc + d * 0.082, 0.026, 0.026), (hc + d * 0.091, 0.024, 0.024), (hc + d * 0.095, 0.014, 0.014)], n=14, hint=(0, 0, 1))
             m.add(yaw(v), f, 'amber', shin, smooth=False, name='hinge_amber')
             # すね当て：内と外の細長い板（上が広く下が細い六角）
             pd = [(-5.6, 22.6), (-0.2, 22.6), (1.4, 31.5), (-1.4, 36.8), (-4.8, 36.8), (-7.0, 33.2)]
@@ -186,9 +186,9 @@ def build_legs(m):
             m.add(yaw(v), f, 'ivory', shin, smooth=False, name='shin_plate')
         # 足首の上の暗い細い帯
         c = V(A[0], A[1] + 0.004, 0)
-        rings = [[V(c[0] + q[0] - side * 0.002, c[1] + q[1], z) for q in geo.sring(8, r1, r2, 2.6, 0.5)] for z, r1, r2 in ((0.204, 0.050, 0.060), (0.228, 0.049, 0.058))]
-        v, f, _ = geo.loft(rings, True, True)
-        m.add(v, f, 'graphite', shin, smooth=False, name='ankle_band')
+        rings = [[V(c[0] + q[0] - side * 0.002, c[1] + q[1], z) for q in geo.sring(12, r1, r2, 2.6, 0.5)] for z, r1, r2 in ((0.204, 0.050, 0.060), (0.228, 0.049, 0.058))]
+        v, f, _ = geo.loft(rings, True, True, split_caps=True)
+        m.add(v, f, 'graphite', shin, smooth=True, name='ankle_band')
     # 右太ももの板（前・外の斜め）と、ベルトへの支え
     n = norm(V(-0.36, -0.93, 0))
     u = V(-n[1], n[0], 0)              # 前の中心へ向かう水平
@@ -216,7 +216,7 @@ def finger(m, pts, r, cols_seg, bone, n=6, hint=(0, 0, 1), tip=0.55, name='finge
     for i in range(len(pts) - 1):
         cols += [cols_seg[i]] * n
     cols += [cols_seg[0], cols_seg[-1]]
-    m.add(v, f, cols, bone, smooth=[c == 'skin' for c in cols], name=name)
+    m.add(v, f, cols, bone, smooth=True, name=name)
 
 
 def build_left_hand(m):
@@ -238,9 +238,9 @@ def build_left_hand(m):
     H = lambda a, b, c=0.0: W + (h * a + wd * b + cb * c) * HS
     rings = []
     for a, hb, hc in ((-0.004, 0.030, 0.019), (0.030, 0.041, 0.018), (0.070, 0.044, 0.016), (0.090, 0.042, 0.013)):
-        rings.append([H(a, q[0], q[1]) for q in geo.sring(8, hb, hc, 3.0, 0.5)])
-    v, f, _ = geo.loft(rings, True, True)
-    m.add(v, f, 'graphite', bone, smooth=False, name='palm')
+        rings.append([H(a, q[0], q[1]) for q in geo.sring(12, hb, hc, 3.0, 0.5)])
+    v, f, _ = geo.loft(rings, True, True, split_caps=True)
+    m.add(v, f, 'graphite', bone, smooth=True, name='palm')
     for b, ln, r, sp in ((0.031, 0.068, 0.0100, 0.10), (0.011, 0.076, 0.0102, 0.02), (-0.010, 0.070, 0.0098, -0.06), (-0.030, 0.056, 0.0090, -0.16)):
         d = norm(h + wd * sp)
         base = H(0.084, b)

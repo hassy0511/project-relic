@@ -127,27 +127,42 @@ def hairline(phi):
     return pts[-1][1]
 
 
-CAP_GROW = 0.026
+# 髪のかたまり（土台）の外形：絵の背面・真横の輪郭から、房の先の出っ張り（約 2.5 cm）を引いた形。
+# (z, 半幅, 前の y, 後ろの y)。頭より大きく、後ろと横へ張り出し、えり足は首の後ろへ下がる
+MASS = [(1.200, 0.040, -0.040, 0.050), (1.220, 0.074, -0.080, 0.085), (1.250, 0.100, -0.118, 0.125), (1.280, 0.124, -0.132, 0.155),
+        (1.320, 0.142, -0.135, 0.166), (1.360, 0.146, -0.131, 0.172), (1.400, 0.140, -0.126, 0.166), (1.440, 0.124, -0.118, 0.132),
+        (1.470, 0.098, -0.105, 0.105), (1.500, 0.062, -0.085, 0.080), (1.515, 0.034, -0.065, 0.050)]
+MASS_TOP = V(0.0, -0.014, 1.524)
+MASS_Y0 = 0.016
 
 
 def cap_pt(phi, z, extra=0.0):
-    return surf(phi, min(z, 1.489), CAP_GROW + extra, CAP_GROW + 0.012 + extra)
+    """髪のかたまりの面の点（phi：正面 0・左 90・後ろ 180、z：高さ）"""
+    z = max(MASS[0][0], min(z, MASS[-1][0]))
+    w, yf, yb = profile(z, MASS)
+    a = math.radians(phi)
+    s, c = math.sin(a), math.cos(a)
+    e = 2.0 / 2.25
+    x = w * math.copysign(abs(s) ** e, s)
+    y = MASS_Y0 - (MASS_Y0 - yf) * abs(c) ** e if c > 0 else MASS_Y0 + (yb - MASS_Y0) * abs(c) ** e
+    p = V(x, y, z)
+    return p + radial(p) * extra if extra else p
 
 
 def build_cap(m):
-    cols_a = [a for a in range(0, 360, 12)]
-    K = 9
+    cols_a = [a for a in range(0, 360, 10)]
+    K = 10
     rows = []
     for k in range(K):
         row = []
         for a in cols_a:
             z0 = hairline(a)
             t = k / (K - 1)
-            z = z0 + (1.489 - z0) * (1 - (1 - t) ** 1.6)
+            z = z0 + (MASS[-1][0] - z0) * (1 - (1 - t) ** 1.5)
             row.append(cap_pt(a, z))
         rows.append(row)
     n = len(cols_a)
-    verts = [p for r in rows for p in r] + [HEAD_TOP + V(0, 0, CAP_GROW)]
+    verts = [p for r in rows for p in r] + [MASS_TOP]
     faces = []
     for i in range(K - 1):
         for j in range(n):
@@ -156,50 +171,58 @@ def build_cap(m):
     o = (K - 1) * n
     for j in range(n):
         faces.append([o + j, o + (j + 1) % n, top])
-    m.add(verts, faces, 'hair_dk', 'head', smooth=True, closed=False, name='hair_cap')
+    m.add(verts, faces, 'hair_md', 'head', smooth=True, closed=False, name='hair_cap')
+    # 下の縁から頭の面へ戻る裏（かたまりは頭より大きいので、下から中が見えないように）
+    lo = [rows[0][j] for j in range(n)]
+    inn = []
+    for j, a in enumerate(cols_a):
+        z = max(1.215, hairline(a) + 0.004)
+        inn.append(surf(a, z, 0.001))
+    verts = lo + inn
+    faces = [[j, n + j, n + (j + 1) % n, (j + 1) % n] for j in range(n)]
+    m.add(verts, faces, 'hair_dk', 'head', smooth=False, closed=False, name='hair_under', flip=True)
 
 
-LOCK_W, LOCK_T = 1.12, 1.55      # 房の幅・厚みの倍率（絵の厚い葉に寄せる）
-
-
-def lock(m, root, tip, width, thick=0.016, lift=0.02, bone=None, sway=0.0, wpos=0.40, segs=4, root_w=0.5, col='hair', ctrl_t=0.5, ridge=1.0):
-    """葉の房。root・tip は (角度, z, 外への浮き) か座標。lift：真ん中を外へふくらませる量"""
+def lock(m, root, tip, width, thick=0.014, lift=0.02, bone=None, sway=0.0, wpos=0.42, segs=6, root_w=0.55, ctrl_t=0.5, mid=None, sharp=0.85, under=0.16, out=None):
+    """花びら形の房。root・tip は ('a', 角度, z, 外への浮き) か座標。lift：真ん中を外へふくらませる量。
+    mid：真ん中の点を髪の土台の上の ('a', 角度, z, 浮き) で決める（頭の丸みに沿わせる長い房）"""
     def pt(q):
-        if q[0] == 'a':                               # 角度の指定：('a', 度, z, 外への浮き)
+        if q[0] == 'a':
             p = cap_pt(q[1], q[2])
             return p + radial(p) * q[3]
         return V(*q)
     r, t = pt(root), pt(tip)
-    mid = lerp(r, t, ctrl_t)
-    c = mid + radial(mid) * lift
-    v, f = geo.leaf(r, t, c, width * LOCK_W, thick * LOCK_T, radial, segs=segs, wpos=wpos, root_w=root_w, ridge=ridge)
+    if mid is not None:
+        c = pt(mid)
+        c = c * 2 - (r + t) / 2          # 曲線が mid を通るように
+    else:
+        c0 = lerp(r, t, ctrl_t)
+        c = c0 + radial(c0) * lift
+    v, f, kinds, ts = geo.petal(r, t, c, width, thick, radial if out is None else V(*out), segs=segs, wpos=wpos, root_w=root_w, sharp=sharp, under=under)
     if bone and sway > 0:
         ws = []
-        for i in range(len(v)):
-            tt = (i // 4) / segs
-            s = sway * smoothstep(0.15, 1.0, tt)
-            ws.append({'head': 1 - s, bone: s})
+        for tt in ts:
+            sw = sway * smoothstep(0.2, 1.0, tt)
+            ws.append({'head': 1 - sw, bone: sw})
     else:
         ws = 'head'
-    # 葉の 2 つの面を明るい段・中の段に、裏を暗い段に（絵の「描いた陰」）
-    cols = []
-    for _ in range(segs):
-        cols += [col, 'hair_md', 'hair_dk', 'hair_dk']
-    cols += ['hair_dk'] * (len(f) - len(cols))
-    m.add(v, f, cols if col == 'hair' else col, ws, smooth=False, name='lock')
+    # 表の 2 つの面を明るい段・中の段、裏を暗い段に（絵の描いた陰）。表はなめらか、稜は折れ目
+    col = {'L': 'hair', 'R': 'hair_md', 'U': 'hair_md' if under >= 0.4 else 'hair_dk', 'C': 'hair_dk'}
+    m.add(v, f, [col[k] for k in kinds], ws, smooth=[k in 'LR' for k in kinds], name='lock')
 
 
 def strap_z(phi):
-    """ゴーグルのヒモの高さ（こめかみで高く、耳の後ろからは水平）"""
+    """ゴーグルのヒモの高さ（こめかみで高く、耳の後ろからはほぼ水平。絵：横 143 cm → 後ろ 135 cm）"""
     a = abs(((phi + 180) % 360) - 180)
-    t = max(0.0, min(1.0, (128 - a) / 62.0))
-    return 1.350 + (1.432 - 1.350) * t ** 1.15
+    t = max(0.0, min(1.0, (135 - a) / 68.0))
+    return 1.352 + (1.432 - 1.352) * t ** 1.1
 
 
 def build_hair(m):
+    """絵（頭の拡大 4 方向）の房を、段ごとに置く。花びら形の広い房が、頭に沿ってうろこのように重なる"""
     build_cap(m)
     L = lambda *a, **k: lock(m, *a, **k)
-    crown = (0.0, 0.040, 1.512)
+    crown = (0.036, 0.016, 1.512)          # つむじ（絵の背面で中心より本人の左）
 
     def bone_of(a):
         a = a % 360
@@ -212,44 +235,52 @@ def build_hair(m):
         if a < 245:
             return 'hair.back.R'
         return 'hair.side.R'
-    # --- 頭頂の立った房（前へ・上へ。絵の頭のてっぺんのとげ） ---
-    L((0.030, 0.005, 1.502), (-0.055, -0.090, 1.552), 0.100, 0.022, lift=0.030, bone='hair.top', sway=0.7, root_w=0.7, wpos=0.40)
-    L((0.055, 0.040, 1.502), (0.050, -0.030, 1.548), 0.086, 0.020, lift=0.026, bone='hair.top', sway=0.7, root_w=0.7, wpos=0.40)
-    L((-0.035, 0.045, 1.502), (-0.112, 0.005, 1.534), 0.084, 0.020, lift=0.024, bone='hair.top', sway=0.65, root_w=0.7)
-    # --- 1 段目：つむじから放射状（太い葉。先はヒモの上の方で外へとがる） ---
-    for a in (62, 96, 132, 168, 204, 240, 274, 298):
-        zt = strap_z(a) + 0.072
-        L(crown, ('a', a, zt, 0.024), 0.132, 0.016, lift=0.014, bone=bone_of(a), sway=0.45, wpos=0.52, root_w=0.5, segs=5)
-    # --- 2 段目：ヒモのすぐ上で外へ張り出す（いちばん外の輪郭） ---
-    for a in (70, 110, 148, 186, 224, 262, 298):
-        zr, zt = strap_z(a) + 0.110, strap_z(a) + 0.006
-        back = abs(a - 180) < 62
-        L(('a', a - 5 if a < 180 else a + 5, zr, 0.010), ('a', a, zt, 0.046 if back else 0.072), 0.128 if back else 0.118, 0.020, lift=0.026 if back else 0.036, bone=bone_of(a), sway=0.55, wpos=0.46, root_w=0.55, segs=5)
-    # --- 3 段目：ヒモの下から下・外へ（真横は外へはっきり張り出す） ---
-    for k3, a in enumerate((106, 136, 166, 194, 224, 254)):
-        zr, zt = strap_z(a) - 0.000, strap_z(a) - 0.098 + (0.014 if k3 % 2 else -0.008)
-        tip = ('a', a, zt, 0.040)
-        wd = 0.118
-        if a in (106, 254):
-            tip = ((1 if a == 106 else -1) * 0.196, 0.085, 1.300)
-            wd = 0.112
-        L(('a', a, zr, 0.006), tip, wd, 0.018, lift=0.022, bone=bone_of(a), sway=0.55, wpos=0.44, root_w=0.55, segs=5)
-    # --- 4 段目：えり足（下へとがる） ---
-    for (a, zt, out, w) in ((108, 1.226, 0.030, 0.078), (138, 1.208, 0.034, 0.086), (166, 1.196, 0.032, 0.088), (194, 1.196, 0.032, 0.088), (222, 1.208, 0.034, 0.086), (252, 1.226, 0.030, 0.078)):
-        L(('a', a, strap_z(a) - 0.066, 0.004), ('a', a, zt, out), w, 0.018, lift=0.024, bone='hair.nape', sway=0.5, wpos=0.42, root_w=0.6)
-    L(('a', 180, 1.275, 0.004), ('a', 180, 1.190, 0.022), 0.074, 0.016, lift=0.018, bone='hair.nape', sway=0.5, root_w=0.65)
-    # --- 前髪：真ん中のくさび、こめかみの房（顔の窓の縁）、耳の前の房、額の横のとげ ---
-    L((0.0, -0.118, 1.432), (-0.006, -0.131, 1.318), 0.076, 0.012, lift=0.006, bone='hair.front', sway=0.2, wpos=0.20, root_w=0.95)
+    # --- 1 段目：つむじから放射状の長い房（かたまりの上の面に沿い、先は少し外へはねる） ---
+    #   (角度, 先の座標か None, 先の z, 先の浮き, 幅)
+    t1 = [(78, None, 1.440, 0.018, 0.100), (113, None, 1.424, 0.018, 0.106), (148, (0.082, 0.150, 1.470), 0, 0, 0.102),
+          (183, None, 1.374, 0.012, 0.114),
+          (216, (-0.086, 0.146, 1.462), 0, 0, 0.102), (249, None, 1.424, 0.018, 0.106), (283, None, 1.440, 0.018, 0.100)]
+    for (a, tip, zt, out, w) in t1:
+        if tip is None:
+            L(crown, ('a', a, zt, out), w, 0.018, mid=('a', a, (zt + 1.515) / 2 + 0.010, 0.010), bone=bone_of(a), sway=0.35, wpos=0.52, root_w=0.42, segs=7, under=0.25)
+        else:
+            L(crown, tip, w, 0.022, mid=('a', a, 1.492, 0.012), bone=bone_of(a), sway=0.4, wpos=0.50, root_w=0.42, segs=7, under=0.4)
+    # --- 2 段目：ヒモの上で外へ張り出す大きな房（絵の横・後ろのとげ。いちばん外の輪郭） ---
+    wings = [((0.160, -0.004, 1.424), 72, 1.474, 0.092), ((0.183, 0.030, 1.384), 95, 1.456, 0.100), ((0.142, 0.138, 1.392), 128, 1.452, 0.102),
+             ((0.056, 0.198, 1.398), 163, 1.450, 0.100)]
+    for (tip, a, zr, w) in wings:
+        for s2 in (1, -1):
+            aa = a if s2 > 0 else 360 - a
+            L(('a', aa, zr, 0.004), (tip[0] * s2, tip[1], tip[2] + (0.010 if s2 < 0 else 0.0)), w, 0.028, lift=0.018, bone=bone_of(aa), sway=0.5, wpos=0.42, root_w=0.55, sharp=0.95, under=0.45)
+    # --- 3 段目：ヒモの下の大きな丸い房（絵の背面の 2 枚とその左右、耳の後ろの下のとげ） ---
+    low = [((0.186, 0.055, 1.296), 102, 0.092, 0.026, 0.45), ((0.126, 0.146, 1.262), 134, 0.098, 0.022, 0.3), ((0.040, 0.128, 1.226), 166, 0.106, 0.020, 0.25)]
+    for (tip, a, w, th, un) in low:
+        for s2 in (1, -1):
+            aa = a if s2 > 0 else 360 - a
+            L(('a', aa, strap_z(aa) + 0.004, 0.006), (tip[0] * s2, tip[1], tip[2] + (0.008 if s2 < 0 else 0.0)), w, th, lift=0.022, bone=bone_of(aa), sway=0.5, wpos=0.44, root_w=0.6, under=un)
+    # 耳の上へ下がる房（ヒモの下から。絵の真横で耳の上に 2 枚）
+    for s2 in (1, -1):
+        aa = 86 if s2 > 0 else 274
+        L(('a', aa, strap_z(aa) + 0.002, 0.006), (s2 * 0.150, 0.004, 1.322), 0.074, 0.018, lift=0.012, bone=bone_of(aa), sway=0.35, wpos=0.42, root_w=0.65, under=0.3)
+    # --- 4 段目：えり足の短いとがり（絵の背面の下のぎざぎざ） ---
+    for (a, zt, w) in ((122, 1.238, 0.060), (150, 1.212, 0.058), (172, 1.196, 0.054), (188, 1.194, 0.054), (210, 1.210, 0.058), (238, 1.238, 0.060)):
+        L(('a', a, 1.290, 0.004), ('a', a, zt, 0.010), w, 0.016, lift=0.010, bone='hair.nape', sway=0.45, wpos=0.40, root_w=0.7, segs=5, under=0.3)
+    # --- 頭頂の立った房（絵：後ろ左から本人の右前上へ流れる大きな 1 枚と、左右へ寝るとげ） ---
+    L((0.060, 0.040, 1.496), (-0.054, -0.082, 1.542), 0.100, 0.034, lift=0.014, bone='hair.top', sway=0.6, wpos=0.42, root_w=0.55, under=0.9, out=(0.3, -0.5, 1.0))
+    L((0.000, 0.010, 1.502), (-0.129, -0.030, 1.504), 0.062, 0.022, lift=0.006, bone='hair.top', sway=0.5, wpos=0.42, root_w=0.6, under=0.8, out=(0, -0.2, 1.0))
+    L((0.020, 0.006, 1.500), (0.132, -0.022, 1.484), 0.062, 0.022, lift=0.008, bone='hair.top', sway=0.5, wpos=0.42, root_w=0.6, under=0.8, out=(0, -0.2, 1.0))
+    # --- ゴーグルの上：額から上へ立つ房 ---
+    for s in (1, -1):
+        A = lambda a: a if s > 0 else 360 - a
+        L(('a', A(22), 1.462, 0.002), (s * 0.088, -0.084, 1.500), 0.076, 0.020, lift=0.008, bone='hair.front', sway=0.25, wpos=0.44, root_w=0.6, under=0.5)
+    # --- 前髪：真ん中のくさび（ゴーグルの下で前へふくらむ）、こめかみの房（顔の窓の縁）、耳の上へ下がる房 ---
+    L(('a', 0, 1.440, 0.002), (-0.005, -0.129, 1.318), 0.078, 0.013, lift=0.014, ctrl_t=0.30, bone='hair.front', sway=0.2, wpos=0.22, root_w=0.92, sharp=1.0)
     for s in (1, -1):
         A = lambda a: a if s > 0 else 360 - a
         sb = 'hair.side.L' if s > 0 else 'hair.side.R'
-        L(('a', A(44), 1.458, 0.008), (s * 0.110, -0.084, 1.256), 0.066, 0.012, lift=0.010, bone='hair.front', sway=0.15, wpos=0.30, root_w=0.9)
-        L(('a', A(60), 1.452, 0.008), (s * 0.138, -0.052, 1.286), 0.072, 0.014, lift=0.018, bone=sb, sway=0.3, wpos=0.42, root_w=0.65)
-        L(('a', A(56), 1.486, 0.006), (s * 0.200, -0.022, 1.402), 0.092, 0.018, lift=0.022, bone=sb, sway=0.4, wpos=0.46, root_w=0.6)
-        L(('a', A(30), 1.489, 0.004), (s * 0.112, -0.066, 1.538), 0.084, 0.016, lift=0.010, bone='hair.front', sway=0.3, wpos=0.46, root_w=0.7)
+        L(('a', A(38), 1.446, 0.002), (s * 0.092, -0.102, 1.266), 0.078, 0.013, lift=0.010, ctrl_t=0.35, bone='hair.front', sway=0.15, wpos=0.28, root_w=0.9)
+        L(('a', A(60), 1.440, 0.002), (s * 0.128, -0.068, 1.316), 0.074, 0.013, lift=0.012, bone=sb, sway=0.25, wpos=0.36, root_w=0.8)
 
-
-# ---------- ゴーグル ----------
 
 def ring_frame(m, outer, inner, o, ex, ey, ez, depth, recess, back, bone, col_frame, col_lens, bevel=0.006):
     """枠（外の輪と内の輪）とレンズ。前の面は ez の向き"""
@@ -304,7 +335,7 @@ def build_goggles(m):
         inner = [(gc[0] + (p[0] - gc[0]) * 0.70, gc[1] + (p[1] - gc[1]) * 0.66) for p in outer]
         ring_frame(m, outer, inner, o, ex, ey, ez, 0.040, 0.008, 0.03, bone, 'graphite', 'amber', bevel=0.007)
         # こめかみへ回る横の部品（小さい琥珀の窓つき）
-        c = V(side * 0.127, -0.060, 1.434)
+        c = cap_pt(66 * side, 1.434) + radial(cap_pt(66 * side, 1.434)) * 0.004
         bx = norm(V(side * 0.93, -0.36, 0.05))
         by = norm(V(side * 0.36, 0.93, 0.0))
         bz = norm(np.cross(bx, by))
@@ -320,9 +351,9 @@ def build_goggles(m):
     m.add(v, f, 'graphite', bone, smooth=False, name='goggle_bridge')
     # ヒモ：こめかみから後ろへ下がりながら一周
     path = []
-    for a in range(66, 295, 12):
+    for a in range(64, 297, 8):
         p = cap_pt(a, strap_z(a))
-        path.append((p + radial(p) * 0.012,))
+        path.append((p + radial(p) * 0.010,))
     from .parts_gear import band
     v, f, _ = band(path, 0.032, 0.009, radial)
     m.add(v, f, 'graphite', bone, smooth=False, name='goggle_strap')

@@ -329,3 +329,67 @@ def transform(verts, R=None, t=None, s=None):
             q = q + t
         out.append(q)
     return out
+
+
+def split_groups(verts, faces, groups):
+    """面の組（groups[i]）が違う面どうしで頂点を分ける（なめらかな陰でも、組の境は折れ目のまま残る）"""
+    out_v, out_f, remap = [], [], {}
+    for f, g in zip(faces, groups):
+        nf = []
+        for k in f:
+            key = (g, k)
+            if key not in remap:
+                remap[key] = len(out_v)
+                out_v.append(verts[k])
+            nf.append(remap[key])
+        out_f.append(nf)
+    return out_v, out_f
+
+
+def petal(root, tip, ctrl, width, thick, out, segs=6, wpos=0.42, root_w=0.55, dome=0.74, under=0.16, sharp=0.85):
+    """花びら形の房：root → ctrl → tip の曲線に沿う、幅の広い葉。表は真ん中の稜で 2 つのなめらかな面に分かれ、裏は平ら。
+    戻り値：頂点、面、面の種類（'L'・'R'＝表の左右、'U'＝裏、'C'＝根のふた）、頂点ごとの位置 t（0 = 根、1 = 先）"""
+    root, tip, ctrl = (np.asarray(p, dtype=float) for p in (root, tip, ctrl))
+    rings = []
+    for i in range(segs):
+        t = i / segs
+        p = (1 - t) ** 2 * root + 2 * (1 - t) * t * ctrl + t * t * tip
+        d = norm(2 * (1 - t) * (ctrl - root) + 2 * t * (tip - ctrl))
+        o = np.asarray(out(p) if callable(out) else out, dtype=float)
+        o = norm(o - d * np.dot(o, d))
+        s = np.cross(d, o)
+        if t < wpos:
+            w = root_w + (1 - root_w) * math.sin(t / wpos * math.pi / 2)
+        else:
+            w = (1.0 - (t - wpos) / (1 - wpos)) ** sharp
+        hw, h = width * 0.5 * w, thick * (0.25 + 0.75 * w)
+        rings.append({'eL': p - s * hw, 'mL': p - s * hw * 0.52 + o * h * dome, 'r': p + o * h,
+                      'mR': p + s * hw * 0.52 + o * h * dome, 'eR': p + s * hw, 'b': p - o * h * under})
+    verts, faces, kinds, ts = [], [], [], []
+    for kind, keys in (('L', ('eL', 'mL', 'r')), ('R', ('r', 'mR', 'eR')), ('U', ('eR', 'b', 'eL'))):
+        base = len(verts)
+        for i, rg in enumerate(rings):
+            for k in keys:
+                verts.append(rg[k])
+                ts.append(i / segs)
+        tip_i = len(verts)
+        verts.append(tip)
+        ts.append(1.0)
+        for i in range(segs - 1):
+            for k in range(2):
+                a, b = base + i * 3 + k, base + i * 3 + k + 1
+                c, e = base + (i + 1) * 3 + k + 1, base + (i + 1) * 3 + k
+                faces.append([a, b, c, e])
+                kinds.append(kind)
+        o2 = base + (segs - 1) * 3
+        for k in range(2):
+            faces.append([o2 + k, o2 + k + 1, tip_i])
+            kinds.append(kind)
+    base = len(verts)
+    order = ('eL', 'mL', 'r', 'mR', 'eR', 'b')
+    for k in order:
+        verts.append(rings[0][k])
+        ts.append(0.0)
+    faces.append([base + k for k in range(6)][::-1])
+    kinds.append('C')
+    return verts, faces, kinds, ts
