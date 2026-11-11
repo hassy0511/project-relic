@@ -75,11 +75,11 @@ def build_core(m):
     v, f, _ = geo.prism(poly, c, V(-1, 0, 0), V(0, 0, 1), V(0, 1, 0), 0.016, bevel=0.005, back=0.01)
     m.add(v, f, 'ivory', 'chest', smooth=False, name='back_plate')
     # 右肩の板：肩の上に 42 度で載る厚い板
-    C = V(-0.186, 0.036, 1.100)
-    es, ey, n = norm(V(-0.74, 0, -0.67)), V(0, 1, 0), norm(V(-0.67, 0, 0.74))
-    poly = [(-0.036, -0.078), (0.032, -0.078), (0.054, -0.050), (0.054, 0.046), (0.036, 0.076), (-0.038, 0.076), (-0.058, 0.046), (-0.058, -0.050)]
+    C = V(-0.184, 0.036, 1.103)
+    es, ey, n = norm(V(-0.76, 0, -0.65)), V(0, 1, 0), norm(V(-0.65, 0, 0.76))
+    poly = [(-0.040, -0.084), (0.036, -0.084), (0.058, -0.054), (0.058, 0.050), (0.040, 0.082), (-0.042, 0.082), (-0.062, 0.050), (-0.062, -0.054)]
     wplate = {'shoulder.R': 0.8, 'upper_arm.R': 0.2}
-    v, f, _ = geo.prism(poly, C, ey, es, n, 0.026, bevel=0.010, back=0.022)
+    v, f, _ = geo.prism(poly, C, ey, es, n, 0.028, bevel=0.011, back=0.030)
     m.add(v, f, 'ivory', wplate, smooth=False, name='shoulder_plate')
     # 板を支える上腕の暗い帯（袖の上）
     S, E, W, T = arm_axis(-1)
@@ -141,56 +141,61 @@ def build_blade():
 
 # ---------- Frame_legs：膝当て・蝶番・すね当て・右太ももの板 ----------
 
+LEG_YAW = 9.0      # 膝から下の部品は少し外を向く（絵の正面で内側のすね当てが広く見える）
+
+
 def build_legs(m):
     for side in (1, -1):
         sfx = '.L' if side > 0 else '.R'
         K, A, a = leg_frame(side)
         w = lambda p, side=side: leg_w(p, side)
         shin = 'shin' + sfx
-        # 膝の暗い当て（膝を回る筒）
+        Rz = geo.rot_axis(V(0, 0, 1), math.radians(LEG_YAW) * side)
+        piv = V(K[0], K[1] + 0.010, 0)
+        yaw = lambda vs: [piv + Rz @ (np.asarray(q, dtype=float) - piv) for q in vs]
+        # 膝の後ろの暗い当て（膝を回る短い筒）
         P = lambda s: K + a * s + V(0, 0.006, 0)
-        v, f, _ = geo.tube([(P(-0.070), 0.061, 0.066), (P(-0.062), 0.066, 0.072), (P(0.060), 0.064, 0.072), (P(0.074), 0.058, 0.068)], n=8, hint=(0, -1, 0), phase=0.5)
+        v, f, _ = geo.tube([(P(-0.052), 0.060, 0.066), (P(-0.046), 0.064, 0.071), (P(0.046), 0.063, 0.071), (P(0.054), 0.058, 0.067)], n=8, hint=(0, -1, 0), phase=0.5)
         m.add(v, f, 'graphite', w, smooth=False, name='knee_wrap')
         # 膝当て：前へ張り出す厚い八角の板
-        c = V(K[0] + side * 0.004, K[1] + 0.012, K[2] - 0.004)
+        c = V(K[0] + side * 0.004, K[1] + 0.004, K[2] - 0.004)
         ex, ez, ey = V(1, 0, 0), V(0, 0, 1), V(0, -1, 0)
         o8 = lambda hw, hh, cx, cz: [(-hw + cx, -hh), (hw - cx, -hh), (hw, -hh + cz), (hw, hh - cz), (hw - cx, hh), (-hw + cx, hh), (-hw, hh - cz), (-hw, -hh + cz)]
-        v, f, _ = geo.prism(o8(0.062, 0.071, 0.022, 0.026), c, ex, ez, ey, 0.070, bevel=0.008)
-        m.add(v, f, 'graphite', shin, smooth=False, name='knee_base')
-        v, f, _ = geo.prism(o8(0.050, 0.060, 0.020, 0.024), c + V(0, 0, 0.001), ex, ez, ey, 0.092, bevel=0.020)
-        m.add(v, f, 'ivory', shin, smooth=False, name='knee_pad')
+        v, f, _ = geo.prism(o8(0.062, 0.072, 0.022, 0.026), c, ex, ez, ey, 0.062, bevel=0.008)
+        m.add(yaw(v), f, 'graphite', shin, smooth=False, name='knee_base')
+        v, f, _ = geo.prism(o8(0.050, 0.061, 0.020, 0.024), c + V(0, 0, 0.001), ex, ez, ey, 0.086, bevel=0.022)
+        m.add(yaw(v), f, 'ivory', shin, smooth=False, name='knee_pad')
         # 蝶番：左右の暗い輪と琥珀の丸
         for s2 in (1, -1):
             hc = V(K[0] + side * 0.004, K[1] + 0.020, K[2])
             d = V(s2, 0, 0)
-            v, f, _ = geo.tube([(hc + d * 0.058, 0.038, 0.038), (hc + d * 0.080, 0.038, 0.038), (hc + d * 0.084, 0.033, 0.033)], n=10, hint=(0, 0, 1))
-            m.add(v, f, 'graphite', shin, smooth=False, name='hinge')
+            v, f, _ = geo.tube([(hc + d * 0.056, 0.038, 0.038), (hc + d * 0.080, 0.038, 0.038), (hc + d * 0.084, 0.033, 0.033)], n=10, hint=(0, 0, 1))
+            m.add(yaw(v), f, 'graphite', shin, smooth=False, name='hinge')
             v, f, _ = geo.tube([(hc + d * 0.082, 0.026, 0.026), (hc + d * 0.091, 0.024, 0.024), (hc + d * 0.095, 0.014, 0.014)], n=10, hint=(0, 0, 1))
-            m.add(v, f, 'amber', shin, smooth=False, name='hinge_amber')
+            m.add(yaw(v), f, 'amber', shin, smooth=False, name='hinge_amber')
             # すね当て：内と外の細長い板（上が広く下が細い六角）
-            pd = [(-5.4, 22.6), (-0.4, 22.6), (1.0, 31.5), (-1.6, 36.6), (-4.6, 36.6), (-6.6, 33.2)]
+            pd = [(-5.6, 22.6), (-0.2, 22.6), (1.4, 31.5), (-1.4, 36.8), (-4.8, 36.8), (-7.0, 33.2)]
             poly = [(0.021 - q[0] / 100.0, q[1] / 100.0) for q in pd]
-            xk = K[0] + (0.31 - 0.0) * 0.0
             top_x = K[0] + a[0] / abs(a[2]) * (K[2] - 0.36) + s2 * 0.050
             bot_x = K[0] + a[0] / abs(a[2]) * (K[2] - 0.23) + s2 * 0.042
             tilt = (top_x - bot_x) / 0.13
             ez2 = norm(V(tilt, 0, 1))
             ex2 = norm(V(1, 0, -tilt)) * s2
             org = V(bot_x - tilt * 0.23, 0, 0)
-            v, f, _ = geo.prism(poly, org, V(0, 1, 0), ez2, ex2, 0.013, bevel=0.004, back=0.008)
-            m.add(v, f, 'ivory', shin, smooth=False, name='shin_plate')
+            v, f, _ = geo.prism(poly, org, V(0, 1, 0), ez2, ex2, 0.014, bevel=0.004, back=0.008)
+            m.add(yaw(v), f, 'ivory', shin, smooth=False, name='shin_plate')
         # 足首の上の暗い細い帯
         c = V(A[0], A[1] + 0.004, 0)
         rings = [[V(c[0] + q[0] - side * 0.002, c[1] + q[1], z) for q in geo.sring(8, r1, r2, 2.6, 0.5)] for z, r1, r2 in ((0.204, 0.050, 0.060), (0.228, 0.049, 0.058))]
         v, f, _ = geo.loft(rings, True, True)
         m.add(v, f, 'graphite', shin, smooth=False, name='ankle_band')
     # 右太ももの板（前・外の斜め）と、ベルトへの支え
-    n = norm(V(-0.56, -0.83, 0))
+    n = norm(V(-0.36, -0.93, 0))
     u = V(-n[1], n[0], 0)              # 前の中心へ向かう水平
     if u[0] < 0:
         u = -u
-    c = V(-0.112, 0.010, 0.652) + n * 0.104
-    poly = [(-0.060, -0.074), (0.054, -0.100), (0.062, 0.084), (0.040, 0.100), (-0.054, 0.100), (-0.066, 0.076)]
+    c = V(-0.114, 0.010, 0.652) + n * 0.102
+    poly = [(-0.064, -0.072), (0.058, -0.100), (0.066, 0.084), (0.044, 0.102), (-0.058, 0.102), (-0.070, 0.078)]
     wt = {'thigh.R': 0.7, 'hips': 0.3}
     v, f, _ = geo.prism(poly, c, u, V(0, 0, 1), n, 0.017, bevel=0.006, back=0.006)
     m.add(v, f, 'ivory', wt, smooth=False, name='thigh_plate')
@@ -229,7 +234,8 @@ def build_left_hand(m):
         wd = -wd
     cb = -pn                                                      # 手の甲の向き
     bone = 'hand.L'
-    H = lambda a, b, c=0.0: W + h * a + wd * b + cb * c
+    HS = 1.10
+    H = lambda a, b, c=0.0: W + (h * a + wd * b + cb * c) * HS
     rings = []
     for a, hb, hc in ((-0.004, 0.030, 0.019), (0.030, 0.041, 0.018), (0.070, 0.044, 0.016), (0.090, 0.042, 0.013)):
         rings.append([H(a, q[0], q[1]) for q in geo.sring(8, hb, hc, 3.0, 0.5)])
@@ -238,14 +244,15 @@ def build_left_hand(m):
     for b, ln, r, sp in ((0.031, 0.068, 0.0100, 0.10), (0.011, 0.076, 0.0102, 0.02), (-0.010, 0.070, 0.0098, -0.06), (-0.030, 0.056, 0.0090, -0.16)):
         d = norm(h + wd * sp)
         base = H(0.084, b)
+        ln, r = ln * HS, r * HS
         pts = [base, base + d * ln * 0.38 - pn * 0.000, base + d * ln * 0.70 + pn * 0.004, base + d * ln + pn * 0.012]
         finger(m, [pts[0], pts[1]], r + 0.0016, ['graphite'], bone, tip=1.0)
         finger(m, [pts[0] + d * ln * 0.30, pts[2], pts[3]], r, ['skin', 'skin'], bone)
     # 親指
     d = norm(h * 0.62 + wd * 0.74 + pn * 0.28)
     base = H(0.026, 0.036, -0.004)
-    finger(m, [base, base + d * 0.034], 0.0128, ['graphite'], bone, tip=1.0)
-    finger(m, [base + d * 0.026, base + d * 0.050, base + d * 0.066 + h * 0.004], 0.0112, ['skin', 'skin'], bone)
+    finger(m, [base, base + d * 0.037], 0.0140, ['graphite'], bone, tip=1.0)
+    finger(m, [base + d * 0.029, base + d * 0.055, base + d * 0.072 + h * 0.004], 0.0123, ['skin', 'skin'], bone)
 
 
 def gun_frame():

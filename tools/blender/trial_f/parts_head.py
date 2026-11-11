@@ -178,7 +178,12 @@ def lock(m, root, tip, width, thick=0.016, lift=0.02, bone=None, sway=0.0, wpos=
             ws.append({'head': 1 - s, bone: s})
     else:
         ws = 'head'
-    m.add(v, f, col, ws, smooth=False, name='lock')
+    # 葉の 2 つの面を明るい段・中の段に、裏を暗い段に（絵の「描いた陰」）
+    cols = []
+    for _ in range(segs):
+        cols += [col, 'hair_md', 'hair_dk', 'hair_dk']
+    cols += ['hair_dk'] * (len(f) - len(cols))
+    m.add(v, f, cols if col == 'hair' else col, ws, smooth=False, name='lock')
 
 
 def strap_z(phi):
@@ -210,8 +215,8 @@ def build_hair(m):
     L((-0.035, 0.045, 1.502), (-0.112, 0.005, 1.534), 0.084, 0.020, lift=0.024, bone='hair.top', sway=0.65, root_w=0.7)
     # --- 1 段目：つむじから放射状（太い葉。先はヒモの上の方で外へとがる） ---
     for a in (50, 90, 130, 167, 205, 242, 280, 318):
-        zt = strap_z(a) + 0.078
-        L(crown, ('a', a, zt, 0.050), 0.124, 0.020, lift=0.030, bone=bone_of(a), sway=0.45, wpos=0.52, root_w=0.5, segs=5)
+        zt = strap_z(a) + 0.074
+        L(crown, ('a', a, zt, 0.034), 0.124, 0.018, lift=0.016, bone=bone_of(a), sway=0.45, wpos=0.52, root_w=0.5, segs=5)
     # --- 2 段目：ヒモのすぐ上で外へ張り出す（いちばん外の輪郭） ---
     for a in (70, 110, 148, 186, 224, 262, 298):
         zr, zt = strap_z(a) + 0.110, strap_z(a) + 0.006
@@ -236,9 +241,8 @@ def build_hair(m):
         sb = 'hair.side.L' if s > 0 else 'hair.side.R'
         L(('a', A(44), 1.458, 0.008), (s * 0.110, -0.084, 1.256), 0.066, 0.012, lift=0.010, bone='hair.front', sway=0.15, wpos=0.30, root_w=0.9)
         L(('a', A(60), 1.452, 0.008), (s * 0.138, -0.052, 1.286), 0.072, 0.014, lift=0.018, bone=sb, sway=0.3, wpos=0.42, root_w=0.65)
-        L(('a', A(44), 1.490, 0.006), (s * 0.172, -0.100, 1.402), 0.086, 0.018, lift=0.028, bone=sb, sway=0.4, wpos=0.46, root_w=0.6)
-        L(('a', A(84), strap_z(84) + 0.004, 0.006), (s * 0.188, 0.012, 1.352), 0.090, 0.018, lift=0.026, bone=sb, sway=0.45, wpos=0.46, root_w=0.6)
-        L(('a', A(24), 1.489, 0.004), (s * 0.098, -0.128, 1.516), 0.070, 0.016, lift=0.016, bone='hair.front', sway=0.3, wpos=0.46, root_w=0.7)
+        L(('a', A(50), 1.488, 0.006), (s * 0.196, -0.050, 1.396), 0.092, 0.018, lift=0.022, bone=sb, sway=0.4, wpos=0.46, root_w=0.6)
+        L(('a', A(26), 1.489, 0.004), (s * 0.110, -0.104, 1.524), 0.076, 0.016, lift=0.012, bone='hair.front', sway=0.3, wpos=0.46, root_w=0.7)
 
 
 # ---------- ゴーグル ----------

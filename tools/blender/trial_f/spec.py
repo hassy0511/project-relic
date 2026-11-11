@@ -10,12 +10,13 @@ HEIGHT = 1.55
 
 # 色見本（発注書 spec_haru_3d.md の基準色と、絵から拾った陰の段）。名前 → hex
 PALETTE = {
-    'brick': '#B75B43', 'brick_dk': '#8E4433', 'ivory': '#F3E9D2', 'ivory_dk': '#D9CCB0',
+    'brick': '#B75B43', 'brick_dk': '#7E3F2E', 'ivory': '#F3E9D2', 'ivory_dk': '#D9CCB0',
     'graphite': '#444641', 'graphite_dk': '#33342F', 'brass': '#A98749', 'umber': '#594333',
-    'hair': '#58372A', 'hair_dk': '#43291F', 'amber': '#F5AC40', 'skin': '#F0B58B',
+    'hair': '#603C2E', 'hair_dk': '#3A2218', 'amber': '#F5AC40', 'skin': '#F0B58B',
     'boot': '#5B3B2D', 'white': '#FFF8EA', 'amber_dk': '#D9912E', 'gun': '#4A4C48',
+    'hair_md': '#4E3024',
 }
-EMISSIVE = {'amber': '#6E4812', 'amber_dk': '#4A300C'}
+EMISSIVE = {'amber': '#5A3A0E', 'amber_dk': '#3C2609'}
 SKIN_HEX = PALETTE['skin']
 
 # 関節（左。右は x を反転）。骨は 親 → 子 の順
