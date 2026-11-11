@@ -159,6 +159,9 @@ def build_cap(m):
     m.add(verts, faces, 'hair_dk', 'head', smooth=True, closed=False, name='hair_cap')
 
 
+LOCK_W, LOCK_T = 1.12, 1.55      # 房の幅・厚みの倍率（絵の厚い葉に寄せる）
+
+
 def lock(m, root, tip, width, thick=0.016, lift=0.02, bone=None, sway=0.0, wpos=0.40, segs=4, root_w=0.5, col='hair', ctrl_t=0.5, ridge=1.0):
     """葉の房。root・tip は (角度, z, 外への浮き) か座標。lift：真ん中を外へふくらませる量"""
     def pt(q):
@@ -169,7 +172,7 @@ def lock(m, root, tip, width, thick=0.016, lift=0.02, bone=None, sway=0.0, wpos=
     r, t = pt(root), pt(tip)
     mid = lerp(r, t, ctrl_t)
     c = mid + radial(mid) * lift
-    v, f = geo.leaf(r, t, c, width, thick, radial, segs=segs, wpos=wpos, root_w=root_w, ridge=ridge)
+    v, f = geo.leaf(r, t, c, width * LOCK_W, thick * LOCK_T, radial, segs=segs, wpos=wpos, root_w=root_w, ridge=ridge)
     if bone and sway > 0:
         ws = []
         for i in range(len(v)):
@@ -214,7 +217,7 @@ def build_hair(m):
     L((0.055, 0.040, 1.502), (0.050, -0.030, 1.548), 0.086, 0.020, lift=0.026, bone='hair.top', sway=0.7, root_w=0.7, wpos=0.40)
     L((-0.035, 0.045, 1.502), (-0.112, 0.005, 1.534), 0.084, 0.020, lift=0.024, bone='hair.top', sway=0.65, root_w=0.7)
     # --- 1 段目：つむじから放射状（太い葉。先はヒモの上の方で外へとがる） ---
-    for a in (50, 90, 130, 167, 205, 242, 280, 318):
+    for a in (62, 96, 132, 168, 204, 240, 274, 298):
         zt = strap_z(a) + 0.072
         L(crown, ('a', a, zt, 0.024), 0.132, 0.016, lift=0.014, bone=bone_of(a), sway=0.45, wpos=0.52, root_w=0.5, segs=5)
     # --- 2 段目：ヒモのすぐ上で外へ張り出す（いちばん外の輪郭） ---
@@ -223,8 +226,8 @@ def build_hair(m):
         back = abs(a - 180) < 62
         L(('a', a - 5 if a < 180 else a + 5, zr, 0.010), ('a', a, zt, 0.046 if back else 0.072), 0.128 if back else 0.118, 0.020, lift=0.026 if back else 0.036, bone=bone_of(a), sway=0.55, wpos=0.46, root_w=0.55, segs=5)
     # --- 3 段目：ヒモの下から下・外へ（真横は外へはっきり張り出す） ---
-    for a in (106, 136, 166, 194, 224, 254):
-        zr, zt = strap_z(a) - 0.000, strap_z(a) - 0.098
+    for k3, a in enumerate((106, 136, 166, 194, 224, 254)):
+        zr, zt = strap_z(a) - 0.000, strap_z(a) - 0.098 + (0.014 if k3 % 2 else -0.008)
         tip = ('a', a, zt, 0.040)
         wd = 0.118
         if a in (106, 254):
@@ -242,8 +245,8 @@ def build_hair(m):
         sb = 'hair.side.L' if s > 0 else 'hair.side.R'
         L(('a', A(44), 1.458, 0.008), (s * 0.110, -0.084, 1.256), 0.066, 0.012, lift=0.010, bone='hair.front', sway=0.15, wpos=0.30, root_w=0.9)
         L(('a', A(60), 1.452, 0.008), (s * 0.138, -0.052, 1.286), 0.072, 0.014, lift=0.018, bone=sb, sway=0.3, wpos=0.42, root_w=0.65)
-        L(('a', A(50), 1.488, 0.006), (s * 0.196, -0.050, 1.396), 0.092, 0.018, lift=0.022, bone=sb, sway=0.4, wpos=0.46, root_w=0.6)
-        L(('a', A(26), 1.489, 0.004), (s * 0.110, -0.104, 1.524), 0.076, 0.016, lift=0.012, bone='hair.front', sway=0.3, wpos=0.46, root_w=0.7)
+        L(('a', A(56), 1.486, 0.006), (s * 0.200, -0.022, 1.402), 0.092, 0.018, lift=0.022, bone=sb, sway=0.4, wpos=0.46, root_w=0.6)
+        L(('a', A(30), 1.489, 0.004), (s * 0.112, -0.066, 1.538), 0.084, 0.016, lift=0.010, bone='hair.front', sway=0.3, wpos=0.46, root_w=0.7)
 
 
 # ---------- ゴーグル ----------
