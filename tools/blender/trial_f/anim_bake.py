@@ -32,6 +32,7 @@ KNEE_FOLLOW = 0.7   # 膝が足の向きについていく割合
 NARROW = 0.030      # 足の置き場所を内へ寄せる量（m。基準の姿勢の足の開きを戻す）
 FK_ADDUCT = 5.0     # 回転で書く脚（空中・倒れ）：ももを内へ戻す角度
 BALL, HEEL = 0.185, 0.085
+TOE_TIP = 0.024     # 母指球の回転の軸からつま先の先まで。かかとを上げたとき、つま先の先が床に沈まないよう足を上げる
 
 
 def load_glb(path):
@@ -171,6 +172,8 @@ class Rig:
     def tl(self, name):
         return self.lt[self.idx[name]]
 
+    stretch = {}
+
     def solve(self, pose, clip, lift=0.0):
         """姿勢 → 骨ごとの M（基準からの回転、モデルの軸）と位置 P"""
         M, Pp = {}, {}
@@ -223,10 +226,12 @@ class Rig:
             ank = self.p(ft)
             floor = V(ank[0], 0.0, ank[2])
             piv = floor + fwd * BALL if pitch >= 0 else floor - fwd * HEEL
-            Aw = piv + V(*pose['f' + k]) + V(-side * NARROW, lift, 0) + Mf @ (ank - piv)
+            toe = TOE_TIP * math.sin(math.radians(min(pitch, 90.0))) if pitch > 0 else 0.0
+            Aw = piv + V(*pose['f' + k]) + V(-side * NARROW, lift + toe, 0) + Mf @ (ank - piv)
             v = Aw - H
             d = float(np.linalg.norm(v))
             dirv = v / d
+            self.stretch[k] = d / (L1 + L2)             # 1 を超えると脚が届かず足が浮く
             d = min(max(d, abs(L1 - L2) + 1e-4), L1 + L2 - 1e-4)
             pole = ry(KNEE_FOLLOW * yaw_w + side * KNEE_OUT + pose['k' + k]) @ V(0, 0, 1)
             pp = pole - dirv * np.dot(pole, dirv)
@@ -289,7 +294,7 @@ def bake_clip(rig, clip, report=None):
     times = np.arange(N + 1) / A.FPS
     rot = {n: [] for n in ANIMATED}
     hips_t, root_t = [], []
-    stats = dict(min_all=1e9, min_feet=1e9, min_held=1e9, lift_max=0.0, feet_low_each=[])
+    stats = dict(min_all=1e9, min_feet=1e9, min_held=1e9, lift_max=0.0, feet_low_each=[], stretch=0.0)
     for k in range(N + 1):
         t = float(k) if not (clip.loop and k == N) else 0.0
         pose = clip.pose(t)
@@ -329,6 +334,8 @@ def bake_clip(rig, clip, report=None):
         stats['feet_low_each'].append(min(feet))
         stats['min_held'] = min(stats['min_held'], min([float(v[:, 1].min()) for _n, h, v, _m in vs2 if h] or [1e9]))
         stats['lift_max'] = max(stats['lift_max'], abs(lift))
+        if clip.legs != 'fk':
+            stats['stretch'] = max(stats['stretch'], max(rig.stretch.values() or [0.0]))
     if report is not None:
         report[clip.name] = stats
     return times, rot, np.array(hips_t), np.array(root_t)
@@ -389,8 +396,9 @@ def main():
     if args.report:
         for n, s in rep.items():
             touch = min(s['feet_low_each'])
-            print('  %-7s frames %3d  min all %+.3f  feet %+.3f..%+.3f  held %+.3f  lift %.3f' % (
-                n, clips[n].frames, s['min_all'], touch, max(s['feet_low_each']), s['min_held'], s['lift_max']))
+            print('  %-7s frames %3d  min all %+.3f  feet %+.3f..%+.3f  held %+.3f  lift %.3f  leg %.2f%s' % (
+                n, clips[n].frames, s['min_all'], touch, max(s['feet_low_each']), s['min_held'], s['lift_max'], s['stretch'],
+                '  ← 脚が届かない' if s['stretch'] > 1.0 else ''))
 
 
 if __name__ == '__main__':
