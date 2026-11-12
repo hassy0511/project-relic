@@ -2,6 +2,7 @@
 //
 //   node tools/blender/trial_f/motion_sheet.mjs [--glb build/f/haru_f.glb] [--clips combo1,combo2] [--out build/f/motion]
 //        [--every 1] [--frames 0-10] [--views back,left,front] [--tile 200]
+//        視点：back・left・right・front・top、game（ゲームのカメラ：真後ろ 5.5 m・高さ 1.4 m を見下ろし 12 度）、near（壁に押されて 2.6 m に寄ったとき）、"方位:仰角"
 //
 // three.js は build/f/three（npm pack three@0.160.0 を展開）から読む。無ければ取り寄せる。
 import { chromium } from 'playwright';
@@ -52,6 +53,8 @@ window.ready = new Promise((res) => new GLTFLoader().load('/model.glb', (g) => {
 function setView(v) {
   const el = 12 * Math.PI / 180;
   if (v === 'back') { cam.fov = 21; cam.position.set(0, 0.95 + 5.5 * Math.sin(el), -5.5 * Math.cos(el)); cam.lookAt(0, 0.85, 0.15); }
+  else if (v === 'game' || v === 'near') { const d = v === 'game' ? 5.5 : 2.6; cam.fov = v === 'game' ? 21 : 44;
+    cam.position.set(0, 1.4 + d * Math.sin(el), -d * Math.cos(el)); cam.lookAt(0, v === 'game' ? 0.85 : 0.95, 0.15); }
   else if (v === 'left') { cam.fov = 21; cam.position.set(5.6, 0.95, 0.15); cam.lookAt(0, 0.85, 0.15); }
   else if (v === 'right') { cam.fov = 21; cam.position.set(-5.6, 0.95, 0.15); cam.lookAt(0, 0.85, 0.15); }
   else if (v === 'front') { cam.fov = 21; cam.position.set(0, 1.0, 5.8); cam.lookAt(0, 0.85, 0.1); }
