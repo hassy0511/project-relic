@@ -23,7 +23,14 @@ SPINE = [('spine', 'sp'), ('chest', 'ch'), ('neck', 'nk'), ('head', 'hd')]
 STATIC = ['hair.front', 'hair.top', 'hair.back.L', 'hair.back.R', 'hair.nape', 'hair.side.L', 'hair.side.R', 'pouch.L', 'pouch.R']
 ANIMATED = ['hips', 'spine', 'chest', 'neck', 'head', 'shoulder.L', 'upper_arm.L', 'forearm.L', 'hand.L', 'shoulder.R', 'upper_arm.R',
             'forearm.R', 'hand.R', 'thigh.L', 'shin.L', 'foot.L', 'thigh.R', 'shin.R', 'foot.R']
-TOE_OUT = 8.0
+# 脚の向き：基準の姿勢（絵の A の姿勢）は足を開いてつま先・膝が外を向く。動作ではそれを戻す
+MESH_TOE = 13.0     # 靴のメッシュが基準の姿勢で外を向く角度
+REST_KNEE = 9.0     # 膝当て・すね当てが基準の姿勢で外を向く角度
+TOE_OUT = 5.0       # 足の向きの既定（姿勢の yaw 0 で、つま先がこれだけ外を向く）
+KNEE_OUT = 1.0      # 膝の向きの既定（外へ）
+KNEE_FOLLOW = 0.7   # 膝が足の向きについていく割合
+NARROW = 0.030      # 足の置き場所を内へ寄せる量（m。基準の姿勢の足の開きを戻す）
+FK_ADDUCT = 5.0     # 回転で書く脚（空中・倒れ）：ももを内へ戻す角度
 BALL, HEEL = 0.185, 0.085
 
 
@@ -154,10 +161,11 @@ class Rig:
             self.arm_rest[sfx] = (frame(u1, V(0, 0, 1)), frame(u2, V(side, 0, 0)))
         self.leg_rest = {}
         for side, sfx in ((1, '.L'), (-1, '.R')):
-            fwd = ry(side * TOE_OUT) @ V(0, 0, 1)
+            kfwd = ry(side * REST_KNEE) @ V(0, 0, 1)        # 基準の姿勢での膝の正面
+            fwd = ry(side * MESH_TOE) @ V(0, 0, 1)          # 基準の姿勢での靴の正面（かかと・爪先の回る軸に使う）
             u1 = nrm(p('shin' + sfx) - p('thigh' + sfx))
             u2 = nrm(p('foot' + sfx) - p('shin' + sfx))
-            self.leg_rest[sfx] = (frame(u1, fwd), frame(u2, fwd), fwd,
+            self.leg_rest[sfx] = (frame(u1, kfwd), frame(u2, kfwd), fwd,
                                   float(np.linalg.norm(p('shin' + sfx) - p('thigh' + sfx))), float(np.linalg.norm(p('foot' + sfx) - p('shin' + sfx))))
 
     def tl(self, name):
@@ -202,24 +210,25 @@ class Rig:
             H = Pp['hips'] + G('hips') @ self.tl(th)
             Pp[th] = H
             if clip.legs == 'fk':
-                M[th] = M['hips'] @ euler(pose['t' + k])
+                M[th] = M['hips'] @ euler(pose['t' + k]) @ rz(-side * FK_ADDUCT)
                 M[shn] = M[th] @ euler(pose['s' + k])
-                M[ft] = M[shn] @ euler(pose['ft' + k])
+                M[ft] = M[shn] @ euler(pose['ft' + k]) @ ry(-side * (MESH_TOE - TOE_OUT))
                 Pp[shn] = H + G(th) @ self.tl(shn)
                 Pp[ft] = Pp[shn] + G(shn) @ self.tl(ft)
                 continue
             F1r, F2r, fwd, L1, L2 = self.leg_rest[sfx]
             pitch, yaw, roll = pose['f%sr' % k]
-            Mf = ry(yaw) @ rx(pitch) @ rz(roll)
+            yaw_w = yaw + side * TOE_OUT                     # つま先の向き（モデルの座標。正で本人の左）
+            Mf = ry(yaw_w - side * MESH_TOE) @ rx(pitch) @ rz(roll)
             ank = self.p(ft)
             floor = V(ank[0], 0.0, ank[2])
             piv = floor + fwd * BALL if pitch >= 0 else floor - fwd * HEEL
-            Aw = piv + V(*pose['f' + k]) + V(0, lift, 0) + Mf @ (ank - piv)
+            Aw = piv + V(*pose['f' + k]) + V(-side * NARROW, lift, 0) + Mf @ (ank - piv)
             v = Aw - H
             d = float(np.linalg.norm(v))
             dirv = v / d
             d = min(max(d, abs(L1 - L2) + 1e-4), L1 + L2 - 1e-4)
-            pole = ry(yaw + side * TOE_OUT + pose['k' + k]) @ V(0, 0, 1)
+            pole = ry(KNEE_FOLLOW * yaw_w + side * KNEE_OUT + pose['k' + k]) @ V(0, 0, 1)
             pp = pole - dirv * np.dot(pole, dirv)
             pp = nrm(pp)
             a = (L1 * L1 - L2 * L2 + d * d) / (2 * d)
