@@ -352,9 +352,10 @@ func start_game(save) -> void:
 
 
 ## ハルのモデル：r = 絵から起こしたもの（既定）、a = 箱の組み合わせの試作、proxy = MVP の仮、b = AI 変換、
-## bs = 外部の Blender スキル集（arjun988/blender-skills）の手順で別に作った試作
+## bs = 外部の Blender スキル集（arjun988/blender-skills）の手順で別に作った試作、
+## f = Codex の絵から Fable 5.2 が自分の作り方で別に作った試作（tools/blender/trial_f/）
 func _haru_path(key: String) -> String:
-	var model: String = {"a": "haru_a", "proxy": "haru_proxy", "b": "haru_b", "bs": "haru_bs"}.get(key, "haru_r")
+	var model: String = {"a": "haru_a", "proxy": "haru_proxy", "b": "haru_b", "bs": "haru_bs", "f": "haru_f"}.get(key, "haru_r")
 	var path := "res://assets/models/%s.glb" % model
 	if not ResourceLoader.exists(path):
 		path = "res://assets/models/haru_a.glb"

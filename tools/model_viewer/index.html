@@ -31,6 +31,13 @@ model-viewer { width:100%; height:min(70vh, 640px); background:var(--stage); bor
 .bar select, .bar button { font:inherit; font-size:.9em; padding:.25em .5em; border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:4px; }
 .bar label { display:flex; gap:4px; align-items:center; font-size:.9em; }
 #frame { display:flex; gap:8px; align-items:center; font-size:.9em; }
+.stage { display:flex; gap:8px; }
+.pane { flex:1; min-width:0; position:relative; }
+.pane[hidden] { display:none; }
+.tag { position:absolute; left:8px; top:6px; z-index:2; font-size:.85em; background:var(--card); border:1px solid var(--line); border-radius:4px; padding:.1em .5em; pointer-events:none; }
+.tag:empty { display:none; }
+#time { font-variant-numeric:tabular-nums; color:var(--muted); font-size:.9em; min-width:9.5em; }
+@media (max-width:700px) { .stage.two { flex-direction:column; } .stage.two model-viewer { height:min(40vh, 400px); } }
 #frame[hidden] { display:none; }
 .note { color:var(--muted); font-size:.9em; overflow-wrap:anywhere; }
 .note a { color:var(--accent); }
@@ -39,9 +46,22 @@ model-viewer { width:100%; height:min(70vh, 640px); background:var(--stage); bor
 <body><main>
 <h1>アークウォーカー 3D モデル<a href="../dashboard/">ダッシュボードへ</a></h1>
 <div class="list" id="list"></div>
-<model-viewer id="mv" camera-orbit="35deg 75deg auto" camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1" environment-image="neutral" interaction-prompt="none" autoplay></model-viewer>
+<div class="stage" id="stage">
+  <div class="pane"><span class="tag" id="tag1"></span>
+    <model-viewer id="mv" camera-orbit="35deg 75deg auto" camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1" environment-image="neutral" interaction-prompt="none" autoplay></model-viewer></div>
+  <div class="pane" id="pane2" hidden><span class="tag" id="tag2"></span>
+    <model-viewer id="mv2" camera-orbit="35deg 75deg auto" camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1" environment-image="neutral" interaction-prompt="none" autoplay></model-viewer></div>
+</div>
 <div class="bar">
   <label>動作 <select id="anim"></select></label>
+  <label>並べて比べる <select id="cmp"><option value="">（なし）</option></select></label>
+  <label>速さ <select id="speed"><option value="1">1 倍</option><option value="0.5">1/2</option><option value="0.25">1/4</option><option value="0.1">1/10</option></select></label>
+  <button id="pause">止める</button>
+  <button id="stepb" title="1 こま戻す（1/60 秒）">◀ 1 こま</button>
+  <button id="stepf" title="1 こま進める（1/60 秒）">1 こま ▶</button>
+  <span id="time"></span>
+</div>
+<div class="bar">
   <label><input type="checkbox" id="rotate"> 回す</label>
   <button id="reset">視点を戻す</button>
   <span id="frame" hidden>フレーム
@@ -50,7 +70,7 @@ model-viewer { width:100%; height:min(70vh, 640px); background:var(--stage); bor
     <label><input type="checkbox" data-g="legs" checked> 脚</label></span>
 </div>
 <p class="note" id="note"></p>
-<p class="note">ドラッグで回す、ピンチ・ホイールで寄る、2 本指・右ドラッグで動かす。ゲームの中の見た目（光・塗り方）とは少し違う。</p>
+<p class="note">ドラッグで回す、ピンチ・ホイールで寄る、2 本指・右ドラッグで動かす。「並べて比べる」で 2 体を並べると、視点・動作・速さ・こま送りが両方に同じように効く。ゲームの中の見た目（光・塗り方）とは少し違う。</p>
 </main>
 <script>
 const REPO = 'https://github.com/hassy0511/project-relic/blob/claude/busy-bell-oagnck/docs/art_orders/';
@@ -82,6 +102,7 @@ const MODELS = [
   ['ordo', '巡礼機オルド', '背景の機械', '全長 400 m・背の歩行面まで 120 m・脚 8 本（肩まで 85 m）。町を背に載せて歩く機械。肩・膝・足首・禁足扉・リフトは部品として動かせる（このページでは 8 本とも接地した停止の姿勢。歩き方はゲームの中で付ける：ordo_view.gd）', 'W2_オルド3D化の結果.md'],
   ['haru_a', 'ハル（以前の試作）', '以前の試作', 'ゲームで F2 を押すと切り替わる版', ''],
   ['haru_bs', 'ハル（スキル集の試作）', 'スキル集の試し', '外部の Blender スキル集（arjun988/blender-skills）の手順で、haru_r とは別に作った試し（haru_r は変えていない）。高さ 155cm、三角形 9,621、動作 14 種（haru_r と同じ名前・長さ）、外装フレームは胴・腕・脚ごとに出し入れできる。ゲームでは -- --haru=bs で使える', 'W1_ハル_blender-skills試作.md'],
+  ['haru_f', 'ハル（Fable の試作）', 'Fable の試し', 'Codex の絵から、Fable 5.2 が自分の作り方で別に作ったハル（haru_r は変えていない）。高さ 155cm、動作 14 種（haru_r と同じ名前・長さ）、外装フレームは胴・腕・脚ごとに出し入れできる。ゲームでは -- --haru=f で使える', 'W1_ハル_Fable試作.md'],
   ['kit_ruins_b1', '遺構 B1 のキット', '部屋のキット', '外殻層の部品 30 個（壁・扉・柱・梁・管・手すり・灯・溝の縁の壁の灯・箱・砂・床のケーブル・大型ファン・割れ目など。2 m の格子）。部屋への置き方は docs/design/42_コンテンツの書き方.md 14 章', ''],
   ['kit_ruins_b2', '遺構 B2 のキット', '部屋のキット', '配管層の部品 22 個（太い管を半分埋めた壁・白磁の柱と赤い非常灯・扉・梁・太い管・手すり・床の排水溝・低い琥珀の道標・天井の赤い非常灯・蒸気・弁の輪・追跡通路の配管の壁・縦の配管の束・濡れた床・封印室の台座と可動リング）。作り方は tools/blender/kit/ruins_b2.py、置き方は tools/dress_ruins_deep.py と docs/design/43_遺構の見た目.md', ''],
   ['kit_ruins_b3', '遺構 B3 のキット', '部屋のキット', '駆動層の部品 15 個（琥珀の導光管の壁と柱・扉・梁・管・床の縁の駆動梁・大小の歯車・ピストン・縦の梁・手すり・昇降台の枠・動力の球の台座）。B4 の部屋もこの部品を B4 の色で使う。作り方は tools/blender/kit/ruins_b3.py', ''],
@@ -93,10 +114,23 @@ const MODELS = [
 ];
 
 const mv = document.getElementById('mv');
+const mv2 = document.getElementById('mv2');
+const stage = document.getElementById('stage');
+const pane2 = document.getElementById('pane2');
+const tag1 = document.getElementById('tag1');
+const tag2 = document.getElementById('tag2');
 const list = document.getElementById('list');
 const animSel = document.getElementById('anim');
+const cmpSel = document.getElementById('cmp');
+const speedSel = document.getElementById('speed');
+const pauseBtn = document.getElementById('pause');
+const timeLabel = document.getElementById('time');
 const note = document.getElementById('note');
 const buttons = new Map();
+const query = new URLSearchParams(location.search);
+let current = '';
+let paused = false;
+let wantAnim = query.get('a') || 'idle';
 
 const groups = new Map();
 for (const m of MODELS) {
@@ -112,30 +146,64 @@ for (const m of MODELS) {
   b.onclick = () => show(m[0]);
   groups.get(m[2]).appendChild(b);
   buttons.set(m[0], b);
+  // 比べる相手：動作のある人物（キャラクター・試作）
+  if (/キャラクター|試作|試し|住人/.test(m[2])) cmpSel.add(new Option(m[1], m[0]));
+}
+
+// いま見せている画面（比べていないときは 1 つ）
+const viewers = () => (pane2.hidden ? [mv] : [mv, mv2]);
+
+function setUrl() {
+  const q = new URLSearchParams();
+  q.set('m', current);
+  if (cmpSel.value) q.set('c', cmpSel.value);
+  if (cmpSel.value && animSel.value && animSel.value !== 'idle') q.set('a', animSel.value);
+  history.replaceState(null, '', `?${q}`);
 }
 
 function show(id) {
   const m = MODELS.find((x) => x[0] === id) || MODELS[0];
+  current = m[0];
   for (const [k, b] of buttons) b.classList.toggle('on', k === m[0]);
   mv.src = `${m[0]}.glb`;
   mv.alt = m[1];
+  tag1.textContent = pane2.hidden ? '' : m[1];
   const doc = m[4] ? `　<a href="${REPO}${encodeURIComponent(m[4])}">結果の文書</a>` : '';
   note.innerHTML = `${m[1]}（<code>${m[0]}.glb</code>）${m[3] ? '：' + m[3] : ''}${doc}`;
   animSel.innerHTML = '<option>読み込み中…</option>';
-  history.replaceState(null, '', `?m=${m[0]}`);
+  setUrl();
 }
+
+function showCompare(id) {
+  const m = MODELS.find((x) => x[0] === id);
+  pane2.hidden = !m;
+  stage.classList.toggle('two', !!m);
+  cmpSel.value = m ? m[0] : '';
+  if (m) {
+    mv2.src = `${m[0]}.glb`;
+    mv2.alt = m[1];
+    tag2.textContent = m[1];
+  } else {
+    mv2.removeAttribute('src');
+  }
+  const cur = MODELS.find((x) => x[0] === current);
+  tag1.textContent = m && cur ? cur[1] : '';
+  if (!m) { mv.cameraOrbit = '35deg 75deg auto'; mv.cameraTarget = 'auto auto auto'; mv.fieldOfView = 'auto'; }
+  setUrl();
+}
+cmpSel.onchange = () => showCompare(cmpSel.value);
 
 // 外装フレームの段：モデルの中の Frame_<群> の物体を出し入れする（three.js の場面を直接さわる）
 const frameBox = document.getElementById('frame');
 const frameChecks = [...frameBox.querySelectorAll('input')];
-const urlFrame = new URLSearchParams(location.search).get('frame');
+const urlFrame = query.get('frame');
 if (urlFrame !== null) {
   const on = urlFrame === 'none' ? [] : urlFrame.split(',');
   for (const c of frameChecks) c.checked = on.includes(c.dataset.g);
 }
-function frameNodes() {
-  const sym = Object.getOwnPropertySymbols(mv).find((q) => q.description === 'scene');
-  const scene = sym && mv[sym];
+function frameNodes(v) {
+  const sym = Object.getOwnPropertySymbols(v).find((q) => q.description === 'scene');
+  const scene = sym && v[sym];
   const found = {};
   if (scene) scene.traverse((o) => {
     const m = /^Frame_(core|arm|legs)$/.exec(o.name);
@@ -145,29 +213,110 @@ function frameNodes() {
   return [scene, found];
 }
 function applyFrame() {
-  const [scene, found] = frameNodes();
-  frameBox.hidden = !(found.core || found.arm || found.legs);
-  for (const c of frameChecks) if (found[c.dataset.g]) found[c.dataset.g].visible = c.checked;
-  // 光刃は左の籠手（腕の群）から出る：籠手を外したら刃も隠す
-  if (found.arm && found.blade) found.blade.visible = frameChecks.find((c) => c.dataset.g === 'arm').checked;
-  if (scene && scene.queueRender) scene.queueRender();
+  let any = false;
+  for (const v of viewers()) {
+    const [scene, found] = frameNodes(v);
+    any = any || !!(found.core || found.arm || found.legs);
+    for (const c of frameChecks) if (found[c.dataset.g]) found[c.dataset.g].visible = c.checked;
+    // 光刃は左の籠手（腕の群）から出る：籠手を外したら刃も隠す
+    if (found.arm && found.blade) found.blade.visible = frameChecks.find((c) => c.dataset.g === 'arm').checked;
+    if (scene && scene.queueRender) scene.queueRender();
+  }
+  frameBox.hidden = !any;
 }
 for (const c of frameChecks) c.onchange = applyFrame;
 
-mv.addEventListener('load', () => {
-  applyFrame();
+// 動作：両方の画面に同じ名前・同じ速さ・同じ時刻で
+function setAnim(name, restart) {
+  for (const v of viewers()) {
+    const names = v.availableAnimations || [];
+    if (!names.length) continue;
+    v.animationName = names.includes(name) ? name : (names.includes('idle') ? 'idle' : names[0]);
+    v.timeScale = parseFloat(speedSel.value);
+    if (restart) v.currentTime = 0;
+    if (paused) v.pause(); else v.play();
+  }
+}
+function fillAnims() {
   const names = mv.availableAnimations || [];
   animSel.innerHTML = names.length ? '' : '<option value="">（動作なし）</option>';
   for (const n of names) animSel.add(new Option(n, n));
-  if (names.includes('idle')) animSel.value = 'idle';
-  mv.animationName = animSel.value || undefined;
-  if (names.length) mv.play();
+  if (names.includes(wantAnim)) animSel.value = wantAnim;
+  else if (names.includes('idle')) animSel.value = 'idle';
+}
+// 比べるとき：2 体を同じ枠で見る（既定の枠はモデルの大きさ・持ち物で変わるので、人物の大きさに合わせた同じ向き・距離・見る所にする）
+const CMP_ORBIT = '35deg 78deg 3.4m';
+const CMP_TARGET = '0m 0.80m 0m';
+function frameBoth(jump) {
+  if (pane2.hidden) return;
+  for (const v of [mv, mv2]) {
+    if (!v.loaded) continue;
+    const size = v.getDimensions();
+    if (size.y > 3) continue;      // 大きな機械はそのまま
+    v.cameraOrbit = CMP_ORBIT; v.cameraTarget = CMP_TARGET; v.fieldOfView = '30deg';
+    if (jump) v.jumpCameraToGoal();
+  }
+}
+mv.addEventListener('load', () => {
+  applyFrame();
+  fillAnims();
+  setAnim(animSel.value, true);
+  frameBoth(true);
 });
-mv.addEventListener('error', () => { note.textContent = `読み込めなかった：${mv.src}`; });
-animSel.onchange = () => { mv.animationName = animSel.value; mv.play(); };
-document.getElementById('rotate').onchange = (e) => { mv.autoRotate = e.target.checked; };
-document.getElementById('reset').onclick = () => { mv.cameraOrbit = '35deg 75deg auto'; mv.cameraTarget = 'auto auto auto'; mv.fieldOfView = 'auto'; mv.jumpCameraToGoal(); };
+mv2.addEventListener('load', () => {
+  applyFrame();
+  setAnim(animSel.value, true);
+  frameBoth(true);
+});
+for (const v of [mv, mv2]) v.addEventListener('error', () => { note.textContent = `読み込めなかった：${v.src}`; });
+animSel.onchange = () => { wantAnim = animSel.value; setAnim(animSel.value, true); setUrl(); };
+speedSel.onchange = () => { for (const v of viewers()) v.timeScale = parseFloat(speedSel.value); };
+function setPaused(p) {
+  paused = p;
+  pauseBtn.textContent = p ? '動かす' : '止める';
+  for (const v of viewers()) { if (p) v.pause(); else v.play(); }
+  if (p && !pane2.hidden) mv2.currentTime = mv.currentTime;
+}
+pauseBtn.onclick = () => setPaused(!paused);
+function step(d) {
+  setPaused(true);
+  const len = mv.duration || 0;
+  let t = mv.currentTime + d / 60;
+  if (len > 0) t = ((t % len) + len) % len;
+  for (const v of viewers()) v.currentTime = Math.min(t, (v.duration || t));
+}
+document.getElementById('stepb').onclick = () => step(-1);
+document.getElementById('stepf').onclick = () => step(1);
+// 2 つの画面の時刻のずれを直し、時刻を表示する
+setInterval(() => {
+  const len = mv.duration || 0;
+  if (!pane2.hidden && !paused && mv2.loaded && mv.loaded && mv.animationName === mv2.animationName) {
+    const d = Math.abs(mv2.currentTime - mv.currentTime);
+    if (d > 0.02 && d < len - 0.04) mv2.currentTime = mv.currentTime;
+  }
+  timeLabel.textContent = len > 0 ? `${mv.currentTime.toFixed(3)} / ${len.toFixed(3)} 秒（${Math.round(mv.currentTime * 60)} こま）` : '';
+}, 200);
 
-show(new URLSearchParams(location.search).get('m') || 'haru_r');
+// 視点：片方を動かしたら、もう片方も同じ向き・距離・画角に
+function linkCamera(a, b) {
+  a.addEventListener('camera-change', (e) => {
+    if (pane2.hidden || !e.detail || e.detail.source !== 'user-interaction') return;
+    const o = a.getCameraOrbit();
+    const t = a.getCameraTarget();
+    b.cameraOrbit = `${o.theta}rad ${o.phi}rad ${o.radius}m`;
+    b.cameraTarget = `${t.x}m ${t.y}m ${t.z}m`;
+    b.fieldOfView = `${a.getFieldOfView()}deg`;
+  });
+}
+linkCamera(mv, mv2);
+linkCamera(mv2, mv);
+document.getElementById('rotate').onchange = (e) => { for (const v of [mv, mv2]) v.autoRotate = e.target.checked; };
+document.getElementById('reset').onclick = () => {
+  for (const v of [mv, mv2]) { v.cameraOrbit = '35deg 75deg auto'; v.cameraTarget = 'auto auto auto'; v.fieldOfView = 'auto'; v.jumpCameraToGoal(); }
+  frameBoth(true);
+};
+
+show(query.get('m') || 'haru_r');
+if (query.get('c')) showCompare(query.get('c'));
 </script>
 </body></html>
